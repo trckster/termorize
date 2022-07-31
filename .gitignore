@@ -1,5 +1,4 @@
 .env
 .idea/
 vendor/
-src/Services/MessageHandler.php
-index.php
+
