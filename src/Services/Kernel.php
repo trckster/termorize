@@ -7,23 +7,19 @@ use Longman\TelegramBot\Exception\TelegramException;
 
 class Kernel
 {
-
     public function run()
     {
-        $bot_username = $_ENV['BOT_USERNAME'];
-        $bot_api_key = $_ENV['BOT_API_KEY'];
-
+        $botUsername = $_ENV['BOT_USERNAME'];
+        $botApiKey = $_ENV['BOT_API_KEY'];
 
         try {
-            $telegram = new Telegram($bot_api_key, $bot_username);
-
+            $telegram = new Telegram($botApiKey, $botUsername);
 
             $telegram->useGetUpdatesWithoutDatabase();
 
             $response = $telegram->handleGetUpdates();
             $result = $response->getResult();
             $handler = new MessageHandler;
-
 
             foreach ($result as $update) {
                 $handler->handle($update);

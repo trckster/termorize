@@ -30,7 +30,6 @@ class MessageHandler
                         'chat_id' => $chatId,
                         'text' => $translationText
                     ]);
-                    break;
             }
         } catch (TelegramException $e){
             echo $e->getMessage();

@@ -4,11 +4,10 @@ namespace Termorize\Services;
 
 use GuzzleHttp\Client;
 
-define("TRANSLATOR_KEY", $_ENV["YANDEX_TRANSLATOR_API_KEY"]);
-
 class Translator
 {
     private Client $httpClient;
+
     public function __construct()
     {
         $this->httpClient = new Client(['base_uri' => 'https://translate.yandex.net/api/v1.5/tr.json/']);
@@ -16,7 +15,7 @@ class Translator
 
     public function defineLang(string $text): string
     {
-        $apiKey = TRANSLATOR_KEY;
+        $apiKey = $_ENV["YANDEX_TRANSLATOR_API_KEY"];
 
         $params = [
             'key' => $apiKey,
@@ -34,11 +33,11 @@ class Translator
 
     public function translate(string $text): string
     {
-        $apiKey = TRANSLATOR_KEY;
+        $apiKey = $_ENV["YANDEX_TRANSLATOR_API_KEY"];
 
         $originTextLang = $this->defineLang($text);
 
-        if ($originTextLang == "ru") {
+        if ($originTextLang === "ru") {
             $translationLang = "en";
         } else {
             $translationLang = "ru";
@@ -52,7 +51,7 @@ class Translator
 
         $query = '?' . http_build_query($params);
 
-        $response = $this->httpClient->get("https://translate.yandex.net/api/v1.5/tr.json/translate?key=$apiKey&text=$text&lang=$translationLang");
+        $response = $this->httpClient->get("https://translate.yandex.net/api/v1.5/tr.json/translate$query");
         $responseContent = json_decode($response->getBody()->getContents(), true);
 
         $translationText = $responseContent["text"][0];
