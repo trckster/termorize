@@ -1,33 +1,37 @@
 <?php
-require_once __DIR__ .'/../../vendor/autoload.php';
-require_once __DIR__.'/Translator.php';
+
+namespace Termorize\Services;
 
 use Longman\TelegramBot\Entities\Update;
 use Longman\TelegramBot\Request;
+use Longman\TelegramBot\Exception\TelegramException;
 
 class MessageHandler
 {
-    public function handle(\Longman\TelegramBot\Entities\Update $update){
+    public function handle(Update $update): void
+    {
         try {
             $message = $update->getMessage();
-            $chat_id = $update->getMessage()->getChat()->getId();
+            $chatId = $update->getMessage()->getChat()->getId();
             $text = $message->getText();
 
-            if ($text == '/start')
-            {
-                Request::sendMessage([
-                    'chat_id' => $chat_id,
-                    'text' => "Отправь мне любое слово и я его переведу."
-                ]);
-            } else {
-                $translation_text = Translator::translate($text);
-                Request::sendMessage([
-                    'chat_id' => $chat_id,
-                    'text' => $translation_text
-                ]);
+            switch($text){
+                case "/start":
+                    Request::sendMessage([
+                        'chat_id' => $chatId,
+                        'text' => "Отправь мне любое слово и я его переведу."
+                    ]);
+                    break;
 
+                default:
+                    $translator = new Translator;
+                    $translationText = $translator->translate($text);
+                    Request::sendMessage([
+                        'chat_id' => $chatId,
+                        'text' => $translationText
+                    ]);
             }
-        } catch (Longman\TelegramBot\Exception\TelegramException $e){
+        } catch (TelegramException $e){
             echo $e->getMessage();
         }
 

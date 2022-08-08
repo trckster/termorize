@@ -1,7 +1,13 @@
 {
     "require": {
+        "php": ">=8.1",
         "longman/telegram-bot": "^0.78.0",
-        "guzzlehttp/guzzle": "^7.4",
-        "vlucas/phpdotenv": "^5.4"
+        "vlucas/phpdotenv": "^5.4",
+        "guzzlehttp/guzzle": "^7.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Termorize\\": "src/"
+        }
     }
 }
