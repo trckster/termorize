@@ -6,6 +6,9 @@
         "guzzlehttp/guzzle": "^7.4"
     },
     "autoload": {
+        "files": [
+            "src/Helpers/helpers.php"
+        ],
         "psr-4": {
             "Termorize\\": "src/"
         }

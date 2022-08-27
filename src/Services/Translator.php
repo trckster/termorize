@@ -15,7 +15,7 @@ class Translator
 
     public function defineLang(string $text): string
     {
-        $apiKey = $_ENV["YANDEX_TRANSLATOR_API_KEY"];
+        $apiKey = env("YANDEX_TRANSLATOR_API_KEY");
 
         $params = [
             'key' => $apiKey,
@@ -33,7 +33,7 @@ class Translator
 
     public function translate(string $text): string
     {
-        $apiKey = $_ENV["YANDEX_TRANSLATOR_API_KEY"];
+        $apiKey = env("YANDEX_TRANSLATOR_API_KEY");
 
         $originTextLang = $this->defineLang($text);
 

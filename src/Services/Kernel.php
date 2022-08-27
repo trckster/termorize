@@ -9,8 +9,8 @@ class Kernel
 {
     public function run()
     {
-        $botUsername = $_ENV['BOT_USERNAME'];
-        $botApiKey = $_ENV['BOT_API_KEY'];
+        $botUsername = env('BOT_USERNAME');
+        $botApiKey = env('BOT_API_KEY');
 
         try {
             $telegram = new Telegram($botApiKey, $botUsername);

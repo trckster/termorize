@@ -8,7 +8,7 @@ use Termorize\Services\Translator;
 
 class TranslateCommand
 {
-    public static function execute(string $text, string $chatId)
+    public static function execute(string $text, string $chatId) : void
     {
         try {
             $translator = new Translator;
