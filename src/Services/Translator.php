@@ -3,6 +3,7 @@
 namespace Termorize\Services;
 
 use GuzzleHttp\Client;
+use Termorize\Services\LanguageIdentifier;
 
 class Translator
 {
@@ -13,29 +14,11 @@ class Translator
         $this->httpClient = new Client(['base_uri' => 'https://translate.yandex.net/api/v1.5/tr.json/']);
     }
 
-    public function defineLang(string $text): string
-    {
-        $apiKey = env("YANDEX_TRANSLATOR_API_KEY");
-
-        $params = [
-            'key' => $apiKey,
-            'text' => $text,
-            'hint' => ['en', 'ru'],
-        ];
-
-        $query = '?' . http_build_query($params);
-
-        $response = $this->httpClient->get("https://translate.yandex.net/api/v1.5/tr.json/detect$query");
-        $responseContent = json_decode($response->getBody()->getContents(), true);
-
-        return $responseContent["lang"];
-    }
-
     public function translate(string $text): string
     {
         $apiKey = env("YANDEX_TRANSLATOR_API_KEY");
 
-        $originTextLang = $this->defineLang($text);
+        $originTextLang = LanguageIdentifier::identify($text);
 
         if ($originTextLang === "ru") {
             $translationLang = "en";
