@@ -3,7 +3,6 @@
 namespace Termorize\Services;
 
 use GuzzleHttp\Client;
-use Termorize\Services\LanguageIdentifier;
 
 class Translator
 {
