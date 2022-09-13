@@ -1,6 +1,11 @@
 <?php
+require_once __DIR__."/../../vendor/autoload.php";
+
+use Termorize\Migrations\TelegramMigration;
+use Termorize\Migrations\TranslateModelMigration;
 
 $kernel = new Termorize\Services\Kernel;
 $kernel->connectDatabase();
 
-Termorize\Migrations\TelegramMigration::migrate();
+TelegramMigration::migrate();
+TranslateModelMigration::migrate();
