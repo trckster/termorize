@@ -2,13 +2,16 @@
 
 namespace Termorize\Services;
 
+require_once getBasePath("vendor/autoload.php");
+
+use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Longman\TelegramBot\Telegram;
 use Longman\TelegramBot\Exception\TelegramException;
 
 class Kernel
 {
-    public function run()
+    public function run() : void
     {
         $botUsername = env('BOT_USERNAME');
         $botApiKey = env('BOT_API_KEY');
@@ -19,6 +22,8 @@ class Kernel
             'password' => env("DATABASE_PASSWORD"),
             'database' => env("DATABASE"),
         ];
+
+        $this->connectDatabase();
 
         try {
             $telegram = new Telegram($botApiKey, $botUsername);
@@ -36,7 +41,15 @@ class Kernel
             echo $e->getMessage();
         }
     }
-    public function connectDatabase(){
+    public function connectDatabase() : void
+    {
+
+        if(empty($_ENV))
+        {
+            $dotenv = Dotenv::createImmutable(__DIR__.'/../../');
+            $dotenv->load();
+        }
+
         $capsule = new Capsule;
 
         $capsule->addConnection([
@@ -51,5 +64,6 @@ class Kernel
         ]);
 
         $capsule->setAsGlobal();
+        $capsule->bootEloquent();
     }
 }

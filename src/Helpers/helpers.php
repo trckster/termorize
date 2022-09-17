@@ -10,3 +10,8 @@ function stringToArray(string $str) : array
     }
     return $answer;
 }
+
+function getBasePath(string $subDir = ''): string
+{
+    return __DIR__."/../../".$subDir;
+}

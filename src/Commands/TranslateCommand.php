@@ -10,9 +10,11 @@ class TranslateCommand
 {
     public static function execute(string $text, string $chatId) : void
     {
-        try {
+        try
+        {
             $translator = new Translator;
             $translationText = $translator->translate($text);
+
             Request::sendMessage([
                 'chat_id' => $chatId,
                 'text' => $translationText

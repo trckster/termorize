@@ -7,7 +7,7 @@ use Illuminate\Database\Capsule\Manager;
 class TranslateModelMigration
 {
 
-    public static function migrate()
+    public static function migrate() : void
     {
         $connection = Manager::connection();
 
