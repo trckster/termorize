@@ -3,6 +3,7 @@
 namespace Termorize\Services;
 
 use GuzzleHttp\Client;
+use Termorize\Models\Translation;
 
 class Translator
 {
@@ -13,48 +14,42 @@ class Translator
         $this->httpClient = new Client(['base_uri' => 'https://translate.yandex.net/api/v1.5/tr.json/']);
     }
 
-    public function defineLang(string $text): string
-    {
-        $apiKey = $_ENV["YANDEX_TRANSLATOR_API_KEY"];
-
-        $params = [
-            'key' => $apiKey,
-            'text' => $text,
-            'hint' => ['en', 'ru'],
-        ];
-
-        $query = '?' . http_build_query($params);
-
-        $response = $this->httpClient->get("https://translate.yandex.net/api/v1.5/tr.json/detect$query");
-        $responseContent = json_decode($response->getBody()->getContents(), true);
-
-        return $responseContent["lang"];
-    }
-
     public function translate(string $text): string
     {
-        $apiKey = $_ENV["YANDEX_TRANSLATOR_API_KEY"];
-
-        $originTextLang = $this->defineLang($text);
-
-        if ($originTextLang === "ru") {
-            $translationLang = "en";
+        if (Translation::query()->where('original_text', $text)->exists())
+        {
+            $translationText = Translation::query()->where('original_text', $text)->value('translation_text');
         } else {
-            $translationLang = "ru";
+            $apiKey = env('YANDEX_TRANSLATOR_API_KEY');
+
+            $originTextLang = LanguageIdentifier::identify($text);
+
+            if ($originTextLang === 'ru') {
+                $translationLang = 'en';
+            } else {
+                $translationLang = 'ru';
+            }
+
+            $params = [
+                'key' => $apiKey,
+                'text' => $text,
+                'lang' => $translationLang,
+            ];
+
+            $query = '?' . http_build_query($params);
+
+            $response = $this->httpClient->get("https://translate.yandex.net/api/v1.5/tr.json/translate$query");
+            $responseContent = json_decode($response->getBody()->getContents(), true);
+
+            $translationText = $responseContent['text'][0];
+
+            Translation::query()->create([
+                'original_text' => $text,
+                'translation_text' => $translationText,
+                'original_lang' => $originTextLang,
+                'translation_lang' => $translationLang
+            ]);
         }
-
-        $params = [
-            'key' => $apiKey,
-            'text' => $text,
-            'lang' => $translationLang,
-        ];
-
-        $query = '?' . http_build_query($params);
-
-        $response = $this->httpClient->get("https://translate.yandex.net/api/v1.5/tr.json/translate$query");
-        $responseContent = json_decode($response->getBody()->getContents(), true);
-
-        $translationText = $responseContent["text"][0];
 
         return $translationText;
     }
