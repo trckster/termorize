@@ -7,14 +7,14 @@ use Longman\TelegramBot\Exception\TelegramException;
 
 class DefaultCommand
 {
-    public static function execute(string $chatId): void
+    public static function execute(string $chatId) : void
     {
-        try {
+        try{
             Request::sendMessage([
                 'chat_id' => $chatId,
-                'text' => 'Такой команды нет, попробуйте ввести другую'
+                'text' => "Такой команды нет, попробуйте ввести другую"
             ]);
-        } catch (TelegramException $e) {
+        } catch (TelegramException $e){
             echo $e->getMessage();
         }
     }

@@ -16,7 +16,8 @@ class Translator
 
     public function translate(string $text): string
     {
-        if (Translation::query()->where('original_text', $text)->exists()) {
+        if (Translation::query()->where('original_text', $text)->exists())
+        {
             $translationText = Translation::query()->where('original_text', $text)->value('translation_text');
         } else {
             $apiKey = env('YANDEX_TRANSLATOR_API_KEY');

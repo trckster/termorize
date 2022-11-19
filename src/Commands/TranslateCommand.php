@@ -8,10 +8,11 @@ use Termorize\Services\Translator;
 
 class TranslateCommand
 {
-    public static function execute(string $text, string $chatId): void
+    public static function execute(string $text, string $chatId) : void
     {
-        try {
-            $translator = new Translator();
+        try
+        {
+            $translator = new Translator;
             $translationText = $translator->translate($text);
 
             Request::sendMessage([
