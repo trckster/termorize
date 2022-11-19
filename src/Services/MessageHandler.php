@@ -2,7 +2,9 @@
 
 namespace Termorize\Services;
 
-use Termorize\Commands;
+use Termorize\Commands\StartCommand;
+use Termorize\Commands\TranslateCommand;
+use Termorize\Commands\DefaultCommand;
 use Longman\TelegramBot\Entities\Update;
 use Longman\TelegramBot\Exception\TelegramException;
 
@@ -10,26 +12,24 @@ class MessageHandler
 {
     public function handle(Update $update): void
     {
-        try
-        {
+        try {
             $message = $update->getMessage();
             $chatId = $update->getMessage()->getChat()->getId();
             $text = $message->getText();
 
-            switch($text){
+            switch($text) {
                 case '/start':
-                    Commands\StartCommand::execute($chatId);
+                    StartCommand::execute($chatId);
                     break;
 
                 case $text[0] != '/':
-                    Commands\TranslateCommand::execute($text, $chatId);
+                    TranslateCommand::execute($text, $chatId);
                     break;
                 default:
-                    Commands\DefaultCommand::execute($chatId);
+                    DefaultCommand::execute($chatId);
             }
-        } catch (TelegramException $e){
+        } catch (TelegramException $e) {
             echo $e->getMessage();
         }
-
     }
 }

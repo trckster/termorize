@@ -2,7 +2,7 @@
 
 namespace Termorize\Services;
 
-require_once getBasePath("vendor/autoload.php");
+require_once getBasePath('vendor/autoload.php');
 
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -11,16 +11,16 @@ use Longman\TelegramBot\Exception\TelegramException;
 
 class Kernel
 {
-    public function run() : void
+    public function run(): void
     {
         $botUsername = env('BOT_USERNAME');
         $botApiKey = env('BOT_API_KEY');
 
         $mysql_credentials = [
-            'host'     => env("DATABASE_HOST"),
-            'user'     => env("DATABASE_USERNAME"),
-            'password' => env("DATABASE_PASSWORD"),
-            'database' => env("DATABASE"),
+            'host'     => env('DATABASE_HOST'),
+            'user'     => env('DATABASE_USERNAME'),
+            'password' => env('DATABASE_PASSWORD'),
+            'database' => env('DATABASE'),
         ];
 
         $this->connectDatabase();
@@ -32,7 +32,7 @@ class Kernel
 
             $response = $telegram->handleGetUpdates();
             $result = $response->getResult();
-            $handler = new MessageHandler;
+            $handler = new MessageHandler();
 
             foreach ($result as $update) {
                 $handler->handle($update);
@@ -41,23 +41,21 @@ class Kernel
             echo $e->getMessage();
         }
     }
-    public function connectDatabase() : void
+    public function connectDatabase(): void
     {
-
-        if(empty($_ENV))
-        {
+        if (empty($_ENV)) {
             $dotenv = Dotenv::createImmutable(__DIR__.'/../../');
             $dotenv->load();
         }
 
-        $capsule = new Capsule;
+        $capsule = new Capsule();
 
         $capsule->addConnection([
             'driver' => 'mysql',
-            'host' => env("DATABASE_HOST"),
-            'database' => env("DATABASE"),
-            'username' => env("DATABASE_USERNAME"),
-            'password' => env("DATABASE_PASSWORD"),
+            'host' => env('DATABASE_HOST'),
+            'database' => env('DATABASE'),
+            'username' => env('DATABASE_USERNAME'),
+            'password' => env('DATABASE_PASSWORD'),
             'charset' => 'utf8',
             'collation' => 'utf8_unicode_ci',
             'prefix' => '',
