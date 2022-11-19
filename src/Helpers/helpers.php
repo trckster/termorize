@@ -8,10 +8,11 @@ function stringToArray(string $str) : array
     {
         $answer[] = $str[$i];
     }
+
     return $answer;
 }
 
 function getBasePath(string $subDir = ''): string
 {
-    return __DIR__."/../../".$subDir;
+    return __DIR__.'/../../'.$subDir;
 }
