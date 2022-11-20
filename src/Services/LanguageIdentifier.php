@@ -2,8 +2,6 @@
 
 namespace Termorize\Services;
 
-
-
 class LanguageIdentifier
 {
     public const CYRILLIC_SYMBOLS = "йцукенгшщзхъфывапролджэячсмитьбюёЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЮЯБЧЬСТМИЁ";

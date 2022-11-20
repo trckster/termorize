@@ -7,7 +7,7 @@ use Longman\TelegramBot\Exception\TelegramException;
 
 class StartCommand
 {
-    public static function execute(string $chatId): void
+    public function execute(string $chatId): void
     {
         try {
             Request::sendMessage([

@@ -13,5 +13,9 @@
         "psr-4": {
             "Termorize\\": "src/"
         }
+    },
+    "require-dev": {
+        "mockery/mockery": "^1.5",
+        "phpunit/phpunit": "^9.5"
     }
 }
