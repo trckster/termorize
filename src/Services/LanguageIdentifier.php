@@ -2,13 +2,14 @@
 
 namespace Termorize\Services;
 
-define('CYRILLIC_SYMBOLS', 'абвгдеёжзиклмнопрстуфхцчшщъыьэюя');
+
 
 class LanguageIdentifier
 {
+    public const CYRILLIC_SYMBOLS = "йцукенгшщзхъфывапролджэячсмитьбюёЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЮЯБЧЬСТМИЁ";
     private function isCyrillic(string $symbol): bool
     {
-        return str_contains(CYRILLIC_SYMBOLS, $symbol);
+        return str_contains(self::CYRILLIC_SYMBOLS, $symbol);
     }
 
     public static function identify(string $text): string
