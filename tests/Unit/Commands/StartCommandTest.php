@@ -1,8 +1,9 @@
 <?php
 
-namespace Unit\Commands;
+namespace Tests\Unit\Commands;
 
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
+use Longman\TelegramBot\Request;
 use Termorize\Commands\StartCommand;
 
 class StartCommandTest extends TestCase
@@ -12,18 +13,19 @@ class StartCommandTest extends TestCase
      */
     public function example()
     {
-        $mock = \Mockery::mock('alias:Longman\TelegramBot\Request');
+        $mock = $this->makeAlias(Request::class);
 
         $mock->shouldReceive('sendMessage')
-            ->withArgs([
-                [
-                    'chat_id' => 5,
-                    'text' => 'Отправь мне любое слово и я его переведу.'
-                ]
-            ])->andReturnUndefined();
+            ->once()
+            ->with([
+                'chat_id' => 5,
+                'text' => 'Отправь мне любое слово и я его переведу.'
+            ])->andReturn();
 
         $command = new StartCommand();
 
-        $this->assertNull($command->execute(5));
+        $command->execute(5);
+
+        $this->addToAssertionCount(1);
     }
 }
