@@ -19,15 +19,18 @@ class MessageHandler
 
             switch($text) {
                 case '/start':
-                    StartCommand::execute($chatId);
+                    $command = new StartCommand();
                     break;
 
                 case $text[0] != '/':
-                    TranslateCommand::execute($text, $chatId);
+                    $command = new TranslateCommand();
                     break;
+
                 default:
-                    DefaultCommand::execute($chatId);
+                    $command = new DefaultCommand();
             }
+            $command->setUpdate($update);
+            $command->process();
         } catch (TelegramException $e) {
             echo $e->getMessage();
         }
