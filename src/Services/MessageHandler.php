@@ -28,9 +28,11 @@ class MessageHandler
 
                 default:
                     $command = new DefaultCommand();
+
             }
             $command->setUpdate($update);
             $command->process();
+
         } catch (TelegramException $e) {
             echo $e->getMessage();
         }

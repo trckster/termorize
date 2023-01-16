@@ -11,7 +11,12 @@
             "src/Helpers/helpers.php"
         ],
         "psr-4": {
-            "Termorize\\": "src/"
+            "Termorize\\": "src/",
+            "Tests\\": "tests/"
         }
+    },
+    "require-dev": {
+        "mockery/mockery": "^1.5",
+        "phpunit/phpunit": "^9.5"
     }
 }
