@@ -13,7 +13,7 @@ class DefaultCommandTest extends TestCase
     /**
      * @test
      */
-    public function example()
+    public function test()
     {
         $update = $this->mockCascade([
             'getMessage' => [
