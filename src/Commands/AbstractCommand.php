@@ -10,7 +10,7 @@ abstract class AbstractCommand
 
     abstract public function process(): void;
 
-    public function setUpdate($update)
+    public function setUpdate(Update $update): void
     {
         $this->update = $update;
     }

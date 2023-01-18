@@ -2,9 +2,10 @@
 
 namespace Tests\Unit\Commands;
 
-use Tests\TestCase;
+use Longman\TelegramBot\Entities\Update;
 use Longman\TelegramBot\Request;
 use Termorize\Commands\StartCommand;
+use Tests\TestCase;
 
 class StartCommandTest extends TestCase
 {
@@ -13,8 +14,15 @@ class StartCommandTest extends TestCase
      */
     public function example()
     {
-        $mock = $this->makeAlias(Request::class);
+        $update = $this->mockCascade([
+            'getMessage' => [
+                'getChat' => [
+                    'getId' => 5,
+                ],
+            ],
+        ], Update::class);
 
+        $mock = $this->makeAlias(Request::class);
         $mock->shouldReceive('sendMessage')
             ->once()
             ->with([
@@ -23,8 +31,8 @@ class StartCommandTest extends TestCase
             ])->andReturn();
 
         $command = new StartCommand();
-
-        $command->execute(5);
+        $command->setUpdate($update);
+        $command->process();
 
         $this->addToAssertionCount(1);
     }

@@ -14,7 +14,6 @@ class MessageHandler
     {
         try {
             $message = $update->getMessage();
-            $chatId = $update->getMessage()->getChat()->getId();
             $text = $message->getText();
 
             switch($text) {
@@ -22,17 +21,16 @@ class MessageHandler
                     $command = new StartCommand();
                     break;
 
-                case $text[0] != '/':
+                case $text[0] != '/': // TODO: Fix bug here
                     $command = new TranslateCommand();
                     break;
 
                 default:
                     $command = new DefaultCommand();
-
             }
+
             $command->setUpdate($update);
             $command->process();
-
         } catch (TelegramException $e) {
             echo $e->getMessage();
         }
