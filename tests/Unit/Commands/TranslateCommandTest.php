@@ -3,19 +3,26 @@
 namespace Tests\Unit\Commands;
 
 use Longman\TelegramBot\Entities\Update;
+use Termorize\Services\Kernel;
 use Longman\TelegramBot\Request;
-use Termorize\Commands\DefaultCommand;
+use Termorize\Commands\TranslateCommand;
+use Termorize\Models\Translation;
 use Tests\TestCase;
 
-class DefaultCommandTest extends TestCase
+class TranslateCommandTest extends TestCase
 {
     /**
      * @test
      */
     public function test()
     {
+        $db = new Kernel();
+        $originalText = "Hello";
+        $translationText = "Здравствуйте";
+        $db->connectDatabase();
         $update = $this->mockCascade([
             'getMessage' => [
+                'getText' => $originalText,
                 'getChat' => [
                     'getId' => 5,
                 ],
@@ -27,13 +34,14 @@ class DefaultCommandTest extends TestCase
             ->once()
             ->with([
                 'chat_id' => 5,
-                'text' => 'Такой команды нет, попробуйте ввести другую'
+                'text' => $translationText
             ])->andReturn();
 
-        $command = new DefaultCommand();
+        $command = new TranslateCommand();
         $command->setUpdate($update);
         $command->process();
-
+        
         $this->addToAssertionCount(1);
+
     }
 }
