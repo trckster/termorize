@@ -19,7 +19,9 @@ class GetTranslationFromDBTest extends TestCase
         $db->connectDatabase();
 
         $translator = new Translator();
-        $translationText = $translator->translate($originalText);
+        for($i = 0; $i < 2; $i++){
+            $translator->translate($originalText);
+        }
 
 
         $this->assertEquals(1, Translation::query()->where('original_text', $originalText)->count());
