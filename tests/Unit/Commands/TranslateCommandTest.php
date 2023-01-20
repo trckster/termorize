@@ -40,7 +40,7 @@ class TranslateCommandTest extends TestCase
         $command = new TranslateCommand();
         $command->setUpdate($update);
         $command->process();
-        
+
         $this->addToAssertionCount(1);
 
     }
