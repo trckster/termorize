@@ -16,9 +16,9 @@ class Translator
 
     public function translate(string $text): string
     {
-        if (Translation::query()->where('original_text', $text)->exists()) {
-            $translationText = Translation::query()->where('original_text', $text)->value('translation_text');
-        } else {
+        if (Translation::query()->where('original_text', $text)->exists())
+           return Translation::query()->where('original_text', $text)->value('translation_text');
+
             $apiKey = env('YANDEX_TRANSLATOR_API_KEY');
 
             $originTextLang = LanguageIdentifier::identify($text);
@@ -37,7 +37,7 @@ class Translator
 
             $query = '?' . http_build_query($params);
 
-            $response = $this->httpClient->get("https://translate.yandex.net/api/v1.5/tr.json/translate$query");
+            $response = $this->httpClient->get("translate$query");
             $responseContent = json_decode($response->getBody()->getContents(), true);
 
             $translationText = $responseContent['text'][0];
@@ -48,7 +48,6 @@ class Translator
                 'original_lang' => $originTextLang,
                 'translation_lang' => $translationLang
             ]);
-        }
 
         return $translationText;
     }
