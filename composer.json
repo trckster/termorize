@@ -18,5 +18,8 @@
     "require-dev": {
         "mockery/mockery": "^1.5",
         "phpunit/phpunit": "^9.5"
+    },
+    "scripts": {
+        "migrate": "php ./src/Migrations/run_all_migrations.php"
     }
 }
