@@ -2,7 +2,6 @@
 
 namespace Termorize\Commands;
 
-use Termorize\Commands\AbstractCommand;
 use Longman\TelegramBot\Exception\TelegramException;
 use Longman\TelegramBot\Request;
 use Termorize\Services\Translator;

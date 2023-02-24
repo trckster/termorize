@@ -10,6 +10,9 @@ class Translation extends Model
     public const UPDATED_AT = null;
 
     protected $fillable = [
-        'original_text', 'translation_text','original_lang','translation_lang'
+        'original_text',
+        'translation_text',
+        'original_lang',
+        'translation_lang',
     ];
 }

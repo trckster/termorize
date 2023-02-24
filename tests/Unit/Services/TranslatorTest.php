@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Unit\Commands;
+namespace Tests\Unit\Services;
 
 use Termorize\Services\Kernel;
 use Termorize\Services\Translator;
@@ -9,21 +9,19 @@ use Tests\TestCase;
 
 class TranslatorTest extends TestCase
 {
-    /**
-     * @test
-     */
-    public function test()
+    public function canSaveTranslationInDatabase()
     {
-        $db = new Kernel();
-        $originalText = "Hello";
-        $correctTranslate = 'Здравствуйте';
-        $db->connectDatabase();
+        // Ask translation service to translate a word
 
-        $translator = new Translator();
-        $translationText = $translator->translate($originalText);
+        // Assert that database has this translation
+    }
 
+    public function canUseCacheWhenRequestingTheSameTranslation()
+    {
+        // Ask translation service to translate a word
 
-        $this->assertEquals($correctTranslate, Translation::query()->where('original_text', $originalText)->value('translation_text'));
+        // Ask translation service to translate the same word
 
+        // Assert that database was used and no requests were sent
     }
 }

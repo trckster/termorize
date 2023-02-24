@@ -28,10 +28,6 @@ class LanguageIdentifier
             }
         }
 
-        if ($russian > $english) {
-            return 'ru';
-        } else {
-            return 'en';
-        }
+        return $russian > $english ? 'ru' : 'en';
     }
 }

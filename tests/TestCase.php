@@ -13,6 +13,13 @@ class TestCase extends BaseTestCase
         return Mockery::mock("alias:$class");
     }
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Refresh database using your class
+    }
+
     protected function tearDown(): void
     {
         Mockery::close();
