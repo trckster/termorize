@@ -16,7 +16,7 @@ class MessageHandler
             $message = $update->getMessage();
             $text = $message->getText();
 
-            switch($text) {
+            /*switch($text) {
                 case '/start':
                     $command = new StartCommand();
                     break;
@@ -27,6 +27,17 @@ class MessageHandler
 
                 default:
                     $command = new DefaultCommand();
+            }*/
+            if($text === '/start')
+            {
+                $command = new StartCommand();
+            } else {
+                if($text[0] != '/')
+                {
+                    $command = new TranslateCommand();
+                } else {
+                    $command = new DefaultCommand();
+                }
             }
 
             $command->setUpdate($update);
