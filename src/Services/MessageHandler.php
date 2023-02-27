@@ -28,12 +28,10 @@ class MessageHandler
                 default:
                     $command = new DefaultCommand();
             }*/
-            if($text === '/start')
-            {
+            if ($text === '/start') {
                 $command = new StartCommand();
             } else {
-                if($text[0] != '/')
-                {
+                if ($text[0] != '/') {
                     $command = new TranslateCommand();
                 } else {
                     $command = new DefaultCommand();
