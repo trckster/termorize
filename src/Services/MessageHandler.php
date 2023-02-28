@@ -16,19 +16,9 @@ class MessageHandler
             $message = $update->getMessage();
             $text = $message->getText();
 
-            /*switch($text) {
-                case '/start':
-                    $command = new StartCommand();
-                    break;
-
-                case $text[0] != '/': // TODO: Fix bug here
-                    $command = new TranslateCommand();
-                    break;
-
-                default:
-                    $command = new DefaultCommand();
-            }*/
-            if ($text === '/start') {
+            if (empty($text)) {
+                $command = new StartCommand();
+            } else if ($text === '/start') {
                 $command = new StartCommand();
             } else {
                 if ($text[0] != '/') {
