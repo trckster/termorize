@@ -5,9 +5,17 @@ namespace Tests;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase as BaseTestCase;
+use Termorize\Services\Kernel;
+use Tests\Utils\DatabaseRefresher;
 
 class TestCase extends BaseTestCase
 {
+    protected function connectDatabase(): void
+    {
+        $kernel = new Kernel();
+        $kernel->connectDatabase();
+    }
+
     protected function makeAlias(string $class): MockInterface
     {
         return Mockery::mock("alias:$class");
@@ -16,8 +24,8 @@ class TestCase extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
-
-        // Refresh database using your class
+        $this->connectDatabase();
+        DatabaseRefresher::clearDatabase();
     }
 
     protected function tearDown(): void

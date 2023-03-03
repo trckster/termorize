@@ -12,8 +12,6 @@ class TranslateCommandTest extends TestCase
 {
     public function test()
     {
-        $db = new Kernel();
-        $db->connectDatabase();
         $update = $this->mockCascade([
             'getMessage' => [
                 'getText' => "Hello",
