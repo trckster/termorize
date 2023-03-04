@@ -7,9 +7,18 @@ use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase as BaseTestCase;
 use Termorize\Services\Kernel;
 use Tests\Utils\DatabaseRefresher;
+use ReflectionClass;
 
 class TestCase extends BaseTestCase
 {
+    protected function mockPrivateProperty($object, string $propertyName, $value)
+    {
+        $reflection = new ReflectionClass($object);
+        $property = $reflection->getProperty($propertyName);
+        $property->setAccessible(true);
+        $property->setValue($object, $value);
+
+    }
     protected function connectDatabase(): void
     {
         $kernel = new Kernel();
@@ -25,7 +34,7 @@ class TestCase extends BaseTestCase
     {
         parent::setUp();
         $this->connectDatabase();
-        DatabaseRefresher::clearDatabase();
+        //DatabaseRefresher::clearDatabase();
     }
 
     protected function tearDown(): void
