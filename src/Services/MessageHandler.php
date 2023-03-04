@@ -18,7 +18,7 @@ class MessageHandler
 
             if (empty($text)) {
                 $command = new StartCommand();
-            } else if ($text === '/start') {
+            } elseif ($text === '/start') {
                 $command = new StartCommand();
             } else {
                 if ($text[0] != '/') {
