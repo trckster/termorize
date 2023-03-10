@@ -44,11 +44,19 @@ class TestCase extends BaseTestCase
         parent::tearDown();
     }
 
-    protected function mockCascade(array $methods, string $class = ''): MockInterface
+    protected function mockCascade(array $methods): MockInterface
     {
+        $class = null;
+
         $methodsWithReadyMocks = [];
 
         foreach ($methods as $method => $returns) {
+            if ($method === '__class') {
+                $class = $returns;
+
+                continue;
+            }
+
             if (is_array($returns)) {
                 $readyMock = $this->mockCascade($returns);
             } else {

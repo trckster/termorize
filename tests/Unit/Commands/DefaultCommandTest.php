@@ -15,12 +15,13 @@ class DefaultCommandTest extends TestCase
     public function test()
     {
         $update = $this->mockCascade([
+            '__class' => Update::class,
             'getMessage' => [
                 'getChat' => [
                     'getId' => 5,
                 ],
             ],
-        ], Update::class);
+        ]);
 
         $mock = $this->makeAlias(Request::class);
         $mock->shouldReceive('sendMessage')
