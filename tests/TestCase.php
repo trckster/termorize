@@ -34,7 +34,7 @@ class TestCase extends BaseTestCase
     {
         parent::setUp();
         $this->connectDatabase();
-        //DatabaseRefresher::clearDatabase();
+        DatabaseRefresher::clearDatabase();
     }
 
     protected function tearDown(): void

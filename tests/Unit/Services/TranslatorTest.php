@@ -33,24 +33,55 @@ class TranslatorTest extends TestCase
             ]
         ]);
         $this->mockPrivateProperty($translator, 'httpClient', $mock);
-        
+
         $result = $translator->translate($originalWord);
 
         $this->assertEquals($result, $correctTranslation);
 
         $translation = Translation::query()->first();
 
+
         $this->assertNotNull($translation);
 
-        // Assert that database has this translation
+        $this->assertEquals($correctTranslation, $translation->translation_text);
+        $this->assertEquals($originalWord, $translation->original_text);
+        $this->assertEquals('en', $translation->translation_lang);
+        $this->assertEquals('ru', $translation->original_lang);
     }
 
+    /**
+     * @test
+     */
     public function canUseCacheWhenRequestingTheSameTranslation()
     {
-        // Ask translation service to translate a word
+        $translator = new Translator();
 
-        // Ask translation service to translate the same word
+        $originalWord = 'привет';
+        $correctTranslation = 'hello';
+        $contents = json_encode(['text' => [$correctTranslation]]);;
+        $mock = $this->mockCascade([
+            '__class' => Client::class,
+            'get' => [
+                '__class' => ResponseInterface::class,
+                'getBody' => [
+                    'getContents' => $contents
+                ]
+            ]
+        ]);
 
-        // Assert that database was used and no requests were sent
+        $this->mockPrivateProperty($translator, 'httpClient', $mock);
+
+        $result = $translator->translate($originalWord);
+
+        $mock = Mockery::mock(Client::class);
+        $mock->shouldNotReceive('get');
+
+        $this->mockPrivateProperty($translator, 'httpClient', $mock);
+
+        $secondResult = $translator->translate($originalWord);
+
+        $this->assertEquals($result, $secondResult);
+        $this->assertEquals($result, $correctTranslation);
+
     }
 }
