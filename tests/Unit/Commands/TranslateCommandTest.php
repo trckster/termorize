@@ -10,7 +10,7 @@ use Tests\TestCase;
 class TranslateCommandTest extends TestCase
 {
     /**
-    @test
+    *@test
     */
     public function TranslateCommandWorks()
     {
