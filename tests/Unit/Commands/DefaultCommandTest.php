@@ -28,7 +28,7 @@ class DefaultCommandTest extends TestCase
             ->once()
             ->with([
                 'chat_id' => 5,
-                'text' => 'Такой команды нет, попробуйте ввести другую'
+                'text' => 'Такой команды нет, попробуйте ввести другую',
             ])->andReturn();
 
         $command = new DefaultCommand();

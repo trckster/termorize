@@ -5,9 +5,9 @@ namespace Tests;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase as BaseTestCase;
+use ReflectionClass;
 use Termorize\Services\Kernel;
 use Tests\Utils\DatabaseRefresher;
-use ReflectionClass;
 
 class TestCase extends BaseTestCase
 {

@@ -28,7 +28,7 @@ class StartCommandTest extends TestCase
             ->once()
             ->with([
                 'chat_id' => 5,
-                'text' => 'Отправь мне любое слово и я его переведу.'
+                'text' => 'Отправь мне любое слово и я его переведу.',
             ])->andReturn();
 
         $command = new StartCommand();

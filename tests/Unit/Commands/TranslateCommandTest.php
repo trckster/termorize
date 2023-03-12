@@ -29,7 +29,7 @@ class TranslateCommandTest extends TestCase
             ->once()
             ->with([
                 'chat_id' => 5,
-                'text' => 'Здравствуйте'
+                'text' => 'Здравствуйте',
             ])->andReturn();
 
         $command = new TranslateCommand();

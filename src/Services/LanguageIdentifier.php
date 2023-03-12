@@ -4,7 +4,7 @@ namespace Termorize\Services;
 
 class LanguageIdentifier
 {
-    public const CYRILLIC_SYMBOLS = "йцукенгшщзхъфывапролджэячсмитьбюёЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЮЯБЧЬСТМИЁ";
+    public const CYRILLIC_SYMBOLS = 'йцукенгшщзхъфывапролджэячсмитьбюёЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЮЯБЧЬСТМИЁ';
 
     private function isCyrillic(string $symbol): bool
     {
@@ -13,7 +13,7 @@ class LanguageIdentifier
 
     public static function identify(string $text): string
     {
-        $identifier = new LanguageIdentifier();
+        $identifier = new self();
 
         $russian = 0;
         $english = 0;

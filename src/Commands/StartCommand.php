@@ -2,9 +2,8 @@
 
 namespace Termorize\Commands;
 
-use Termorize\Commands\AbstractCommand;
-use Longman\TelegramBot\Request;
 use Longman\TelegramBot\Exception\TelegramException;
+use Longman\TelegramBot\Request;
 
 class StartCommand extends AbstractCommand
 {
@@ -13,7 +12,7 @@ class StartCommand extends AbstractCommand
         try {
             Request::sendMessage([
                 'chat_id' => $this->update->getMessage()->getChat()->getId(),
-                'text' => 'Отправь мне любое слово и я его переведу.'
+                'text' => 'Отправь мне любое слово и я его переведу.',
             ]);
         } catch (TelegramException $e) {
             echo $e->getMessage();

@@ -6,8 +6,8 @@ require_once getBasePath('vendor/autoload.php');
 
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
-use Longman\TelegramBot\Telegram;
 use Longman\TelegramBot\Exception\TelegramException;
+use Longman\TelegramBot\Telegram;
 
 class Kernel
 {
@@ -41,10 +41,11 @@ class Kernel
             echo $e->getMessage();
         }
     }
+
     public function connectDatabase(): void
     {
         if (empty($_ENV)) {
-            $dotenv = Dotenv::createImmutable(__DIR__.'/../../');
+            $dotenv = Dotenv::createImmutable(__DIR__ . '/../../');
             $dotenv->load();
         }
 

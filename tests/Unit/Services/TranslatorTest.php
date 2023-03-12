@@ -3,11 +3,11 @@
 namespace Tests\Unit\Services;
 
 use GuzzleHttp\Client;
-use Psr\Http\Message\ResponseInterface;
-use Termorize\Services\Translator;
-use Termorize\Models\Translation;
-use Tests\TestCase;
 use Mockery;
+use Psr\Http\Message\ResponseInterface;
+use Termorize\Models\Translation;
+use Termorize\Services\Translator;
+use Tests\TestCase;
 
 class TranslatorTest extends TestCase
 {
@@ -26,9 +26,9 @@ class TranslatorTest extends TestCase
             'get' => [
                 '__class' => ResponseInterface::class,
                 'getBody' => [
-                    'getContents' => $contents
-                ]
-            ]
+                    'getContents' => $contents,
+                ],
+            ],
         ]);
         $this->mockPrivateProperty($translator, 'httpClient', $mock);
 
@@ -37,7 +37,6 @@ class TranslatorTest extends TestCase
         $this->assertEquals($result, $correctTranslation);
 
         $translation = Translation::query()->first();
-
 
         $this->assertNotNull($translation);
 
@@ -62,9 +61,9 @@ class TranslatorTest extends TestCase
             'get' => [
                 '__class' => ResponseInterface::class,
                 'getBody' => [
-                    'getContents' => $contents
-                ]
-            ]
+                    'getContents' => $contents,
+                ],
+            ],
         ]);
 
         $this->mockPrivateProperty($translator, 'httpClient', $mock);
