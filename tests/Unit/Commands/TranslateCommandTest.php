@@ -9,7 +9,10 @@ use Tests\TestCase;
 
 class TranslateCommandTest extends TestCase
 {
-    public function test()
+    /**
+    @test
+    */
+    public function TranslateCommandWorks()
     {
         $update = $this->mockCascade([
             '__class' => Update::class,
