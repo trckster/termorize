@@ -12,7 +12,7 @@ class DefaultCommandTest extends TestCase
     /**
      * @test
      */
-    public function test()
+    public function defaultCommandWorks()
     {
         $update = $this->mockCascade([
             '__class' => Update::class,
