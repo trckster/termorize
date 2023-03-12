@@ -2,11 +2,10 @@
 
 namespace Termorize\Services;
 
-
-
 class LanguageIdentifier
 {
     public const CYRILLIC_SYMBOLS = "йцукенгшщзхъфывапролджэячсмитьбюёЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЮЯБЧЬСТМИЁ";
+
     private function isCyrillic(string $symbol): bool
     {
         return str_contains(self::CYRILLIC_SYMBOLS, $symbol);
@@ -19,7 +18,7 @@ class LanguageIdentifier
         $russian = 0;
         $english = 0;
 
-        $textArray = str_split($text, 1);
+        $textArray = str_split($text);
 
         foreach ($textArray as $symbol) {
             if ($identifier->isCyrillic($symbol)) {
@@ -29,10 +28,6 @@ class LanguageIdentifier
             }
         }
 
-        if ($russian > $english) {
-            return 'ru';
-        } else {
-            return 'en';
-        }
+        return $russian > $english ? 'ru' : 'en';
     }
 }

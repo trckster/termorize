@@ -1,6 +1,6 @@
 <?php
 
-require_once getBasePath('vendor/autoload.php');
+require_once './vendor/autoload.php';
 
 use Termorize\Migrations\TelegramMigration;
 use Termorize\Migrations\TranslateModelMigration;

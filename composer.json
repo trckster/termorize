@@ -11,7 +11,20 @@
             "src/Helpers/helpers.php"
         ],
         "psr-4": {
-            "Termorize\\": "src/"
+            "Termorize\\": "src/",
+            "Tests\\": "tests/"
         }
+    },
+    "require-dev": {
+        "mockery/mockery": "^1.5",
+        "phpunit/phpunit": "^9.5",
+        "friendsofphp/php-cs-fixer": "^3.14"
+    },
+    "scripts": {
+        "migrate": "php ./src/Migrations/run_all_migrations.php",
+        "test": "./vendor/bin/phpunit tests/",
+        "style-fix" : "PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer fix --diff ./",
+        "style-check" : "PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer fix --dry-run ./"
+
     }
 }
