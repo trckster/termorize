@@ -2,11 +2,11 @@
 
 namespace Termorize\Services;
 
-use Termorize\Commands\StartCommand;
-use Termorize\Commands\TranslateCommand;
-use Termorize\Commands\DefaultCommand;
 use Longman\TelegramBot\Entities\Update;
 use Longman\TelegramBot\Exception\TelegramException;
+use Termorize\Commands\DefaultCommand;
+use Termorize\Commands\StartCommand;
+use Termorize\Commands\TranslateCommand;
 
 class MessageHandler
 {

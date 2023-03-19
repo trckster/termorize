@@ -5,9 +5,9 @@ namespace Tests;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase as BaseTestCase;
+use ReflectionClass;
 use Termorize\Services\Kernel;
 use Tests\Utils\DatabaseRefresher;
-use ReflectionClass;
 
 class TestCase extends BaseTestCase
 {
@@ -15,10 +15,11 @@ class TestCase extends BaseTestCase
     {
         $reflection = new ReflectionClass($object);
         $property = $reflection->getProperty($propertyName);
+
         $property->setAccessible(true);
         $property->setValue($object, $value);
-
     }
+
     protected function connectDatabase(): void
     {
         $kernel = new Kernel();
@@ -33,6 +34,7 @@ class TestCase extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
+
         $this->connectDatabase();
         DatabaseRefresher::clearDatabase();
     }

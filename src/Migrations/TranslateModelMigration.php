@@ -8,8 +8,6 @@ class TranslateModelMigration
 {
     public static function migrate(): void
     {
-        $connection = Manager::connection();
-
         Manager::schema()->create('translations', function ($table) {
             $table->increments('id');
             $table->string('original_text');

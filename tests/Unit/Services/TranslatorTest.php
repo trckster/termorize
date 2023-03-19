@@ -3,15 +3,13 @@
 namespace Tests\Unit\Services;
 
 use GuzzleHttp\Client;
-use Psr\Http\Message\ResponseInterface;
-use Termorize\Services\Kernel;
-use Termorize\Services\Translator;
-use Termorize\Models\Translation;
-use Tests\TestCase;
 use Mockery;
+use Psr\Http\Message\ResponseInterface;
+use Termorize\Models\Translation;
+use Termorize\Services\Translator;
+use Tests\TestCase;
 
 class TranslatorTest extends TestCase
-
 {
     /**
      * @test
@@ -22,15 +20,15 @@ class TranslatorTest extends TestCase
 
         $originalWord = 'привет';
         $correctTranslation = 'hello';
-        $contents = json_encode(['text' => [$correctTranslation]]);;
+        $contents = json_encode(['text' => [$correctTranslation]]);
         $mock = $this->mockCascade([
             '__class' => Client::class,
             'get' => [
                 '__class' => ResponseInterface::class,
                 'getBody' => [
-                    'getContents' => $contents
-                ]
-            ]
+                    'getContents' => $contents,
+                ],
+            ],
         ]);
         $this->mockPrivateProperty($translator, 'httpClient', $mock);
 
@@ -39,7 +37,6 @@ class TranslatorTest extends TestCase
         $this->assertEquals($result, $correctTranslation);
 
         $translation = Translation::query()->first();
-
 
         $this->assertNotNull($translation);
 
@@ -58,15 +55,15 @@ class TranslatorTest extends TestCase
 
         $originalWord = 'привет';
         $correctTranslation = 'hello';
-        $contents = json_encode(['text' => [$correctTranslation]]);;
+        $contents = json_encode(['text' => [$correctTranslation]]);
         $mock = $this->mockCascade([
             '__class' => Client::class,
             'get' => [
                 '__class' => ResponseInterface::class,
                 'getBody' => [
-                    'getContents' => $contents
-                ]
-            ]
+                    'getContents' => $contents,
+                ],
+            ],
         ]);
 
         $this->mockPrivateProperty($translator, 'httpClient', $mock);
@@ -82,6 +79,5 @@ class TranslatorTest extends TestCase
 
         $this->assertEquals($result, $secondResult);
         $this->assertEquals($result, $correctTranslation);
-
     }
 }

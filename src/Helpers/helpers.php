@@ -2,5 +2,5 @@
 
 function getBasePath(string $subDir = ''): string
 {
-    return __DIR__.'/../../'.$subDir;
+    return __DIR__ . '/../../' . $subDir;
 }

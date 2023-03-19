@@ -16,7 +16,7 @@ class TranslateCommand extends AbstractCommand
 
             Request::sendMessage([
                 'chat_id' => $this->update->getMessage()->getChat()->getId(),
-                'text' => $translationText
+                'text' => $translationText,
             ]);
         } catch (TelegramException $e) {
             echo $e->getMessage();

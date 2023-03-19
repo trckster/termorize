@@ -47,7 +47,7 @@ class Translator
             'original_text' => $text,
             'translation_text' => $translationText,
             'original_lang' => $originTextLang,
-            'translation_lang' => $translationLang
+            'translation_lang' => $translationLang,
         ]);
 
         return $translationText;

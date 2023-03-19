@@ -9,7 +9,10 @@ use Tests\TestCase;
 
 class TranslateCommandTest extends TestCase
 {
-    public function test()
+    /**
+     * @test
+     */
+    public function translateCommandWorks()
     {
         $update = $this->mockCascade([
             '__class' => Update::class,
@@ -26,7 +29,7 @@ class TranslateCommandTest extends TestCase
             ->once()
             ->with([
                 'chat_id' => 5,
-                'text' => 'Здравствуйте'
+                'text' => 'Здравствуйте',
             ])->andReturn();
 
         $command = new TranslateCommand();
