@@ -11,6 +11,6 @@ class VocabularyItem extends Model
 
     protected $fillable = [
         'translation_id',
-        'knowledge'
+        'knowledge',
     ];
 }

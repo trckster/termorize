@@ -3,19 +3,21 @@
 namespace Termorize\Migrations;
 
 use Illuminate\Database\Capsule\Manager;
+use Illuminate\Database\Schema\Blueprint;
 
-class TranslateModelMigration
+class VocabularyItemMigration
 {
     public static function migrate(): void
     {
-        $connection = Manager::connection();
+        Manager::schema()->create('vocabulary_items', function (Blueprint $table) {
+            $table->id();
 
-        Manager::schema()->create('vocabulary_item', function ($table) {
-            $table->integer('id')->unsigned();
-            $table->increments('id');
-            $table->primary('id');
-            $table->ForeignId('translation_id');
-            $table->integer('knowledge')->unsigned();
+            $table->unsignedInteger('translation_id');
+            $table->foreign('translation_id')
+                ->references('id')
+                ->on('translations');
+
+            $table->unsignedInteger('knowledge');
         });
     }
 }

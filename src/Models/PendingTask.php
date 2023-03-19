@@ -3,6 +3,7 @@
 namespace Termorize\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Termorize\Enums\PendingTaskStatus;
 
 class PendingTask extends Model
 {
@@ -15,5 +16,9 @@ class PendingTask extends Model
         'executed_at',
         'method',
         'parameters'
+    ];
+
+    protected $casts = [
+        'status' => PendingTaskStatus::class,
     ];
 }

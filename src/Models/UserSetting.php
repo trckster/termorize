@@ -11,6 +11,6 @@ class UserSetting extends Model
 
     protected $fillable = [
         'user_id',
-        'learns_vocabulary'
+        'learns_vocabulary',
     ];
 }

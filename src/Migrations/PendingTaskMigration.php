@@ -3,21 +3,24 @@
 namespace Termorize\Migrations;
 
 use Illuminate\Database\Capsule\Manager;
+use Illuminate\Database\Schema\Blueprint;
+use Termorize\Enums\PendingTaskStatus;
 
 class PendingTaskMigration
 {
     public static function migrate(): void
     {
-        $connection = Manager::connection();
-
-        Manager::schema()->create('pending_task', function ($table) {
-            $table->increments('id');
+        Manager::schema()->create('pending_tasks', function (Blueprint $table) {
+            $table->id();
+            $table->enum('status', [
+                PendingTaskStatus::Pending->value,
+                PendingTaskStatus::Success->value,
+                PendingTaskStatus::Failed->value,
+            ]);
             $table->timestamp('scheduled_for');
             $table->timestamp('executed_at')->nullable();
             $table->string('method');
-            $table->json('parameters');
-            $table->enum('status', ['pending', 'success', 'failed']);
-            $table->primary('id');
+            $table->jsonb('parameters');
         });
     }
 }
