@@ -14,10 +14,10 @@ class Translator
         $this->httpClient = new Client(['base_uri' => 'https://translate.yandex.net/api/v1.5/tr.json/']);
     }
 
-    public function translate(string $text): string
+    public function translate(string $text): Translation
     {
         if (Translation::query()->where('original_text', $text)->exists()) {
-            return Translation::query()->where('original_text', $text)->value('translation_text');
+            return Translation::query()->where('original_text', $text)->first();
         }
 
         $apiKey = env('YANDEX_TRANSLATOR_API_KEY');
@@ -43,13 +43,11 @@ class Translator
 
         $translationText = $responseContent['text'][0];
 
-        Translation::query()->create([
+        return Translation::query()->create([
             'original_text' => $text,
             'translation_text' => $translationText,
             'original_lang' => $originTextLang,
             'translation_lang' => $translationLang,
         ]);
-
-        return $translationText;
     }
 }

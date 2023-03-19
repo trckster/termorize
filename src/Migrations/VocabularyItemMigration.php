@@ -11,7 +11,10 @@ class VocabularyItemMigration
     {
         Manager::schema()->create('vocabulary_items', function (Blueprint $table) {
             $table->id();
-
+            $table->bigInteger('user_id');
+            $table->foreign('user_id')
+                ->references('id')
+                ->on('user');
             $table->unsignedInteger('translation_id');
             $table->foreign('translation_id')
                 ->references('id')

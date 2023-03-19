@@ -15,7 +15,7 @@ class PendingTask extends Model
         'scheduled_for',
         'executed_at',
         'method',
-        'parameters'
+        'parameters',
     ];
 
     protected $casts = [
