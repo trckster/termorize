@@ -23,8 +23,7 @@
     "scripts": {
         "migrate": "php ./src/Migrations/run_all_migrations.php",
         "test": "./vendor/bin/phpunit tests/",
-        "style-fix" : "PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer fix --diff ./",
-        "style-check" : "PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer fix --dry-run --diff ./"
-
+        "style-fix" : "PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer fix --diff",
+        "style-check" : "PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer fix --dry-run --diff"
     }
 }
