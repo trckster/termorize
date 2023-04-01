@@ -4,12 +4,13 @@ namespace Termorize\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Termorize\Enums\PendingTaskStatus;
+use Carbon\Carbon
 /**
- * @property  $status
+ * @property PendingTaskStatus::class $status
  * @property string $method
  * @property string $parameters
- * @property $scheduled_for
- * @property executed_at
+ * @property Carbon $scheduled_for
+ * @property Carbon $executed_at
  */
 class PendingTask extends Model
 {
