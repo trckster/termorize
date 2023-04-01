@@ -3,7 +3,11 @@
 namespace Termorize\Models;
 
 use Illuminate\Database\Eloquent\Model;
-
+/**
+ * @property int $translation_id
+ * @property int $user_id
+ * @property int $knowledge
+ */
 class VocabularyItem extends Model
 {
     public const CREATED_AT = null;
