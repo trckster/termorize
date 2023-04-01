@@ -3,7 +3,12 @@
 namespace Termorize\Models;
 
 use Illuminate\Database\Eloquent\Model;
-
+/**
+ * @property string $original_text
+ * @property string $translation_text
+ * @property string $original_lang
+ * @property string $translation_lang
+ */
 class Translation extends Model
 {
     public const CREATED_AT = null;
