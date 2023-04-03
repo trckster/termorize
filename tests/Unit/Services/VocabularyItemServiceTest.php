@@ -2,7 +2,6 @@
 
 namespace Tests\Unit\Services;
 
-use Mockery;
 use Termorize\Models\Translation;
 use Termorize\Models\VocabularyItem;
 use Termorize\Services\VocabularyItemService;
@@ -15,7 +14,7 @@ class VocabularyItemServiceTest extends TestCase
      */
     public function canCreateVocabularyItemsTest()
     {
-        /** @var Translation $translation */
+       /** @var Translation $translation */
        $translation = Translation::query()->create([
            'original_text' => 'ьшщагши',
            'translation_text' => 'iofsdfg',

@@ -6,9 +6,14 @@ use Illuminate\Database\Capsule\Manager;
 
 class TranslateModelMigration
 {
-    public static function migrate(): void
+    public function getTable(): string
     {
-        Manager::schema()->create('translations', function ($table) {
+        return 'translations';
+    }
+
+    public function migrate(): void
+    {
+        Manager::schema()->create($this->getTable(), function ($table) {
             $table->increments('id');
             $table->string('original_text');
             $table->string('translation_text');

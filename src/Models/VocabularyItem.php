@@ -3,6 +3,7 @@
 namespace Termorize\Models;
 
 use Illuminate\Database\Eloquent\Model;
+
 /**
  * @property int $translation_id
  * @property int $user_id

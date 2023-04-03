@@ -2,7 +2,6 @@
 
 namespace Termorize\Commands;
 
-use Longman\TelegramBot\Exception\TelegramException;
 use Longman\TelegramBot\Request;
 
 class DefaultCommand extends AbstractCommand
@@ -14,5 +13,4 @@ class DefaultCommand extends AbstractCommand
                 'text' => 'Такой команды нет, попробуйте ввести другую',
             ]);
     }
-
 }

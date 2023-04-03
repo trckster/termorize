@@ -6,11 +6,16 @@ use Illuminate\Database\Capsule\Manager;
 use Illuminate\Database\Schema\Blueprint;
 use Termorize\Enums\PendingTaskStatus;
 
-class PendingTaskMigration
+class PendingTaskMigration implements MigrationInterface
 {
-    public static function migrate(): void
+    public function getTable(): string
     {
-        Manager::schema()->create('pending_tasks', function (Blueprint $table) {
+        return 'pending_tasks';
+    }
+
+    public function migrate(): void
+    {
+        Manager::schema()->create($this->getTable(), function (Blueprint $table) {
             $table->id();
             $table->enum('status', [
                 PendingTaskStatus::Pending->value,

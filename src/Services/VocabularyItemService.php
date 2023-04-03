@@ -3,7 +3,6 @@
 namespace Termorize\Services;
 
 use Termorize\Models\Translation;
-use Termorize\Models\VocabularyItem;
 
 class VocabularyItemService
 {
@@ -13,6 +12,6 @@ class VocabularyItemService
             'user_id' => $userId,
             'knowledge' => 0,
         ]);
-        
+
     }
 }

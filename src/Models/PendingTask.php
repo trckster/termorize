@@ -2,9 +2,10 @@
 
 namespace Termorize\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Termorize\Enums\PendingTaskStatus;
-use Carbon\Carbon;
+
 /**
  * @property PendingTaskStatus::class $status
  * @property string $method

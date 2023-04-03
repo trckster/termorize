@@ -2,7 +2,6 @@
 
 namespace Termorize\Commands;
 
-use Longman\TelegramBot\Exception\TelegramException;
 use Longman\TelegramBot\Request;
 
 class StartCommand extends AbstractCommand
@@ -15,4 +14,3 @@ class StartCommand extends AbstractCommand
             ]);
     }
 }
-

@@ -22,6 +22,7 @@ class Translation extends Model
         'original_lang',
         'translation_lang',
     ];
+
     public function vocabularyItems(): HasMany
     {
         return $this->hasMany(VocabularyItem::class);
