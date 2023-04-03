@@ -3,6 +3,8 @@
 namespace Termorize\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
 /**
  * @property string $original_text
  * @property string $translation_text
@@ -20,4 +22,8 @@ class Translation extends Model
         'original_lang',
         'translation_lang',
     ];
+    public function vocabularyItems(): HasMany
+    {
+        return $this->hasMany(VocabularyItem::class);
+    }
 }
