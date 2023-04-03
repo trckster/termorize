@@ -14,6 +14,6 @@ class VocabularyItemService
             'user_id' => $userId,
             'knowledge' => 0,
         ]);
-        $translation->vocabularyItems();
+        
     }
 }
