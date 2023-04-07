@@ -4,7 +4,8 @@
         "longman/telegram-bot": "^0.78.0",
         "vlucas/phpdotenv": "^5.4",
         "guzzlehttp/guzzle": "^7.4",
-        "illuminate/database": "^9.27"
+        "illuminate/database": "^9.27",
+        "nesbot/carbon": "^2.66"
     },
     "autoload": {
         "files": [

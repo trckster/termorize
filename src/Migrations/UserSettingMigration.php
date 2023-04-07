@@ -7,9 +7,14 @@ use Illuminate\Database\Schema\Blueprint;
 
 class UserSettingMigration
 {
-    public static function migrate(): void
+    public function getTable(): string
     {
-        Manager::schema()->create('users_settings', function (Blueprint $table) {
+        return 'users_settings';
+    }
+
+    public function migrate(): void
+    {
+        Manager::schema()->create($this->getTable(), function (Blueprint $table) {
             $table->bigInteger('user_id');
             $table->foreign('user_id')
                 ->references('id')

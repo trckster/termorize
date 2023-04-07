@@ -2,6 +2,7 @@
 
 require_once './vendor/autoload.php';
 
+use Illuminate\Database\Capsule\Manager;
 use Termorize\Migrations\PendingTaskMigration;
 use Termorize\Migrations\TelegramMigration;
 use Termorize\Migrations\TranslateModelMigration;
@@ -12,7 +13,16 @@ $kernel = new Termorize\Services\Kernel();
 $kernel->connectDatabase();
 
 TelegramMigration::migrate();
-TranslateModelMigration::migrate();
-VocabularyItemMigration::migrate();
-UserSettingMigration::migrate();
-PendingTaskMigration::migrate();
+
+$migrationsClasses = [
+    TranslateModelMigration::class,
+    VocabularyItemMigration::class,
+    UserSettingMigration::class,
+    PendingTaskMigration::class,
+];
+foreach($migrationsClasses as $migrationClass){
+    $migration = new $migrationClass();
+    if (!Manager::schema()->hasTable($migration->getTable())){
+        $migration->migrate();
+    }
+}

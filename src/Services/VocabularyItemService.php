@@ -3,16 +3,15 @@
 namespace Termorize\Services;
 
 use Termorize\Models\Translation;
-use Termorize\Models\VocabularyItem;
 
 class VocabularyItemService
 {
-    public function save(Translation $translation, int $userId)
+    public function save(Translation $translation, int $userId): void
     {
-        VocabularyItem::query()->create([
-            'translation_id' => $translation->id,
+        $translation->vocabularyItems()->create([
             'user_id' => $userId,
             'knowledge' => 0,
         ]);
+
     }
 }
