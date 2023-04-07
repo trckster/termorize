@@ -12,8 +12,7 @@ use Tests\TestCase;
 class TranslatorTest extends TestCase
 {
     /**
-     * TODO fix it.
-     * @!test
+     * @test
      */
     public function canSaveTranslationInDatabase()
     {
@@ -33,7 +32,7 @@ class TranslatorTest extends TestCase
         ]);
         $this->mockPrivateProperty($translator, 'httpClient', $mock);
 
-        $result = $translator->translate($originalWord);
+        $result = $translator->translate($originalWord)->translation_text;
 
         $this->assertEquals($result, $correctTranslation);
 
@@ -49,7 +48,7 @@ class TranslatorTest extends TestCase
 
     /**
      * TODO fix it.
-     * @!test
+     * @test
      */
     public function canUseCacheWhenRequestingTheSameTranslation()
     {
@@ -70,14 +69,14 @@ class TranslatorTest extends TestCase
 
         $this->mockPrivateProperty($translator, 'httpClient', $mock);
 
-        $result = $translator->translate($originalWord);
+        $result = $translator->translate($originalWord)->translation_text;
 
         $mock = Mockery::mock(Client::class);
         $mock->shouldNotReceive('get');
 
         $this->mockPrivateProperty($translator, 'httpClient', $mock);
 
-        $secondResult = $translator->translate($originalWord);
+        $secondResult = $translator->translate($originalWord)->translation_text;
 
         $this->assertEquals($result, $secondResult);
         $this->assertEquals($result, $correctTranslation);
