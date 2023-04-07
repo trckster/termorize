@@ -47,7 +47,6 @@ class TranslatorTest extends TestCase
     }
 
     /**
-     * TODO fix it.
      * @test
      */
     public function canUseCacheWhenRequestingTheSameTranslation()
