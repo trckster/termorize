@@ -19,9 +19,6 @@ use Illuminate\Database\Eloquent\Model;
  */
 class User extends Model
 {
-    public const CREATED_AT = null;
-    public const UPDATED_AT = null;
-
     protected $fillable = [
         'is_bot',
         'first_name',
