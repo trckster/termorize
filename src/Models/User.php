@@ -2,8 +2,8 @@
 
 namespace Termorize\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * @property bool $is_bot
@@ -30,6 +30,6 @@ class User extends Model
         'is_premium',
         'added_to_attachment_menu',
         'created_at',
-        'updated_at'
+        'updated_at',
     ];
 }
