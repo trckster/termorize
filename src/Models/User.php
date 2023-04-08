@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 
 /**
+ * @property int $id
  * @property bool $is_bot
  * @property string $first_name
  * @property string $last_name
