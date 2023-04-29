@@ -4,6 +4,8 @@ namespace Termorize\Models;
 
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * @property int $id
@@ -31,4 +33,14 @@ class User extends Model
         'updated_at',
     ];
     protected $table = 'user';
+
+    public function settings(): HasOne
+    {
+        return $this->hasOne(UserSetting::class);
+    }
+
+    public function vocabularyItems(): HasMany
+    {
+        return $this->hasMany(VocabularyItem::class);
+    }
 }
