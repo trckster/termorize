@@ -7,33 +7,30 @@ use Termorize\Interfaces\CronCommand;
 use Termorize\Models\PendingTask;
 use Termorize\Models\User;
 use Termorize\Enums\PendingTaskStatus;
+use Termorize\Models\UserSetting;
+use Termorize\Tasks\SendQuestion;
 
 class GenerateQuestions implements CronCommand
 {
-    public function handle()
+    public function handle(): void
     {
-        $users = User::all();
-        foreach($users as $user)
-        {
-            $userSetting = $user->setting();
-            if($userSetting->learns_vocabulary)
-            {
-                $vocabularyItems = $user->vocabularyItems()::all();
-                foreach ($vocabularyItems as $item)
-                {
-                    if($item->knowledge < 100)
-                    {
-                        PendingTask::query()->create(
-                            [
-                                'status' => PendingTaskStatus::Pending,
-                                'method' => Termorize\Tasks\SendQuestion::execute,
-                                'parameters' => [$user->id, $item->id],
-                                'scheduled_for' => Carbon::today()->addHours(rand(10, 22))
-                            ]
-                        );
-                    }
-                }
+        $users = User::with('settings', 'vocabularyItems')->get();
+        foreach ($users as $user) {
+            $userSetting = $user->settings;
+            if ($userSetting->learns_vocabulary) {
+                $this->generateDayTasks($user);
             }
         }
+    }
+
+    private function generateDayTasks(User $user): void
+    {
+        $vocabularyItem = $user->vocabularyItems->where('knowledge', '<', 100)->random();
+        PendingTask::query()->create([
+            'status' => PendingTaskStatus::Pending,
+            'method' => SendQuestion::class . '::execute',
+            'parameters' => [$user->id, $vocabularyItem->id],
+            'scheduled_for' => Carbon::today()->addHours(rand(10, 22)),
+        ]);
     }
 }
