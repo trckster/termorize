@@ -3,11 +3,10 @@
 namespace Termorize\Cron;
 
 use Carbon\Carbon;
+use Termorize\Enums\PendingTaskStatus;
 use Termorize\Interfaces\CronCommand;
 use Termorize\Models\PendingTask;
 use Termorize\Models\User;
-use Termorize\Enums\PendingTaskStatus;
-use Termorize\Models\UserSetting;
 use Termorize\Tasks\SendQuestion;
 
 class GenerateQuestions implements CronCommand

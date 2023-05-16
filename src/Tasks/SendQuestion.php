@@ -4,5 +4,4 @@ namespace Termorize\Tasks;
 
 class SendQuestion
 {
-
 }
