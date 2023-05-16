@@ -28,5 +28,8 @@ class PendingTask extends Model
 
     protected $casts = [
         'status' => PendingTaskStatus::class,
+        'parameters' => 'json',
+        'scheduled_for' => 'datetime',
+        'executed_at' => 'datetime',
     ];
 }

@@ -17,4 +17,6 @@ class UserSetting extends Model
         'user_id',
         'learns_vocabulary',
     ];
+
+    protected $table = 'users_settings';
 }
