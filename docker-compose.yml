@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  bot:
+    env_file:
+      - .env
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+    build:
+      context: .
+
+  mysql:
+    env_file:
+      - .env
+    image: mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DATABASE}
+      MYSQL_ROOT_PASSWORD: ${DATABASE_PASSWORD}
+    ports:
+      - "3306"
+    healthcheck:
+      test: ["CMD", 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-p$$MYSQL_ROOT_PASSWORD' ]
+      timeout: 1s
+      retries: 1000
+
+  migrations:
+    env_file:
+      - .env
+    depends_on:
+      mysql:
+        condition: service_healthy
+    build:
+      context: .
+    command: composer migrate
