@@ -8,6 +8,7 @@ use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Longman\TelegramBot\Exception\TelegramException;
 use Longman\TelegramBot\Telegram;
+use Throwable;
 
 class Kernel
 {
@@ -29,13 +30,21 @@ class Kernel
             $telegram = new Telegram($botApiKey, $botUsername);
 
             $telegram->enableMySql($mysql_credentials);
-
-            $response = $telegram->handleGetUpdates();
-            $result = $response->getResult();
             $handler = new MessageHandler();
+            echo "Bot is running\n";
+            while(true) {
+                try {
+                    $response = $telegram->handleGetUpdates();
+                    $result = $response->getResult();
 
-            foreach ($result as $update) {
-                $handler->handle($update);
+                    foreach ($result as $update) {
+                        $handler->handle($update);
+                    }
+                    sleep(1);
+
+                } catch(Throwable $e) {
+                    echo $e->getMessage();
+                }
             }
         } catch (TelegramException $e) {
             echo $e->getMessage();
