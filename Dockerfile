@@ -1,26 +1,23 @@
 FROM php:8.1-cli
 
+WORKDIR /app
+
 RUN apt update && apt upgrade -y
 
-RUN apt-get install -y libzip-dev zip
+RUN apt install -y libzip-dev zip
 
 RUN docker-php-ext-install zip pdo pdo_mysql
 RUN docker-php-ext-enable pdo_mysql
 
-
 COPY --from=composer /usr/bin/composer /usr/bin/composer
-
-COPY composer.json ./
-
-WORKDIR /var/www
 
 COPY composer.* ./
 
 RUN composer install --no-ansi --no-dev --no-interaction --no-plugins --no-progress --no-scripts --optimize-autoloader; \
     composer clearcache
 
-ADD src ./src
-ADD index.php .env ./
+ADD . .
+RUN touch .env # Fix later
 
 CMD php index.php
 
