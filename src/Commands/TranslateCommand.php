@@ -19,13 +19,16 @@ class TranslateCommand extends AbstractCommand
 
     public function process(): void
     {
-        $translation = $this->translator->translate($this->update->getMessage()->getText());
+        $message = $this->update->getMessage()->getText();
+        $translation = $this->translator->translate($message);
 
         Request::sendMessage([
             'chat_id' => $this->update->getMessage()->getChat()->getId(),
             'text' => $translation->translation_text,
         ]);
 
-        $this->vocabularyService->save($translation, $this->update->getMessage()->getFrom()->getId());
+        if (str_word_count($message) < 5) {
+            $this->vocabularyService->save($translation, $this->update->getMessage()->getFrom()->getId());
+        }
     }
 }
