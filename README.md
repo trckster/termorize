@@ -9,3 +9,9 @@ develop programming skills working on project, that is close to real.
 0 0 * * * php /src/Cron/GenerateQuestions.php
 
 Enter this in crontab in order to generate pending tasks for bot users.
+
+# Build
+```bash
+docker build -t trckster/termorize .
+docker push trckster/termorize
+```

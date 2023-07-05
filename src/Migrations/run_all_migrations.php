@@ -20,9 +20,12 @@ $migrationsClasses = [
     UserSettingMigration::class,
     PendingTaskMigration::class,
 ];
+
 foreach($migrationsClasses as $migrationClass){
     $migration = new $migrationClass();
     if (!Manager::schema()->hasTable($migration->getTable())){
         $migration->migrate();
     }
 }
+
+echo "Migrations processed\n";

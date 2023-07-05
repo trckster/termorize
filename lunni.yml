@@ -1,5 +1,8 @@
 version: "3.9"
 
+volumes:
+  mysql-data:
+
 services:
   bot:
     environment:
@@ -15,6 +18,8 @@ services:
 
   mysql:
     image: mysql
+    volumes:
+      - mysql-data:/var/lib/mysql
     environment:
       - MYSQL_DATABASE=termorize
       - MYSQL_ROOT_PASSWORD=${DATABASE_PASSWORD}
