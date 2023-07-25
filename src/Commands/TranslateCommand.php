@@ -27,8 +27,35 @@ class TranslateCommand extends AbstractCommand
             'text' => $translation->translation_text,
         ]);
 
-        if (str_word_count($message) < 5) {
+        if (str_word_count($message) <= 5) {
             $this->vocabularyService->save($translation, $this->update->getMessage()->getFrom()->getId());
+            $keyboard = json_encode([
+                "inline_keyboard" => [
+                    [
+                        ["text" => "Удалить из словарного запаса", "callback_data" => "deleteWord"]
+                    ]
+                ]
+            ]);
+
+            Request::sendMessage([
+                'chat_id' => $this->update->getMessage()->getChat()->getId(),
+                'text' => 'Перевод сохранён для дальнейшего изучения',
+                'reply_markup' => $keyboard
+            ]);
+        } else {
+            $keyboard = json_encode([
+                "inline_keyboard" => [
+                    [
+                        ["text" => "Сохранить для дальнейшего обучения", "callback_data" => "addWord"]
+                    ]
+                ]
+            ]);
+
+            Request::sendMessage([
+                'chat_id' => $this->update->getMessage()->getChat()->getId(),
+                'text' => 'Текст, введенный вами очень длинный, хотите ли вы сохранить его?',
+                'reply_markup' => $keyboard
+            ]);
         }
     }
 }

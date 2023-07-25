@@ -3,6 +3,7 @@
 namespace Termorize\Services;
 
 use Termorize\Models\Translation;
+use Termorize\Models\VocabularyItem;
 
 class VocabularyItemService
 {
@@ -13,5 +14,9 @@ class VocabularyItemService
             'knowledge' => 0,
         ]);
 
+    }
+    public function deleteLatestUserTranslation(int $translationId): void
+    {
+        VocabularyItem::query()->where('user_id', $translationId)->delete();
     }
 }
