@@ -43,18 +43,13 @@ class TranslateCommand extends AbstractCommand
                     ])
             ]);
         } else {
-            $keyboard = json_encode([
-                "inline_keyboard" => [
-                    [
-                        ["text" => "Сохранить для дальнейшего обучения", "callback_data" => "addWord"]
-                    ]
-                ]
-            ]);
-
             Request::sendMessage([
                 'chat_id' => $this->update->getMessage()->getChat()->getId(),
                 'text' => 'Текст, введенный вами очень длинный, хотите ли вы сохранить его?',
-                'reply_markup' => $keyboard
+                'reply_markup' => KeyboardHelper::makeButton('Сохранить в словарный запас',
+                    'addWord', [
+                        'translationId' => $translation->id
+                    ])
             ]);
         }
     }

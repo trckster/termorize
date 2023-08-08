@@ -5,6 +5,7 @@ namespace Termorize\Services;
 use Longman\TelegramBot\Entities\CallbackQuery;
 use Longman\TelegramBot\Entities\Update;
 use Longman\TelegramBot\Exception\TelegramException;
+use Termorize\Commands\AddWordCallbackCommand;
 use Termorize\Commands\DefaultCommand;
 use Termorize\Commands\DeleteWordCallbackCommand;
 use Termorize\Commands\StartCommand;
@@ -47,11 +48,12 @@ class MessageHandler
     private function handleCallback(CallbackQuery $callbackQuery){
 
         $callback_data = json_decode($callbackQuery->getData(), true);
-        var_dump($callback_data);
             if($callback_data['callback'] === "deleteWord"){
-                echo 'in';
                 $callbackCommand = new DeleteWordCallbackCommand();
+            } elseif ($callback_data['callback'] === 'addWord') {
+                $callbackCommand = new AddWordCallbackCommand();
             }
+
 
             $callbackCommand->setCallbackQuery($callbackQuery);
             $callbackCommand->process();
