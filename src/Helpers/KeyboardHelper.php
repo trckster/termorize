@@ -11,10 +11,10 @@ class KeyboardHelper
                 [
                     [
                         'text' => $buttonText,
-                        'callback_data' => self::makeCallback($callbackName, $callbackData)
-                    ]
-                ]
-            ]
+                        'callback_data' => self::makeCallback($callbackName, $callbackData),
+                    ],
+                ],
+            ],
         ];
 
         return json_encode($keyboard);

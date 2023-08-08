@@ -38,9 +38,9 @@ class TranslateCommand extends AbstractCommand
                 'reply_markup' => KeyboardHelper::makeButton('Удалить из словарного запаса',
                     'deleteWord', [
                         'vocabularyItemId' => VocabularyItem::query()->where('translation_id', $translation->id)->
-                        where('user_id',$this->update->getMessage()->getFrom()->getId())->first()->id,
+                        where('user_id', $this->update->getMessage()->getFrom()->getId())->first()->id,
 
-                    ])
+                    ]),
             ]);
         } else {
             Request::sendMessage([
@@ -48,8 +48,8 @@ class TranslateCommand extends AbstractCommand
                 'text' => 'Текст, введенный вами очень длинный, хотите ли вы сохранить его?',
                 'reply_markup' => KeyboardHelper::makeButton('Сохранить в словарный запас',
                     'addWord', [
-                        'translationId' => $translation->id
-                    ])
+                        'translationId' => $translation->id,
+                    ]),
             ]);
         }
     }

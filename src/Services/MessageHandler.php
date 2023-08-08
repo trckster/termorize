@@ -45,15 +45,15 @@ class MessageHandler
         }
 
     }
-    private function handleCallback(CallbackQuery $callbackQuery){
+
+    private function handleCallback(CallbackQuery $callbackQuery) {
 
         $callback_data = json_decode($callbackQuery->getData(), true);
-            if($callback_data['callback'] === "deleteWord"){
+            if($callback_data['callback'] === 'deleteWord'){
                 $callbackCommand = new DeleteWordCallbackCommand();
             } elseif ($callback_data['callback'] === 'addWord') {
                 $callbackCommand = new AddWordCallbackCommand();
             }
-
 
             $callbackCommand->setCallbackQuery($callbackQuery);
             $callbackCommand->process();

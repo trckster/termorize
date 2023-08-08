@@ -4,7 +4,6 @@ namespace Termorize\Commands;
 
 use Longman\TelegramBot\Request;
 use Termorize\Models\VocabularyItem;
-use Termorize\Services\VocabularyItemService;
 
 class DeleteWordCallbackCommand extends AbstractCallbackCommand
 {
