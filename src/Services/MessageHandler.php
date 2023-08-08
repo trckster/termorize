@@ -2,6 +2,7 @@
 
 namespace Termorize\Services;
 
+use Longman\TelegramBot\Entities\CallbackQuery;
 use Longman\TelegramBot\Entities\Update;
 use Longman\TelegramBot\Exception\TelegramException;
 use Termorize\Commands\DefaultCommand;
@@ -31,24 +32,28 @@ class MessageHandler
                }
                $command->setUpdate($update);
                $command->process();
+           } else {
+               if($update->getCallbackQuery() !== null)
+               {
+                   $this->handleCallback($update->getCallbackQuery());
+               }
            }
-
-
-            $callback_data = $update->getCallbackQuery()->getData();
-            var_dump($callback_data);
-            if($callback_data !== null){
-                echo 'in';
-                if($callback_data === "deleteWord"){
-                    echo 'in';
-                    $callback = new DeleteWordCallbackCommand();
-                }
-
-                $callback->setUpdate($update);
-                $callback->process();
-            }
 
         } catch (TelegramException $e) {
             echo $e->getMessage();
         }
+
     }
+    private function handleCallback(CallbackQuery $callbackQuery){
+
+        $callback_data = json_decode($callbackQuery->getData(), true);
+        var_dump($callback_data);
+            if($callback_data['callback'] === "deleteWord"){
+                echo 'in';
+                $callbackCommand = new DeleteWordCallbackCommand();
+            }
+
+            $callbackCommand->setCallbackQuery($callbackQuery);
+            $callbackCommand->process();
+        }
 }
