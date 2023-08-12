@@ -21,9 +21,9 @@ $migrationsClasses = [
     PendingTaskMigration::class,
 ];
 
-foreach($migrationsClasses as $migrationClass){
+foreach($migrationsClasses as $migrationClass) {
     $migration = new $migrationClass();
-    if (!Manager::schema()->hasTable($migration->getTable())){
+    if (!Manager::schema()->hasTable($migration->getTable())) {
         $migration->migrate();
     }
 }

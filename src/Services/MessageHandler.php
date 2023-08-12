@@ -16,46 +16,44 @@ class MessageHandler
     public function handle(Update $update): void
     {
         try {
-           if($update->getMessage() !== null){
-               $message = $update->getMessage();
-               $text = $message->getText();
+            if($update->getMessage() !== null) {
+                $message = $update->getMessage();
+                $text = $message->getText();
 
-               if (empty($text)) {
-                   $command = new StartCommand();
-               } elseif ($text === '/start') {
-                   $command = new StartCommand();
-               } else {
-                   if ($text[0] != '/') {
-                       $command = new TranslateCommand();
-                   } else {
-                       $command = new DefaultCommand();
-                   }
-               }
-               $command->setUpdate($update);
-               $command->process();
-           } else {
-               if($update->getCallbackQuery() !== null)
-               {
-                   $this->handleCallback($update->getCallbackQuery());
-               }
-           }
+                if (empty($text)) {
+                    $command = new StartCommand();
+                } elseif ($text === '/start') {
+                    $command = new StartCommand();
+                } else {
+                    if ($text[0] != '/') {
+                        $command = new TranslateCommand();
+                    } else {
+                        $command = new DefaultCommand();
+                    }
+                }
+                $command->setUpdate($update);
+                $command->process();
+            } else {
+                if($update->getCallbackQuery() !== null) {
+                    $this->handleCallback($update->getCallbackQuery());
+                }
+            }
 
         } catch (TelegramException $e) {
             echo $e->getMessage();
         }
-
     }
 
-    private function handleCallback(CallbackQuery $callbackQuery) {
-
+    private function handleCallback(CallbackQuery $callbackQuery): void
+    {
         $callback_data = json_decode($callbackQuery->getData(), true);
-            if($callback_data['callback'] === 'deleteWord'){
-                $callbackCommand = new DeleteWordCallbackCommand();
-            } elseif ($callback_data['callback'] === 'addWord') {
-                $callbackCommand = new AddWordCallbackCommand();
-            }
-
-            $callbackCommand->setCallbackQuery($callbackQuery);
-            $callbackCommand->process();
+        if($callback_data['callback'] === 'deleteWord') {
+            $callbackCommand = new DeleteWordCallbackCommand();
+        } elseif ($callback_data['callback'] === 'addWord') {
+            $callbackCommand = new AddWordCallbackCommand();
         }
+
+        $callbackCommand->setCallbackQuery($callbackQuery);
+        $callbackCommand->process();
+    }
 }
