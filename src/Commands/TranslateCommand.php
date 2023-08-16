@@ -31,17 +31,18 @@ class TranslateCommand extends AbstractCommand
 
         if (str_word_count($message) <= 5) {
             $this->vocabularyService->save($translation, $this->update->getMessage()->getFrom()->getId());
+            $vocabularyItemId = VocabularyItem::query()
+                ->where('translation_id', $translation->id)
+                ->where('user_id', $this->update->getMessage()->getFrom()->getId())
+                ->first()
+                ->id;
 
             Request::sendMessage([
                 'chat_id' => $this->update->getMessage()->getChat()->getId(),
                 'text' => 'Перевод сохранён для дальнейшего изучения',
                 'reply_markup' => KeyboardHelper::makeButton('Удалить из словарного запаса',
                     'deleteWord', [
-                        'vocabularyItemId' => VocabularyItem::query()
-                            ->where('translation_id', $translation->id)
-                            ->where('user_id', $this->update->getMessage()->getFrom()->getId())
-                            ->first()
-                            ->id,
+                        'vocabularyItemId' => $vocabularyItemId
                     ]),
             ]);
         } else {
