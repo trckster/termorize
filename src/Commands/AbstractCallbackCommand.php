@@ -4,14 +4,12 @@ namespace Termorize\Commands;
 
 use Longman\TelegramBot\Entities\CallbackQuery;
 
-abstract class AbstractCallbackCommand
+abstract class AbstractCallbackCommand extends AbstractCommand
 {
-    protected CallbackQuery $callbackQuery;
+    protected array $callbackData;
 
-    abstract public function process(): void;
-
-    public function setCallbackQuery(CallbackQuery $callbackQuery): void
+    public function parseCallbackData(): void
     {
-        $this->callbackQuery = $callbackQuery;
+        $this->callbackData = json_decode($this->update->getCallbackQuery()->getData(), true);
     }
 }

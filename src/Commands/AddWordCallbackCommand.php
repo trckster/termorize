@@ -10,11 +10,11 @@ class AddWordCallbackCommand extends AbstractCallbackCommand
 {
     public function process(): void
     {
-        $userId = $this->callbackQuery->getFrom()->getId();
-        $callback_data = json_decode($this->callbackQuery->getData(), true);
+        $userId = $this->update->getCallbackQuery()->getFrom()->getId();
 
         $service = new VocabularyItemService();
-        $service->save(Translation::query()->find($callback_data['data']['translationId'])->first(), $userId);
+        $translationToSave = Translation::query()->find($this->callbackData['data']['translationId'])->first();
+        $service->save($translationToSave, $userId);
 
         Request::sendMessage([
             'chat_id' => $userId,

@@ -15,9 +15,4 @@ class VocabularyItemService
         ]);
 
     }
-
-    public function deleteLatestUserTranslation(int $translationId): void
-    {
-        VocabularyItem::query()->where('user_id', $translationId)->delete();
-    }
 }

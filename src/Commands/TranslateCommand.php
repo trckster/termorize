@@ -37,9 +37,11 @@ class TranslateCommand extends AbstractCommand
                 'text' => 'Перевод сохранён для дальнейшего изучения',
                 'reply_markup' => KeyboardHelper::makeButton('Удалить из словарного запаса',
                     'deleteWord', [
-                        'vocabularyItemId' => VocabularyItem::query()->where('translation_id', $translation->id)->
-                        where('user_id', $this->update->getMessage()->getFrom()->getId())->first()->id,
-
+                        'vocabularyItemId' => VocabularyItem::query()
+                            ->where('translation_id', $translation->id)
+                            ->where('user_id', $this->update->getMessage()->getFrom()->getId())
+                            ->first()
+                            ->id,
                     ]),
             ]);
         } else {

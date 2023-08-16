@@ -9,10 +9,9 @@ class DeleteWordCallbackCommand extends AbstractCallbackCommand
 {
     public function process(): void
     {
-        $userId = $this->callbackQuery->getFrom()->getId();
-        $callback_data = json_decode($this->callbackQuery->getData(), true);
+        $userId = $this->update->getCallbackQuery()->getFrom()->getId();
 
-        VocabularyItem::query()->find($callback_data['data']['vocabularyItemId'])->delete();
+        VocabularyItem::query()->find($this->callbackData['data']['vocabularyItemId'])->delete();
 
         Request::sendMessage([
             'chat_id' => $userId,
