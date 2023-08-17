@@ -17,7 +17,6 @@ class DatabaseRefresher
             Manager::table($name)->truncate();
         }
 
-//        Manager::connection()->statement('SET foreign_key_checks=1');
-        // TODO return back
+        Manager::connection()->statement('SET foreign_key_checks=1');
     }
 }

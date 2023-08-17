@@ -5,6 +5,7 @@ namespace Termorize\Models;
 use Illuminate\Database\Eloquent\Model;
 
 /**
+ * @property int $id
  * @property int $translation_id
  * @property int $user_id
  * @property int $knowledge

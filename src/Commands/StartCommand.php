@@ -8,9 +8,9 @@ class StartCommand extends AbstractCommand
 {
     public function process(): void
     {
-            Request::sendMessage([
-                'chat_id' => $this->update->getMessage()->getChat()->getId(),
-                'text' => 'Отправь мне любое слово и я его переведу.',
-            ]);
+        Request::sendMessage([
+            'chat_id' => $this->update->getMessage()->getChat()->getId(),
+            'text' => 'Отправь мне любое слово и я его переведу.',
+        ]);
     }
 }

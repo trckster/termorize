@@ -8,9 +8,9 @@ class DefaultCommand extends AbstractCommand
 {
     public function process(): void
     {
-            Request::sendMessage([
-                'chat_id' => $this->update->getMessage()->getChat()->getId(),
-                'text' => 'Такой команды нет, попробуйте ввести другую',
-            ]);
+        Request::sendMessage([
+            'chat_id' => $this->update->getMessage()->getChat()->getId(),
+            'text' => 'Такой команды нет, попробуйте ввести другую',
+        ]);
     }
 }

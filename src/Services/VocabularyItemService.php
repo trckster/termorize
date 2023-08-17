@@ -3,6 +3,7 @@
 namespace Termorize\Services;
 
 use Termorize\Models\Translation;
+use Termorize\Models\VocabularyItem;
 
 class VocabularyItemService
 {

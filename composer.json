@@ -19,7 +19,7 @@
     "require-dev": {
         "mockery/mockery": "^1.5",
         "phpunit/phpunit": "^9.5",
-        "friendsofphp/php-cs-fixer": "^3.14"
+        "friendsofphp/php-cs-fixer": "^3.22"
     },
     "scripts": {
         "migrate": "php ./src/Migrations/run_all_migrations.php",
