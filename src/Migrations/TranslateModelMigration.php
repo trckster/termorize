@@ -4,7 +4,7 @@ namespace Termorize\Migrations;
 
 use Illuminate\Database\Capsule\Manager;
 
-class TranslateModelMigration
+class TranslateModelMigration implements MigrationInterface
 {
     public function getTable(): string
     {

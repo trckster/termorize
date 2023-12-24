@@ -4,9 +4,14 @@ namespace Termorize\Migrations;
 
 use Illuminate\Database\Capsule\Manager;
 
-class TelegramMigration
+class TelegramMigration implements MigrationInterface
 {
-    public static function migrate(): void
+    public function getTable(): string
+    {
+        return '<all telegram migrations>';
+    }
+
+    public function migrate(): void
     {
         $rawQuery = file_get_contents(getBasePath('vendor/longman/telegram-bot/structure.sql'));
         $connection = Manager::connection();

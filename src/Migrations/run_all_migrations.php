@@ -12,19 +12,20 @@ use Termorize\Migrations\VocabularyItemMigration;
 $kernel = new Termorize\Services\Kernel();
 $kernel->connectDatabase();
 
-TelegramMigration::migrate();
-
-$migrationsClasses = [
+const MIGRATIONS_CLASSES = [
+    TelegramMigration::class,
     TranslateModelMigration::class,
     VocabularyItemMigration::class,
     UserSettingMigration::class,
     PendingTaskMigration::class,
 ];
 
-foreach($migrationsClasses as $migrationClass) {
+foreach (MIGRATIONS_CLASSES as $migrationClass) {
     $migration = new $migrationClass();
     if (!Manager::schema()->hasTable($migration->getTable())) {
         $migration->migrate();
+
+        echo "$migrationClass executed!\n";
     }
 }
 

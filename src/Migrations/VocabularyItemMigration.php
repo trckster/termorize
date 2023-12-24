@@ -5,7 +5,7 @@ namespace Termorize\Migrations;
 use Illuminate\Database\Capsule\Manager;
 use Illuminate\Database\Schema\Blueprint;
 
-class VocabularyItemMigration
+class VocabularyItemMigration implements MigrationInterface
 {
     public function getTable(): string
     {
