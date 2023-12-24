@@ -2,7 +2,6 @@
 
 namespace Termorize\Services;
 
-use Longman\TelegramBot\Entities\CallbackQuery;
 use Longman\TelegramBot\Entities\Update;
 use Longman\TelegramBot\Exception\TelegramException;
 use Termorize\Commands\AddWordCallbackCommand;

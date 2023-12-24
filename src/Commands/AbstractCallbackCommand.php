@@ -2,8 +2,6 @@
 
 namespace Termorize\Commands;
 
-use Longman\TelegramBot\Entities\CallbackQuery;
-
 abstract class AbstractCallbackCommand extends AbstractCommand
 {
     protected array $callbackData;

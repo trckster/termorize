@@ -42,7 +42,7 @@ class TranslateCommand extends AbstractCommand
                 'text' => 'Перевод сохранён для дальнейшего изучения',
                 'reply_markup' => KeyboardHelper::makeButton('Удалить из словарного запаса',
                     'deleteWord', [
-                        'vocabularyItemId' => $vocabularyItemId
+                        'vocabularyItemId' => $vocabularyItemId,
                     ]),
             ]);
         } else {
