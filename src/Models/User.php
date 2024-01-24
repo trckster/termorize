@@ -40,6 +40,13 @@ class User extends Model
     protected $table = 'user';
     public $incrementing = false;
 
+    public function chatId(): int
+    {
+        $userChat = UserChat::query()->get()->where('user_id', '=', $this->id)->first();
+
+        return $userChat->chat_id;
+    }
+
     public function settings(): HasOne
     {
         return $this->hasOne(UserSetting::class, 'user_id', 'id');

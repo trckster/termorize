@@ -11,10 +11,15 @@ class SendQuestion
     public function handle(PendingTask $pendingTask)
     {
         $params = json_decode($pendingTask->parameters, true);
-        /*$user = User::query()->where('id', '=', $params[]);
+        $userId = $params['id'];
+        $user = User::query()
+            ->where('id', '=', $userId)
+            ->first();
+
+        $chatId = $user->chatId();
 
         Request::sendMessage([
-            'chat_id' =>
-        ])*/
+            'chat_id' => $chatId
+        ]);
     }
 }
