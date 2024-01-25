@@ -14,12 +14,13 @@ class CloseQuestions implements CronCommand
             ->where(PendingTask::$scheduled_for, '=', Carbon::now())
             ->get()
             ->toArray();
-        /*
+
         foreach($pendingTasks as $pendingTask)
         {
             $method = $pendingTask->method;
 
-            $
-        }*/
+            call_user_func($method);
+
+        }
     }
 }
