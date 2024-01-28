@@ -18,7 +18,8 @@ class SendQuestion
             ->where('id', '=', $userId)
             ->first();
 
-        $chatId = $user->chatId();
+        $chatId = $user->chat()->id;
+
         $vocabularyItemId = VocabularyItem::query()
             ->where('id', '=', $params['user_id'])
             ->first()
@@ -29,10 +30,9 @@ class SendQuestion
             ->first()
             ->translation_text;
 
-
         Request::sendMessage([
             'chat_id' => $chatId,
-            'text' => $translationText
+            'text' => $translationText,
         ]);
     }
 }

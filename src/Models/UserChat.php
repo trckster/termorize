@@ -1,4 +1,5 @@
 <?php
+
 namespace Termorize\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -13,7 +14,7 @@ class UserChat extends Model
     public const UPDATED_AT = null;
     protected $fillable = [
         'chat_id',
-        'user_id'
+        'user_id',
     ];
 
 }
