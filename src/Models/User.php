@@ -40,9 +40,9 @@ class User extends Model
     protected $table = 'user';
     public $incrementing = false;
 
-    public function chat(): HasOne
+    public function chat(): hasMany
     {
-        return $this->hasOne(UserChat::class, 'user_id', 'id');
+        return $this->hasMany(UserChat::class, 'user_id', 'id');
     }
 
     public function settings(): HasOne

@@ -13,20 +13,22 @@ class SendQuestion
     public function handle(PendingTask $pendingTask)
     {
         $params = json_decode($pendingTask->parameters, true);
-        $userId = $params['chat_id'];
+
+        $userId = $params['user_id'];
+        $vocabularyItemId = $params['vocabulary_item_id'];
+
         $user = User::query()
             ->where('id', '=', $userId)
             ->first();
 
-        $chatId = $user->chat()->id;
+        $chatId = $user->chat()->first()->id;
 
-        $vocabularyItemId = VocabularyItem::query()
-            ->where('id', '=', $params['user_id'])
-            ->first()
-            ->translation_id;
+        $vocabularyItem = $user->vocabularyItems()
+            ->where('id', '=', $vocabularyItemId)
+            ->first();
 
         $translationText = Translation::query()
-            ->where('id', '=', $vocabularyItemId)
+            ->where('id', '=', $vocabularyItem->translation_id)
             ->first()
             ->translation_text;
 
