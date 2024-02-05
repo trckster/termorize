@@ -19,4 +19,13 @@ class UserSetting extends Model
     ];
 
     protected $table = 'users_settings';
+
+    public static function createDefaultSetting(User $user)
+    {
+        return self::query()
+            ->create([
+                'user_id' => $user->id,
+                'learns_vocabulary' => true,
+            ]);
+    }
 }

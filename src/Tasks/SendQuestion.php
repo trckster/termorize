@@ -6,7 +6,6 @@ use Longman\TelegramBot\Request;
 use Termorize\Models\PendingTask;
 use Termorize\Models\Translation;
 use Termorize\Models\User;
-use Termorize\Models\VocabularyItem;
 
 class SendQuestion
 {

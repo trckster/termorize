@@ -7,6 +7,7 @@ use Termorize\Enums\PendingTaskStatus;
 use Termorize\Interfaces\CronCommand;
 use Termorize\Models\PendingTask;
 use Termorize\Models\User;
+use Termorize\Models\UserSetting;
 use Termorize\Tasks\SendQuestion;
 
 class GenerateQuestions implements CronCommand
@@ -15,7 +16,7 @@ class GenerateQuestions implements CronCommand
     {
         $users = User::with('settings', 'vocabularyItems')->get();
         foreach ($users as $user) {
-            $userSetting = $user->settings;
+            $userSetting = $user->settings ??= UserSetting::createDefaultSetting($user);
             if ($userSetting->learns_vocabulary) {
                 $this->generateDayTasks($user);
             }
