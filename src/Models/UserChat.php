@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class UserChat extends Model
 {
+    protected $table = 'user_chat';
     public const CREATED_AT = null;
     public const UPDATED_AT = null;
     protected $fillable = [

@@ -16,9 +16,11 @@ class GenerateQuestions implements CronCommand
     {
         $users = User::with('settings', 'vocabularyItems')->get();
         foreach ($users as $user) {
-            $userSetting = $user->settings ??= UserSetting::createDefaultSetting($user);
-            if ($userSetting->learns_vocabulary) {
-                $this->generateDayTasks($user);
+            if (!$user->is_bot) {
+                $userSetting = $user->settings ??= UserSetting::createDefaultSetting($user);
+                if ($userSetting->learns_vocabulary) {
+                    $this->generateDayTasks($user);
+                }
             }
         }
     }
@@ -29,8 +31,11 @@ class GenerateQuestions implements CronCommand
         PendingTask::query()->create([
             'status' => PendingTaskStatus::Pending,
             'method' => SendQuestion::class . '::execute',
-            'parameters' => [$user->id, $vocabularyItem->id],
-            'scheduled_for' => Carbon::today()->addHours(rand(10, 22)),
+            'parameters' => json_encode([
+                'user_id' => $user->id,
+                'vocabulary_item_id' =>$vocabularyItem->id,
+            ]),
+            'scheduled_for' => Carbon::now(),
         ]);
     }
 }

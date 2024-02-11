@@ -12,13 +12,13 @@ class CloseQuestions implements CronCommand
     {
         $pendingTasks = PendingTask::query()
             ->where('status', '=', 'Pending')
-            ->toArray();
+            ->get();
 
         foreach($pendingTasks as $pendingTask) {
-            $pendingTaskTime = $pendingTask->scheduled_for;
-            if ($pendingTaskTime->diffInMinutes(Carbon::now()) <= 10) {
-                $method = $pendingTask->method;
-                call_user_func($method);
+            $pendingTaskTime = new Carbon($pendingTask->scheduled_for);
+            if ($pendingTaskTime->diffInMinutes(Carbon::now()) <= 60) {
+                $method = $pendingTask['method'];
+                call_user_func($method, $pendingTask);
             }
         }
     }

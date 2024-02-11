@@ -40,7 +40,7 @@ class User extends Model
     protected $table = 'user';
     public $incrementing = false;
 
-    public function chat(): hasMany
+    public function getUserChat(): hasMany
     {
         return $this->hasMany(UserChat::class, 'user_id', 'id');
     }
