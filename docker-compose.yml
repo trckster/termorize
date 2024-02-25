@@ -37,3 +37,15 @@ services:
     build:
       context: .
     command: composer migrate
+
+  cron:
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    # run crond as main process of container
+    entrypoint: [ "bash", "-c", "cron -f" ]
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+

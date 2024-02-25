@@ -1,0 +1,2 @@
+0 0 * * * php src/Cron/GenerateQuestions.php
+* * * * * php src/Cron/CloseQuestions.php

@@ -16,7 +16,7 @@ class CloseQuestions implements CronCommand
 
         foreach($pendingTasks as $pendingTask) {
             $pendingTaskTime = new Carbon($pendingTask->scheduled_for);
-            if ($pendingTaskTime->diffInMinutes(Carbon::now()) <= 60) {
+            if ($pendingTaskTime->diffInMinutes(Carbon::now()) <= 15) {
                 $method = $pendingTask['method'];
                 call_user_func($method, $pendingTask);
             }
