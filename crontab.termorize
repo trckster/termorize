@@ -1,2 +1,1 @@
-0 0 * * * php src/Cron/GenerateQuestions.php
-* * * * * php src/Cron/CloseQuestions.php
+* * * * * root /usr/local/bin/php /cron/sample.php >/proc/1/fd/1 2>/proc/1/fd/2

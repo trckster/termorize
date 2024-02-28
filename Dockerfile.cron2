@@ -1,0 +1,13 @@
+FROM php:8.2-cli
+
+WORKDIR /cron
+
+RUN apt-get update && apt-get install cron -y
+
+COPY . ./
+
+ADD crontab.termorize /etc/cron.d/termorize-cron
+
+RUN chmod 0644 /etc/cron.d/termorize-cron
+
+CMD cron -f
