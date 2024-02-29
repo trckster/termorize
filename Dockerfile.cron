@@ -5,7 +5,6 @@ WORKDIR /cron
 RUN apt-get update && apt-get install cron -y
 
 COPY . ./
-RUN cat src/Cron/GenerateQuestions.php
 
 COPY --from=composer /usr/bin/composer /usr/bin/composer
 
@@ -27,4 +26,4 @@ RUN docker-php-ext-enable pdo_mysql
 
 RUN touch /var/log/cron.log
 
-CMD cron && tail -f /var/log/cron.log
+CMD cron -f

@@ -10,6 +10,8 @@ class CloseQuestions implements CronCommand
 {
     public function handle()
     {
+        echo "Sending questions\n";
+
         $pendingTasks = PendingTask::query()
             ->where('status', '=', 'Pending')
             ->get();
