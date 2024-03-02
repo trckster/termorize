@@ -1,2 +1,3 @@
 * * * * * root /usr/local/bin/php /cron/cron.php CloseQuestions >/proc/1/fd/1 2>/proc/1/fd/2
 0 0 * * * root /usr/local/bin/php /cron/cron.php GenerateQuestions >/proc/1/fd/1 2>/proc/1/fd/2
+
