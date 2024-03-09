@@ -11,6 +11,8 @@ class SendAllPendingQuestions implements CronCommand
 {
     public function handle()
     {
+        echo "Works\n";
+
         $pendingTasks = PendingTask::query()
             ->where('status', PendingTaskStatus::Pending)
             ->get();
