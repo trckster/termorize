@@ -8,10 +8,11 @@ use Termorize\Models\PendingTask;
 use Termorize\Models\Translation;
 use Termorize\Models\User;
 use Termorize\Models\UserChat;
+use Termorize\Models\VocabularyItem;
 
 class SendQuestion
 {
-    public static function execute(PendingTask $pendingTask)
+    public static function execute(PendingTask $pendingTask) : void
     {
         $params = json_decode($pendingTask->parameters, true);
 
@@ -24,11 +25,8 @@ class SendQuestion
 
         $chatId = UserChat::query()->where('user_id', '=', $user->id)->first()->chat_id;
 
-        // $userChat = $user->getUserChat()->first();
-
-        //$chatId = $userChat->id;
-
-        $vocabularyItem = $user->vocabularyItems()
+        $vocabularyItem = VocabularyItem::query()
+            ->find($vocabularyItemId)
             ->where('id', '=', $vocabularyItemId)
             ->first();
 
@@ -40,7 +38,7 @@ class SendQuestion
         $botUsername = env('BOT_USERNAME');
         $botApiKey = env('BOT_API_KEY');
 
-        $telegram = new Telegram($botApiKey, $botUsername);
+        new Telegram($botApiKey, $botUsername);
 
         Request::sendMessage([
             'chat_id' => $chatId,

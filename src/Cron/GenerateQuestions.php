@@ -27,15 +27,17 @@ class GenerateQuestions implements CronCommand
 
     private function generateDayTasks(User $user): void
     {
-        $vocabularyItem = $user->vocabularyItems->where('knowledge', '<', 100)->random();
-        PendingTask::query()->create([
-            'status' => PendingTaskStatus::Pending,
-            'method' => SendQuestion::class . '::execute',
-            'parameters' => json_encode([
-                'user_id' => $user->id,
-                'vocabulary_item_id' =>$vocabularyItem->id,
-            ]),
-            'scheduled_for' => Carbon::today()->addHours(rand(10, 22)),
-        ]);
+        if ($user->vocabularyItems->where('knowledge', '<', 100)->random()) {
+            $vocabularyItem = $user->vocabularyItems->where('knowledge', '<', 100)->random();
+            PendingTask::query()->create([
+                'status' => PendingTaskStatus::Pending,
+                'method' => SendQuestion::class . '::execute',
+                'parameters' => json_encode([
+                    'user_id' => $user->id,
+                    'vocabulary_item_id' => $vocabularyItem->id,
+                ]),
+                'scheduled_for' => Carbon::now(),
+            ]);
+        }
     }
 }

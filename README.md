@@ -7,11 +7,11 @@ develop programming skills working on project, that is close to real.
 
 ### CRON
 
-"0 0 * * * php /src/Cron/GenerateQuestions.php"
+`0 0 * * * php cron.php GenerateQuestions`
 
 Enter this in crontab in order to generate pending tasks for bot users.
 
-"* * * * * php /src/Cron/CloseQuestions.php"
+`* * * * * php /cron.php SendAllPendingQuestions`
 
 Enter this in crontab in order to send pending tasks for bot users.
 
