@@ -1,11 +1,13 @@
 <?php
-require_once __DIR__ . '/vendor/autoload.php';
+
+require_once __DIR__ . '/../vendor/autoload.php';
 
 use Termorize\Services\Kernel;
 
 if ($argc < 2) {
     throw new Error('Not enough arguments');
 }
+
 $className = $argv[1];
 
 $kernel = new Kernel;

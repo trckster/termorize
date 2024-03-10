@@ -3,6 +3,7 @@
 namespace Termorize\Cron;
 
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 use Termorize\Enums\PendingTaskStatus;
 use Termorize\Interfaces\CronCommand;
 use Termorize\Models\PendingTask;
