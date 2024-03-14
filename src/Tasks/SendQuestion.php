@@ -4,36 +4,31 @@ namespace Termorize\Tasks;
 
 use Longman\TelegramBot\Request;
 use Longman\TelegramBot\Telegram;
-use Termorize\Models\PendingTask;
 use Termorize\Models\Translation;
 use Termorize\Models\User;
 use Termorize\Models\UserChat;
 use Termorize\Models\VocabularyItem;
+use Termorize\Services\Logger;
 
 class SendQuestion
 {
-    public static function execute(PendingTask $pendingTask) : void
+    public static function execute(array $questionData): void
     {
-        $params = json_decode($pendingTask->parameters, true);
+        $userId = $questionData['user_id'];
+        $vocabularyItemId = $questionData['vocabulary_item_id'];
 
-        $userId = $params['user_id'];
-        $vocabularyItemId = $params['vocabulary_item_id'];
+        /** @var User $user */
+        $user = User::query()->find($userId);
+        Logger::info("Sending new question to the {$user->username}");
 
-        $user = User::query()
-            ->where('id', '=', $userId)
-            ->first();
+        /** @var UserChat $userChat */
+        $userChat = UserChat::query()->where('user_id', $user->id)->first();
 
-        $chatId = UserChat::query()->where('user_id', '=', $user->id)->first()->chat_id;
-
-        $vocabularyItem = VocabularyItem::query()
-            ->find($vocabularyItemId)
-            ->where('id', '=', $vocabularyItemId)
-            ->first();
-
-        $translationText = Translation::query()
-            ->where('id', '=', $vocabularyItem->translation_id)
-            ->first()
-            ->translation_text;
+        /** @var VocabularyItem $vocabularyItem */
+        $vocabularyItem = VocabularyItem::query()->find($vocabularyItemId);
+        // Might be united to the one query
+        /** @var Translation $translation */
+        $translation = Translation::query()->find($vocabularyItem->translation_id);
 
         $botUsername = env('BOT_USERNAME');
         $botApiKey = env('BOT_API_KEY');
@@ -41,8 +36,8 @@ class SendQuestion
         new Telegram($botApiKey, $botUsername);
 
         Request::sendMessage([
-            'chat_id' => $chatId,
-            'text' => $translationText,
+            'chat_id' => $userChat->chat_id,
+            'text' => $translation->translation_text,
         ]);
     }
 }

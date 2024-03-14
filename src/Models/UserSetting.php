@@ -20,7 +20,7 @@ class UserSetting extends Model
 
     protected $table = 'users_settings';
 
-    public static function createDefaultSetting(User $user)
+    public static function createDefaultSetting(User $user): self
     {
         return self::query()
             ->create([
