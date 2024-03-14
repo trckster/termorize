@@ -1,8 +1,8 @@
 FROM php:8.2-cli
 
-WORKDIR /app
+WORKDIR /termorize
 
-RUN apt update && apt upgrade -y
+RUN apt-get update && apt-get install cron -y
 
 RUN apt install -y libzip-dev zip
 
@@ -17,5 +17,7 @@ RUN composer install --no-ansi --no-dev --no-interaction --no-plugins --no-progr
 ADD . .
 RUN touch .env # Fix later
 
-CMD php index.php
+RUN mv cron/crontab.termorize /etc/cron.d/termorize-cron
+RUN chmod 0644 /etc/cron.d/termorize-cron
 
+CMD printenv >> /etc/environment && cron -f

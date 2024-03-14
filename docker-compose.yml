@@ -37,3 +37,15 @@ services:
     build:
       context: .
     command: composer migrate
+
+  cron:
+    env_file:
+      - .env
+    build:
+      context: .
+      dockerfile: ./cron/Dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully

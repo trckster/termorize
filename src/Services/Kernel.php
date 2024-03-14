@@ -54,7 +54,7 @@ class Kernel
     public function connectDatabase(): void
     {
         if (empty($_ENV)) {
-            $dotenv = Dotenv::createImmutable(__DIR__ . '/../../');
+            $dotenv = Dotenv::createImmutable(getBasePath());
             $dotenv->load();
         }
 
