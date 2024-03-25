@@ -8,6 +8,7 @@ use Termorize\Migrations\TelegramMigration;
 use Termorize\Migrations\TranslateModelMigration;
 use Termorize\Migrations\UserSettingMigration;
 use Termorize\Migrations\VocabularyItemMigration;
+use Termorize\Migrations\TranslationTaskMigration;
 
 $kernel = new Termorize\Services\Kernel();
 $kernel->connectDatabase();
@@ -18,6 +19,7 @@ const MIGRATIONS_CLASSES = [
     VocabularyItemMigration::class,
     UserSettingMigration::class,
     PendingTaskMigration::class,
+    TranslationTaskMigration::class
 ];
 
 foreach (MIGRATIONS_CLASSES as $migrationClass) {

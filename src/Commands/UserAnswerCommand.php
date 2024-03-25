@@ -7,20 +7,12 @@ use Termorize\Helpers\KeyboardHelper;
 use Termorize\Models\VocabularyItem;
 use Termorize\Services\Translator;
 use Termorize\Services\VocabularyItemService;
+use Termorize\Models\User;
 
 class UserAnswerCommand extends AbstractCommand
 {
-    private Translator $translator;
-    private VocabularyItemService $vocabularyService;
-
-    public function __construct()
-    {
-        $this->translator = new Translator();
-        $this->vocabularyService = new VocabularyItemService();
-    }
-
     public function process(): void
     {
-        #TODO Add user answer handling
+        $user = User::query()->get()->where('username', $this->update->getMessage()->getChat()->getUsername());
     }
 }
