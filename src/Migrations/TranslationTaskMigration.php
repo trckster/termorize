@@ -25,6 +25,11 @@ class TranslationTaskMigration implements MigrationInterface
             $table->foreign('user_id')
                 ->references('id')
                 ->on('user');
+
+            $table->bigInteger('message_id');
+            $table->foreign('message_id')
+                ->references('id')
+                ->on('message');
         });
 
     }
