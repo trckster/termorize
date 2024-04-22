@@ -47,7 +47,7 @@ class GenerateQuestions implements CronCommand
                 'user_id' => $user->id,
                 'vocabulary_item_id' => $vocabularyItem->id,
             ],
-            'scheduled_for' => Carbon::today()->addHours(rand(10, 22)),
+            'scheduled_for' => Carbon::now(),
         ]);
 
         return true;

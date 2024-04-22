@@ -16,6 +16,7 @@ class Translation extends Model
     public const CREATED_AT = null;
     public const UPDATED_AT = null;
 
+    protected $table = 'translations';
     protected $fillable = [
         'original_text',
         'translation_text',
