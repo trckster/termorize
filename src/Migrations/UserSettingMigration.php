@@ -20,10 +20,10 @@ class UserSettingMigration implements MigrationInterface
             $table->foreign('user_id')
                 ->references('id')
                 ->on('user');
-            $table->enum('status',[
-                    UserStatus::AddingWords->value,
-                    UserStatus::Answering->value
-                ]
+            $table->enum('status', [
+                UserStatus::AddingWords->value,
+                UserStatus::Answering->value,
+            ]
             )->default(UserStatus::AddingWords);
 
             $table->boolean('learns_vocabulary')->default(true);

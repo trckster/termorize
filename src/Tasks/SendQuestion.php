@@ -44,12 +44,12 @@ class SendQuestion
         ]);
 
         UserSetting::query()->where('user_id', $userId)->update([
-            'status' => UserStatus::AddingWords
+            'status' => UserStatus::AddingWords,
         ]);
 
         TranslationTasks::query()->create([
             'user_id' => $userId,
-            'vocabulary_item_id' => $vocabularyItemId
+            'vocabulary_item_id' => $vocabularyItemId,
         ]);
 
     }

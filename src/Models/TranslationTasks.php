@@ -3,7 +3,6 @@
 namespace Termorize\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property int $id
@@ -17,7 +16,7 @@ class TranslationTasks extends Model
 
     protected $fillable = [
         'message_id',
-        'vocabulary_item_id'
+        'vocabulary_item_id',
     ];
-    
+
 }

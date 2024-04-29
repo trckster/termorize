@@ -2,23 +2,16 @@
 
 namespace Termorize\Services;
 
-use GuzzleHttp\Psr7\Message;
 use Longman\TelegramBot\Entities\Update;
 use Longman\TelegramBot\Exception\TelegramException;
-use Longman\TelegramBot\Request;
 use Termorize\Commands\AddWordCallbackCommand;
 use Termorize\Commands\AnswerCommand;
 use Termorize\Commands\DefaultCommand;
 use Termorize\Commands\DeleteWordCallbackCommand;
 use Termorize\Commands\StartCommand;
 use Termorize\Commands\TranslateCommand;
-use Termorize\Enums\PendingTaskStatus;
-use Termorize\Enums\UserStatus;
-use Termorize\Models\PendingTask;
-use Termorize\Models\Translation;
 use Termorize\Models\UserChat;
 use Termorize\Models\UserSetting;
-use Termorize\Models\VocabularyItem;
 
 class MessageHandler
 {
@@ -43,12 +36,12 @@ class MessageHandler
         $message = $update->getMessage();
         $text = $message->getText();
 
-        $userChat = UserChat::query()->get()->where('chat_id', $update->getMessage()->getChat()->getId())->first;
+        $userChat = UserChat::query()->where('chat_id', $update->getMessage()->getChat()->getId())->get()->first();
 
         $userSetting = UserSetting::query()
-            ->get()
             ->where('user_id', $userChat->user_id)
-            ->first;
+            ->get()
+            ->first();
 
         if (empty($text)) {
             $command = new StartCommand();
@@ -56,14 +49,12 @@ class MessageHandler
             $command = new StartCommand();
         } else {
             if ($text[0] != '/') {
-                if ($message->getReplyToMessage() !== null)
-                {
+                if ($message->getReplyToMessage() !== null) {
                     $command = new AnswerCommand();
                 } else {
                     $command = new TranslateCommand();
                 }
-                }
-            else {
+            } else {
                 $command = new DefaultCommand();
             }
         }

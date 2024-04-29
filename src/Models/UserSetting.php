@@ -18,7 +18,7 @@ class UserSetting extends Model
     protected $fillable = [
         'user_id',
         'learns_vocabulary',
-        'status'
+        'status',
     ];
 
     protected $table = 'users_settings';
@@ -29,7 +29,7 @@ class UserSetting extends Model
             ->create([
                 'user_id' => $user->id,
                 'learns_vocabulary' => true,
-                'status' => UserStatus::AddingWords
+                'status' => UserStatus::AddingWords,
             ]);
     }
 }
