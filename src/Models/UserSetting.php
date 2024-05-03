@@ -3,12 +3,10 @@
 namespace Termorize\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Termorize\Enums\UserStatus;
 
 /**
  * @property int $user_id
  * @property bool $learns_vocabulary
- * @property UserStatus $status
  */
 class UserSetting extends Model
 {
@@ -18,7 +16,6 @@ class UserSetting extends Model
     protected $fillable = [
         'user_id',
         'learns_vocabulary',
-        'status',
     ];
 
     protected $table = 'users_settings';
@@ -29,7 +26,6 @@ class UserSetting extends Model
             ->create([
                 'user_id' => $user->id,
                 'learns_vocabulary' => true,
-                'status' => UserStatus::AddingWords,
             ]);
     }
 }
