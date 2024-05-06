@@ -17,10 +17,7 @@ class AnswerCommand extends AbstractCommand
         $vocabularyItem = VocabularyItem::query()
             ->where('translation_id', $translation->id)
             ->where('user_id', $this->update->getMessage()->getFrom()->getId())
-            ->get()
             ->first();
-
-        var_dump($translation);
 
         $message = $this->update->getMessage();
         $text = $message->getText();
@@ -37,7 +34,7 @@ class AnswerCommand extends AbstractCommand
                 'chat_id' => $this->update->getMessage()->getChat()->getId(),
                 'reply_to_message_id' => $this->update->getMessage()->getMessageId(),
                 'parse_mode' => 'HTML',
-                'text' => "Правильный ответ! Текущее знание - <b>$vocabularyItem->knowledge%</b>",
+                'text' => "Правильный ответ! Текущее знание - <b>{$vocabularyItem->knowledge}%</b>",
             ]);
         } elseif (levenshtein($text, $translation->original_text) === 1) {
             $toAdd = 20;
@@ -52,19 +49,21 @@ class AnswerCommand extends AbstractCommand
                 'chat_id' => $this->update->getMessage()->getChat()->getId(),
                 'reply_to_message_id' => $this->update->getMessage()->getMessageId(),
                 'parse_mode' => 'HTML',
-                'text' => "Почти, правильный ответ:<b>$translation->original_text</b>\n Текущее знание - <b>$vocabularyItem->knowledge%</b>",
+                'text' => "Почти, правильный ответ:<b>{$translation->original_text}</b>\n Текущее знание - <b>{$vocabularyItem->knowledge}%</b>",
             ]);
 
         } elseif (levenshtein($text, $translation->original_text) > 1) {
             if ($translation->knowledge > 0) {
-                $vocabularyItem->update(['knowledge' => $vocabularyItem->knowledge - 10]);
+                $newValue = max(0, $translation->knowledge - 10);
+
+                $vocabularyItem->update(['knowledge' => $newValue - 10]);
             }
 
             Request::sendMessage([
                 'chat_id' => $this->update->getMessage()->getChat()->getId(),
                 'reply_to_message_id' => $this->update->getMessage()->getMessageId(),
                 'parse_mode' => 'HTML',
-                'text' => "Неправильно, правильный ответ:<b>$translation->original_text</b>\n Текущее знание - <b>$vocabularyItem->knowledge%</b>",
+                'text' => "Неправильно, правильный ответ:<b>{$translation->original_text}</b>\n Текущее знание - <b>{$vocabularyItem->knowledge}%</b>",
             ]);
 
         }

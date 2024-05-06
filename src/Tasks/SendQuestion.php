@@ -4,12 +4,10 @@ namespace Termorize\Tasks;
 
 use Longman\TelegramBot\Request;
 use Longman\TelegramBot\Telegram;
-use Termorize\Enums\UserStatus;
 use Termorize\Models\Translation;
 use Termorize\Models\TranslationTasks;
 use Termorize\Models\User;
 use Termorize\Models\UserChat;
-use Termorize\Models\UserSetting;
 use Termorize\Models\VocabularyItem;
 use Termorize\Services\Logger;
 
@@ -43,14 +41,9 @@ class SendQuestion
             'text' => $translation->translation_text,
         ]);
 
-        UserSetting::query()->where('user_id', $userId)->update([
-            'status' => UserStatus::AddingWords,
-        ]);
-
         TranslationTasks::query()->create([
             'user_id' => $userId,
             'vocabulary_item_id' => $vocabularyItemId,
         ]);
-
     }
 }

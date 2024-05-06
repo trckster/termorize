@@ -10,8 +10,6 @@ use Termorize\Commands\DefaultCommand;
 use Termorize\Commands\DeleteWordCallbackCommand;
 use Termorize\Commands\StartCommand;
 use Termorize\Commands\TranslateCommand;
-use Termorize\Models\UserChat;
-use Termorize\Models\UserSetting;
 
 class MessageHandler
 {
@@ -35,13 +33,6 @@ class MessageHandler
     {
         $message = $update->getMessage();
         $text = $message->getText();
-
-        $userChat = UserChat::query()->where('chat_id', $update->getMessage()->getChat()->getId())->get()->first();
-
-        $userSetting = UserSetting::query()
-            ->where('user_id', $userChat->user_id)
-            ->get()
-            ->first();
 
         if (empty($text)) {
             $command = new StartCommand();

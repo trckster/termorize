@@ -31,6 +31,5 @@ class TranslationTaskMigration implements MigrationInterface
                 ->references('id')
                 ->on('message');
         });
-
     }
 }
