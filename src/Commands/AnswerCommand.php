@@ -65,7 +65,6 @@ class AnswerCommand extends AbstractCommand
                 'parse_mode' => 'HTML',
                 'text' => "Неправильно, правильный ответ:<b>{$translation->original_text}</b>\n Текущее знание - <b>{$vocabularyItem->knowledge}%</b>",
             ]);
-
         }
     }
 }
