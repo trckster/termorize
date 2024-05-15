@@ -2,10 +2,10 @@
 
 namespace Termorize\Tasks;
 
+use Longman\TelegramBot\Exception\TelegramException;
 use Longman\TelegramBot\Request;
 use Longman\TelegramBot\Telegram;
 use Termorize\Models\Translation;
-use Termorize\Models\TranslationTasks;
 use Termorize\Models\User;
 use Termorize\Models\UserChat;
 use Termorize\Models\VocabularyItem;
@@ -35,15 +35,14 @@ class SendQuestion
         $botApiKey = env('BOT_API_KEY');
 
         new Telegram($botApiKey, $botUsername);
-
-        Request::sendMessage([
-            'chat_id' => $userChat->chat_id,
-            'text' => $translation->translation_text,
-        ]);
-
-        TranslationTasks::query()->create([
-            'user_id' => $userId,
-            'vocabulary_item_id' => $vocabularyItemId,
-        ]);
+        try {
+            Request::sendMessage([
+                'chat_id' => $userChat->chat_id,
+                'parse_mode' => 'HTML',
+                'text' => "Ежедневное упражнение\n\nПеревидите слово <b>{$translation->translation_text}</b>\n\n(ответ отправьте реплаем на это сообщение)",
+            ]);
+        } catch (TelegramException $e) {
+            echo $e->getMessage();
+        }
     }
 }

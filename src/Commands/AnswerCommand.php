@@ -11,6 +11,9 @@ class AnswerCommand extends AbstractCommand
     public function process(): void
     {
         $originMessageText = $this->update->getMessage()->getReplyToMessage()->getText();
+        $originMessageText = explode("\n", $originMessageText);
+
+        $originMessageText = explode(' ', $originMessageText[2])[2];
 
         $translation = Translation::query()->where('translation_text', $originMessageText)->first();
 
