@@ -2,10 +2,8 @@
 
 namespace Termorize\Tasks;
 
-use Longman\TelegramBot\Exception\TelegramException;
 use Longman\TelegramBot\Request;
-use Longman\TelegramBot\Telegram;
-use Termorize\Models\Translation;
+use Termorize\Models\Question;
 use Termorize\Models\User;
 use Termorize\Models\UserChat;
 use Termorize\Models\VocabularyItem;
@@ -26,23 +24,20 @@ class SendQuestion
         $userChat = UserChat::query()->where('user_id', $user->id)->first();
 
         /** @var VocabularyItem $vocabularyItem */
-        $vocabularyItem = VocabularyItem::query()->find($vocabularyItemId);
-        // Might be united to the one query
-        /** @var Translation $translation */
-        $translation = Translation::query()->find($vocabularyItem->translation_id);
+        $vocabularyItem = VocabularyItem::query()->with('translation')->find($vocabularyItemId);
 
-        $botUsername = env('BOT_USERNAME');
-        $botApiKey = env('BOT_API_KEY');
+        $response = Request::sendMessage([
+            'chat_id' => $userChat->chat_id,
+            'parse_mode' => 'HTML',
+            'text' => "Ежедневное упражнение\n\nПеревидите слово <b>{$vocabularyItem->translation->translation_text}</b>\n\n(ответ отправьте реплаем на это сообщение)",
+        ]);
 
-        new Telegram($botApiKey, $botUsername);
-        try {
-            Request::sendMessage([
-                'chat_id' => $userChat->chat_id,
-                'parse_mode' => 'HTML',
-                'text' => "Ежедневное упражнение\n\nПеревидите слово <b>{$translation->translation_text}</b>\n\n(ответ отправьте реплаем на это сообщение)",
-            ]);
-        } catch (TelegramException $e) {
-            echo $e->getMessage();
-        }
+        Question::query()->create([
+            'chat_id' => $userChat->chat_id,
+            'message_id' => $response->getResult()->getMessageId(),
+            'vocabulary_item_id' => $vocabularyItemId,
+            // TODO send both originals and translations
+            'is_original' => false,
+        ]);
     }
 }

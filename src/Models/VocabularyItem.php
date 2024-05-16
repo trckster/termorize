@@ -3,12 +3,15 @@
 namespace Termorize\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property int $id
  * @property int $translation_id
  * @property int $user_id
  * @property int $knowledge
+ *
+ * @property-read Translation $translation
  */
 class VocabularyItem extends Model
 {
@@ -20,4 +23,9 @@ class VocabularyItem extends Model
         'user_id',
         'knowledge',
     ];
+
+    public function translation(): BelongsTo
+    {
+        return $this->belongsTo(Translation::class);
+    }
 }

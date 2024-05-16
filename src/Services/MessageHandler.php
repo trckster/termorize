@@ -3,13 +3,13 @@
 namespace Termorize\Services;
 
 use Longman\TelegramBot\Entities\Update;
-use Longman\TelegramBot\Exception\TelegramException;
 use Termorize\Commands\AddWordCallbackCommand;
 use Termorize\Commands\AnswerCommand;
 use Termorize\Commands\DefaultCommand;
 use Termorize\Commands\DeleteWordCallbackCommand;
 use Termorize\Commands\StartCommand;
 use Termorize\Commands\TranslateCommand;
+use Throwable;
 
 class MessageHandler
 {
@@ -18,14 +18,11 @@ class MessageHandler
         try {
             if ($update->getMessage() !== null) {
                 $this->handleMessage($update);
-            } else {
-                if ($update->getCallbackQuery() !== null) {
-                    $this->handleCallback($update);
-                }
+            } else if ($update->getCallbackQuery() !== null) {
+                $this->handleCallback($update);
             }
-
-        } catch (TelegramException $e) {
-            echo $e->getMessage();
+        } catch (Throwable $e) {
+            Logger::info($e->getMessage());
         }
     }
 
