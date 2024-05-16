@@ -1,6 +1,6 @@
 {
     "require": {
-        "php": ">=8.2",
+        "php": ">=8.3",
         "longman/telegram-bot": "0.82",
         "vlucas/phpdotenv": "^5.6",
         "guzzlehttp/guzzle": "^7.8",
@@ -12,18 +12,14 @@
             "src/Helpers/helpers.php"
         ],
         "psr-4": {
-            "Termorize\\": "src/",
-            "Tests\\": "tests/"
+            "Termorize\\": "src/"
         }
     },
     "require-dev": {
-        "mockery/mockery": "^1.5",
-        "phpunit/phpunit": "^9.5",
         "friendsofphp/php-cs-fixer": "^3.22"
     },
     "scripts": {
         "migrate": "php ./src/Migrations/run_all_migrations.php",
-        "test": "./vendor/bin/phpunit tests/",
         "style-fix" : "PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer fix --diff",
         "style-check" : "PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer fix --dry-run --diff",
         "run-bot" : "php index.php"

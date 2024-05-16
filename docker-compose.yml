@@ -14,7 +14,7 @@ services:
   mysql:
     env_file:
       - .env
-    image: mysql
+    image: mysql:8.3
     restart: unless-stopped
     environment:
       MYSQL_DATABASE: ${DATABASE}
