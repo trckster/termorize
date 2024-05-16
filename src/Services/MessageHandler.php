@@ -55,10 +55,10 @@ class MessageHandler
 
     private function handleCallback(Update $update): void
     {
-        $callback_data = json_decode($update->getCallbackQuery()->getData(), true);
-        if ($callback_data['callback'] === 'deleteWord') {
+        $callbackData = json_decode($update->getCallbackQuery()->getData(), true);
+        if ($callbackData['callback'] === 'deleteWord') {
             $callbackCommand = new DeleteWordCallbackCommand();
-        } elseif ($callback_data['callback'] === 'addWord') {
+        } elseif ($callbackData['callback'] === 'addWord') {
             $callbackCommand = new AddWordCallbackCommand();
         }
 
