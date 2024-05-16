@@ -19,7 +19,6 @@ class UserSettingMigration implements MigrationInterface
             $table->foreign('user_id')
                 ->references('id')
                 ->on('user');
-
             $table->boolean('learns_vocabulary')->default(true);
         });
     }

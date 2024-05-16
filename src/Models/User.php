@@ -40,11 +40,6 @@ class User extends Model
     protected $table = 'user';
     public $incrementing = false;
 
-    public function getUserChat(): hasMany
-    {
-        return $this->hasMany(UserChat::class, 'user_id', 'id');
-    }
-
     public function settings(): HasOne
     {
         return $this->hasOne(UserSetting::class, 'user_id', 'id');

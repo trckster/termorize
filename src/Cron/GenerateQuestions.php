@@ -15,7 +15,7 @@ class GenerateQuestions implements CronCommand
 {
     public function handle(): void
     {
-        Logger::info("Generating daily questions...");
+        Logger::info('Generating daily questions...');
         $questionsCount = 0;
 
         $users = User::with('settings', 'vocabularyItems')->get();
@@ -47,7 +47,7 @@ class GenerateQuestions implements CronCommand
                 'user_id' => $user->id,
                 'vocabulary_item_id' => $vocabularyItem->id,
             ],
-            'scheduled_for' => Carbon::today()->addHours(rand(10, 22)),
+            'scheduled_for' => env('DEBUG', false) ? Carbon::now() : Carbon::today()->addHours(rand(10, 22)),
         ]);
 
         return true;

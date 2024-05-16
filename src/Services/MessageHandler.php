@@ -3,12 +3,13 @@
 namespace Termorize\Services;
 
 use Longman\TelegramBot\Entities\Update;
-use Longman\TelegramBot\Exception\TelegramException;
 use Termorize\Commands\AddWordCallbackCommand;
+use Termorize\Commands\AnswerCommand;
 use Termorize\Commands\DefaultCommand;
 use Termorize\Commands\DeleteWordCallbackCommand;
 use Termorize\Commands\StartCommand;
 use Termorize\Commands\TranslateCommand;
+use Throwable;
 
 class MessageHandler
 {
@@ -17,14 +18,11 @@ class MessageHandler
         try {
             if ($update->getMessage() !== null) {
                 $this->handleMessage($update);
-            } else {
-                if ($update->getCallbackQuery() !== null) {
-                    $this->handleCallback($update);
-                }
+            } else if ($update->getCallbackQuery() !== null) {
+                $this->handleCallback($update);
             }
-
-        } catch (TelegramException $e) {
-            echo $e->getMessage();
+        } catch (Throwable $e) {
+            Logger::info($e->getMessage());
         }
     }
 
@@ -39,7 +37,11 @@ class MessageHandler
             $command = new StartCommand();
         } else {
             if ($text[0] != '/') {
-                $command = new TranslateCommand();
+                if ($message->getReplyToMessage() !== null) {
+                    $command = new AnswerCommand();
+                } else {
+                    $command = new TranslateCommand();
+                }
             } else {
                 $command = new DefaultCommand();
             }
@@ -50,10 +52,10 @@ class MessageHandler
 
     private function handleCallback(Update $update): void
     {
-        $callback_data = json_decode($update->getCallbackQuery()->getData(), true);
-        if ($callback_data['callback'] === 'deleteWord') {
+        $callbackData = json_decode($update->getCallbackQuery()->getData(), true);
+        if ($callbackData['callback'] === 'deleteWord') {
             $callbackCommand = new DeleteWordCallbackCommand();
-        } elseif ($callback_data['callback'] === 'addWord') {
+        } elseif ($callbackData['callback'] === 'addWord') {
             $callbackCommand = new AddWordCallbackCommand();
         }
 

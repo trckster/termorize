@@ -3,8 +3,7 @@
 namespace Termorize\Tasks;
 
 use Longman\TelegramBot\Request;
-use Longman\TelegramBot\Telegram;
-use Termorize\Models\Translation;
+use Termorize\Models\Question;
 use Termorize\Models\User;
 use Termorize\Models\UserChat;
 use Termorize\Models\VocabularyItem;
@@ -25,19 +24,25 @@ class SendQuestion
         $userChat = UserChat::query()->where('user_id', $user->id)->first();
 
         /** @var VocabularyItem $vocabularyItem */
-        $vocabularyItem = VocabularyItem::query()->find($vocabularyItemId);
-        // Might be united to the one query
-        /** @var Translation $translation */
-        $translation = Translation::query()->find($vocabularyItem->translation_id);
+        $vocabularyItem = VocabularyItem::query()->with('translation')->find($vocabularyItemId);
 
-        $botUsername = env('BOT_USERNAME');
-        $botApiKey = env('BOT_API_KEY');
+        $sendOriginalWord = (bool)rand(0, 1);
 
-        new Telegram($botApiKey, $botUsername);
+        $wordToSend = $sendOriginalWord
+            ? $vocabularyItem->translation->original_text
+            : $vocabularyItem->translation->translation_text;
 
-        Request::sendMessage([
+        $response = Request::sendMessage([
             'chat_id' => $userChat->chat_id,
-            'text' => $translation->translation_text,
+            'parse_mode' => 'HTML',
+            'text' => "Ежедневное упражнение\n\nПеревидите слово <b>{$wordToSend}</b>\n\n(ответ отправьте реплаем на это сообщение)",
+        ]);
+
+        Question::query()->create([
+            'chat_id' => $userChat->chat_id,
+            'message_id' => $response->getResult()->getMessageId(),
+            'vocabulary_item_id' => $vocabularyItemId,
+            'is_original' => $sendOriginalWord,
         ]);
     }
 }

@@ -17,22 +17,22 @@ class Kernel
         $botUsername = env('BOT_USERNAME');
         $botApiKey = env('BOT_API_KEY');
 
-        $mysql_credentials = [
-            'host'     => env('DATABASE_HOST'),
-            'user'     => env('DATABASE_USERNAME'),
-            'password' => env('DATABASE_PASSWORD'),
-            'database' => env('DATABASE'),
-        ];
-
         $this->connectDatabase();
 
         try {
             $telegram = new Telegram($botApiKey, $botUsername);
+            $telegram->enableMySql([
+                'host' => env('DATABASE_HOST'),
+                'user' => env('DATABASE_USERNAME'),
+                'password' => env('DATABASE_PASSWORD'),
+                'database' => env('DATABASE'),
+            ]);
 
-            $telegram->enableMySql($mysql_credentials);
             $handler = new MessageHandler();
-            echo "Bot is running\n";
-            while(true) {
+
+            Logger::info("Bot is running");
+
+            while (true) {
                 try {
                     $response = $telegram->handleGetUpdates();
                     $result = $response->getResult();
@@ -41,13 +41,12 @@ class Kernel
                         $handler->handle($update);
                     }
                     sleep(1);
-
-                } catch(Throwable $e) {
-                    echo $e->getMessage();
+                } catch (Throwable $e) {
+                    Logger::info($e->getMessage());
                 }
             }
         } catch (TelegramException $e) {
-            echo $e->getMessage();
+            Logger::info($e->getMessage());
         }
     }
 
