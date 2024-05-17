@@ -29,6 +29,7 @@ class AnswerCommand extends AbstractCommand
 
         if (!$question) {
             $this->giveVerdict('Вы уже ответили на этот вопрос!');
+
             return;
         }
 
@@ -45,21 +46,21 @@ class AnswerCommand extends AbstractCommand
         switch (levenshtein($answer, $expectedAnswer)) {
             case 0:
                 $vocabularyItem->update([
-                    'knowledge' => min(100, $vocabularyItem->knowledge + 20)
+                    'knowledge' => min(100, $vocabularyItem->knowledge + 20),
                 ]);
-                $verdict = "Правильный ответ! ";
+                $verdict = 'Правильный ответ! ';
                 break;
 
             case 1:
                 $vocabularyItem->update([
-                    'knowledge' => min(100, $vocabularyItem->knowledge + 10)
+                    'knowledge' => min(100, $vocabularyItem->knowledge + 10),
                 ]);
                 $verdict = "Почти, правильный ответ: <b>{$vocabularyItem->translation->original_text}</b>\n";
                 break;
 
             default:
                 $vocabularyItem->update([
-                    'knowledge' => max(0, $vocabularyItem->knowledge - 10)
+                    'knowledge' => max(0, $vocabularyItem->knowledge - 10),
                 ]);
         }
 

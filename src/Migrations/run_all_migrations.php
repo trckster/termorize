@@ -32,4 +32,4 @@ foreach (MIGRATIONS_CLASSES as $migrationClass) {
     }
 }
 
-Logger::info("Migrations processed");
+Logger::info('Migrations processed');

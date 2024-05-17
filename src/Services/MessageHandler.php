@@ -18,7 +18,7 @@ class MessageHandler
         try {
             if ($update->getMessage() !== null) {
                 $this->handleMessage($update);
-            } else if ($update->getCallbackQuery() !== null) {
+            } elseif ($update->getCallbackQuery() !== null) {
                 $this->handleCallback($update);
             }
         } catch (Throwable $e) {

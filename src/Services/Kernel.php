@@ -30,7 +30,7 @@ class Kernel
 
             $handler = new MessageHandler();
 
-            Logger::info("Bot is running");
+            Logger::info('Bot is running');
 
             while (true) {
                 try {

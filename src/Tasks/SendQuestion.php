@@ -26,7 +26,7 @@ class SendQuestion
         /** @var VocabularyItem $vocabularyItem */
         $vocabularyItem = VocabularyItem::query()->with('translation')->find($vocabularyItemId);
 
-        $sendOriginalWord = (bool)rand(0, 1);
+        $sendOriginalWord = (bool) rand(0, 1);
 
         $wordToSend = $sendOriginalWord
             ? $vocabularyItem->translation->original_text
