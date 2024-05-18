@@ -20,6 +20,5 @@ class AddWordCallbackCommand extends AbstractCallbackCommand
             'chat_id' => $userId,
             'text' => 'Слово добавлено в словарный запас',
         ]);
-
     }
 }

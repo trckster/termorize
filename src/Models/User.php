@@ -45,6 +45,15 @@ class User extends Model
         return $this->hasOne(UserSetting::class, 'user_id', 'id');
     }
 
+    public function getOrCreateSettings(): UserSetting
+    {
+        if (!$this->settings) {
+            $this->settings = UserSetting::createDefaultSetting($this);
+        }
+
+        return $this->settings;
+    }
+
     public function vocabularyItems(): HasMany
     {
         return $this->hasMany(VocabularyItem::class);

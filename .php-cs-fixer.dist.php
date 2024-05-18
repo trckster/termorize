@@ -2,7 +2,6 @@
 
 $locations = [
     'src',
-    'tests',
 ];
 
 $rules = [
