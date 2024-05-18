@@ -7,6 +7,7 @@ use Termorize\Commands\AddWordCallbackCommand;
 use Termorize\Commands\AnswerCommand;
 use Termorize\Commands\DefaultCommand;
 use Termorize\Commands\DeleteWordCallbackCommand;
+use Termorize\Commands\SetQuestionsCountCommand;
 use Termorize\Commands\StartCommand;
 use Termorize\Commands\ToggleQuestionsSettingCommand;
 use Termorize\Commands\TranslateCommand;
@@ -36,6 +37,7 @@ class MessageHandler
             $command = match ($text) {
                 '/start' => new StartCommand,
                 '/toggle_questions' => new ToggleQuestionsSettingCommand,
+                '/set_questions' => new SetQuestionsCountCommand,
                 default => new DefaultCommand,
             };
         } elseif (empty($text)) {
