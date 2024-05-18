@@ -22,6 +22,6 @@
         "migrate": "php ./src/Migrations/run_all_migrations.php",
         "style-fix" : "PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer fix --diff",
         "style-check" : "PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer fix --dry-run --diff",
-        "run-bot" : "php index.php"
+        "run-bot" : ["Composer\\Config::disableProcessTimeout", "php index.php"]
     }
 }

@@ -10,6 +10,10 @@ use Illuminate\Database\Eloquent\Model;
  */
 class UserSetting extends Model
 {
+    protected $table = 'users_settings';
+    protected $primaryKey = 'user_id';
+    public $incrementing = false;
+
     public const CREATED_AT = null;
     public const UPDATED_AT = null;
 
@@ -17,8 +21,6 @@ class UserSetting extends Model
         'user_id',
         'learns_vocabulary',
     ];
-
-    protected $table = 'users_settings';
 
     public static function createDefaultSetting(User $user): self
     {

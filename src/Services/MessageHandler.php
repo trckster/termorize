@@ -8,6 +8,7 @@ use Termorize\Commands\AnswerCommand;
 use Termorize\Commands\DefaultCommand;
 use Termorize\Commands\DeleteWordCallbackCommand;
 use Termorize\Commands\StartCommand;
+use Termorize\Commands\ToggleQuestionsSettingCommand;
 use Termorize\Commands\TranslateCommand;
 use Throwable;
 
@@ -31,21 +32,20 @@ class MessageHandler
         $message = $update->getMessage();
         $text = $message->getText();
 
-        if (empty($text)) {
-            $command = new StartCommand();
-        } elseif ($text === '/start') {
-            $command = new StartCommand();
+        if (str_starts_with($text, '/')) {
+            $command = match ($text) {
+                '/start' => new StartCommand,
+                '/toggle_questions' => new ToggleQuestionsSettingCommand,
+                default => new DefaultCommand,
+            };
+        } elseif (empty($text)) {
+            $command = new StartCommand;
+        } elseif ($message->getReplyToMessage()) {
+            $command = new AnswerCommand;
         } else {
-            if ($text[0] != '/') {
-                if ($message->getReplyToMessage() !== null) {
-                    $command = new AnswerCommand();
-                } else {
-                    $command = new TranslateCommand();
-                }
-            } else {
-                $command = new DefaultCommand();
-            }
+            $command = new TranslateCommand;
         }
+
         $command->setUpdate($update);
         $command->process();
     }
