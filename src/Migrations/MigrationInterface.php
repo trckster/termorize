@@ -4,7 +4,7 @@ namespace Termorize\Migrations;
 
 interface MigrationInterface
 {
-    public function getTable(): string;
+    public function alreadyExecuted(): bool;
 
     public function migrate(): void;
 }

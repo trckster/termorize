@@ -34,6 +34,7 @@ class MessageHandler
         $text = $message->getText();
 
         if (str_starts_with($text, '/')) {
+            $text = explode(' ', $text)[0];
             $command = match ($text) {
                 '/start' => new StartCommand,
                 '/toggle_questions' => new ToggleQuestionsSettingCommand,

@@ -7,6 +7,7 @@ use Termorize\Enums\PendingTaskStatus;
 use Termorize\Interfaces\CronCommand;
 use Termorize\Models\PendingTask;
 use Termorize\Models\User;
+use Termorize\Models\VocabularyItem;
 use Termorize\Services\Logger;
 use Termorize\Tasks\SendQuestion;
 
@@ -16,6 +17,7 @@ class GenerateQuestions implements CronCommand
     {
         Logger::info('Generating daily questions...');
         $questionsCount = 0;
+        $usersCount = 0;
 
         $users = User::with('settings', 'vocabularyItems')->get();
         /** @var User $user */
@@ -23,33 +25,49 @@ class GenerateQuestions implements CronCommand
             if (!$user->is_bot) {
                 $userSetting = $user->getOrCreateSettings();
                 if ($userSetting->learns_vocabulary) {
-                    $questionsCount += $this->generateDayTasks($user);
+                    $newQuestions = $this->generateDayTasks($user);
+
+                    if ($newQuestions > 0) {
+                        $usersCount++;
+                        $questionsCount += $newQuestions;
+                    }
                 }
             }
         }
 
-        Logger::info("Questions generated: $questionsCount");
+        Logger::info("Generated $questionsCount questions for $usersCount users.");
     }
 
     private function generateDayTasks(User $user): int
     {
-        $vocabularyToLearn = $user->vocabularyItems->where('knowledge', '<', 100);
+        $learnToday = $user->vocabularyItems
+            ->where('knowledge', '<', 100)
+            ->shuffle()
+            ->slice(0, $user->settings->questions_count);
 
-        if ($vocabularyToLearn->isEmpty()) {
-            return 0;
-        }
+        $tasksScheduled = $learnToday->count();
 
-        $vocabularyItem = $vocabularyToLearn->random();
+        $learnToday->each(function (VocabularyItem $item) use ($user) {
+            $this->scheduleQuestion($user->id, $item->id);
+        });
+
+        return $tasksScheduled;
+    }
+
+    private function scheduleQuestion(int $userId, int $vocabularyItemId): void
+    {
+        $randomTime = env('DEBUG', false)
+            ? Carbon::now()
+            : Carbon::today()->addMinutes(rand(0, 60 * 24));
+
         PendingTask::query()->create([
             'status' => PendingTaskStatus::Pending,
             'method' => SendQuestion::class . '::execute',
             'parameters' => [
-                'user_id' => $user->id,
-                'vocabulary_item_id' => $vocabularyItem->id,
+                'user_id' => $userId,
+                'vocabulary_item_id' => $vocabularyItemId,
             ],
-            'scheduled_for' => env('DEBUG', false) ? Carbon::now() : Carbon::today()->addHours(rand(10, 22)),
+            'scheduled_for' => $randomTime,
         ]);
-
-        return 1;
     }
 }

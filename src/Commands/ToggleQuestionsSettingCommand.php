@@ -17,7 +17,7 @@ class ToggleQuestionsSettingCommand extends AbstractCommand
 
         $answer = $userSetting->learns_vocabulary
             ? 'Ежедневная отправка слов включена'
-            : 'Ежедневная отпрака слов выключена';
+            : 'Ежедневная отправка слов выключена';
 
         Request::sendMessage([
             'chat_id' => $this->update->getMessage()->getChat()->getId(),

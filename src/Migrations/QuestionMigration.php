@@ -7,14 +7,14 @@ use Illuminate\Database\Schema\Blueprint;
 
 class QuestionMigration implements MigrationInterface
 {
-    public function getTable(): string
+    public function alreadyExecuted(): bool
     {
-        return 'questions';
+        return Manager::schema()->hasTable('questions');
     }
 
     public function migrate(): void
     {
-        Manager::schema()->create($this->getTable(), function (Blueprint $table) {
+        Manager::schema()->create('questions', function (Blueprint $table) {
             $table->id();
 
             $table->unsignedBigInteger('vocabulary_item_id');

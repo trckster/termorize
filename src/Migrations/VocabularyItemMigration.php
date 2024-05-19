@@ -7,14 +7,14 @@ use Illuminate\Database\Schema\Blueprint;
 
 class VocabularyItemMigration implements MigrationInterface
 {
-    public function getTable(): string
+    public function alreadyExecuted(): bool
     {
-        return 'vocabulary_items';
+        return Manager::schema()->hasTable('vocabulary_items');
     }
 
     public function migrate(): void
     {
-        Manager::schema()->create($this->getTable(), function (Blueprint $table) {
+        Manager::schema()->create('vocabulary_items', function (Blueprint $table) {
             $table->id();
             $table->bigInteger('user_id');
             $table->foreign('user_id')

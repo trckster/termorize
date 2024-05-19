@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * @property int $user_id
  * @property bool $learns_vocabulary
+ * @property int $questions_count
  */
 class UserSetting extends Model
 {
@@ -20,6 +21,7 @@ class UserSetting extends Model
     protected $fillable = [
         'user_id',
         'learns_vocabulary',
+        'questions_count',
     ];
 
     public static function createDefaultSetting(User $user): self
@@ -28,6 +30,7 @@ class UserSetting extends Model
             ->create([
                 'user_id' => $user->id,
                 'learns_vocabulary' => true,
+                'questions_count' => 1,
             ]);
     }
 }
