@@ -2,7 +2,8 @@
 
 require_once './vendor/autoload.php';
 
-use Illuminate\Database\Capsule\Manager;
+use Termorize\Migrations\AddQuestionsCountToUserSettingsMigration;
+use Termorize\Migrations\MigrationInterface;
 use Termorize\Migrations\PendingTaskMigration;
 use Termorize\Migrations\QuestionMigration;
 use Termorize\Migrations\TelegramMigration;
@@ -21,11 +22,14 @@ const MIGRATIONS_CLASSES = [
     UserSettingMigration::class,
     PendingTaskMigration::class,
     QuestionMigration::class,
+    AddQuestionsCountToUserSettingsMigration::class,
 ];
 
 foreach (MIGRATIONS_CLASSES as $migrationClass) {
+    /** @var MigrationInterface $migration */
     $migration = new $migrationClass();
-    if (!Manager::schema()->hasTable($migration->getTable())) {
+
+    if (!$migration->alreadyExecuted()) {
         $migration->migrate();
 
         Logger::info("$migrationClass executed!");

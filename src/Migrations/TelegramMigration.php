@@ -6,9 +6,9 @@ use Illuminate\Database\Capsule\Manager;
 
 class TelegramMigration implements MigrationInterface
 {
-    public function getTable(): string
+    public function alreadyExecuted(): bool
     {
-        return '<all telegram migrations>';
+        return false;
     }
 
     public function migrate(): void

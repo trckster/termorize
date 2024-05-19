@@ -8,14 +8,14 @@ use Termorize\Enums\PendingTaskStatus;
 
 class PendingTaskMigration implements MigrationInterface
 {
-    public function getTable(): string
+    public function alreadyExecuted(): bool
     {
-        return 'pending_tasks';
+        return Manager::schema()->hasTable('pending_tasks');
     }
 
     public function migrate(): void
     {
-        Manager::schema()->create($this->getTable(), function (Blueprint $table) {
+        Manager::schema()->create('pending_tasks', function (Blueprint $table) {
             $table->id();
             $table->enum('status', [
                 PendingTaskStatus::Pending->value,
