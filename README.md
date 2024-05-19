@@ -16,10 +16,7 @@ docker compose up --build
 Build & push images and dockerhub will automatically deploy them afterward.
 
 ```bash
-docker build -t trckster/termorize-bot .
-docker build -t trckster/termorize-cron . -f cron/Dockerfile
-docker push trckster/termorize-bot
-docker push trckster/termorize-cron
+./deploy.sh
 ```
 
 # Todo list
