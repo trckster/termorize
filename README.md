@@ -13,7 +13,7 @@ docker compose up --build
 
 # Deploy
 
-Build & push images and dockerhub will automatically deploy them afterward.
+Build & push images and dockerhub will automatically deploy them afterwards.
 
 ```bash
 ./deploy.sh
@@ -22,5 +22,6 @@ Build & push images and dockerhub will automatically deploy them afterward.
 # Todo list
 
 1. Multi-language support.
-2. Translations mass upload.
-3. Fix .env creation inside Dockerfiles
+2. Fix problem with questions for words that are translated equally
+3. Translations mass upload.
+4. Fix .env creation inside Dockerfiles
