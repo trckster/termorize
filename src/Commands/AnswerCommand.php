@@ -2,18 +2,15 @@
 
 namespace Termorize\Commands;
 
-use Longman\TelegramBot\Request;
 use Termorize\Models\Question;
 
 class AnswerCommand extends AbstractCommand
 {
     private function giveVerdict(string $message): void
     {
-        Request::sendMessage([
-            'chat_id' => $this->update->getMessage()->getChat()->getId(),
+        $this->reply($message, [
             'reply_to_message_id' => $this->update->getMessage()->getMessageId(),
             'parse_mode' => 'HTML',
-            'text' => $message,
         ]);
     }
 
@@ -43,7 +40,7 @@ class AnswerCommand extends AbstractCommand
 
         $verdict = "Неправильно, правильный ответ: <b>{$expectedAnswer}</b>\n";
 
-        switch (levenshtein($answer, $expectedAnswer)) {
+        switch (mb_levenshtein($answer, $expectedAnswer)) {
             case 0:
                 $vocabularyItem->update([
                     'knowledge' => min(100, $vocabularyItem->knowledge + 20),

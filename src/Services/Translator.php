@@ -2,52 +2,37 @@
 
 namespace Termorize\Services;
 
-use GuzzleHttp\Client;
+use Termorize\Enums\Language;
 use Termorize\Models\Translation;
 
-class Translator
+readonly final class Translator
 {
-    private Client $httpClient;
+    private YandexTranslationApi $api;
 
     public function __construct()
     {
-        $this->httpClient = new Client(['base_uri' => 'https://translate.yandex.net/api/v1.5/tr.json/']);
+        $this->api = new YandexTranslationApi;
     }
 
     public function translate(string $text): Translation
     {
-        if (Translation::query()->where('original_text', $text)->exists()) {
-            return Translation::query()->where('original_text', $text)->first();
+        $text = mb_strtolower($text);
+
+        $translation = Translation::query()->where('original_text', $text)->first();
+        if ($translation) {
+            return $translation;
         }
 
-        $apiKey = env('YANDEX_TRANSLATOR_API_KEY');
+        $originalLanguage = LanguageIdentifier::identify($text);
+        $translationLanguage = $originalLanguage === Language::ru ? Language::en : Language::ru;
 
-        $originTextLang = LanguageIdentifier::identify($text);
-
-        if ($originTextLang === 'ru') {
-            $translationLang = 'en';
-        } else {
-            $translationLang = 'ru';
-        }
-
-        $params = [
-            'key' => $apiKey,
-            'text' => $text,
-            'lang' => $translationLang,
-        ];
-
-        $query = '?' . http_build_query($params);
-
-        $response = $this->httpClient->get("translate$query");
-        $responseContent = json_decode($response->getBody()->getContents(), true);
-
-        $translationText = $responseContent['text'][0];
+        $translationText = $this->api->translate($text, $translationLanguage);
 
         return Translation::query()->create([
             'original_text' => $text,
-            'translation_text' => $translationText,
-            'original_lang' => $originTextLang,
-            'translation_lang' => $translationLang,
+            'translation_text' => mb_strtolower($translationText),
+            'original_lang' => $originalLanguage,
+            'translation_lang' => $translationLanguage,
         ]);
     }
 }

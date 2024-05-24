@@ -2,8 +2,6 @@
 
 namespace Termorize\Commands;
 
-use Longman\TelegramBot\Request;
-
 class SetQuestionsCountCommand extends AbstractCommand
 {
     public function process(): void
@@ -13,10 +11,8 @@ class SetQuestionsCountCommand extends AbstractCommand
 
         $messageParts = explode(' ', $this->update->getMessage()->getText());
         if (count($messageParts) < 2 || !is_numeric($messageParts[1])) {
-            Request::sendMessage([
-                'chat_id' => $this->update->getMessage()->getChat()->getId(),
+            $this->reply('Формат команды: <i>/set_questions 5</i>, где 5 - это кол-во вопросов в день.', [
                 'parse_mode' => 'HTML',
-                'text' => 'Формат команды: <i>/set_questions 5</i>, где 5 - это кол-во вопросов в день.',
             ]);
             return;
         }
@@ -24,10 +20,7 @@ class SetQuestionsCountCommand extends AbstractCommand
         $questionsCount = (int)$messageParts[1];
 
         if ($questionsCount < 1 || $questionsCount > 1000) {
-            Request::sendMessage([
-                'chat_id' => $this->update->getMessage()->getChat()->getId(),
-                'text' => 'Число вопросов не может быть меньше одного и больше тысячи.',
-            ]);
+            $this->reply('Число вопросов не может быть меньше одного и больше тысячи.');
             return;
         }
 
@@ -35,9 +28,6 @@ class SetQuestionsCountCommand extends AbstractCommand
             'questions_count' => $questionsCount,
         ]);
 
-        Request::sendMessage([
-            'chat_id' => $this->update->getMessage()->getChat()->getId(),
-            'text' => "Теперь вы будете получать $questionsCount вопросов в день!",
-        ]);
+        $this->reply("Теперь вы будете получать $questionsCount вопросов в день!");
     }
 }

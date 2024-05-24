@@ -34,14 +34,12 @@ class Kernel
 
             while (true) {
                 try {
-                    $response = $telegram->handleGetUpdates();
+                    $response = $telegram->handleGetUpdates(['timeout' => 30]);
                     $result = $response->getResult();
 
                     foreach ($result as $update) {
                         $handler->handle($update);
                     }
-
-                    sleep(1);
                 } catch (Throwable $e) {
                     Logger::info($e->getMessage());
                 }
