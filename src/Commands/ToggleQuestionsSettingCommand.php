@@ -2,8 +2,6 @@
 
 namespace Termorize\Commands;
 
-use Longman\TelegramBot\Request;
-
 class ToggleQuestionsSettingCommand extends AbstractCommand
 {
     public function process(): void
@@ -19,9 +17,6 @@ class ToggleQuestionsSettingCommand extends AbstractCommand
             ? 'Ежедневная отправка слов включена'
             : 'Ежедневная отправка слов выключена';
 
-        Request::sendMessage([
-            'chat_id' => $this->update->getMessage()->getChat()->getId(),
-            'text' => $answer,
-        ]);
+        $this->reply($answer);
     }
 }

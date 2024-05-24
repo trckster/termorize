@@ -11,12 +11,25 @@ class DeleteWordCallbackCommand extends AbstractCallbackCommand
     {
         $userId = $this->update->getCallbackQuery()->getFrom()->getId();
 
-        VocabularyItem::query()->find($this->callbackData['data']['vocabularyItemId'])->delete();
+        /** @var VocabularyItem|null $item */
+        $item = VocabularyItem::query()
+            ->with('questions')
+            ->find($this->callbackData['data']['vocabularyItemId']);
+
+        if (!$item) {
+            Request::sendMessage([
+                'chat_id' => $userId,
+                'text' => 'Слово уже удалено',
+            ]);
+            return;
+        }
+
+        $item->questions()->delete();
+        $item->delete();
 
         Request::sendMessage([
             'chat_id' => $userId,
             'text' => 'Слово удалено из словарного запаса',
         ]);
-
     }
 }

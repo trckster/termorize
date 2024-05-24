@@ -21,7 +21,8 @@ Build & push images and dockerhub will automatically deploy them afterwards.
 
 # Todo list
 
-1. Multi-language support.
-2. Fix problem with questions for words that are translated equally
-3. Translations mass upload.
-4. Fix .env creation inside Dockerfiles
+1. With some probability send one question to repeat words with 100%. 
+2. Multi-language support.
+3. Fix problem with questions for words that are translated equally.
+4. Translations mass upload.
+5. Fix .env creation inside Dockerfiles.

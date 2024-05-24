@@ -18,10 +18,6 @@ class DefaultCommand extends AbstractCommand
 <i>Enormous mansion</i> => Любое другое сообщение будет переведено и автоматически добавлено в список изучаемых слов.
 MESSAGE;
 
-        Request::sendMessage([
-            'chat_id' => $this->update->getMessage()->getChat()->getId(),
-            'parse_mode' => 'HTML',
-            'text' => $message,
-        ]);
+        $this->reply($message, ['parse_mode' => 'HTML']);
     }
 }
