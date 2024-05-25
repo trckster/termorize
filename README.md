@@ -1,7 +1,11 @@
 # About
 
-This is a telegram bot, written in PHP. It's goal to teach and
-develop programming skills working on project, that is close to real.
+Here are sources of Telegram bot, that can:
+
+1. Translate words and save them
+2. Every day send these words to you to help you memorize them
+
+Bot: [@termorize_bot](https://t.me/termorize_bot)
 
 # Run locally
 
@@ -13,7 +17,7 @@ docker compose up --build
 
 # Deploy
 
-Build & push images and dockerhub will automatically deploy them afterwards.
+Build & push images and dockerhub will automatically deploy them afterward.
 
 ```bash
 ./deploy.sh
@@ -21,8 +25,6 @@ Build & push images and dockerhub will automatically deploy them afterwards.
 
 # Todo list
 
-1. With some probability send one question to repeat words with 100%. 
-2. Multi-language support.
-3. Fix problem with questions for words that are translated equally.
-4. Translations mass upload.
-5. Fix .env creation inside Dockerfiles.
+1. Multi-language support.
+2. Translations mass upload.
+3. Fix .env creation inside Dockerfiles.

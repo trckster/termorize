@@ -51,7 +51,7 @@ class GenerateQuestions implements CronCommand
 
         /** Send one already learned additional question with 16.6% probability */
         if (!rand(0, 5)) {
-            $knownItems = $user->vocabularyItems->where('knowledge', 100);
+            $knownItems = $user->vocabularyItems->where('knowledge', '>=', 100);
 
             if ($knownItems->isNotEmpty()) {
                 $item = $knownItems->random();
