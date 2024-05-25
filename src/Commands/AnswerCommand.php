@@ -61,7 +61,17 @@ class AnswerCommand extends AbstractCommand
                 ]);
         }
 
-        $this->giveVerdict($verdict . "Текущее знание - <b>{$vocabularyItem->knowledge}%</b>");
+        $emoji = match (true) {
+            $vocabularyItem->knowledge >= 100 => '✅',
+            $vocabularyItem->knowledge >= 80 => '🔝',
+            $vocabularyItem->knowledge >= 60 => '🔥',
+            $vocabularyItem->knowledge >= 40 => '📈',
+            $vocabularyItem->knowledge >= 20 => '♻️',
+            $vocabularyItem->knowledge > 0 => '↘️️',
+            default => '❌',
+        };
+
+        $this->giveVerdict($verdict . "\n$emoji Текущее знание - <b>{$vocabularyItem->knowledge}%</b> $emoji");
         $question->update(['is_answered' => true]);
     }
 }
