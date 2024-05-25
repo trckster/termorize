@@ -45,13 +45,24 @@ class GenerateQuestions implements CronCommand
             ->shuffle()
             ->slice(0, $user->settings->questions_count);
 
-        $tasksScheduled = $learnToday->count();
-
         $learnToday->each(function (VocabularyItem $item) use ($user) {
             $this->scheduleQuestion($user->id, $item->id);
         });
 
-        return $tasksScheduled;
+        /** Send one already learned additional question with 16.6% probability */
+        if (!rand(0, 5)) {
+            $knownItems = $user->vocabularyItems->where('knowledge', 100);
+
+            if ($knownItems->isNotEmpty()) {
+                $item = $knownItems->random();
+
+                $this->scheduleQuestion($user->id, $item->id);
+
+                return $learnToday->count() + 1;
+            }
+        }
+
+        return $learnToday->count();
     }
 
     private function scheduleQuestion(int $userId, int $vocabularyItemId): void
