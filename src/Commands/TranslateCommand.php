@@ -4,17 +4,17 @@ namespace Termorize\Commands;
 
 use Termorize\Helpers\KeyboardHelper;
 use Termorize\Models\Translation;
-use Termorize\Services\Translator;
+use Termorize\Services\TranslationService;
 use Termorize\Services\VocabularyItemService;
 
 class TranslateCommand extends AbstractCommand
 {
-    private Translator $translator;
+    private TranslationService $translationService;
     private VocabularyItemService $vocabularyService;
 
     public function __construct()
     {
-        $this->translator = new Translator;
+        $this->translationService = new TranslationService;
         $this->vocabularyService = new VocabularyItemService;
     }
 
@@ -22,7 +22,7 @@ class TranslateCommand extends AbstractCommand
     {
         $message = $this->update->getMessage()->getText();
 
-        $translation = $this->translator->translate($message);
+        $translation = $this->translationService->translate($message);
 
         $this->reply($translation->translation_text);
 

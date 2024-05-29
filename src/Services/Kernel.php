@@ -37,8 +37,10 @@ class Kernel
                     $response = $telegram->handleGetUpdates(['timeout' => 30]);
                     $result = $response->getResult();
 
-                    foreach ($result as $update) {
-                        $handler->handle($update);
+                    if ($result) {
+                        foreach ($result as $update) {
+                            $handler->handle($update);
+                        }
                     }
                 } catch (Throwable $e) {
                     Logger::info($e->getMessage());

@@ -3,6 +3,7 @@
 namespace Termorize\Services;
 
 use Longman\TelegramBot\Entities\Update;
+use Termorize\Commands\AddCustomVocabularyCommand;
 use Termorize\Commands\AddWordCallbackCommand;
 use Termorize\Commands\AnswerCommand;
 use Termorize\Commands\DefaultCommand;
@@ -39,6 +40,7 @@ class MessageHandler
                 '/start' => new StartCommand,
                 '/toggle_questions' => new ToggleQuestionsSettingCommand,
                 '/set_questions' => new SetQuestionsCountCommand,
+                '/add_vocabulary' => new AddCustomVocabularyCommand,
                 default => new DefaultCommand,
             };
         } elseif (empty($text)) {
