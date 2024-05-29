@@ -3,7 +3,8 @@
 Here are sources of Telegram bot, that can:
 
 1. Translate words and save them
-2. Every day send these words to you to help you memorize them
+2. Add custom words translations
+3. Every day send these words to you to help you memorize them
 
 Bot: [@termorize_bot](https://t.me/termorize_bot)
 
@@ -25,6 +26,7 @@ Build & push images and dockerhub will automatically deploy them afterward.
 
 # Todo list
 
-1. Multi-language support.
-2. Translations mass upload.
-3. Fix .env creation inside Dockerfiles.
+1. Ability to set time for questions.
+2. Multi-language support.
+3. Translations mass upload.
+4. Fix .env creation inside Dockerfiles.

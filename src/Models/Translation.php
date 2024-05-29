@@ -12,6 +12,7 @@ use Termorize\Enums\Language;
  * @property string $translation_text
  * @property Language $original_lang
  * @property Language $translation_lang
+ * @property bool $is_custom
  */
 class Translation extends Model
 {
@@ -23,6 +24,7 @@ class Translation extends Model
         'translation_text',
         'original_lang',
         'translation_lang',
+        'is_custom',
     ];
 
     protected $casts = [
