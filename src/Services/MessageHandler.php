@@ -7,6 +7,7 @@ use Termorize\Commands\AddCustomVocabularyCommand;
 use Termorize\Commands\AddWordCallbackCommand;
 use Termorize\Commands\AnswerCommand;
 use Termorize\Commands\DefaultCommand;
+use Termorize\Commands\DeleteVocabularyItemCommand;
 use Termorize\Commands\DeleteWordCallbackCommand;
 use Termorize\Commands\SetQuestionsCountCommand;
 use Termorize\Commands\StartCommand;
@@ -41,6 +42,7 @@ class MessageHandler
                 '/toggle_questions' => new ToggleQuestionsSettingCommand,
                 '/set_questions' => new SetQuestionsCountCommand,
                 '/add_vocabulary' => new AddCustomVocabularyCommand,
+                '/delete_vocabulary' => new DeleteVocabularyItemCommand,
                 default => new DefaultCommand,
             };
         } elseif (empty($text)) {

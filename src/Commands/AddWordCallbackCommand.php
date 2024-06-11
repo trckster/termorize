@@ -19,7 +19,8 @@ class AddWordCallbackCommand extends AbstractCallbackCommand
     {
         $userId = $this->update->getCallbackQuery()->getFrom()->getId();
 
-        $translation = Translation::query()->find($this->callbackData['data']['translationId'])->first();
+        /** @var Translation $translation */
+        $translation = Translation::query()->find($this->callbackData['data']['translationId']);
 
         $message = 'Слово добавлено в словарный запас';
 
