@@ -4,6 +4,7 @@ require_once './vendor/autoload.php';
 
 use Termorize\Migrations\AddIsCustomToTranslationsMigration;
 use Termorize\Migrations\AddQuestionsCountToUserSettingsMigration;
+use Termorize\Migrations\AddQuestionsScheduleToUserSettingsMigration;
 use Termorize\Migrations\MigrationInterface;
 use Termorize\Migrations\PendingTaskMigration;
 use Termorize\Migrations\QuestionMigration;
@@ -25,6 +26,7 @@ const MIGRATIONS_CLASSES = [
     QuestionMigration::class,
     AddQuestionsCountToUserSettingsMigration::class,
     AddIsCustomToTranslationsMigration::class,
+    AddQuestionsScheduleToUserSettingsMigration::class,
 ];
 
 foreach (MIGRATIONS_CLASSES as $migrationClass) {

@@ -9,10 +9,10 @@ class DefaultCommand extends AbstractCommand
         $message = <<<MESSAGE
 <b>Доступные команды</b>:
 
-<code>/add_vocabulary cut to the chase:перейти к делу</code>
+<code>/add cut to the chase:перейти к делу</code>
 Добавить перевод для изучения самостоятельно (слово и его перевод разделить двоеточием).
 
-<code>/delete_vocabulary vocabulary word</code>
+<code>/delete vocabulary word</code>
 Удалить слово из словарного запаса.
 
 <code>/toggle_questions</code>
@@ -20,6 +20,9 @@ class DefaultCommand extends AbstractCommand
 
 <code>/set_questions 5</code>
 Установить кол-во вопросов в день.
+
+<code>/set_schedule 08:00-23:45</code>
+Установить отрезок времени <b>по UTC</b>, в который вы хотите получать вопросы.
 
 <code>Anything else (not starting with the slash)</code>
 Любое другое сообщение будет переведено и автоматически добавлено в список изучаемых слов.

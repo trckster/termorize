@@ -46,7 +46,7 @@ class GenerateQuestions implements CronCommand
             ->slice(0, $user->settings->questions_count);
 
         $learnToday->each(function (VocabularyItem $item) use ($user) {
-            $this->scheduleQuestion($user->id, $item->id);
+            $this->scheduleQuestion($user, $item->id);
         });
 
         /** Send one already learned additional question with 16.6% probability */
@@ -56,7 +56,7 @@ class GenerateQuestions implements CronCommand
             if ($knownItems->isNotEmpty()) {
                 $item = $knownItems->random();
 
-                $this->scheduleQuestion($user->id, $item->id);
+                $this->scheduleQuestion($user, $item->id);
 
                 return $learnToday->count() + 1;
             }
@@ -65,17 +65,17 @@ class GenerateQuestions implements CronCommand
         return $learnToday->count();
     }
 
-    private function scheduleQuestion(int $userId, int $vocabularyItemId): void
+    private function scheduleQuestion(User $user, int $vocabularyItemId): void
     {
         $randomTime = env('DEBUG', false)
             ? Carbon::now()
-            : Carbon::today()->addMinutes(rand(0, 60 * 24));
+            : Carbon::today()->addMinutes(rand($user->settings->getQuestionsScheduleFrom(), $user->settings->getQuestionsScheduleTo()));
 
         PendingTask::query()->create([
             'status' => PendingTaskStatus::Pending,
             'method' => SendQuestion::class . '::execute',
             'parameters' => [
-                'user_id' => $userId,
+                'user_id' => $user->id,
                 'vocabulary_item_id' => $vocabularyItemId,
             ],
             'scheduled_for' => $randomTime,

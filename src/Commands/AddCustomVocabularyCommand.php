@@ -2,7 +2,6 @@
 
 namespace Termorize\Commands;
 
-use Illuminate\Support\Str;
 use Termorize\Services\TranslationService;
 
 class AddCustomVocabularyCommand extends AbstractCommand
@@ -16,9 +15,7 @@ class AddCustomVocabularyCommand extends AbstractCommand
 
     public function process(): void
     {
-        $message = $this->update->getMessage()->getText();
-
-        $message = trim(Str::replaceStart('/add_vocabulary', '', $message));
+        $message = $this->getClearedMessage();
 
         $parts = explode(':', $message);
 

@@ -2,7 +2,6 @@
 
 namespace Termorize\Commands;
 
-use Illuminate\Support\Str;
 use Termorize\Services\VocabularyItemService;
 use Throwable;
 
@@ -17,9 +16,7 @@ class DeleteVocabularyItemCommand extends AbstractCommand
 
     public function process(): void
     {
-        $message = $this->update->getMessage()->getText();
-
-        $word = trim(Str::replaceStart('/delete_vocabulary', '', $message));
+        $word = $this->getClearedMessage();
 
         try {
             $this->vocabularyService->deleteItem($this->update->getMessage()->getFrom()->getId(), $word);
