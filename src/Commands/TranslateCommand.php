@@ -22,11 +22,16 @@ class TranslateCommand extends AbstractCommand
     {
         $message = $this->update->getMessage()->getText();
 
-        $translation = $this->translationService->translate($message);
+        $userSettings = $this->loadUser()->getOrCreateSettings();
+        $translation = $this->translationService->translate($message, $userSettings->language);
 
-        $this->reply($translation->translation_text);
+        $resultingTranslation = $translation->original_text === mb_strtolower($message)
+            ? $translation->translation_text
+            : $translation->original_text;
 
-        if (str_word_count($message) <= 5) {
+        $this->reply($resultingTranslation);
+
+        if (count(explode(' ', $resultingTranslation)) <= 5) {
             $this->addVocabularyItem($translation);
             return;
         }

@@ -3,6 +3,8 @@
 namespace Termorize\Tasks;
 
 use Longman\TelegramBot\Request;
+use Termorize\Commands\SetLanguageCommand;
+use Termorize\Enums\Language;
 use Termorize\Models\Question;
 use Termorize\Models\User;
 use Termorize\Models\UserChat;
@@ -30,16 +32,24 @@ class SendQuestion
         $sendOriginalWord = (bool)rand(0, 1);
 
         $wordToSend = $sendOriginalWord ? $translation->original_text : $translation->translation_text;
+        $expectedAnswer = $sendOriginalWord ? $translation->translation_text : $translation->original_text;
+        $expectedAnswerLanguage = $sendOriginalWord ? $translation->translation_lang : $translation->original_lang;
 
         $message = $vocabularyItem->knowledge >= 100 ? "Повторение!" : "Ежедневное упражнение:";
 
-        $answerLength = mb_strlen($sendOriginalWord ? $translation->translation_text : $translation->original_text);
-        $clarification = self::clarificationNeeded($vocabularyItemId, $wordToSend) ? "\n(в ответе содержится $answerLength символов)" : "";
+        $answerLength = mb_strlen($expectedAnswer);
+        $lettersClarification = self::clarificationNeeded($vocabularyItemId, $wordToSend) ? "\n(в ответе содержится $answerLength символов)" : "";
+
+        $languageClarification = '';
+        if ($expectedAnswerLanguage !== Language::ru) {
+            $translateTo = SetLanguageCommand::SUPPORTED_LANGUAGES[$expectedAnswerLanguage->name];
+            $languageClarification = ' на ' . mb_strtolower($translateTo);
+        }
 
         $response = Request::sendMessage([
             'chat_id' => $userChat->chat_id,
             'parse_mode' => 'HTML',
-            'text' => $message . "\n\nПеревидите слово <b>{$wordToSend}</b>$clarification\n\n(ответ отправьте реплаем на это сообщение)",
+            'text' => $message . "\n\nПеревидите$languageClarification слово <b>$wordToSend</b>$lettersClarification\n\n(ответ отправьте реплаем на это сообщение)",
         ]);
 
         Question::query()->create([

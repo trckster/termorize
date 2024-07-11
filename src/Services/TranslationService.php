@@ -14,22 +14,39 @@ readonly final class TranslationService
         $this->api = new YandexTranslationApi;
     }
 
-    public function translate(string $text): Translation
+    public function translate(string $text, Language $foreign): Translation
     {
         $text = mb_strtolower($text);
+
+        $isOriginalRussian = LanguageIdentifier::isRussian($text);
+
+        $originalLanguage = $isOriginalRussian ? Language::ru : $foreign;
+        $translationLanguage = $isOriginalRussian ? $foreign : Language::ru;
 
         $translation = Translation::query()
             ->where('is_custom', false)
             ->where('original_text', $text)
+            ->where('original_lang', $originalLanguage->name)
+            ->where('translation_lang', $translationLanguage->name)
             ->first();
+
         if ($translation) {
             return $translation;
         }
 
-        $originalLanguage = LanguageIdentifier::identify($text);
-        $translationLanguage = $originalLanguage === Language::ru ? Language::en : Language::ru;
-
         $translationText = $this->api->translate($text, $translationLanguage);
+
+        $equalTranslation = Translation::query()
+            ->where('is_custom', false)
+            ->where('original_text', $translationText)
+            ->where('translation_text', $text)
+            ->where('original_lang', $translationLanguage->name)
+            ->where('translation_lang', $originalLanguage->name)
+            ->first();
+
+        if ($equalTranslation) {
+            return $equalTranslation;
+        }
 
         return Translation::query()->create([
             'original_text' => $text,
@@ -40,10 +57,12 @@ readonly final class TranslationService
         ]);
     }
 
-    public function saveCustomTranslation(string $original, string $translation): Translation
+    public function saveCustomTranslation(string $original, string $translation, Language $foreign): Translation
     {
-        $originalLanguage = LanguageIdentifier::identify($original);
-        $translationLanguage = $originalLanguage === Language::ru ? Language::en : Language::ru;
+        $isOriginalRussian = LanguageIdentifier::isRussian($original);
+
+        $originalLanguage = $isOriginalRussian ? Language::ru : $foreign;
+        $translationLanguage = $isOriginalRussian ? $foreign : Language::ru;
 
         return Translation::query()->create([
             'original_text' => $original,

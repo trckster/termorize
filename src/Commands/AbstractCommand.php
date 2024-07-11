@@ -18,9 +18,24 @@ abstract class AbstractCommand
         $this->update = $update;
     }
 
+    protected function getClearedMessage(): string
+    {
+        $message = $this->update->getMessage()->getText();
+
+        $messageParts = explode(' ', $message);
+        array_shift($messageParts);
+
+        return trim(implode(' ', $messageParts));
+    }
+
+    protected function getSenderId(): int
+    {
+        return $this->update->getMessage()->getFrom()->getId();
+    }
+
     protected function loadUser(): User
     {
-        return User::query()->find($this->update->getMessage()->getFrom()->getId());
+        return User::query()->find($this->getSenderId());
     }
 
     protected function reply(string $text, array $options = []): ServerResponse

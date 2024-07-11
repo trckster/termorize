@@ -2,8 +2,6 @@
 
 namespace Termorize\Commands;
 
-use Longman\TelegramBot\Request;
-
 class StartCommand extends AbstractCommand
 {
     public function process(): void

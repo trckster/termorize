@@ -14,8 +14,8 @@ class ToggleQuestionsSettingCommand extends AbstractCommand
         ]);
 
         $answer = $userSetting->learns_vocabulary
-            ? 'Ежедневная отправка слов включена'
-            : 'Ежедневная отправка слов выключена';
+            ? "Ежедневная отправка слов включена\n\n(начнёт действовать со следующего дня по UTC)"
+            : "Ежедневная отправка слов выключена\n\n(начнёт действовать со следующего дня по UTC)";
 
         $this->reply($answer);
     }

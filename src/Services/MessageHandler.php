@@ -7,8 +7,11 @@ use Termorize\Commands\AddCustomVocabularyCommand;
 use Termorize\Commands\AddWordCallbackCommand;
 use Termorize\Commands\AnswerCommand;
 use Termorize\Commands\DefaultCommand;
+use Termorize\Commands\DeleteVocabularyItemCommand;
 use Termorize\Commands\DeleteWordCallbackCommand;
+use Termorize\Commands\SetLanguageCommand;
 use Termorize\Commands\SetQuestionsCountCommand;
+use Termorize\Commands\SetQuestionsScheduleCommand;
 use Termorize\Commands\StartCommand;
 use Termorize\Commands\ToggleQuestionsSettingCommand;
 use Termorize\Commands\TranslateCommand;
@@ -40,7 +43,10 @@ class MessageHandler
                 '/start' => new StartCommand,
                 '/toggle_questions' => new ToggleQuestionsSettingCommand,
                 '/set_questions' => new SetQuestionsCountCommand,
-                '/add_vocabulary' => new AddCustomVocabularyCommand,
+                '/add' => new AddCustomVocabularyCommand,
+                '/delete' => new DeleteVocabularyItemCommand,
+                '/set_schedule' => new SetQuestionsScheduleCommand,
+                '/set_language' => new SetLanguageCommand,
                 default => new DefaultCommand,
             };
         } elseif (empty($text)) {
