@@ -26,9 +26,7 @@ Build & push images and dockerhub will automatically deploy them afterward.
 
 # Todo list
 
-1. Ability to set time for questions.
-2. Multi-language support.
-3. Translations mass import.
-4. Translations mass export.
-5. Статистика каждую неделю и команда stat
-6. Fix .env creation inside Dockerfiles.
+1. Translations mass import.
+2. Translations mass export.
+3. Generate statistics every week & /stat
+4. Fix .env creation inside Dockerfiles.

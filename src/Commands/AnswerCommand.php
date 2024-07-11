@@ -38,7 +38,7 @@ class AnswerCommand extends AbstractCommand
         $answer = mb_strtolower($this->update->getMessage()->getText());
         $expectedAnswer = mb_strtolower($expectedAnswer);
 
-        $verdict = "Неправильно, правильный ответ: <b>{$expectedAnswer}</b>\n";
+        $verdict = "Неправильно, правильный ответ: <b>$expectedAnswer</b>\n";
 
         switch (mb_levenshtein($answer, $expectedAnswer)) {
             case 0:
@@ -52,7 +52,7 @@ class AnswerCommand extends AbstractCommand
                 $vocabularyItem->update([
                     'knowledge' => min(100, $vocabularyItem->knowledge + 10),
                 ]);
-                $verdict = "Почти, правильный ответ: <b>{$vocabularyItem->translation->original_text}</b>\n";
+                $verdict = "Почти, правильный ответ: <b>$expectedAnswer</b>\n";
                 break;
 
             default:

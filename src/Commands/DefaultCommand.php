@@ -9,11 +9,14 @@ class DefaultCommand extends AbstractCommand
         $message = <<<MESSAGE
 <b>Доступные команды</b>:
 
+<code>/set_language de</code>
+Сменить язык.
+
 <code>/add cut to the chase:перейти к делу</code>
 Добавить перевод для изучения самостоятельно (слово и его перевод разделить двоеточием).
 
-<code>/delete vocabulary word</code>
-Удалить слово из словарного запаса.
+<code>/delete перейти к делу</code>
+Удалить перевод из словарного запаса.
 
 <code>/toggle_questions</code>
 Включить/выключить отправку ежедневных вопросов.

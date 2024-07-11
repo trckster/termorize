@@ -24,7 +24,8 @@ class AddCustomVocabularyCommand extends AbstractCommand
             return;
         }
 
-        $translation = $this->translationService->saveCustomTranslation($parts[0], $parts[1]);
+        $userSettings = $this->loadUser()->getOrCreateSettings();
+        $translation = $this->translationService->saveCustomTranslation($parts[0], $parts[1], $userSettings->language);
         $translation->vocabularyItems()->create([
             'user_id' => $this->update->getMessage()->getFrom()->getId(),
             'knowledge' => 0,

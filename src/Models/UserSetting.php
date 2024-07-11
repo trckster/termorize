@@ -3,12 +3,14 @@
 namespace Termorize\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Termorize\Enums\Language;
 
 /**
  * @property int $user_id
  * @property bool $learns_vocabulary
  * @property int $questions_count
  * @property null|array $questions_schedule
+ * @property Language $language
  */
 class UserSetting extends Model
 {
@@ -29,10 +31,12 @@ class UserSetting extends Model
         'learns_vocabulary',
         'questions_count',
         'questions_schedule',
+        'language',
     ];
 
     protected $casts = [
         'questions_schedule' => 'array',
+        'language' => Language::class,
     ];
 
     public function getQuestionsScheduleFrom(): int
@@ -53,6 +57,7 @@ class UserSetting extends Model
                 'learns_vocabulary' => true,
                 'questions_count' => 1,
                 'questions_schedule' => self::DEFAULT_SCHEDULE,
+                'language' => Language::en,
             ]);
     }
 }

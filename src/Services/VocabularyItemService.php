@@ -8,7 +8,6 @@ use Termorize\Models\Translation;
 use Termorize\Models\VocabularyItem;
 use Illuminate\Database\Eloquent\Builder;
 
-
 class VocabularyItemService
 {
     public function save(Translation $translation, int $userId): ?VocabularyItem
