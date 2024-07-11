@@ -29,16 +29,16 @@ class SendQuestion
         $vocabularyItem = VocabularyItem::query()->with('translation')->find($vocabularyItemId);
         $translation = $vocabularyItem->translation;
 
-        $sendOriginalWord = (bool)rand(0, 1);
+        $sendOriginalWord = (bool) rand(0, 1);
 
         $wordToSend = $sendOriginalWord ? $translation->original_text : $translation->translation_text;
         $expectedAnswer = $sendOriginalWord ? $translation->translation_text : $translation->original_text;
         $expectedAnswerLanguage = $sendOriginalWord ? $translation->translation_lang : $translation->original_lang;
 
-        $message = $vocabularyItem->knowledge >= 100 ? "Повторение!" : "Ежедневное упражнение:";
+        $message = $vocabularyItem->knowledge >= 100 ? 'Повторение!' : 'Ежедневное упражнение:';
 
         $answerLength = mb_strlen($expectedAnswer);
-        $lettersClarification = self::clarificationNeeded($vocabularyItemId, $wordToSend) ? "\n(в ответе содержится $answerLength символов)" : "";
+        $lettersClarification = self::clarificationNeeded($vocabularyItemId, $wordToSend) ? "\n(в ответе содержится $answerLength символов)" : '';
 
         $languageClarification = '';
         if ($expectedAnswerLanguage !== Language::ru) {

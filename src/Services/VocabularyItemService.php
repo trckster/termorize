@@ -3,10 +3,10 @@
 namespace Termorize\Services;
 
 use Exception;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Termorize\Models\Translation;
 use Termorize\Models\VocabularyItem;
-use Illuminate\Database\Eloquent\Builder;
 
 class VocabularyItemService
 {

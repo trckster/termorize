@@ -6,7 +6,7 @@ class DefaultCommand extends AbstractCommand
 {
     public function process(): void
     {
-        $message = <<<MESSAGE
+        $message = <<<'MESSAGE'
 <b>Доступные команды</b>:
 
 <code>/set_language de</code>

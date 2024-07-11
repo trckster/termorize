@@ -21,6 +21,7 @@ class DeleteWordCallbackCommand extends AbstractCallbackCommand
                 'chat_id' => $userId,
                 'text' => 'Слово уже удалено',
             ]);
+
             return;
         }
 

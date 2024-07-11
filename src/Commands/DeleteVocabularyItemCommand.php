@@ -20,9 +20,9 @@ class DeleteVocabularyItemCommand extends AbstractCommand
 
         try {
             $this->vocabularyService->deleteItem($this->update->getMessage()->getFrom()->getId(), $word);
-            $this->reply("Слово удалено из словарного запаса");
+            $this->reply('Слово удалено из словарного запаса');
         } catch (Throwable $e) {
-            $this->reply("Слово не найдено");
+            $this->reply('Слово не найдено');
         }
     }
 }

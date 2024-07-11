@@ -15,6 +15,7 @@ class SetQuestionsScheduleCommand extends AbstractCommand
             [$from, $to] = $this->parseTimes($timeRange);
         } catch (Throwable) {
             $this->reply('Укажите время в нужном формате');
+
             return;
         }
 
@@ -51,6 +52,6 @@ class SetQuestionsScheduleCommand extends AbstractCommand
     {
         [$hours, $minutes] = explode(':', $time);
 
-        return (int)$hours * 60 + (int)$minutes;
+        return (int) $hours * 60 + (int) $minutes;
     }
 }

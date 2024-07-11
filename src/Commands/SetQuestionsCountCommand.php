@@ -14,13 +14,15 @@ class SetQuestionsCountCommand extends AbstractCommand
             $this->reply('Формат команды: <i>/set_questions 5</i>, где 5 - это кол-во вопросов в день.', [
                 'parse_mode' => 'HTML',
             ]);
+
             return;
         }
 
-        $questionsCount = (int)$messageParts[1];
+        $questionsCount = (int) $messageParts[1];
 
         if ($questionsCount < 1 || $questionsCount > 1000) {
             $this->reply('Число вопросов не может быть меньше одного и больше тысячи.');
+
             return;
         }
 

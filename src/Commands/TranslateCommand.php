@@ -33,6 +33,7 @@ class TranslateCommand extends AbstractCommand
 
         if (count(explode(' ', $resultingTranslation)) <= 5) {
             $this->addVocabularyItem($translation);
+
             return;
         }
 
@@ -50,6 +51,7 @@ class TranslateCommand extends AbstractCommand
 
         if (!$vocabularyItem) {
             $this->reply('Слово уже есть в вашем словарном запасе');
+
             return;
         }
 

@@ -4,8 +4,8 @@ namespace Termorize\Commands;
 
 use Longman\TelegramBot\Entities\ServerResponse;
 use Longman\TelegramBot\Entities\Update;
-use Termorize\Models\User;
 use Longman\TelegramBot\Request;
+use Termorize\Models\User;
 
 abstract class AbstractCommand
 {

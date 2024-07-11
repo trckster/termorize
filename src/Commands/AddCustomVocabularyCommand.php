@@ -21,6 +21,7 @@ class AddCustomVocabularyCommand extends AbstractCommand
 
         if (count($parts) !== 2) {
             $this->reply('В сообщении должно быть ровно одно двоеточие.');
+
             return;
         }
 
@@ -31,6 +32,6 @@ class AddCustomVocabularyCommand extends AbstractCommand
             'knowledge' => 0,
         ]);
 
-        $this->reply("Ваш собственный перевод успешно сохранён!");
+        $this->reply('Ваш собственный перевод успешно сохранён!');
     }
 }

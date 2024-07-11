@@ -10,7 +10,7 @@ class ToggleQuestionsSettingCommand extends AbstractCommand
         $userSetting = $user->getOrCreateSettings();
 
         $userSetting->update([
-            'learns_vocabulary' => !$userSetting->learns_vocabulary
+            'learns_vocabulary' => !$userSetting->learns_vocabulary,
         ]);
 
         $answer = $userSetting->learns_vocabulary

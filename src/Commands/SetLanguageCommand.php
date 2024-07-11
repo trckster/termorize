@@ -21,6 +21,7 @@ class SetLanguageCommand extends AbstractCommand
 
         if (!array_key_exists($language, self::SUPPORTED_LANGUAGES)) {
             $this->reply("Такой язык не поддерживается.\n\n" . $this->listLanguages());
+
             return;
         }
 
