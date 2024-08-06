@@ -21,6 +21,9 @@ class DefaultCommand extends AbstractCommand
 <code>/list</code>
 Список из словарного запаса.
 
+<code>/stat</code>
+Статистика по словам и вопросам.
+
 <code>/toggle_questions</code>
 Включить/выключить отправку ежедневных вопросов.
 

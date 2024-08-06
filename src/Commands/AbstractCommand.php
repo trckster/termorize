@@ -36,9 +36,9 @@ abstract class AbstractCommand
         return $this->update->getMessage()->getFrom()->getId();
     }
 
-    protected function loadUser(): User
+    protected function loadUser(array $with = []): User
     {
-        return User::query()->find($this->getSenderId());
+        return User::query()->with($with)->find($this->getSenderId());
     }
 
     protected function reply(string $text, array $options = []): ServerResponse

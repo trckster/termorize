@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
@@ -22,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  *
  * @property-read UserSetting $settings
  * @property-read Collection|VocabularyItem[] $vocabularyItems
+ * @property-read Collection|Question[] $questions
  */
 class User extends Model
 {
@@ -58,5 +60,10 @@ class User extends Model
     public function vocabularyItems(): HasMany
     {
         return $this->hasMany(VocabularyItem::class);
+    }
+
+    public function questions(): HasManyThrough
+    {
+        return $this->hasManyThrough(Question::class, VocabularyItem::class);
     }
 }
