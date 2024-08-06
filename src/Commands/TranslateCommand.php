@@ -25,6 +25,13 @@ class TranslateCommand extends AbstractCommand
         $userSettings = $this->loadUser()->getOrCreateSettings();
         $translation = $this->translationService->translate($message, $userSettings->language);
 
+        if ($translation->original_text === $translation->translation_text) {
+            $translation->delete();
+            $this->reply('Перевод совпадает с изначальным словом (по мнению Яндекс.Переводчика)');
+
+            return;
+        }
+
         $resultingTranslation = $translation->original_text === mb_strtolower($message)
             ? $translation->translation_text
             : $translation->original_text;

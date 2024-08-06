@@ -9,6 +9,8 @@ use Termorize\Commands\AnswerCommand;
 use Termorize\Commands\DefaultCommand;
 use Termorize\Commands\DeleteVocabularyItemCommand;
 use Termorize\Commands\DeleteWordCallbackCommand;
+use Termorize\Commands\ExportCommand;
+use Termorize\Commands\ListCommand;
 use Termorize\Commands\SetLanguageCommand;
 use Termorize\Commands\SetQuestionsCountCommand;
 use Termorize\Commands\SetQuestionsScheduleCommand;
@@ -47,6 +49,8 @@ class MessageHandler
                 '/delete' => new DeleteVocabularyItemCommand,
                 '/set_schedule' => new SetQuestionsScheduleCommand,
                 '/set_language' => new SetLanguageCommand,
+                '/list' => new ListCommand,
+                '/export' => new ExportCommand,
                 default => new DefaultCommand,
             };
         } elseif (empty($text)) {

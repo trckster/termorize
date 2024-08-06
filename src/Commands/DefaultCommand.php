@@ -18,6 +18,9 @@ class DefaultCommand extends AbstractCommand
 <code>/delete перейти к делу</code>
 Удалить перевод из словарного запаса.
 
+<code>/list</code>
+Список из словарного запаса.
+
 <code>/toggle_questions</code>
 Включить/выключить отправку ежедневных вопросов.
 

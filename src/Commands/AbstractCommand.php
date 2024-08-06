@@ -9,6 +9,9 @@ use Termorize\Models\User;
 
 abstract class AbstractCommand
 {
+    const int MAX_MESSAGE_LENGTH = 4096;
+    const int MAX_MESSAGES_AT_ONCE = 10;
+
     protected Update $update;
 
     abstract public function process(): void;
