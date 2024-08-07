@@ -60,4 +60,30 @@ class UserSetting extends Model
                 'language' => Language::en,
             ]);
     }
+
+    public function getHumanSchedule(): string
+    {
+        $from = $this->getQuestionsScheduleFrom();
+        $to = $this->getQuestionsScheduleTo();
+
+        $fromHours = intdiv($from, 60);
+        $fromMinutes = $from % 60;
+        $toHours = intdiv($to, 60);
+        $toMinutes = $to % 60;
+
+        if ($fromHours < 10) {
+            $fromHours = "0$fromHours";
+        }
+        if ($fromMinutes < 10) {
+            $fromMinutes = "0$fromMinutes";
+        }
+        if ($toHours < 10) {
+            $toHours = "0$toHours";
+        }
+        if ($toMinutes < 10) {
+            $toMinutes = "0$toMinutes";
+        }
+
+        return "$fromHours:$fromMinutes - $toHours:$toMinutes";
+    }
 }

@@ -3,7 +3,6 @@
 namespace Termorize\Tasks;
 
 use Longman\TelegramBot\Request;
-use Termorize\Commands\SetLanguageCommand;
 use Termorize\Enums\Language;
 use Termorize\Models\Question;
 use Termorize\Models\User;
@@ -42,7 +41,7 @@ class SendQuestion
 
         $languageClarification = '';
         if ($expectedAnswerLanguage !== Language::ru) {
-            $translateTo = SetLanguageCommand::SUPPORTED_LANGUAGES[$expectedAnswerLanguage->name];
+            $translateTo = $expectedAnswerLanguage->getName();
             $languageClarification = ' на ' . mb_strtolower($translateTo);
         }
 

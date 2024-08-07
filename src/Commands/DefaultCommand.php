@@ -24,6 +24,9 @@ class DefaultCommand extends AbstractCommand
 <code>/stat</code>
 Статистика по словам и вопросам.
 
+<code>/settings</code>
+Вывести текущие настройки.
+
 <code>/toggle_questions</code>
 Включить/выключить отправку ежедневных вопросов.
 

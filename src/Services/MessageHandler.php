@@ -14,6 +14,7 @@ use Termorize\Commands\ListCommand;
 use Termorize\Commands\SetLanguageCommand;
 use Termorize\Commands\SetQuestionsCountCommand;
 use Termorize\Commands\SetQuestionsScheduleCommand;
+use Termorize\Commands\SettingsCommand;
 use Termorize\Commands\StartCommand;
 use Termorize\Commands\StatCommand;
 use Termorize\Commands\ToggleQuestionsSettingCommand;
@@ -53,6 +54,7 @@ class MessageHandler
                 '/list' => new ListCommand,
                 '/export' => new ExportCommand,
                 '/stat' => new StatCommand,
+                '/settings' => new SettingsCommand,
                 default => new DefaultCommand,
             };
         } elseif (empty($text)) {

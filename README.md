@@ -28,5 +28,5 @@ Build & push images and dockerhub will automatically deploy them afterward.
 
 1. Translations mass import.
 2. Translations mass export.
-3. Generate statistics every week & /stat
+3. Generate improved statistics every week.
 4. Fix .env creation inside Dockerfiles.
