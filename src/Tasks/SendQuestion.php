@@ -19,7 +19,9 @@ class SendQuestion
 
         /** @var User $user */
         $user = User::query()->find($userId);
-        Logger::info("Sending new question to the {$user->username}");
+
+        $username = $user->username ?? $userId;
+        Logger::info("Sending new question to the $username");
 
         /** @var UserChat $userChat */
         $userChat = UserChat::query()->where('user_id', $user->id)->first();
@@ -50,6 +52,13 @@ class SendQuestion
             'parse_mode' => 'HTML',
             'text' => $message . "\n\nПеревидите$languageClarification слово <b>$wordToSend</b>$lettersClarification\n\n(ответ отправьте реплаем на это сообщение)",
         ]);
+
+        if (!$response->isOk()) {
+            Logger::info("Request failed for user $username: " . $response->getDescription());
+            $user->getOrCreateSettings()->update(['learns_vocabulary' => false]);
+
+            return;
+        }
 
         Question::query()->create([
             'chat_id' => $userChat->chat_id,
