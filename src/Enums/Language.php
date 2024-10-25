@@ -11,6 +11,7 @@ enum Language
         'es' => 'Испанский',
         'it' => 'Итальянский',
         'pl' => 'Польский',
+        'tr' => 'Турецкий',
     ];
 
     case ru;
@@ -20,6 +21,7 @@ enum Language
     case es;
     case it;
     case pl;
+    case tr;
 
     public function getName(): string
     {
