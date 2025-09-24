@@ -18,11 +18,7 @@ docker compose up --build
 
 # Deploy
 
-Build & push images and dockerhub will automatically deploy them afterward.
-
-```bash
-./deploy.sh
-```
+CI is not set up. Clone latest version manually and run it with docker compose.
 
 # Todo list
 
