@@ -2,7 +2,6 @@ package database
 
 import (
 	"fmt"
-	"log"
 	"termorize/src/config"
 	"termorize/src/models"
 
@@ -28,7 +27,7 @@ func Connect() error {
 	}
 
 	DB = db
-	log.Println("Database connected successfully")
+
 	return nil
 }
 

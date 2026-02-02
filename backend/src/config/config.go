@@ -3,12 +3,14 @@ package config
 import (
 	"log"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 )
 
 type Config struct {
-	Port string
+	Port   string
+	Secret string
 
 	DBHost           string
 	DBPort           string
@@ -16,6 +18,8 @@ type Config struct {
 	DBUser           string
 	DBPassword       string
 	TelegramBotToken string
+
+	JWTExpirationTime time.Duration
 }
 
 var config *Config
@@ -28,6 +32,16 @@ func getEnv(key, defaultValue string) string {
 	return value
 }
 
+func getRequiredEnv(key string) string {
+	value := os.Getenv(key)
+
+	if value == "" {
+		panic("Required environment variable is missing: " + key)
+	}
+
+	return value
+}
+
 func LoadEnv() {
 	err := godotenv.Load()
 	if err != nil {
@@ -35,20 +49,27 @@ func LoadEnv() {
 	}
 
 	config = &Config{
-		Port: getEnv("PORT", "8080"),
+		Port:   getEnv("PORT", "8080"),
+		Secret: getRequiredEnv("SECRET"),
 
 		DBHost:     getEnv("DB_HOST", "localhost"),
 		DBPort:     getEnv("DB_PORT", "5432"),
 		DBName:     getEnv("DB_NAME", "termorize"),
-		DBUser:     getEnv("DB_USER", "postgres"),
-		DBPassword: getEnv("DB_PASSWORD", "postgres"),
+		DBUser:     getRequiredEnv("DB_USER"),
+		DBPassword: getRequiredEnv("DB_PASSWORD"),
 
-		TelegramBotToken: getEnv("TELEGRAM_BOT_TOKEN", ""),
+		TelegramBotToken: getRequiredEnv("TELEGRAM_BOT_TOKEN"),
+
+		JWTExpirationTime: 12 * time.Hour,
 	}
 }
 
 func GetPort() string {
 	return config.Port
+}
+
+func GetSecret() string {
+	return config.Secret
 }
 
 func GetDBHost() string {
@@ -73,4 +94,8 @@ func GetDBPassword() string {
 
 func GetTelegramBotToken() string {
 	return config.TelegramBotToken
+}
+
+func GetJWTExpirationTime() time.Duration {
+	return config.JWTExpirationTime
 }

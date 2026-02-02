@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"termorize/src/config"
+	"termorize/src/utils"
+	"time"
 )
 
 type TelegramAuthData struct {
@@ -15,13 +18,18 @@ type TelegramAuthData struct {
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
 	PhotoUrl  string `json:"photo_url"`
-	AuthDate  int64  `json:"auth_date"`
+	AuthDate  int64  `json:"auth_date"` // In seconds
 	Hash      string `json:"hash"`
 }
 
-func ValidateTelegramAuth(data TelegramAuthData, botToken string) bool {
+func ValidateTelegramAuth(data TelegramAuthData) bool {
+	// If auth happened more than hour ago, we assume
+	if !utils.WasWithin(data.AuthDate*1000, time.Hour) {
+		return false
+	}
+
 	checkString := buildDataCheckString(data)
-	secretKey := sha256.Sum256([]byte(botToken))
+	secretKey := sha256.Sum256([]byte(config.GetTelegramBotToken()))
 	expectedHash := hmac.New(sha256.New, secretKey[:])
 	expectedHash.Write([]byte(checkString))
 	computedHash := hex.EncodeToString(expectedHash.Sum(nil))
