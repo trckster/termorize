@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
     history: createWebHistory(),
@@ -11,16 +12,33 @@ const router = createRouter({
         },
         {
             path: '/',
-            name: 'account',
-            component: () => import('@/views/AccountPage.vue'),
+            name: 'translation',
+            component: () => import('@/views/TranslationPage.vue'),
+            meta: { requiresAuth: true },
+        },
+        {
+            path: '/vocabulary',
+            name: 'vocabulary',
+            component: () => import('@/views/VocabularyPage.vue'),
             meta: { requiresAuth: true },
         },
     ],
 })
 
-router.beforeEach((to, _from, next) => {
-    // TODO Auth logic
-    next()
+router.beforeEach(async (to, _from, next) => {
+    const authStore = useAuthStore()
+
+    if (!authStore.hasCheckedAuth) {
+        await authStore.getCurrentUser().catch(console.error)
+    }
+
+    if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+        next('/login')
+    } else if (to.meta.guest && authStore.isAuthenticated) {
+        next('/')
+    } else {
+        next()
+    }
 })
 
 export default router
