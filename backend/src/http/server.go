@@ -10,18 +10,19 @@ import (
 )
 
 func LaunchServer() {
-	r := gin.Default()
+	router := gin.Default()
+	router.SetTrustedProxies(nil)
 
-	r.Use(middlewares.CorsMiddleware())
+	router.Use(middlewares.CorsMiddleware())
 
-	apiGroup := r.Group("/api")
+	apiGroup := router.Group("/api")
 	definePublicRoutes(apiGroup)
 
 	protectedApiGroup := apiGroup.Group("")
 	protectedApiGroup.Use(middlewares.AuthMiddleware())
 	defineProtectedRoutes(protectedApiGroup)
 
-	r.Run(":" + config.GetPort())
+	router.Run(":" + config.GetPort())
 }
 
 func defineProtectedRoutes(group *gin.RouterGroup) {
