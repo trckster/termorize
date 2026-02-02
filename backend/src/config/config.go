@@ -10,11 +10,12 @@ import (
 type Config struct {
 	Port string
 
-	DBHost     string
-	DBPort     string
-	DBName     string
-	DBUser     string
-	DBPassword string
+	DBHost           string
+	DBPort           string
+	DBName           string
+	DBUser           string
+	DBPassword       string
+	TelegramBotToken string
 }
 
 var config *Config
@@ -41,9 +42,35 @@ func LoadEnv() {
 		DBName:     getEnv("DB_NAME", "termorize"),
 		DBUser:     getEnv("DB_USER", "postgres"),
 		DBPassword: getEnv("DB_PASSWORD", "postgres"),
+
+		TelegramBotToken: getEnv("TELEGRAM_BOT_TOKEN", ""),
 	}
 }
 
 func GetPort() string {
 	return config.Port
+}
+
+func GetDBHost() string {
+	return config.DBHost
+}
+
+func GetDBPort() string {
+	return config.DBPort
+}
+
+func GetDBName() string {
+	return config.DBName
+}
+
+func GetDBUser() string {
+	return config.DBUser
+}
+
+func GetDBPassword() string {
+	return config.DBPassword
+}
+
+func GetTelegramBotToken() string {
+	return config.TelegramBotToken
 }
