@@ -21,3 +21,23 @@ func IssueJWT(userID uint) string {
 
 	return signedToken
 }
+
+func DecodeJWT(token string) (uint, error) {
+	claims := &jwt.RegisteredClaims{}
+
+	_, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
+		return []byte(config.GetSecret()), nil
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
+
+	if err != nil {
+		return 0, err
+	}
+
+	sub, _ := claims.GetSubject()
+	userID, err := strconv.Atoi(sub)
+	if err != nil {
+		return 0, err
+	}
+
+	return uint(userID), nil
+}

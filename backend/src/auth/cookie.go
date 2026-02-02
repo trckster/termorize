@@ -8,11 +8,15 @@ import (
 
 const authCookieName = "auth"
 
-func Login(c *gin.Context, token string) {
+func SetAuthCookie(c *gin.Context, token string) {
 	setAuthCookie(c, token, int(config.GetJWTExpirationTime().Seconds()))
 }
 
-func Logout(c *gin.Context) {
+func GetAuthCookie(c *gin.Context) (string, error) {
+	return c.Cookie(authCookieName)
+}
+
+func DeleteAuthCookie(c *gin.Context) {
 	setAuthCookie(c, "", -1)
 }
 

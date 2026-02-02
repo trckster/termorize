@@ -1,5 +1,8 @@
 package main
 
+// Import first to set UTC timezone before any other package uses invalid timezone
+import _ "termorize/src/utils"
+
 import (
 	"log"
 	"termorize/src/config"

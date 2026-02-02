@@ -26,7 +26,7 @@ func TelegramLogin(c *gin.Context) {
 
 	if result.Error == nil {
 		// TODO update user data on login
-		auth.Login(c, auth.IssueJWT(user.ID))
+		auth.SetAuthCookie(c, auth.IssueJWT(user.ID))
 		c.Status(http.StatusOK)
 		return
 	}
@@ -44,10 +44,19 @@ func TelegramLogin(c *gin.Context) {
 		return
 	}
 
-	auth.Login(c, auth.IssueJWT(user.ID))
+	auth.SetAuthCookie(c, auth.IssueJWT(user.ID))
 	c.Status(http.StatusCreated)
 }
 
+func Me(c *gin.Context) {
+	userID := c.MustGet("userID")
+
+	var user models.User
+	database.DB.Where("id = ?", userID).First(&user)
+
+	c.JSON(http.StatusOK, user)
+}
+
 func Logout(c *gin.Context) {
-	auth.Logout(c)
+	auth.DeleteAuthCookie(c)
 }
