@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"net/http"
 	"termorize/src/config"
 
 	"github.com/gin-gonic/gin"
@@ -21,13 +22,21 @@ func DeleteAuthCookie(c *gin.Context) {
 }
 
 func setAuthCookie(c *gin.Context, token string, time int) {
-	c.SetCookie(
-		authCookieName,
-		token,
-		time,
-		"/",
-		config.GetDomain(),
-		!config.IsLocal(),
-		true,
-	)
+	sameSite := http.SameSiteStrictMode
+	if config.IsLocal() {
+		sameSite = http.SameSiteNoneMode
+	}
+
+	cookie := &http.Cookie{
+		Name:     authCookieName,
+		Value:    token,
+		Path:     "/",
+		Domain:   config.GetDomain(),
+		MaxAge:   time,
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: sameSite,
+	}
+
+	http.SetCookie(c.Writer, cookie)
 }
