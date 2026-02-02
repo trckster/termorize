@@ -12,6 +12,8 @@ import (
 func LaunchServer() {
 	r := gin.Default()
 
+	r.Use(middlewares.CorsMiddleware())
+
 	apiGroup := r.Group("/api")
 	definePublicRoutes(apiGroup)
 

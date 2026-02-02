@@ -2,6 +2,7 @@ package config
 
 import (
 	"log"
+	"net/url"
 	"os"
 	"time"
 
@@ -9,9 +10,10 @@ import (
 )
 
 type Config struct {
-	Domain string
-	Port   string
-	Secret string
+	Env       string
+	PublicURL string
+	Port      string
+	Secret    string
 
 	DBHost           string
 	DBPort           string
@@ -50,9 +52,10 @@ func LoadEnv() {
 	}
 
 	config = &Config{
-		Domain: getEnv("DOMAIN", "localhost"),
-		Port:   getEnv("PORT", "8080"),
-		Secret: getRequiredEnv("SECRET"),
+		Env:       getEnv("ENV", "prod"),
+		PublicURL: getEnv("PUBLIC_URL", "http://localhost:3000"),
+		Port:      getEnv("PORT", "8080"),
+		Secret:    getRequiredEnv("SECRET"),
 
 		DBHost:     getEnv("DB_HOST", "localhost"),
 		DBPort:     getEnv("DB_PORT", "5432"),
@@ -67,11 +70,25 @@ func LoadEnv() {
 }
 
 func GetDomain() string {
-	return config.Domain
+	if IsLocal() {
+		return "localhost"
+	}
+
+	parseUrl, err := url.Parse(config.PublicURL)
+	if err != nil {
+		panic("invalid public url")
+	}
+
+	return parseUrl.Hostname()
+}
+
+// GetPublicURL returns frontend URL
+func GetPublicURL() string {
+	return config.PublicURL
 }
 
 func IsLocal() bool {
-	return config.Domain == "localhost"
+	return config.Env == "local"
 }
 
 func GetPort() string {
