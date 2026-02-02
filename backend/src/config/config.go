@@ -9,6 +9,7 @@ import (
 )
 
 type Config struct {
+	Domain string
 	Port   string
 	Secret string
 
@@ -49,6 +50,7 @@ func LoadEnv() {
 	}
 
 	config = &Config{
+		Domain: getEnv("DOMAIN", "localhost"),
 		Port:   getEnv("PORT", "8080"),
 		Secret: getRequiredEnv("SECRET"),
 
@@ -62,6 +64,14 @@ func LoadEnv() {
 
 		JWTExpirationTime: 12 * time.Hour,
 	}
+}
+
+func GetDomain() string {
+	return config.Domain
+}
+
+func IsLocal() bool {
+	return config.Domain == "localhost"
 }
 
 func GetPort() string {

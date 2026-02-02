@@ -26,7 +26,8 @@ func TelegramLogin(c *gin.Context) {
 
 	if result.Error == nil {
 		// TODO update user data on login
-		c.JSON(http.StatusOK, gin.H{"token": auth.IssueJWT(user.ID)})
+		auth.Login(c, auth.IssueJWT(user.ID))
+		c.Status(http.StatusOK)
 		return
 	}
 
@@ -43,5 +44,10 @@ func TelegramLogin(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"token": auth.IssueJWT(user.ID)})
+	auth.Login(c, auth.IssueJWT(user.ID))
+	c.Status(http.StatusCreated)
+}
+
+func Logout(c *gin.Context) {
+	auth.Logout(c)
 }

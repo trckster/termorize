@@ -13,6 +13,7 @@ func LaunchServer() {
 	api := r.Group("/api")
 	{
 		api.POST("/telegram/login", controllers.TelegramLogin)
+		api.POST("/logout", controllers.Logout)
 		api.GET("/ping", func(c *gin.Context) {
 			c.JSON(200, gin.H{"status": "nice"})
 		})
