@@ -32,5 +32,10 @@ func Connect() error {
 }
 
 func Migrate() error {
-	return DB.AutoMigrate(&models.User{})
+	return DB.AutoMigrate(
+		&models.User{},
+		&models.Word{},
+		&models.Translation{},
+		&models.Vocabulary{},
+	)
 }

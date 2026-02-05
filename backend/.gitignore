@@ -1,4 +1,6 @@
 .env
 *.out
 .idea/
-
+test.txt
+test.go
+tmp/

@@ -5,13 +5,18 @@ import (
 	"termorize/src/config"
 	"termorize/src/controllers"
 	"termorize/src/http/middlewares"
+	"termorize/src/http/validators"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
 )
 
 func LaunchServer() {
 	router := gin.Default()
 	router.SetTrustedProxies(nil)
+
+	registerValidators()
 
 	router.Use(middlewares.CorsMiddleware())
 
@@ -25,8 +30,16 @@ func LaunchServer() {
 	router.Run(":" + config.GetPort())
 }
 
+func registerValidators() {
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		v.RegisterValidation("enum", validators.ValidateEnum)
+	}
+}
+
 func defineProtectedRoutes(group *gin.RouterGroup) {
 	group.GET("/me", controllers.Me)
+	group.POST("/translations", controllers.CreateTranslation)
+	group.GET("/vocabulary", controllers.GetVocabulary)
 }
 
 func definePublicRoutes(group *gin.RouterGroup) {
