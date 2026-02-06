@@ -3,7 +3,7 @@ package controllers
 import (
 	"net/http"
 	"termorize/src/auth"
-	"termorize/src/database"
+	"termorize/src/data/db"
 	"termorize/src/models"
 	"termorize/src/services"
 
@@ -35,7 +35,7 @@ func Me(c *gin.Context) {
 	userID := c.MustGet("userID")
 
 	var user models.User
-	database.DB.Where("id = ?", userID).First(&user)
+	db.DB.Where("id = ?", userID).First(&user)
 
 	c.JSON(http.StatusOK, user)
 }

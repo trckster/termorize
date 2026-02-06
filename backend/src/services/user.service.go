@@ -3,13 +3,13 @@ package services
 import (
 	"strings"
 	"termorize/src/auth"
-	"termorize/src/database"
+	"termorize/src/data/db"
 	"termorize/src/models"
 )
 
 func CreateOrUpdateUserByTelegramAuthData(data auth.TelegramAuthData) (*models.User, error) {
 	var user models.User
-	result := database.DB.Where("telegram_id = ?", data.ID).First(&user)
+	result := db.DB.Where("telegram_id = ?", data.ID).First(&user)
 
 	if result.Error == nil {
 		return updateUserByTelegramAuthData(&user, data)
@@ -26,7 +26,7 @@ func createUserByTelegramAuthData(data auth.TelegramAuthData) (*models.User, err
 		PhotoUrl:   data.PhotoUrl,
 	}
 
-	err := database.DB.Create(&user).Error
+	err := db.DB.Create(&user).Error
 
 	return &user, err
 }
@@ -36,5 +36,5 @@ func updateUserByTelegramAuthData(user *models.User, data auth.TelegramAuthData)
 	user.Username = data.Username
 	user.PhotoUrl = data.PhotoUrl
 
-	return user, database.DB.Save(&user).Error
+	return user, db.DB.Save(&user).Error
 }
