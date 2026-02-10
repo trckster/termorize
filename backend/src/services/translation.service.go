@@ -3,7 +3,7 @@ package services
 import (
 	"encoding/json"
 	"errors"
-	"termorize/src/database"
+	"termorize/src/data/db"
 	"termorize/src/enums"
 	"termorize/src/models"
 	"time"
@@ -38,17 +38,21 @@ type TranslationWithWordsDTO struct {
 	UserID *uint                   `json:"user_id"`
 }
 
+type Pagination struct {
+	Page       int   `json:"page"`
+	PageSize   int   `json:"page_size"`
+	Total      int64 `json:"total"`
+	TotalPages int   `json:"total_pages"`
+}
+
 type VocabularyListResponse struct {
 	Data       []VocabularyResponse `json:"data"`
-	Page       int                  `json:"page"`
-	PageSize   int                  `json:"page_size"`
-	Total      int64                `json:"total"`
-	TotalPages int                  `json:"total_pages"`
+	Pagination Pagination           `json:"pagination"`
 }
 
 func GetOrCreateWord(word string, language enums.Language) (*models.Word, error) {
 	var existingWord models.Word
-	result := database.DB.Where("word = ? AND language = ?", word, language).First(&existingWord)
+	result := db.DB.Where("word = ? AND language = ?", word, language).First(&existingWord)
 
 	if result.Error == nil {
 		return &existingWord, nil
@@ -63,7 +67,7 @@ func GetOrCreateWord(word string, language enums.Language) (*models.Word, error)
 		Language: language,
 	}
 
-	if err := database.DB.Create(&newWord).Error; err != nil {
+	if err := db.DB.Create(&newWord).Error; err != nil {
 		return nil, err
 	}
 
@@ -88,7 +92,7 @@ func CreateTranslation(userID uint, req CreateTranslationRequest) (*models.Vocab
 		UserID:  &userID,
 	}
 
-	if err := database.DB.Create(&translation).Error; err != nil {
+	if err := db.DB.Create(&translation).Error; err != nil {
 		return nil, err
 	}
 
@@ -103,7 +107,7 @@ func CreateTranslation(userID uint, req CreateTranslationRequest) (*models.Vocab
 		Progress:      datatypes.JSON(progressJSON),
 	}
 
-	if err := database.DB.Create(&vocabulary).Error; err != nil {
+	if err := db.DB.Create(&vocabulary).Error; err != nil {
 		return nil, err
 	}
 
@@ -127,7 +131,7 @@ func GetVocabulary(userID uint, page, pageSize int) (*VocabularyListResponse, er
 
 	offset := (page - 1) * pageSize
 
-	if err := database.DB.Where("user_id = ?", userID).
+	if err := db.DB.Where("user_id = ?", userID).
 		Preload("Translation").
 		Preload("Translation.Word1").
 		Preload("Translation.Word2").
@@ -139,7 +143,7 @@ func GetVocabulary(userID uint, page, pageSize int) (*VocabularyListResponse, er
 		return nil, err
 	}
 
-	if err := database.DB.Model(&models.Vocabulary{}).
+	if err := db.DB.Model(&models.Vocabulary{}).
 		Where("user_id = ?", userID).
 		Count(&total).
 		Error; err != nil {
@@ -176,10 +180,12 @@ func GetVocabulary(userID uint, page, pageSize int) (*VocabularyListResponse, er
 	}
 
 	return &VocabularyListResponse{
-		Data:       responses,
-		Page:       page,
-		PageSize:   pageSize,
-		Total:      total,
-		TotalPages: totalPages,
+		Data: responses,
+		Pagination: Pagination{
+			Page:       page,
+			PageSize:   pageSize,
+			Total:      total,
+			TotalPages: totalPages,
+		},
 	}, nil
 }

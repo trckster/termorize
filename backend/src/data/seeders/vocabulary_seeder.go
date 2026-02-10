@@ -1,8 +1,10 @@
 package seeders
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"termorize/src/data/db"
 	"termorize/src/enums"
 	"termorize/src/models"
@@ -267,10 +269,15 @@ func SeedVocabulary(req VocabularySeedRequest) error {
 			}
 		}
 
+		progressJSON, _ := json.Marshal([]models.ProgressEntry{{
+			Knowledge: rand.Intn(101),
+			Type:      enums.KnowledgeTypeTranslation,
+		}})
+
 		vocabulary := models.Vocabulary{
 			UserID:        *userID,
 			TranslationID: translations[i].ID,
-			Progress:      []byte("[]"),
+			Progress:      progressJSON,
 		}
 		if err := db.DB.FirstOrCreate(&vocabulary, models.Vocabulary{
 			UserID:        vocabulary.UserID,

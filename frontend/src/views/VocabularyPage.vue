@@ -1,76 +1,136 @@
 <template>
     <Header />
     <main class="px-6 py-8">
-        <div class="max-w-4xl mx-auto">
+        <div class="max-w-6xl mx-auto">
             <h1 class="text-3xl font-bold mb-8 text-foreground">Saved Words</h1>
-            <div class="space-y-3">
+
+            <div class="space-y-2 mb-8">
                 <div
-                    v-for="word in savedWords"
-                    :key="word.id"
+                    v-for="item in vocabulary"
+                    :key="item.id"
                     class="p-4 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors cursor-pointer"
                 >
-                    <div class="flex items-start justify-between">
-                        <div>
-                            <h3 class="font-semibold text-foreground">{{ word.word }}</h3>
-                            <p class="text-sm text-muted-foreground mt-1">{{ word.definition }}</p>
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                        <!-- Part 1: Words -->
+                        <div class="md:col-span-4">
+                            <h3 class="font-semibold text-foreground flex items-center gap-2">
+                                <span class="text-xl">{{ languageToEmoji(item.translation.word_1.language) }}</span>
+                                <span class="text-lg">{{ item.translation.word_1.word }}</span>
+                                <span class="text-muted-foreground">-</span>
+                                <span class="text-lg">{{ item.translation.word_2.word }}</span>
+                                <span class="text-xl">{{ languageToEmoji(item.translation.word_2.language) }}</span>
+                            </h3>
                         </div>
-                        <span class="text-xs font-medium text-primary bg-primary/10 px-2.5 py-1 rounded">
-                            {{ word.language }}
-                        </span>
+
+                        <!-- Part 2: Progress -->
+                        <div class="md:col-span-6 flex flex-col gap-3">
+                            <div v-if="item.progress && item.progress.length > 0">
+                                <div v-for="(prog, idx) in item.progress" :key="idx" class="w-full">
+                                    <Progress :model-value="prog.knowledge" class="h-2" />
+                                    <div class="flex justify-between items-center mt-1">
+                                        <span class="text-xs text-muted-foreground capitalize">{{ prog.type }}</span>
+                                        <span class="text-xs font-medium">{{ Math.round(prog.knowledge) }}%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-else class="text-sm text-muted-foreground text-center py-2">
+                                No progress recorded
+                            </div>
+                        </div>
+
+                        <!-- Part 3: Date -->
+                        <div class="md:col-span-2 flex justify-end">
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <span
+                                        class="text-xs font-medium text-muted-foreground bg-secondary/50 px-2.5 py-1 rounded whitespace-nowrap"
+                                    >
+                                        {{ formatRelativeTime(item.created_at) }}
+                                    </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Created: {{ formatDate(item.created_at) }}</p>
+                                    <p v-if="item.mastered_at">Mastered: {{ formatDate(item.mastered_at) }}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </div>
                     </div>
-                    <p v-if="word.example" class="text-sm text-muted-foreground mt-2 italic">"{{ word.example }}"</p>
                 </div>
             </div>
+
+            <Pagination
+                v-if="paginationData.total > 0"
+                v-slot="{ page }"
+                :total="paginationData.total"
+                :items-per-page="paginationData.page_size"
+                :sibling-count="1"
+                show-edges
+                :default-page="1"
+                :page="currentPage"
+                @update:page="handlePageChange"
+            >
+                <PaginationContent v-slot="{ items }" class="flex justify-center gap-1">
+                    <PaginationFirst />
+                    <PaginationPrevious />
+
+                    <template v-for="(item, index) in items">
+                        <PaginationItem v-if="item.type === 'page'" :key="index" :value="item.value" as-child>
+                            <Button class="w-9 h-9 p-0" :variant="item.value === page ? 'default' : 'outline'">
+                                {{ item.value }}
+                            </Button>
+                        </PaginationItem>
+                        <PaginationEllipsis v-else :key="item.type + index" :index="index" />
+                    </template>
+
+                    <PaginationNext />
+                    <PaginationLast />
+                </PaginationContent>
+            </Pagination>
         </div>
     </main>
 </template>
 
 <script setup lang="ts">
 import Header from '@/components/Header.vue'
+import { vocabularyApi, type VocabularyItem } from '@/api/vocabulary.ts'
+import { onMounted, ref } from 'vue'
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationPrevious,
+    PaginationNext,
+    PaginationEllipsis,
+    PaginationFirst,
+    PaginationLast,
+} from '@/components/ui/pagination'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { Button } from '@/components/ui/button'
+import type { PaginationData } from '@/api/pagination.ts'
+import { languageToEmoji, formatRelativeTime, formatDate } from '@/lib/utils.ts'
+import { Progress } from '@/components/ui/progress'
 
-interface SavedWord {
-    id: number
-    word: string
-    definition: string
-    language: string
-    example?: string
+const vocabulary = ref<VocabularyItem[]>([])
+const currentPage = ref(1)
+const paginationData = ref<PaginationData>({
+    page: 1,
+    page_size: 20,
+    total: 0,
+    total_pages: 0,
+})
+
+const fetchVocabulary = async (page: number) => {
+    currentPage.value = page
+    const response = await vocabularyApi.getVocabulary(page, paginationData.value.page_size)
+    vocabulary.value = response.data
+    paginationData.value = response.pagination
 }
 
-const savedWords: SavedWord[] = [
-    {
-        id: 1,
-        word: 'Serendipity',
-        definition: 'The occurrence of events by chance in a happy or beneficial way',
-        language: 'English',
-        example: 'Finding that old photo was pure serendipity.',
-    },
-    {
-        id: 2,
-        word: 'Eloquent',
-        definition: 'Fluent or persuasive in speaking or writing',
-        language: 'English',
-        example: 'The speaker gave an eloquent speech about climate change.',
-    },
-    {
-        id: 3,
-        word: 'Ephemeral',
-        definition: 'Lasting for a very short time; transitory',
-        language: 'English',
-        example: 'The beauty of cherry blossoms is ephemeral.',
-    },
-    {
-        id: 4,
-        word: 'Ubiquitous',
-        definition: 'Present, appearing, or found everywhere',
-        language: 'English',
-        example: 'Smartphones have become ubiquitous in modern society.',
-    },
-    {
-        id: 5,
-        word: 'Perspicacious',
-        definition: 'Having a ready insight into and understanding of things',
-        language: 'English',
-        example: 'Her perspicacious analysis of the market trends proved accurate.',
-    },
-]
+const handlePageChange = async (page: number) => {
+    await fetchVocabulary(page)
+}
+
+onMounted(async () => {
+    await fetchVocabulary(1)
+})
 </script>
