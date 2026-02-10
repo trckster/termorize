@@ -3,44 +3,89 @@
     <main class="px-6 py-8">
         <div class="max-w-6xl mx-auto">
             <h1 class="text-3xl font-bold mb-8 text-foreground">Saved Words</h1>
-            <Pagination
-                v-slot="{ page }"
-                :items-per-page="paginationData.page_size"
-                :total="paginationData.total"
-                :default-page="1"
-            >
-                <PaginationContent v-slot="{ items }">
-                    <PaginationPrevious />
-                    <template v-for="(item, index) in items" :key="index">
-                        <PaginationItem
-                            v-if="item.type === 'page'"
-                            :value="item.value"
-                            :is-active="item.value === page"
-                        >
-                            {{ item.value }}
-                        </PaginationItem>
-                    </template>
-                    <PaginationEllipsis :index="4" />
-                    <PaginationNext />
-                </PaginationContent>
-            </Pagination>
-            <div class="space-y-2">
+
+            <div class="space-y-2 mb-8">
                 <div
                     v-for="item in vocabulary"
                     :key="item.id"
                     class="p-4 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors cursor-pointer"
                 >
-                    <div class="flex items-start justify-between">
-                        <div>
-                            <h3 class="font-semibold text-foreground">{{ item.translation.word_1.word }}</h3>
-                            <p class="text-sm text-muted-foreground mt-1">{{ item.translation.word_2.word }}</p>
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                        <!-- Part 1: Words -->
+                        <div class="md:col-span-4">
+                            <h3 class="font-semibold text-foreground flex items-center gap-2">
+                                <span class="text-xl">{{ languageToEmoji(item.translation.word_1.language) }}</span>
+                                <span class="text-lg">{{ item.translation.word_1.word }}</span>
+                                <span class="text-muted-foreground">-</span>
+                                <span class="text-lg">{{ item.translation.word_2.word }}</span>
+                                <span class="text-xl">{{ languageToEmoji(item.translation.word_2.language) }}</span>
+                            </h3>
                         </div>
-                        <span class="text-xs font-medium text-primary bg-primary/10 px-2.5 py-1 rounded">
-                            {{ item.translation.word_1.language }}
-                        </span>
+
+                        <!-- Part 2: Progress -->
+                        <div class="md:col-span-6 flex flex-col gap-3">
+                            <div v-if="item.progress && item.progress.length > 0">
+                                <div v-for="(prog, idx) in item.progress" :key="idx" class="w-full">
+                                    <Progress :model-value="prog.knowledge" class="h-2" />
+                                    <div class="flex justify-between items-center mt-1">
+                                        <span class="text-xs text-muted-foreground capitalize">{{ prog.type }}</span>
+                                        <span class="text-xs font-medium">{{ Math.round(prog.knowledge) }}%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-else class="text-sm text-muted-foreground text-center py-2">
+                                No progress recorded
+                            </div>
+                        </div>
+
+                        <!-- Part 3: Date -->
+                        <div class="md:col-span-2 flex justify-end">
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <span
+                                        class="text-xs font-medium text-muted-foreground bg-secondary/50 px-2.5 py-1 rounded whitespace-nowrap"
+                                    >
+                                        {{ formatRelativeTime(item.created_at) }}
+                                    </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Created: {{ formatDate(item.created_at) }}</p>
+                                    <p v-if="item.mastered_at">Mastered: {{ formatDate(item.mastered_at) }}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </div>
                     </div>
                 </div>
             </div>
+
+            <Pagination
+                v-if="paginationData.total > 0"
+                v-slot="{ page }"
+                :total="paginationData.total"
+                :items-per-page="paginationData.page_size"
+                :sibling-count="1"
+                show-edges
+                :default-page="1"
+                :page="currentPage"
+                @update:page="handlePageChange"
+            >
+                <PaginationContent v-slot="{ items }" class="flex justify-center gap-1">
+                    <PaginationFirst />
+                    <PaginationPrevious />
+
+                    <template v-for="(item, index) in items">
+                        <PaginationItem v-if="item.type === 'page'" :key="index" :value="item.value" as-child>
+                            <Button class="w-9 h-9 p-0" :variant="item.value === page ? 'default' : 'outline'">
+                                {{ item.value }}
+                            </Button>
+                        </PaginationItem>
+                        <PaginationEllipsis v-else :key="item.type + index" :index="index" />
+                    </template>
+
+                    <PaginationNext />
+                    <PaginationLast />
+                </PaginationContent>
+            </Pagination>
         </div>
     </main>
 </template>
@@ -49,20 +94,43 @@
 import Header from '@/components/Header.vue'
 import { vocabularyApi, type VocabularyItem } from '@/api/vocabulary.ts'
 import { onMounted, ref } from 'vue'
-import { Pagination, PaginationContent, PaginationItem, PaginationPrevious } from '@/components/ui/pagination'
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationPrevious,
+    PaginationNext,
+    PaginationEllipsis,
+    PaginationFirst,
+    PaginationLast,
+} from '@/components/ui/pagination'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { Button } from '@/components/ui/button'
 import type { PaginationData } from '@/api/pagination.ts'
+import { languageToEmoji, formatRelativeTime, formatDate } from '@/lib/utils.ts'
+import { Progress } from '@/components/ui/progress'
 
 const vocabulary = ref<VocabularyItem[]>([])
+const currentPage = ref(1)
 const paginationData = ref<PaginationData>({
     page: 1,
-    page_size: 50,
+    page_size: 20,
     total: 0,
     total_pages: 0,
 })
 
-onMounted(async () => {
-    const response = await vocabularyApi.getVocabulary(1, 100)
+const fetchVocabulary = async (page: number) => {
+    currentPage.value = page
+    const response = await vocabularyApi.getVocabulary(page, paginationData.value.page_size)
     vocabulary.value = response.data
     paginationData.value = response.pagination
+}
+
+const handlePageChange = async (page: number) => {
+    await fetchVocabulary(page)
+}
+
+onMounted(async () => {
+    await fetchVocabulary(1)
 })
 </script>

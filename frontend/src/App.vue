@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 onMounted(() => {
     const theme = localStorage.getItem('theme')
@@ -12,9 +13,11 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="min-h-screen bg-background font-sans antialiased text-foreground">
-        <router-view />
-    </div>
+    <TooltipProvider>
+        <div class="min-h-screen bg-background font-sans antialiased text-foreground">
+            <router-view />
+        </div>
+    </TooltipProvider>
 </template>
 
 <style>

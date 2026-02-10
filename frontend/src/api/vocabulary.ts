@@ -20,6 +20,7 @@ type Translation = {
     user_id: string | null
     word_1: Word
     word_2: Word
+    created_at: string
 }
 
 export type VocabularyItem = {
