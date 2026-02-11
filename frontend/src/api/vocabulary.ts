@@ -47,4 +47,14 @@ export const vocabularyApi = {
     async deleteVocabulary(id: string): Promise<void> {
         await apiCall<void>(`/vocabulary/${id}`, 'DELETE')
     },
+
+    async addVocabulary(word1: string, word2: string, language1: string, language2: string): Promise<VocabularyItem> {
+        const response = await apiCall<VocabularyItem>('/vocabulary', 'POST', {
+            word_1: word1,
+            word_2: word2,
+            language_1: language1,
+            language_2: language2,
+        })
+        return response.body
+    },
 }

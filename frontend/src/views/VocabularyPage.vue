@@ -2,7 +2,84 @@
     <Header />
     <main class="px-6 py-8">
         <div class="max-w-6xl mx-auto">
-            <h1 class="text-3xl font-bold mb-8 text-foreground">Saved Words</h1>
+            <div class="flex justify-between items-center mb-8">
+                <h1 class="text-3xl font-bold text-foreground">Saved Words</h1>
+                <Dialog v-model:open="isAddDialogOpen">
+                    <DialogTrigger as-child>
+                        <Button class="bg-green-600 hover:bg-green-700 text-white">
+                            <Plus class="h-4 w-4 mr-2" />
+                            Add Translation
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent class="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Add Translation</DialogTitle>
+                            <DialogDescription>
+                                Enter two words and their languages to add a new translation.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <form @submit.prevent="handleAdd" class="space-y-4 py-4">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="space-y-2">
+                                    <label class="text-sm font-medium">Language 1</label>
+                                    <select
+                                        v-model="newTranslation.language1"
+                                        class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                    >
+                                        <option v-for="lang in availableLanguages" :key="lang.code" :value="lang.code">
+                                            {{ lang.name }}
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-sm font-medium">Word 1</label>
+                                    <input
+                                        v-model="newTranslation.word1"
+                                        type="text"
+                                        placeholder="Enter word"
+                                        class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                    />
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="space-y-2">
+                                    <label class="text-sm font-medium">Language 2</label>
+                                    <select
+                                        v-model="newTranslation.language2"
+                                        class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                    >
+                                        <option v-for="lang in availableLanguages" :key="lang.code" :value="lang.code">
+                                            {{ lang.name }}
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-sm font-medium">Word 2</label>
+                                    <input
+                                        v-model="newTranslation.word2"
+                                        type="text"
+                                        placeholder="Enter translation"
+                                        class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                    />
+                                </div>
+                            </div>
+                            <DialogFooter class="flex gap-2 sm:justify-end pt-4">
+                                <DialogClose as-child>
+                                    <Button type="button" variant="secondary">Cancel</Button>
+                                </DialogClose>
+                                <Button
+                                    type="submit"
+                                    class="bg-green-600 hover:bg-green-700 text-white"
+                                    :disabled="isAdding || !isFormValid"
+                                >
+                                    <Loader2 v-if="isAdding" class="mr-2 h-4 w-4 animate-spin" />
+                                    {{ isAdding ? 'Adding...' : 'Add Translation' }}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
+            </div>
 
             <div class="space-y-2 mb-8">
                 <div
@@ -140,7 +217,7 @@
 <script setup lang="ts">
 import Header from '@/components/Header.vue'
 import { vocabularyApi, type VocabularyItem } from '@/api/vocabulary.ts'
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import {
     Pagination,
     PaginationContent,
@@ -166,7 +243,8 @@ import {
 import type { PaginationData } from '@/api/pagination.ts'
 import { languageToEmoji, formatRelativeTime, formatDate } from '@/lib/utils.ts'
 import { Progress } from '@/components/ui/progress'
-import { Trash2, Loader2 } from 'lucide-vue-next'
+import { Trash2, Loader2, Plus } from 'lucide-vue-next'
+import { useToast } from '@/composables/useToast.ts'
 
 const vocabulary = ref<VocabularyItem[]>([])
 const currentPage = ref(1)
@@ -177,6 +255,71 @@ const paginationData = ref<PaginationData>({
     total_pages: 0,
 })
 const deletingId = ref<string | null>(null)
+const isAddDialogOpen = ref(false)
+const isAdding = ref(false)
+
+const availableLanguages = [
+    { code: 'en', name: 'English' },
+    { code: 'ru', name: 'Russian' },
+    { code: 'it', name: 'Italian' },
+    { code: 'de', name: 'German' },
+]
+
+const newTranslation = ref({
+    word1: '',
+    word2: '',
+    language1: 'en',
+    language2: 'ru',
+})
+
+const isFormValid = computed(() => {
+    return newTranslation.value.word1.trim() && newTranslation.value.word2.trim()
+})
+
+const resetForm = () => {
+    newTranslation.value = {
+        word1: '',
+        word2: '',
+        language1: 'en',
+        language2: 'ru',
+    }
+}
+
+const { addToast } = useToast()
+
+const handleAdd = async () => {
+    if (!isFormValid.value) return
+
+    isAdding.value = true
+    try {
+        await vocabularyApi.addVocabulary(
+            newTranslation.value.word1.trim(),
+            newTranslation.value.word2.trim(),
+            newTranslation.value.language1,
+            newTranslation.value.language2
+        )
+        isAddDialogOpen.value = false
+        resetForm()
+        await fetchVocabulary(currentPage.value)
+
+        addToast({
+            title: 'Success!',
+            description: 'Translation added successfully.',
+            variant: 'success',
+            duration: 3000,
+        })
+    } catch (error) {
+        console.error('Failed to add translation:', error)
+        addToast({
+            title: 'Error',
+            description: 'Failed to add translation. Please try again.',
+            variant: 'destructive',
+            duration: 5000,
+        })
+    } finally {
+        isAdding.value = false
+    }
+}
 
 const fetchVocabulary = async (page: number) => {
     currentPage.value = page

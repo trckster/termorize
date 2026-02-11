@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import ToastProvider from '@/components/ToastProvider.vue'
 
 onMounted(() => {
     const theme = localStorage.getItem('theme')
@@ -13,11 +14,13 @@ onMounted(() => {
 </script>
 
 <template>
-    <TooltipProvider>
-        <div class="min-h-screen bg-background font-sans antialiased text-foreground">
-            <router-view />
-        </div>
-    </TooltipProvider>
+    <ToastProvider>
+        <TooltipProvider>
+            <div class="min-h-screen bg-background font-sans antialiased text-foreground">
+                <router-view />
+            </div>
+        </TooltipProvider>
+    </ToastProvider>
 </template>
 
 <style>
