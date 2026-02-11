@@ -7,17 +7,18 @@ import (
 	"termorize/src/services"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
-func CreateTranslation(c *gin.Context) {
+func CreateVocabulary(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
-	var req services.CreateTranslationRequest
+	var req services.CreateVocabularyRequest
 	if !validators.BindJSONWithErrors(c, &req) {
 		return
 	}
 
-	vocabulary, err := services.CreateTranslation(userID, req)
+	vocabulary, err := services.CreateVocabulary(userID, req)
 	if err != nil {
 		if err.Error() == "translation already exists" {
 			c.JSON(nethttp.StatusConflict, gin.H{"error": err.Error()})
@@ -56,4 +57,26 @@ func GetVocabulary(c *gin.Context) {
 	}
 
 	c.JSON(nethttp.StatusOK, response)
+}
+
+func DeleteVocabulary(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+
+	vocabIDStr := c.Param("id")
+	vocabID, err := uuid.Parse(vocabIDStr)
+	if err != nil {
+		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid vocabulary ID"})
+		return
+	}
+
+	if err := services.DeleteVocabulary(userID, vocabID); err != nil {
+		if err.Error() == "vocabulary item not found" {
+			c.JSON(nethttp.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(nethttp.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(nethttp.StatusOK)
 }

@@ -13,7 +13,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type CreateTranslationRequest struct {
+type CreateVocabularyRequest struct {
 	Word1     string         `json:"word_1" binding:"required"`
 	Word2     string         `json:"word_2" binding:"required"`
 	Language1 enums.Language `json:"language_1" binding:"required,enum=Language"`
@@ -74,7 +74,7 @@ func GetOrCreateWord(word string, language enums.Language) (*models.Word, error)
 	return &newWord, nil
 }
 
-func CreateTranslation(userID uint, req CreateTranslationRequest) (*models.Vocabulary, error) {
+func CreateVocabulary(userID uint, req CreateVocabularyRequest) (*models.Vocabulary, error) {
 	word1, err := GetOrCreateWord(req.Word1, req.Language1)
 	if err != nil {
 		return nil, err
@@ -188,4 +188,15 @@ func GetVocabulary(userID uint, page, pageSize int) (*VocabularyListResponse, er
 			TotalPages: totalPages,
 		},
 	}, nil
+}
+
+func DeleteVocabulary(userID uint, vocabID uuid.UUID) error {
+	result := db.DB.Where("id = ? AND user_id = ?", vocabID, userID).Delete(&models.Vocabulary{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("vocabulary item not found")
+	}
+	return nil
 }

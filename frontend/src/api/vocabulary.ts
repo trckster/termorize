@@ -43,4 +43,8 @@ export const vocabularyApi = {
 
         return response.body
     },
+
+    async deleteVocabulary(id: string): Promise<void> {
+        await apiCall<void>(`/vocabulary/${id}`, 'DELETE')
+    },
 }

@@ -8,7 +8,7 @@
                 <div
                     v-for="item in vocabulary"
                     :key="item.id"
-                    class="p-4 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors cursor-pointer"
+                    class="p-4 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors cursor-pointer group"
                 >
                     <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                         <!-- Part 1: Words -->
@@ -23,7 +23,7 @@
                         </div>
 
                         <!-- Part 2: Progress -->
-                        <div class="md:col-span-6 flex flex-col gap-3">
+                        <div class="md:col-span-5 flex flex-col gap-3">
                             <div v-if="item.progress && item.progress.length > 0">
                                 <div v-for="(prog, idx) in item.progress" :key="idx" class="w-full">
                                     <Progress :model-value="prog.knowledge" class="h-2" />
@@ -38,8 +38,8 @@
                             </div>
                         </div>
 
-                        <!-- Part 3: Date -->
-                        <div class="md:col-span-2 flex justify-end">
+                        <!-- Part 3: Date and Delete -->
+                        <div class="md:col-span-3 flex justify-end items-center gap-2">
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <span
@@ -53,6 +53,53 @@
                                     <p v-if="item.mastered_at">Mastered: {{ formatDate(item.mastered_at) }}</p>
                                 </TooltipContent>
                             </Tooltip>
+                            <Dialog>
+                                <DialogTrigger as-child>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        class="h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive hover:bg-destructive/10"
+                                        @click.stop
+                                    >
+                                        <Trash2 class="h-4 w-4" />
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent class="sm:max-w-md">
+                                    <DialogHeader>
+                                        <DialogTitle>Delete Vocabulary Item</DialogTitle>
+                                        <DialogDescription>
+                                            Are you sure you want to delete "<span
+                                                class="font-medium text-foreground"
+                                                >{{ item.translation.word_1.word }}</span
+                                            >
+                                            -
+                                            <span class="font-medium text-foreground">{{
+                                                item.translation.word_2.word
+                                            }}</span
+                                            >"? This action cannot be undone.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <DialogFooter class="flex gap-2 sm:justify-end">
+                                        <DialogClose as-child>
+                                            <Button type="button" variant="secondary"> Cancel </Button>
+                                        </DialogClose>
+                                        <DialogClose as-child>
+                                            <Button
+                                                type="button"
+                                                variant="destructive"
+                                                @click="handleDelete(item.id)"
+                                                :disabled="deletingId === item.id"
+                                            >
+                                                <Loader2
+                                                    v-if="deletingId === item.id"
+                                                    class="mr-2 h-4 w-4 animate-spin"
+                                                />
+                                                {{ deletingId === item.id ? 'Deleting...' : 'Delete' }}
+                                            </Button>
+                                        </DialogClose>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
                         </div>
                     </div>
                 </div>
@@ -106,9 +153,20 @@ import {
 } from '@/components/ui/pagination'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog'
 import type { PaginationData } from '@/api/pagination.ts'
 import { languageToEmoji, formatRelativeTime, formatDate } from '@/lib/utils.ts'
 import { Progress } from '@/components/ui/progress'
+import { Trash2, Loader2 } from 'lucide-vue-next'
 
 const vocabulary = ref<VocabularyItem[]>([])
 const currentPage = ref(1)
@@ -118,6 +176,7 @@ const paginationData = ref<PaginationData>({
     total: 0,
     total_pages: 0,
 })
+const deletingId = ref<string | null>(null)
 
 const fetchVocabulary = async (page: number) => {
     currentPage.value = page
@@ -128,6 +187,18 @@ const fetchVocabulary = async (page: number) => {
 
 const handlePageChange = async (page: number) => {
     await fetchVocabulary(page)
+}
+
+const handleDelete = async (id: string) => {
+    deletingId.value = id
+    try {
+        await vocabularyApi.deleteVocabulary(id)
+        await fetchVocabulary(currentPage.value)
+    } catch (error) {
+        console.error('Failed to delete vocabulary item:', error)
+    } finally {
+        deletingId.value = null
+    }
 }
 
 onMounted(async () => {
