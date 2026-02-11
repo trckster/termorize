@@ -2,10 +2,10 @@ package validators
 
 import (
 	"reflect"
+	"termorize/src/enums"
 
 	"github.com/go-playground/validator/v10"
 )
-import "termorize/src/enums"
 
 func ValidateEnum(fl validator.FieldLevel) bool {
 	param := fl.Param()

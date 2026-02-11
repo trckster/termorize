@@ -44,9 +44,12 @@ func defineProtectedRoutes(group *gin.RouterGroup) {
 }
 
 func definePublicRoutes(group *gin.RouterGroup) {
-	group.POST("/telegram/login", controllers.TelegramLogin)
 	group.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "nice"})
 	})
+
+	group.POST("/telegram/login", controllers.TelegramLogin)
 	group.POST("/logout", controllers.Logout)
+
+	group.GET("/settings", controllers.GetSettings)
 }
