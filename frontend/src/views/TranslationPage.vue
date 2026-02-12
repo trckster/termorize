@@ -1,24 +1,14 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import Header from '@/components/Header.vue'
+import { useSettingsStore } from '@/stores/settings.ts'
 
 const sourceText = ref('')
 const translatedText = ref('')
 const sourceLang = ref('en')
-const targetLang = ref('es')
+const targetLang = ref('ru')
 
-const languages = [
-    { code: 'en', name: 'English' },
-    { code: 'es', name: 'Spanish' },
-    { code: 'fr', name: 'French' },
-    { code: 'de', name: 'German' },
-    { code: 'it', name: 'Italian' },
-    { code: 'pt', name: 'Portuguese' },
-    { code: 'ru', name: 'Russian' },
-    { code: 'ja', name: 'Japanese' },
-    { code: 'zh', name: 'Chinese' },
-    { code: 'ko', name: 'Korean' },
-]
+const settingsStore = useSettingsStore()
 
 const handleSwapLanguages = () => {
     ;[sourceLang.value, targetLang.value] = [targetLang.value, sourceLang.value]
@@ -38,7 +28,7 @@ const handleSwapLanguages = () => {
                             v-model="sourceLang"
                             class="px-3 py-1.5 text-sm rounded-md border border-border bg-background text-foreground hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary"
                         >
-                            <option v-for="lang in languages" :key="lang.code" :value="lang.code">
+                            <option v-for="lang in settingsStore.languageOptions" :key="lang.code" :value="lang.code">
                                 {{ lang.name }}
                             </option>
                         </select>
@@ -58,7 +48,7 @@ const handleSwapLanguages = () => {
                             v-model="targetLang"
                             class="px-3 py-1.5 text-sm rounded-md border border-border bg-background text-foreground hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary"
                         >
-                            <option v-for="lang in languages" :key="lang.code" :value="lang.code">
+                            <option v-for="lang in settingsStore.languageOptions" :key="lang.code" :value="lang.code">
                                 {{ lang.name }}
                             </option>
                         </select>

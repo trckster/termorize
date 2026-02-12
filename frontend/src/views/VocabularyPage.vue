@@ -91,11 +91,15 @@
                         <!-- Part 1: Words -->
                         <div class="md:col-span-4">
                             <h3 class="font-semibold text-foreground flex items-center gap-2">
-                                <span class="text-xl">{{ languageToEmoji(item.translation.word_1.language) }}</span>
+                                <span class="text-xl">{{
+                                    settingsStore.getFlag(item.translation.word_1.language)
+                                }}</span>
                                 <span class="text-lg">{{ item.translation.word_1.word }}</span>
                                 <span class="text-muted-foreground">-</span>
                                 <span class="text-lg">{{ item.translation.word_2.word }}</span>
-                                <span class="text-xl">{{ languageToEmoji(item.translation.word_2.language) }}</span>
+                                <span class="text-xl">{{
+                                    settingsStore.getFlag(item.translation.word_2.language)
+                                }}</span>
                             </h3>
                         </div>
 
@@ -218,6 +222,7 @@
 import Header from '@/components/Header.vue'
 import { vocabularyApi, type VocabularyItem } from '@/api/vocabulary.ts'
 import { onMounted, ref, computed } from 'vue'
+import { useSettingsStore } from '@/stores/settings.ts'
 import {
     Pagination,
     PaginationContent,
@@ -241,7 +246,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog'
 import type { PaginationData } from '@/api/pagination.ts'
-import { languageToEmoji, formatRelativeTime, formatDate } from '@/lib/utils.ts'
+import { formatRelativeTime, formatDate } from '@/lib/utils.ts'
 import { Progress } from '@/components/ui/progress'
 import { Trash2, Loader2, Plus } from 'lucide-vue-next'
 import { useToast } from '@/composables/useToast.ts'
@@ -258,12 +263,8 @@ const deletingId = ref<string | null>(null)
 const isAddDialogOpen = ref(false)
 const isAdding = ref(false)
 
-const availableLanguages = [
-    { code: 'en', name: 'English' },
-    { code: 'ru', name: 'Russian' },
-    { code: 'it', name: 'Italian' },
-    { code: 'de', name: 'German' },
-]
+const settingsStore = useSettingsStore()
+const availableLanguages = computed(() => settingsStore.languageOptions)
 
 const newTranslation = ref({
     word1: '',

@@ -5,21 +5,6 @@ export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs))
 }
 
-export function languageToEmoji(language: string) {
-    switch (language) {
-        case 'en':
-            return '🇬🇧'
-        case 'ru':
-            return '🇷🇺'
-        case 'it':
-            return '🇮🇹'
-        case 'de':
-            return '🇩🇪'
-    }
-
-    return '🏳'
-}
-
 export function formatRelativeTime(dateString: string) {
     const date = new Date(dateString)
     const now = new Date()

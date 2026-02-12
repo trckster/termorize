@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import './assets/index.css'
 import App from './App.vue'
 import router from './router'
+import { useSettingsStore } from '@/stores/settings.ts'
 
 const REQUIRED_ENV_VARS = ['VITE_API_URL', 'VITE_BOT_USERNAME']
 
@@ -26,5 +27,9 @@ if (missingVars.length > 0) {
 
     app.use(pinia)
     app.use(router)
+
+    const settingsStore = useSettingsStore()
+    settingsStore.fetchSettings()
+
     app.mount('#app')
 }
