@@ -75,6 +75,10 @@ func GetOrCreateWord(word string, language enums.Language) (*models.Word, error)
 }
 
 func CreateVocabulary(userID uint, req CreateVocabularyRequest) (*models.Vocabulary, error) {
+	if req.Language1 == req.Language2 {
+		return nil, errors.New("languages must differ")
+	}
+
 	word1, err := GetOrCreateWord(req.Word1, req.Language1)
 	if err != nil {
 		return nil, err

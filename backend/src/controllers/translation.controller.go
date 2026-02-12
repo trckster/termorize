@@ -25,6 +25,11 @@ func CreateVocabulary(c *gin.Context) {
 			return
 		}
 
+		if err.Error() == "languages must differ" {
+			c.JSON(nethttp.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+			return
+		}
+
 		c.JSON(nethttp.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
