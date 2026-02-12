@@ -85,3 +85,22 @@ func DeleteVocabulary(c *gin.Context) {
 
 	c.Status(nethttp.StatusOK)
 }
+
+func Translate(c *gin.Context) {
+	var req services.TranslateRequest
+	if !validators.BindJSONWithErrors(c, &req) {
+		return
+	}
+
+	result, err := services.Translate(req)
+	if err != nil {
+		if err.Error() == "languages must differ" {
+			c.JSON(nethttp.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(nethttp.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(nethttp.StatusOK, result)
+}

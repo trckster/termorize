@@ -21,6 +21,7 @@ type Config struct {
 	DBUser           string
 	DBPassword       string
 	TelegramBotToken string
+	GoogleApiKey     string
 
 	JWTExpirationTime time.Duration
 }
@@ -64,6 +65,7 @@ func LoadEnv() {
 		DBPassword: getRequiredEnv("DB_PASSWORD"),
 
 		TelegramBotToken: getRequiredEnv("TELEGRAM_BOT_TOKEN"),
+		GoogleApiKey:     getRequiredEnv("GOOGLE_API_KEY"),
 
 		JWTExpirationTime: 12 * time.Hour,
 	}
@@ -121,6 +123,10 @@ func GetDBPassword() string {
 
 func GetTelegramBotToken() string {
 	return config.TelegramBotToken
+}
+
+func GetGoogleApiKey() string {
+	return config.GoogleApiKey
 }
 
 func GetJWTExpirationTime() time.Duration {

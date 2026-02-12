@@ -38,9 +38,12 @@ func registerValidators() {
 
 func defineProtectedRoutes(group *gin.RouterGroup) {
 	group.GET("/me", controllers.Me)
+
 	group.GET("/vocabulary", controllers.GetVocabulary)
 	group.POST("/vocabulary", controllers.CreateVocabulary)
 	group.DELETE("/vocabulary/:id", controllers.DeleteVocabulary)
+
+	group.POST("/translate", controllers.Translate)
 }
 
 func definePublicRoutes(group *gin.RouterGroup) {
