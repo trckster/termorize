@@ -23,7 +23,7 @@ type TelegramAuthData struct {
 }
 
 func ValidateTelegramAuth(data TelegramAuthData) bool {
-	// If auth happened more than hour ago, we assume
+	// If auth happened more than hour ago, we assume it's outdated
 	if !utils.WasWithin(data.AuthDate*1000, time.Hour) {
 		return false
 	}

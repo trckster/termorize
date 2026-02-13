@@ -3,7 +3,6 @@ package db
 import (
 	"fmt"
 	"termorize/src/config"
-	"termorize/src/models"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -35,10 +34,14 @@ func Connect() error {
 }
 
 func Migrate() error {
-	return DB.AutoMigrate(
-		&models.User{},
-		&models.Word{},
-		&models.Translation{},
-		&models.Vocabulary{},
-	)
+	migrationDir := "src/data/migrations"
+	if err := LoadMigrationsFromDir(migrationDir); err != nil {
+		return fmt.Errorf("failed to load migrations from directory: %w", err)
+	}
+
+	if err := RunMigrations(); err != nil {
+		return fmt.Errorf("failed to run migrations: %w", err)
+	}
+
+	return nil
 }
