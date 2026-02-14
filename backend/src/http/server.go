@@ -33,11 +33,14 @@ func LaunchServer() {
 func registerValidators() {
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("enum", validators.ValidateEnum)
+		v.RegisterValidation("timezone", validators.ValidateTimezone)
+		v.RegisterValidation("hhmm", validators.ValidateHHMM)
 	}
 }
 
 func defineProtectedRoutes(group *gin.RouterGroup) {
 	group.GET("/me", controllers.Me)
+	group.PUT("/settings", controllers.UpdateSettings)
 
 	group.GET("/vocabulary", controllers.GetVocabulary)
 	group.POST("/vocabulary", controllers.CreateVocabulary)

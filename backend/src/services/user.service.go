@@ -59,3 +59,19 @@ func updateUserByTelegramAuthData(user *models.User, data auth.TelegramAuthData)
 
 	return user, db.DB.Save(&user).Error
 }
+
+func UpdateUserSettings(userID uint, settings models.UserSettings) (*models.User, error) {
+	var user models.User
+
+	if err := db.DB.Where("id = ?", userID).First(&user).Error; err != nil {
+		return nil, err
+	}
+
+	user.Settings = settings
+
+	if err := db.DB.Save(&user).Error; err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
