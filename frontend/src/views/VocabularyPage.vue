@@ -1,5 +1,4 @@
 <template>
-    <Header />
     <main class="px-6 py-8">
         <div class="max-w-6xl mx-auto">
             <div class="flex justify-between items-center mb-8">
@@ -226,7 +225,6 @@
 </template>
 
 <script setup lang="ts">
-import Header from '@/components/Header.vue'
 import { vocabularyApi, type VocabularyItem } from '@/api/vocabulary.ts'
 import { onMounted, ref, computed } from 'vue'
 import { useSettingsStore } from '@/stores/settings.ts'

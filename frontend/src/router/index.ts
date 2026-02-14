@@ -12,15 +12,25 @@ const router = createRouter({
         },
         {
             path: '/',
-            name: 'translation',
-            component: () => import('@/views/TranslationPage.vue'),
+            component: () => import('@/layouts/MainLayout.vue'),
             meta: { requiresAuth: true },
-        },
-        {
-            path: '/vocabulary',
-            name: 'vocabulary',
-            component: () => import('@/views/VocabularyPage.vue'),
-            meta: { requiresAuth: true },
+            children: [
+                {
+                    path: '',
+                    name: 'translation',
+                    component: () => import('@/views/TranslationPage.vue'),
+                },
+                {
+                    path: 'vocabulary',
+                    name: 'vocabulary',
+                    component: () => import('@/views/VocabularyPage.vue'),
+                },
+                {
+                    path: 'settings',
+                    name: 'settings',
+                    component: () => import('@/views/SettingsPage.vue'),
+                },
+            ],
         },
     ],
 })

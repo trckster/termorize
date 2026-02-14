@@ -23,34 +23,80 @@
             </nav>
 
             <div class="flex items-center gap-4">
-                <button
-                    @click="toggleTheme"
-                    class="h-9 w-9 inline-flex items-center justify-center rounded-md border border-input bg-background text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
-                    title="Toggle Theme"
-                >
-                    <Sun v-if="isDark" class="h-[1.2rem] w-[1.2rem]" />
-                    <Moon v-else class="h-[1.2rem] w-[1.2rem]" />
-                </button>
-                <div class="text-right">
-                    <p class="text-sm font-medium text-foreground">{{ user?.name }}</p>
-                    <p class="text-xs text-muted-foreground">@{{ user?.username }}</p>
+                <div ref="profileMenuRef" class="relative">
+                    <button
+                        @click.stop="toggleProfileMenu"
+                        class="inline-flex items-center gap-3 rounded-md px-2 py-1 text-left transition-colors hover:bg-accent"
+                        aria-haspopup="menu"
+                        :aria-expanded="isProfileMenuOpen"
+                    >
+                        <div class="text-right">
+                            <p class="text-sm font-medium text-foreground">{{ user?.name }}</p>
+                            <p class="text-xs text-muted-foreground">@{{ user?.username }}</p>
+                        </div>
+                        <ChevronDown
+                            class="h-4 w-4 text-muted-foreground transition-transform"
+                            :class="isProfileMenuOpen ? 'rotate-180' : ''"
+                        />
+                    </button>
+
+                    <div
+                        v-if="isProfileMenuOpen"
+                        class="absolute right-0 top-full z-50 mt-2 w-60 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-md"
+                        role="menu"
+                    >
+                        <div class="flex items-center justify-between rounded-sm px-2 py-2">
+                            <div class="flex items-center gap-2 text-sm font-medium">
+                                <Sun v-if="isDark" class="h-4 w-4" />
+                                <Moon v-else class="h-4 w-4" />
+                                <span>Change theme</span>
+                            </div>
+                            <button
+                                @click.stop="toggleTheme"
+                                type="button"
+                                class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
+                                :class="isDark ? 'bg-primary' : 'bg-muted'"
+                                role="switch"
+                                :aria-checked="isDark"
+                            >
+                                <span
+                                    class="inline-block h-5 w-5 transform rounded-full bg-background transition-transform"
+                                    :class="isDark ? 'translate-x-5' : 'translate-x-1'"
+                                />
+                            </button>
+                        </div>
+
+                        <button
+                            @click="goToSettings"
+                            class="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium transition-colors hover:bg-accent"
+                            role="menuitem"
+                        >
+                            <Settings class="h-4 w-4" />
+                            <span>Settings</span>
+                        </button>
+
+                        <div class="my-1 border-t border-border"></div>
+
+                        <button
+                            @click="handleLogout"
+                            class="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/10"
+                            role="menuitem"
+                        >
+                            <LogOut class="h-4 w-4" />
+                            <span>Logout</span>
+                        </button>
+                    </div>
                 </div>
-                <button
-                    @click="handleLogout"
-                    class="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors"
-                >
-                    Logout
-                </button>
             </div>
         </div>
     </header>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { Sun, Moon } from 'lucide-vue-next'
+import { Sun, Moon, ChevronDown, Settings, LogOut } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
@@ -58,9 +104,31 @@ const authStore = useAuthStore()
 
 const user = computed(() => authStore.user)
 const isDark = ref(false)
+const isProfileMenuOpen = ref(false)
+const profileMenuRef = ref<HTMLElement | null>(null)
+
+const closeProfileMenu = () => {
+    isProfileMenuOpen.value = false
+}
+
+const toggleProfileMenu = () => {
+    isProfileMenuOpen.value = !isProfileMenuOpen.value
+}
+
+const handleClickOutside = (event: MouseEvent) => {
+    if (!profileMenuRef.value) return
+    if (!profileMenuRef.value.contains(event.target as Node)) {
+        closeProfileMenu()
+    }
+}
 
 onMounted(() => {
     isDark.value = document.documentElement.classList.contains('dark')
+    document.addEventListener('click', handleClickOutside)
+})
+
+onBeforeUnmount(() => {
+    document.removeEventListener('click', handleClickOutside)
 })
 
 const toggleTheme = () => {
@@ -74,7 +142,13 @@ const toggleTheme = () => {
     }
 }
 
+const goToSettings = () => {
+    closeProfileMenu()
+    router.push('/settings')
+}
+
 const handleLogout = async () => {
+    closeProfileMenu()
     await authStore.logout()
     router.push('/login')
 }

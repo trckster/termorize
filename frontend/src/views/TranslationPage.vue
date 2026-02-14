@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import Header from '@/components/Header.vue'
 import { useSettingsStore } from '@/stores/settings.ts'
 import { translationApi } from '@/api/translation.ts'
 
@@ -168,7 +167,6 @@ const handleSwapLanguages = () => {
 </script>
 
 <template>
-    <Header />
     <main class="px-6 py-8">
         <div class="max-w-5xl mx-auto">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
