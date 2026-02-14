@@ -99,13 +99,13 @@
                         <div class="md:col-span-4">
                             <h3 class="font-semibold text-foreground flex items-center gap-2">
                                 <span class="text-xl">{{
-                                    settingsStore.getFlag(item.translation.word_1.language)
+                                    settingsStore.getFlag(item.translation.original.language)
                                 }}</span>
-                                <span class="text-lg">{{ item.translation.word_1.word }}</span>
+                                <span class="text-lg">{{ item.translation.original.word }}</span>
                                 <span class="text-muted-foreground">-</span>
-                                <span class="text-lg">{{ item.translation.word_2.word }}</span>
+                                <span class="text-lg">{{ item.translation.translation.word }}</span>
                                 <span class="text-xl">{{
-                                    settingsStore.getFlag(item.translation.word_2.language)
+                                    settingsStore.getFlag(item.translation.translation.language)
                                 }}</span>
                             </h3>
                         </div>
@@ -158,11 +158,11 @@
                                         <DialogDescription>
                                             Are you sure you want to delete "<span
                                                 class="font-medium text-foreground"
-                                                >{{ item.translation.word_1.word }}</span
+                                                >{{ item.translation.original.word }}</span
                                             >
                                             -
                                             <span class="font-medium text-foreground">{{
-                                                item.translation.word_2.word
+                                                item.translation.translation.word
                                             }}</span
                                             >"? This action cannot be undone.
                                         </DialogDescription>

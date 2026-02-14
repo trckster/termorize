@@ -25,11 +25,6 @@ func CreateVocabulary(c *gin.Context) {
 			return
 		}
 
-		if err.Error() == "languages must differ" {
-			c.JSON(nethttp.StatusUnprocessableEntity, gin.H{"error": err.Error()})
-			return
-		}
-
 		c.JSON(nethttp.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -57,6 +52,11 @@ func GetVocabulary(c *gin.Context) {
 
 	response, err := services.GetVocabulary(userID, page, pageSize)
 	if err != nil {
+		if err.Error() == "page must be greater than 0" || err.Error() == "page size must be between 1 and 1000" {
+			c.JSON(nethttp.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
 		c.JSON(nethttp.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

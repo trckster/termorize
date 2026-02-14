@@ -18,8 +18,8 @@ type Translation = {
     id: string
     source: TranslationSource
     user_id: string | null
-    word_1: Word
-    word_2: Word
+    original: Word
+    translation: Word
     created_at: string
 }
 
@@ -48,12 +48,12 @@ export const vocabularyApi = {
         await apiCall<void>(`/vocabulary/${id}`, 'DELETE')
     },
 
-    async addVocabulary(word1: string, word2: string, language1: string, language2: string): Promise<VocabularyItem> {
+    async addVocabulary(original: string, translation: string, originalLanguage: string, translationLanguage: string): Promise<VocabularyItem> {
         const response = await apiCall<VocabularyItem>('/vocabulary', 'POST', {
-            word_1: word1,
-            word_2: word2,
-            language_1: language1,
-            language_2: language2,
+            original,
+            translation,
+            original_language: originalLanguage,
+            translation_language: translationLanguage,
         })
         return response.body
     },

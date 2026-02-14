@@ -1,41 +1,20 @@
 package services
 
 import (
-	"encoding/json"
 	"errors"
 	"termorize/src/data/db"
 	"termorize/src/enums"
 	"termorize/src/models"
-	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
 type CreateVocabularyRequest struct {
-	Word1     string         `json:"word_1" binding:"required"`
-	Word2     string         `json:"word_2" binding:"required"`
-	Language1 enums.Language `json:"language_1" binding:"required,enum=Language"`
-	Language2 enums.Language `json:"language_2" binding:"required,enum=Language"`
-}
-
-type VocabularyResponse struct {
-	ID            uuid.UUID                `json:"id"`
-	UserID        uint                     `json:"user_id"`
-	TranslationID uuid.UUID                `json:"translation_id"`
-	Progress      []models.ProgressEntry   `json:"progress"`
-	CreatedAt     time.Time                `json:"created_at"`
-	MasteredAt    *time.Time               `json:"mastered_at"`
-	Translation   *TranslationWithWordsDTO `json:"translation"`
-}
-
-type TranslationWithWordsDTO struct {
-	ID     uuid.UUID               `json:"id"`
-	Word1  *models.Word            `json:"word_1"`
-	Word2  *models.Word            `json:"word_2"`
-	Source enums.TranslationSource `json:"source"`
-	UserID *uint                   `json:"user_id"`
+	Original            string         `json:"original" binding:"required"`
+	Translation         string         `json:"translation" binding:"required"`
+	OriginalLanguage    enums.Language `json:"original_language" binding:"required,enum=Language"`
+	TranslationLanguage enums.Language `json:"translation_language" binding:"required,enum=Language,nefield=OriginalLanguage"`
 }
 
 type Pagination struct {
@@ -46,8 +25,8 @@ type Pagination struct {
 }
 
 type VocabularyListResponse struct {
-	Data       []VocabularyResponse `json:"data"`
-	Pagination Pagination           `json:"pagination"`
+	Data       []models.Vocabulary `json:"data"`
+	Pagination Pagination          `json:"pagination"`
 }
 
 func GetOrCreateWord(word string, language enums.Language) (*models.Word, error) {
@@ -75,40 +54,34 @@ func GetOrCreateWord(word string, language enums.Language) (*models.Word, error)
 }
 
 func CreateVocabulary(userID uint, req CreateVocabularyRequest) (*models.Vocabulary, error) {
-	if req.Language1 == req.Language2 {
-		return nil, errors.New("languages must differ")
-	}
-
-	word1, err := GetOrCreateWord(req.Word1, req.Language1)
+	originalWord, err := GetOrCreateWord(req.Original, req.OriginalLanguage)
 	if err != nil {
 		return nil, err
 	}
 
-	word2, err := GetOrCreateWord(req.Word2, req.Language2)
+	translatedWord, err := GetOrCreateWord(req.Translation, req.TranslationLanguage)
 	if err != nil {
 		return nil, err
 	}
 
 	translation := models.Translation{
-		Word1ID: word1.ID,
-		Word2ID: word2.ID,
-		Source:  enums.TranslationSourceUser,
-		UserID:  &userID,
+		OriginalID:    originalWord.ID,
+		TranslationID: translatedWord.ID,
+		Source:        enums.TranslationSourceUser,
+		UserID:        &userID,
 	}
 
 	if err := db.DB.Create(&translation).Error; err != nil {
 		return nil, err
 	}
 
-	progressJSON, _ := json.Marshal([]models.ProgressEntry{{
-		Knowledge: 0,
-		Type:      enums.KnowledgeTypeTranslation,
-	}})
-
 	vocabulary := models.Vocabulary{
 		UserID:        userID,
 		TranslationID: translation.ID,
-		Progress:      datatypes.JSON(progressJSON),
+		Progress: models.ProgressEntries{{
+			Knowledge: 0,
+			Type:      enums.KnowledgeTypeTranslation,
+		}},
 	}
 
 	if err := db.DB.Create(&vocabulary).Error; err != nil {
@@ -116,75 +89,48 @@ func CreateVocabulary(userID uint, req CreateVocabularyRequest) (*models.Vocabul
 	}
 
 	vocabulary.Translation = &translation
-	vocabulary.Translation.Word1 = word1
-	vocabulary.Translation.Word2 = word2
+	vocabulary.Translation.Original = originalWord
+	vocabulary.Translation.Translation = translatedWord
 
 	return &vocabulary, nil
 }
 
 func GetVocabulary(userID uint, page, pageSize int) (*VocabularyListResponse, error) {
-	if page < 1 {
+	if page <= 0 {
 		return nil, errors.New("page must be greater than 0")
 	}
-	if pageSize < 1 || pageSize > 250 {
-		return nil, errors.New("page size must be between 1 and 250")
+
+	if pageSize < 1 || pageSize > 1000 {
+		return nil, errors.New("page size must be between 1 and 1000")
 	}
 
-	var vocabularies []models.Vocabulary
 	var total int64
+	if err := db.DB.Model(&models.Vocabulary{}).Where("user_id = ?", userID).Count(&total).Error; err != nil {
+		return nil, err
+	}
 
+	var vocabularyItems []models.Vocabulary
 	offset := (page - 1) * pageSize
 
-	if err := db.DB.Where("user_id = ?", userID).
+	if err := db.DB.
+		Where("user_id = ?", userID).
 		Preload("Translation").
-		Preload("Translation.Word1").
-		Preload("Translation.Word2").
+		Preload("Translation.Original").
+		Preload("Translation.Translation").
+		Order("created_at DESC").
 		Offset(offset).
 		Limit(pageSize).
-		Order("created_at desc").
-		Find(&vocabularies).
-		Error; err != nil {
+		Find(&vocabularyItems).Error; err != nil {
 		return nil, err
 	}
 
-	if err := db.DB.Model(&models.Vocabulary{}).
-		Where("user_id = ?", userID).
-		Count(&total).
-		Error; err != nil {
-		return nil, err
-	}
-
-	responses := make([]VocabularyResponse, len(vocabularies))
-	for i, vocab := range vocabularies {
-		var progress []models.ProgressEntry
-		json.Unmarshal(vocab.Progress, &progress)
-
-		translationDTO := &TranslationWithWordsDTO{
-			ID:     vocab.Translation.ID,
-			Word1:  vocab.Translation.Word1,
-			Word2:  vocab.Translation.Word2,
-			Source: vocab.Translation.Source,
-			UserID: vocab.Translation.UserID,
-		}
-
-		responses[i] = VocabularyResponse{
-			ID:            vocab.ID,
-			UserID:        vocab.UserID,
-			TranslationID: vocab.TranslationID,
-			Progress:      progress,
-			CreatedAt:     vocab.CreatedAt,
-			MasteredAt:    vocab.MasteredAt,
-			Translation:   translationDTO,
-		}
-	}
-
-	totalPages := int(total) / pageSize
-	if int(total)%pageSize != 0 {
-		totalPages++
+	totalPages := 0
+	if total > 0 {
+		totalPages = int((total + int64(pageSize) - 1) / int64(pageSize))
 	}
 
 	return &VocabularyListResponse{
-		Data: responses,
+		Data: vocabularyItems,
 		Pagination: Pagination{
 			Page:       page,
 			PageSize:   pageSize,
@@ -195,12 +141,49 @@ func GetVocabulary(userID uint, page, pageSize int) (*VocabularyListResponse, er
 }
 
 func DeleteVocabulary(userID uint, vocabID uuid.UUID) error {
-	result := db.DB.Where("id = ? AND user_id = ?", vocabID, userID).Delete(&models.Vocabulary{})
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		return errors.New("vocabulary item not found")
-	}
-	return nil
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var vocabulary models.Vocabulary
+		if err := tx.Where("id = ? AND user_id = ?", vocabID, userID).First(&vocabulary).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("vocabulary item not found")
+			}
+			return err
+		}
+
+		if err := tx.Delete(&vocabulary).Error; err != nil {
+			return err
+		}
+
+		var translation models.Translation
+		if err := tx.Where("id = ? AND source = ? AND user_id = ?", vocabulary.TranslationID, enums.TranslationSourceUser, userID).
+			First(&translation).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil
+			}
+			return err
+		}
+
+		if err := tx.Delete(&translation).Error; err != nil {
+			return err
+		}
+
+		wordIDs := []uuid.UUID{translation.OriginalID, translation.TranslationID}
+
+		for _, wordID := range wordIDs {
+			var wordUsageCount int64
+			if err := tx.Model(&models.Translation{}).
+				Where("original_id = ? OR translation_id = ?", wordID, wordID).
+				Count(&wordUsageCount).Error; err != nil {
+				return err
+			}
+
+			if wordUsageCount == 0 {
+				if err := tx.Where("id = ?", wordID).Delete(&models.Word{}).Error; err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
 }

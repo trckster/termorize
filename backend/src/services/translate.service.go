@@ -14,7 +14,7 @@ import (
 type TranslateRequest struct {
 	FromWord     string         `json:"from_word" binding:"required"`
 	FromLanguage enums.Language `json:"from_language" binding:"required,enum=Language"`
-	ToLanguage   enums.Language `json:"to_language" binding:"required,enum=Language"`
+	ToLanguage   enums.Language `json:"to_language" binding:"required,enum=Language"` // TODO move to controller + nefield + fix check of existing
 }
 
 type TranslateResponse struct {
@@ -52,9 +52,9 @@ func Translate(req TranslateRequest) (*TranslateResponse, error) {
 	}
 
 	translation := models.Translation{
-		Word1ID: sourceWord.ID,
-		Word2ID: targetWord.ID,
-		Source:  enums.TranslationSourceGoogle,
+		OriginalID:    sourceWord.ID,
+		TranslationID: targetWord.ID,
+		Source:        enums.TranslationSourceGoogle,
 	}
 
 	if err := db.DB.Create(&translation).Error; err != nil {
@@ -68,12 +68,12 @@ func findExistingTranslation(sourceWordID uuid.UUID, targetLanguage enums.Langua
 	var translation models.Translation
 
 	result := db.DB.
-		Joins("JOIN words AS w1 ON w1.id = translations.word_1_id").
-		Joins("JOIN words AS w2 ON w2.id = translations.word_2_id").
-		Preload("Word1").
-		Preload("Word2").
+		Joins("JOIN words AS original_word ON original_word.id = translations.original_id").
+		Joins("JOIN words AS translation_word ON translation_word.id = translations.translation_id").
+		Preload("Original").
+		Preload("Translation").
 		Where("translations.source != ?", enums.TranslationSourceUser).
-		Where("(translations.word_1_id = ? AND w2.language = ?) OR (translations.word_2_id = ? AND w1.language = ?)",
+		Where("(translations.original_id = ? AND translation_word.language = ?) OR (translations.translation_id = ? AND original_word.language = ?)",
 			sourceWordID, string(targetLanguage), sourceWordID, string(targetLanguage)).
 		First(&translation)
 
@@ -84,8 +84,8 @@ func findExistingTranslation(sourceWordID uuid.UUID, targetLanguage enums.Langua
 		return nil, result.Error
 	}
 
-	if translation.Word1ID == sourceWordID {
-		return translation.Word2, nil
+	if translation.OriginalID == sourceWordID {
+		return translation.Translation, nil
 	}
-	return translation.Word1, nil
+	return translation.Original, nil
 }

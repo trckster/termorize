@@ -1,7 +1,6 @@
 package seeders
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -257,7 +256,7 @@ func SeedVocabulary(req VocabularySeedRequest) error {
 	}
 
 	for i := range translations {
-		existingTranslation, err := getExistingTranslation(translations[i].Word1ID, translations[i].Word2ID)
+		existingTranslation, err := getExistingTranslation(translations[i].OriginalID, translations[i].TranslationID)
 		if err != nil {
 			return fmt.Errorf("failed to check existing translation: %w", err)
 		}
@@ -269,15 +268,13 @@ func SeedVocabulary(req VocabularySeedRequest) error {
 			}
 		}
 
-		progressJSON, _ := json.Marshal([]models.ProgressEntry{{
-			Knowledge: rand.Intn(101),
-			Type:      enums.KnowledgeTypeTranslation,
-		}})
-
 		vocabulary := models.Vocabulary{
 			UserID:        *userID,
 			TranslationID: translations[i].ID,
-			Progress:      progressJSON,
+			Progress: models.ProgressEntries{{
+				Knowledge: rand.Intn(101),
+				Type:      enums.KnowledgeTypeTranslation,
+			}},
 		}
 		if err := db.DB.FirstOrCreate(&vocabulary, models.Vocabulary{
 			UserID:        vocabulary.UserID,
@@ -406,10 +403,10 @@ func generateTranslation(wordsByLangAndValue map[string]uuid.UUID) ([]models.Tra
 
 				tID, _ := uuid.NewRandom()
 				translation := models.Translation{
-					ID:      tID,
-					Word1ID: word1ID,
-					Word2ID: word2ID,
-					Source:  enums.TranslationSourceDictionary,
+					ID:            tID,
+					OriginalID:    word1ID,
+					TranslationID: word2ID,
+					Source:        enums.TranslationSourceDictionary,
 				}
 				translations = append(translations, translation)
 
@@ -421,11 +418,11 @@ func generateTranslation(wordsByLangAndValue map[string]uuid.UUID) ([]models.Tra
 	return translations, nil
 }
 
-func getExistingTranslation(word1ID, word2ID uuid.UUID) (*models.Translation, error) {
+func getExistingTranslation(originalID, translationID uuid.UUID) (*models.Translation, error) {
 	var existingTranslation models.Translation
 	result := db.DB.Where(
-		"(word_1_id = ? AND word_2_id = ?) OR (word_1_id = ? AND word_2_id = ?)",
-		word1ID, word2ID, word2ID, word1ID,
+		"(original_id = ? AND translation_id = ?) OR (original_id = ? AND translation_id = ?)",
+		originalID, translationID, translationID, originalID,
 	).First(&existingTranslation)
 
 	if result.Error != nil {

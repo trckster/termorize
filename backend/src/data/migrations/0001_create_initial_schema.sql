@@ -22,19 +22,19 @@ CREATE INDEX IF NOT EXISTS "index_words_word_language" ON "words" ("word", "lang
 
 CREATE TABLE IF NOT EXISTS "translations"
 (
-    "id"         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    "word_1_id"  UUID        NOT NULL,
-    "word_2_id"  UUID        NOT NULL,
-    "source"     VARCHAR(50) NOT NULL,
-    "user_id"    INTEGER,
-    "created_at" TIMESTAMP        DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "fk_translations_word_1_id" FOREIGN KEY ("word_1_id") REFERENCES "words" ("id") ON DELETE CASCADE,
-    CONSTRAINT "fk_translations_word_2_id" FOREIGN KEY ("word_2_id") REFERENCES "words" ("id") ON DELETE CASCADE,
+    "id"             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "original_id"    UUID        NOT NULL,
+    "translation_id" UUID        NOT NULL,
+    "source"         VARCHAR(50) NOT NULL,
+    "user_id"        INTEGER,
+    "created_at"     TIMESTAMP        DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "fk_translations_original_id" FOREIGN KEY ("original_id") REFERENCES "words" ("id") ON DELETE CASCADE,
+    CONSTRAINT "fk_translations_translation_id" FOREIGN KEY ("translation_id") REFERENCES "words" ("id") ON DELETE CASCADE,
     CONSTRAINT "fk_translations_user_id" FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS "index_translations_word_1_id" ON "translations" ("word_1_id");
-CREATE INDEX IF NOT EXISTS "index_translations_word_2_id" ON "translations" ("word_2_id");
+CREATE INDEX IF NOT EXISTS "index_translations_original_id" ON "translations" ("original_id");
+CREATE INDEX IF NOT EXISTS "index_translations_translation_id" ON "translations" ("translation_id");
 CREATE INDEX IF NOT EXISTS "index_translations_user_id" ON "translations" ("user_id");
 
 CREATE TABLE IF NOT EXISTS "vocabulary"

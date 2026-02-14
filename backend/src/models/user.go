@@ -5,7 +5,7 @@ import "time"
 type User struct {
 	ID         uint      `json:"id"`
 	Username   string    `json:"username"`
-	TelegramID int64     `gorm:"uniqueIndex" json:"-"`
+	TelegramID int64     `json:"-"`
 	Name       string    `json:"name"`
 	PhotoUrl   string    `json:"photo_url"`
 	CreatedAt  time.Time `json:"created_at"`
