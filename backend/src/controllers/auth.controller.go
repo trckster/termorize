@@ -25,6 +25,7 @@ func TelegramLogin(c *gin.Context) {
 	if err != nil {
 		// TODO add zap as logger
 		c.Status(http.StatusInternalServerError)
+		return
 	}
 
 	auth.SetAuthCookie(c, auth.IssueJWT(user.ID))
