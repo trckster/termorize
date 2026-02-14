@@ -20,7 +20,9 @@ export interface User {
 
 export const authApi = {
     async login(authData: TelegramAuthData): Promise<User | null> {
-        const response = await apiCall<User>('/telegram/login', 'POST', authData)
+        const response = await apiCall<User>('/telegram/login', 'POST', authData, {
+            'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        })
 
         return response.body
     },

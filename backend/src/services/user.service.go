@@ -4,10 +4,30 @@ import (
 	"strings"
 	"termorize/src/auth"
 	"termorize/src/data/db"
+	"termorize/src/enums"
 	"termorize/src/models"
+	"time"
 )
 
-func CreateOrUpdateUserByTelegramAuthData(data auth.TelegramAuthData) (*models.User, error) {
+func defaultUserSettings(timezone string) models.UserSettings {
+	if _, err := time.LoadLocation(timezone); err != nil {
+		timezone = "UTC"
+	}
+
+	return models.UserSettings{
+		NativeLanguage:       enums.LanguageRu,
+		MainLearningLanguage: enums.LanguageEn,
+		TimeZone:             timezone,
+		Telegram: models.UserTelegramSettings{
+			BotEnabled:             false,
+			DailyQuestionsEnabled:  false,
+			DailyQuestionsCount:    0,
+			DailyQuestionsSchedule: []models.UserTelegramQuestionsScheduleItem{},
+		},
+	}
+}
+
+func CreateOrUpdateUserByTelegramAuthData(data auth.TelegramAuthData, timezone string) (*models.User, error) {
 	var user models.User
 	result := db.DB.Where("telegram_id = ?", data.ID).First(&user)
 
@@ -15,15 +35,16 @@ func CreateOrUpdateUserByTelegramAuthData(data auth.TelegramAuthData) (*models.U
 		return updateUserByTelegramAuthData(&user, data)
 	}
 
-	return createUserByTelegramAuthData(data)
+	return createUserByTelegramAuthData(data, timezone)
 }
 
-func createUserByTelegramAuthData(data auth.TelegramAuthData) (*models.User, error) {
+func createUserByTelegramAuthData(data auth.TelegramAuthData, timezone string) (*models.User, error) {
 	user := models.User{
 		TelegramID: data.ID,
 		Username:   data.Username,
 		Name:       strings.TrimSpace(data.FirstName + " " + data.LastName),
 		PhotoUrl:   data.PhotoUrl,
+		Settings:   defaultUserSettings(timezone),
 	}
 
 	err := db.DB.Create(&user).Error

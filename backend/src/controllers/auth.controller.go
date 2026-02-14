@@ -2,10 +2,12 @@ package controllers
 
 import (
 	"net/http"
+	"strings"
 	"termorize/src/auth"
 	"termorize/src/data/db"
 	"termorize/src/models"
 	"termorize/src/services"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,7 +23,9 @@ func TelegramLogin(c *gin.Context) {
 		return
 	}
 
-	user, err := services.CreateOrUpdateUserByTelegramAuthData(data)
+	timezone := getRequestTimeZone(c)
+
+	user, err := services.CreateOrUpdateUserByTelegramAuthData(data, timezone)
 	if err != nil {
 		// TODO add zap as logger
 		c.Status(http.StatusInternalServerError)
@@ -43,4 +47,18 @@ func Me(c *gin.Context) {
 
 func Logout(c *gin.Context) {
 	auth.DeleteAuthCookie(c)
+}
+
+func getRequestTimeZone(c *gin.Context) string {
+	timezone := strings.TrimSpace(c.GetHeader("X-Timezone"))
+
+	if timezone == "" {
+		return "UTC"
+	}
+
+	if _, err := time.LoadLocation(timezone); err != nil {
+		return "UTC"
+	}
+
+	return timezone
 }
