@@ -4,7 +4,6 @@ CREATE TABLE IF NOT EXISTS "users"
     "username"    VARCHAR(255),
     "telegram_id" BIGINT UNIQUE,
     "name"        VARCHAR(255),
-    "photo_url"   VARCHAR(255),
     "settings"    JSONB     DEFAULT '{}'::jsonb,
     "created_at"  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at"  TIMESTAMP DEFAULT CURRENT_TIMESTAMP

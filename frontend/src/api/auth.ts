@@ -14,8 +14,27 @@ export interface User {
     id: number
     username: string
     name: string
-    photo_url: string
+    settings: UserSettings
     created_at: string
+}
+
+export interface UserSettings {
+    native_language: string
+    main_learning_language: string
+    time_zone: string
+    telegram: UserTelegramSettings
+}
+
+export interface UserTelegramSettings {
+    bot_enabled: boolean
+    daily_questions_enabled: boolean
+    daily_questions_count: number
+    daily_questions_schedule: UserTelegramScheduleItem[]
+}
+
+export interface UserTelegramScheduleItem {
+    from: string
+    to: string
 }
 
 export const authApi = {

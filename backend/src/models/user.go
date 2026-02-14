@@ -39,7 +39,6 @@ type User struct {
 	Username   string       `json:"username"`
 	TelegramID int64        `json:"-"`
 	Name       string       `json:"name"`
-	PhotoUrl   string       `json:"photo_url"`
 	Settings   UserSettings `json:"settings"`
 	CreatedAt  time.Time    `json:"created_at"`
 	UpdatedAt  time.Time    `json:"-"`

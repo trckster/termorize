@@ -43,7 +43,6 @@ func createUserByTelegramAuthData(data auth.TelegramAuthData, timezone string) (
 		TelegramID: data.ID,
 		Username:   data.Username,
 		Name:       strings.TrimSpace(data.FirstName + " " + data.LastName),
-		PhotoUrl:   data.PhotoUrl,
 		Settings:   defaultUserSettings(timezone),
 	}
 
@@ -55,7 +54,6 @@ func createUserByTelegramAuthData(data auth.TelegramAuthData, timezone string) (
 func updateUserByTelegramAuthData(user *models.User, data auth.TelegramAuthData) (*models.User, error) {
 	user.Name = strings.TrimSpace(data.FirstName + " " + data.LastName)
 	user.Username = data.Username
-	user.PhotoUrl = data.PhotoUrl
 
 	return user, db.DB.Save(&user).Error
 }
