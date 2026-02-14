@@ -26,7 +26,12 @@
                                         v-model="newTranslation.language1"
                                         class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                                     >
-                                        <option v-for="lang in availableLanguages" :key="lang.code" :value="lang.code">
+                                        <option
+                                            v-for="lang in availableLanguages"
+                                            :key="lang.code"
+                                            :value="lang.code"
+                                            :disabled="lang.code === newTranslation.language2"
+                                        >
                                             {{ lang.name }}
                                         </option>
                                     </select>
@@ -48,7 +53,12 @@
                                         v-model="newTranslation.language2"
                                         class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                                     >
-                                        <option v-for="lang in availableLanguages" :key="lang.code" :value="lang.code">
+                                        <option
+                                            v-for="lang in availableLanguages"
+                                            :key="lang.code"
+                                            :value="lang.code"
+                                            :disabled="lang.code === newTranslation.language1"
+                                        >
                                             {{ lang.name }}
                                         </option>
                                     </select>
@@ -63,10 +73,7 @@
                                     />
                                 </div>
                             </div>
-                            <DialogFooter class="flex gap-2 sm:justify-end pt-4">
-                                <DialogClose as-child>
-                                    <Button type="button" variant="secondary">Cancel</Button>
-                                </DialogClose>
+                            <DialogFooter class="justify-center sm:justify-center pt-4">
                                 <Button
                                     type="submit"
                                     class="bg-green-600 hover:bg-green-700 text-white"
