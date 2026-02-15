@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useSettingsStore } from '@/stores/settings.ts'
 import { translationApi } from '@/api/translation.ts'
+import LanguageSelector from '@/components/LanguageSelector.vue'
 
 const sourceText = ref('')
 const translatedText = ref('')
 const sourceLang = ref('en')
 const targetLang = ref('ru')
-
-const settingsStore = useSettingsStore()
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 const activeField = ref<'source' | 'target' | null>(null)
@@ -173,19 +171,13 @@ const handleSwapLanguages = () => {
                 <div class="space-y-3">
                     <div class="flex items-center justify-between">
                         <label class="text-sm font-medium text-foreground">From</label>
-                        <select
-                            v-model="sourceLang"
-                            class="px-3 py-1.5 text-sm rounded-md border border-border bg-background text-foreground hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary"
-                        >
-                            <option
-                                v-for="lang in settingsStore.languageOptions"
-                                :key="lang.code"
-                                :value="lang.code"
-                                :disabled="lang.code === targetLang"
-                            >
-                                {{ lang.name }}
-                            </option>
-                        </select>
+                        <div class="w-52">
+                            <LanguageSelector
+                                v-model="sourceLang"
+                                placeholder="From language"
+                                :disabled-values="[targetLang]"
+                            />
+                        </div>
                     </div>
                     <div class="relative">
                         <textarea
@@ -207,19 +199,13 @@ const handleSwapLanguages = () => {
                 <div class="space-y-3">
                     <div class="flex items-center justify-between">
                         <label class="text-sm font-medium text-foreground">To</label>
-                        <select
-                            v-model="targetLang"
-                            class="px-3 py-1.5 text-sm rounded-md border border-border bg-background text-foreground hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary"
-                        >
-                            <option
-                                v-for="lang in settingsStore.languageOptions"
-                                :key="lang.code"
-                                :value="lang.code"
-                                :disabled="lang.code === sourceLang"
-                            >
-                                {{ lang.name }}
-                            </option>
-                        </select>
+                        <div class="w-52">
+                            <LanguageSelector
+                                v-model="targetLang"
+                                placeholder="To language"
+                                :disabled-values="[sourceLang]"
+                            />
+                        </div>
                     </div>
                     <div class="relative">
                         <textarea

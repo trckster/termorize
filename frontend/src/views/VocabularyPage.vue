@@ -21,19 +21,11 @@
                             <div class="grid grid-cols-2 gap-4">
                                 <div class="space-y-2">
                                     <label class="text-sm font-medium">Language 1</label>
-                                    <select
+                                    <LanguageSelector
                                         v-model="newTranslation.language1"
-                                        class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                                    >
-                                        <option
-                                            v-for="lang in availableLanguages"
-                                            :key="lang.code"
-                                            :value="lang.code"
-                                            :disabled="lang.code === newTranslation.language2"
-                                        >
-                                            {{ lang.name }}
-                                        </option>
-                                    </select>
+                                        placeholder="Select language"
+                                        :disabled-values="[newTranslation.language2]"
+                                    />
                                 </div>
                                 <div class="space-y-2">
                                     <label class="text-sm font-medium">Word 1</label>
@@ -48,19 +40,11 @@
                             <div class="grid grid-cols-2 gap-4">
                                 <div class="space-y-2">
                                     <label class="text-sm font-medium">Language 2</label>
-                                    <select
+                                    <LanguageSelector
                                         v-model="newTranslation.language2"
-                                        class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                                    >
-                                        <option
-                                            v-for="lang in availableLanguages"
-                                            :key="lang.code"
-                                            :value="lang.code"
-                                            :disabled="lang.code === newTranslation.language1"
-                                        >
-                                            {{ lang.name }}
-                                        </option>
-                                    </select>
+                                        placeholder="Select language"
+                                        :disabled-values="[newTranslation.language1]"
+                                    />
                                 </div>
                                 <div class="space-y-2">
                                     <label class="text-sm font-medium">Word 2</label>
@@ -204,9 +188,6 @@
                 @update:page="handlePageChange"
             >
                 <PaginationContent v-slot="{ items }" class="flex justify-center gap-1">
-                    <PaginationFirst />
-                    <PaginationPrevious />
-
                     <template v-for="(item, index) in items">
                         <PaginationItem v-if="item.type === 'page'" :key="index" :value="item.value" as-child>
                             <Button class="w-9 h-9 p-0" :variant="item.value === page ? 'default' : 'outline'">
@@ -215,9 +196,6 @@
                         </PaginationItem>
                         <PaginationEllipsis v-else :key="item.type + index" :index="index" />
                     </template>
-
-                    <PaginationNext />
-                    <PaginationLast />
                 </PaginationContent>
             </Pagination>
         </div>
@@ -228,16 +206,8 @@
 import { vocabularyApi, type VocabularyItem } from '@/api/vocabulary.ts'
 import { onMounted, ref, computed } from 'vue'
 import { useSettingsStore } from '@/stores/settings.ts'
-import {
-    Pagination,
-    PaginationContent,
-    PaginationItem,
-    PaginationPrevious,
-    PaginationNext,
-    PaginationEllipsis,
-    PaginationFirst,
-    PaginationLast,
-} from '@/components/ui/pagination'
+import LanguageSelector from '@/components/LanguageSelector.vue'
+import { Pagination, PaginationContent, PaginationItem, PaginationEllipsis } from '@/components/ui/pagination'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import {
@@ -269,7 +239,6 @@ const isAddDialogOpen = ref(false)
 const isAdding = ref(false)
 
 const settingsStore = useSettingsStore()
-const availableLanguages = computed(() => settingsStore.languageOptions)
 
 const newTranslation = ref({
     word1: '',

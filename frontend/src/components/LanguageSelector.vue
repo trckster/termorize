@@ -7,10 +7,12 @@ const props = withDefaults(
     defineProps<{
         modelValue?: string
         placeholder?: string
+        disabledValues?: string[]
     }>(),
     {
         modelValue: '',
         placeholder: 'Select language',
+        disabledValues: () => [],
     }
 )
 
@@ -29,6 +31,7 @@ const options = computed(() =>
     settingsStore.languageOptions.map((option) => ({
         value: option.code,
         label: `${option.emoji} ${option.name}`,
+        disabled: props.disabledValues.includes(option.code),
     }))
 )
 </script>
@@ -39,9 +42,13 @@ const options = computed(() =>
             <SelectValue :placeholder="placeholder" />
         </SelectTrigger>
         <SelectContent>
-            <SelectItem v-for="option in options" :key="option.value" :value="option.value">{{
-                option.label
-            }}</SelectItem>
+            <SelectItem
+                v-for="option in options"
+                :key="option.value"
+                :value="option.value"
+                :disabled="option.disabled"
+                >{{ option.label }}</SelectItem
+            >
         </SelectContent>
     </Select>
 </template>
