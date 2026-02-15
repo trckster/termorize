@@ -56,9 +56,13 @@ const fields = computed(() => {
             <CardDescription>Bot and notification controls for your Telegram account.</CardDescription>
         </CardHeader>
         <CardContent class="space-y-4">
-            <div v-for="field in fields" :key="field.key" class="rounded-lg border border-border p-4 space-y-2">
+            <div v-for="field in fields" :key="field.key" class="space-y-2">
                 <p class="text-sm font-semibold text-foreground">{{ field.label }}</p>
-                <p class="text-sm text-foreground">{{ field.value }}</p>
+                <input
+                    :value="field.value"
+                    disabled
+                    class="w-full px-3 py-2 text-sm rounded-md border border-border bg-muted text-muted-foreground disabled:cursor-not-allowed"
+                />
                 <p class="text-xs text-muted-foreground">{{ field.explanation }}</p>
             </div>
         </CardContent>

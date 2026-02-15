@@ -1,41 +1,24 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, watch } from 'vue'
 import type { UserSettings } from '@/api/auth.ts'
-import { useSettingsStore } from '@/stores/settings.ts'
+import LanguageSelector from '@/components/LanguageSelector.vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 const props = defineProps<{
     settings?: UserSettings
 }>()
 
-const settingsStore = useSettingsStore()
+const nativeLanguage = ref(props.settings?.native_language || '')
+const mainLearningLanguage = ref(props.settings?.main_learning_language || '')
 
-const getLanguageLabel = (code?: string) => {
-    if (!code) return 'Not set'
-
-    const option = settingsStore.languageOptions.find((lang) => lang.code === code)
-    if (!option) return code.toUpperCase()
-
-    return `${option.emoji} ${option.name}`
-}
-
-const fields = computed(() => {
-    return [
-        {
-            key: 'native_language',
-            label: 'Native Language',
-            value: getLanguageLabel(props.settings?.native_language),
-            explanation:
-                'This is your main language. We use it in quizzes to explain vocabulary words and crossword tasks.',
-        },
-        {
-            key: 'main_learning_language',
-            label: 'Main Learning Language',
-            value: getLanguageLabel(props.settings?.main_learning_language),
-            explanation: 'This is the language you are focusing on in your daily learning flow.',
-        },
-    ]
-})
+watch(
+    () => props.settings,
+    (nextSettings) => {
+        nativeLanguage.value = nextSettings?.native_language || ''
+        mainLearningLanguage.value = nextSettings?.main_learning_language || ''
+    },
+    { immediate: true }
+)
 </script>
 
 <template>
@@ -45,10 +28,20 @@ const fields = computed(() => {
             <CardDescription>Language preferences used in translation and learning.</CardDescription>
         </CardHeader>
         <CardContent class="space-y-4">
-            <div v-for="field in fields" :key="field.key" class="rounded-lg border border-border p-4 space-y-2">
-                <p class="text-sm font-semibold text-foreground">{{ field.label }}</p>
-                <p class="text-sm text-foreground">{{ field.value }}</p>
-                <p class="text-xs text-muted-foreground">{{ field.explanation }}</p>
+            <div class="space-y-2">
+                <p class="text-sm font-semibold text-foreground">Native Language</p>
+                <LanguageSelector v-model="nativeLanguage" placeholder="Select native language" />
+                <p class="text-xs text-muted-foreground">
+                    This is your main language. We use it in quizzes to explain vocabulary words and crossword tasks.
+                </p>
+            </div>
+
+            <div class="space-y-2">
+                <p class="text-sm font-semibold text-foreground">Main Learning Language</p>
+                <LanguageSelector v-model="mainLearningLanguage" placeholder="Select learning language" />
+                <p class="text-xs text-muted-foreground">
+                    This is the language you are focusing on in your daily learning flow.
+                </p>
             </div>
         </CardContent>
     </Card>
