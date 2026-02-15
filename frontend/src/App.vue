@@ -16,7 +16,7 @@ onMounted(() => {
 <template>
     <ToastProvider>
         <TooltipProvider>
-            <div class="min-h-screen bg-background font-sans antialiased text-foreground">
+            <div class="min-h-screen font-sans antialiased text-foreground">
                 <router-view />
             </div>
         </TooltipProvider>

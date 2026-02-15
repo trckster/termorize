@@ -5,7 +5,7 @@
                 <router-link
                     to="/"
                     :class="[
-                        'text-sm font-medium transition-colors hover:text-foreground/80',
+                        'text-sm font-medium transition-colors hover:text-foreground',
                         route.path === '/' ? 'text-foreground' : 'text-muted-foreground',
                     ]"
                 >
@@ -14,7 +14,7 @@
                 <router-link
                     to="/vocabulary"
                     :class="[
-                        'text-sm font-medium transition-colors hover:text-foreground/80',
+                        'text-sm font-medium transition-colors hover:text-foreground',
                         route.path === '/vocabulary' ? 'text-foreground' : 'text-muted-foreground',
                     ]"
                 >
@@ -79,7 +79,7 @@
 
                         <button
                             @click="handleLogout"
-                            class="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/10"
+                            class="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive hover:text-primary-foreground"
                             role="menuitem"
                         >
                             <LogOut class="h-4 w-4" />

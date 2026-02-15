@@ -5,7 +5,7 @@
                 <h1 class="text-3xl font-bold text-foreground">Saved Words</h1>
                 <Dialog v-model:open="isAddDialogOpen">
                     <DialogTrigger as-child>
-                        <Button class="bg-green-600 hover:bg-green-700 text-white">
+                        <Button>
                             <Plus class="h-4 w-4 mr-2" />
                             Add Translation
                         </Button>
@@ -57,11 +57,7 @@
                                 </div>
                             </div>
                             <DialogFooter class="justify-center sm:justify-center pt-4">
-                                <Button
-                                    type="submit"
-                                    class="bg-green-600 hover:bg-green-700 text-white"
-                                    :disabled="isAdding || !isFormValid"
-                                >
+                                <Button type="submit" :disabled="isAdding || !isFormValid">
                                     <Loader2 v-if="isAdding" class="mr-2 h-4 w-4 animate-spin" />
                                     {{ isAdding ? 'Adding...' : 'Add Translation' }}
                                 </Button>

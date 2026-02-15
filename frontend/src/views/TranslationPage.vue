@@ -228,7 +228,7 @@ const handleSwapLanguages = () => {
             <div class="flex justify-center mt-6">
                 <button
                     @click="handleSwapLanguages"
-                    class="px-4 py-2 rounded-lg border border-border bg-background text-foreground hover:bg-accent transition-colors font-medium"
+                    class="px-4 py-2 rounded-lg border border-border text-foreground hover:border-primary transition-colors font-medium"
                 >
                     ⇄ Swap Languages
                 </button>

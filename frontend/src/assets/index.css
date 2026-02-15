@@ -4,65 +4,83 @@
 
 @layer base {
     :root {
-        --background: 142.1 60% 98%;
-        --foreground: 240 10% 3.9%;
+        --background: hsl(142.1, 60%, 98%);
+        --foreground: hsl(240, 10%, 3.9%);
+        --app-gradient: linear-gradient(135deg, hsl(138, 76%, 97%) 0%, hsl(141, 84%, 93%) 55%, hsl(138, 76%, 97%) 100%);
 
-        --card: 142.1 60% 98%;
-        --card-foreground: 240 10% 3.9%;
+        --card: hsl(142.1, 60%, 98%);
+        --card-foreground: hsl(240, 10%, 3.9%);
 
-        --popover: 142.1 60% 98%;
-        --popover-foreground: 240 10% 3.9%;
+        --popover: hsl(142.1, 60%, 98%);
+        --popover-foreground: hsl(240, 10%, 3.9%);
 
-        --primary: 142.1 70.2% 21.2%;
-        --primary-foreground: 144.4 61.4% 98%;
+        --primary: hsl(142.1, 70.2%, 21.2%);
+        --primary-foreground: hsl(144.4, 61.4%, 98%);
 
-        --secondary: 142.1 30% 90%;
-        --secondary-foreground: 240 5.9% 10%;
+        --secondary: hsl(142.1, 30%, 90%);
+        --secondary-foreground: hsl(240, 5.9%, 10%);
 
-        --muted: 142.1 30% 90%;
-        --muted-foreground: 240 3.8% 46.1%;
+        --muted: hsl(142.1, 30%, 90%);
+        --muted-foreground: hsl(240, 3.8%, 46.1%);
 
-        --accent: 142.1 30% 90%;
-        --accent-foreground: 240 5.9% 10%;
+        --accent: hsl(142.1, 30%, 90%);
+        --accent-foreground: hsl(240, 5.9%, 10%);
 
-        --destructive: 0 84.2% 60.2%;
-        --destructive-foreground: 0 0% 98%;
+        --destructive: hsl(0, 84.2%, 60.2%);
+        --destructive-foreground: hsl(0, 0%, 98%);
 
-        --border: 142.1 30% 85%;
-        --input: 142.1 30% 85%;
-        --ring: 142.1 70.2% 21.2%;
+        --border: hsl(142.1, 30%, 85%);
+        --input: hsl(142.1, 30%, 85%);
+        --ring: hsl(142.1, 70.2%, 21.2%);
 
         --radius: 0.5rem;
     }
 
     .dark {
-        --background: 142.1 80% 2%;
-        --foreground: 0 0% 98%;
+        /* Colors */
+        --main-color-hsl: 142;
 
-        --card: 142.1 80% 3%;
-        --card-foreground: 0 0% 98%;
+        --color-bg-primary: hsl(var(--main-color-hsl), 80%, 2%);
+        --color-bg-secondary: hsl(var(--main-color-hsl), 50%, 6%);
+        --color-border: hsl(var(--main-color-hsl), 40%, 10%);
 
-        --popover: 142.1 80% 3%;
-        --popover-foreground: 0 0% 98%;
+        --color-text-primary: hsl(0, 0%, 98%);
+        --color-text-primary-muted: hsl(var(--main-color-hsl), 20%, 65%);
 
-        --primary: 142.1 70.2% 40%;
-        --primary-foreground: 144.4 61.4% 98%;
+        --color-action-primary: hsl(var(--main-color-hsl), 70%, 30%);
+        --color-action-hover: hsl(var(--main-color-hsl), 80%, 20%);
+        --color-action-destructive: hsl(0, 80%, 60%);
+        --color-action-muted: hsl(var(--main-color-hsl), 30%, 20%);
 
-        --secondary: 142.1 40% 8%;
-        --secondary-foreground: 0 0% 98%;
+        /* Tailwind Variables */
+        --background: var(--color-bg-primary);
+        --foreground: var(--color-text-primary);
+        --app-gradient: linear-gradient(135deg, var(--color-bg-primary) 0%, var(--color-bg-secondary) 55%, var(--color-bg-primary) 100%);
 
-        --muted: 142.1 40% 8%;
-        --muted-foreground: 142.1 20% 65%;
+        --card: var(--color-bg-secondary);
+        --card-foreground: var(--color-text-primary);
 
-        --accent: 142.1 40% 10%;
-        --accent-foreground: 0 0% 98%;
+        --popover: var(--color-bg-primary);
+        --popover-foreground: var(--color-text-primary);
 
-        --destructive: 0 62.8% 30.6%;
-        --destructive-foreground: 0 0% 98%;
+        --primary: var(--color-action-primary);
+        --primary-foreground: var(--color-text-primary);
 
-        --border: 142.1 40% 10%;
-        --input: 142.1 40% 10%;
-        --ring: 142.1 70.2% 21.2%;
+        --secondary: var(--color-bg-secondary);
+        --secondary-foreground: var(--color-text-primary);
+
+        --muted: var(--color-action-muted);
+        --muted-foreground: var(--color-text-primary-muted);
+
+        --accent: var(--color-action-hover);
+        --accent-foreground: var(--color-text-primary);
+
+        --destructive: var(--color-action-destructive);
+        --destructive-foreground: var(--color-text-primary);
+
+        --border: var(--color-border);
+        --input: var(--color-border);
+        --ring: var(--color-action-hover);
 
         color-scheme: dark;
     }
@@ -72,7 +90,12 @@
     * {
         @apply border-border;
     }
+
     body {
         @apply bg-background text-foreground;
+        background-image: var(--app-gradient);
+        background-attachment: fixed;
+        background-repeat: no-repeat;
+        background-size: cover;
     }
 }
