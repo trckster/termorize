@@ -65,6 +65,11 @@ func UpdateUserSettings(userID uint, settings models.UserSettings) (*models.User
 		return nil, err
 	}
 
+	// Edit of this flag is acceptable only via interaction with bot.
+	// - Enable bot by sending any message
+	// - Disable bot by blocking it
+	settings.Telegram.BotEnabled = user.Settings.Telegram.BotEnabled
+
 	user.Settings = settings
 
 	if err := db.DB.Save(&user).Error; err != nil {

@@ -21,7 +21,6 @@ type UpdateSettingsRequest struct {
 }
 
 type UpdateSettingsTelegramRequest struct {
-	BotEnabled             bool                                        `json:"bot_enabled"`
 	DailyQuestionsEnabled  bool                                        `json:"daily_questions_enabled"`
 	DailyQuestionsCount    uint                                        `json:"daily_questions_count" binding:"max=100"`
 	DailyQuestionsSchedule []UpdateSettingsTelegramScheduleItemRequest `json:"daily_questions_schedule" binding:"required,dive"`
@@ -51,7 +50,6 @@ func UpdateSettings(c *gin.Context) {
 		MainLearningLanguage: req.MainLearningLanguage,
 		TimeZone:             strings.TrimSpace(req.TimeZone),
 		Telegram: models.UserTelegramSettings{
-			BotEnabled:            req.Telegram.BotEnabled,
 			DailyQuestionsEnabled: req.Telegram.DailyQuestionsEnabled,
 			DailyQuestionsCount:   req.Telegram.DailyQuestionsCount,
 			DailyQuestionsSchedule: func() []models.UserTelegramQuestionsScheduleItem {
