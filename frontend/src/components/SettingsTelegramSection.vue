@@ -199,15 +199,22 @@ watch(
             <div class="grid grid-cols-1 md:grid-cols-2 p-4">
                 <div class="space-y-2">
                     <p class="text-sm font-semibold text-foreground">Daily Questions Enabled</p>
-                    <ToggleSwitch v-model="dailyQuestionsEnabled" :disabled="isSaving" />
+                    <div class="h-10 flex items-center">
+                        <ToggleSwitch v-model="dailyQuestionsEnabled" :disabled="isSaving" />
+                    </div>
                     <p class="text-xs text-muted-foreground">
-                        Controls if the bot sends your daily vocabulary questions.
+                        Controls if the bot sends you daily vocabulary exercises.
                     </p>
                 </div>
                 <div class="space-y-2" :class="dailyQuestionsEnabled ? '' : 'opacity-60'">
                     <p class="text-sm font-semibold text-foreground">Daily Questions Count</p>
-                    <InputNumber v-model="dailyQuestionsCount" min="1" max="100" step="1" :disabled="isSaving" />
-                    <p class="text-xs text-muted-foreground">Must be from 1 to 100.</p>
+                    <div class="h-10 flex items-center">
+                        <InputNumber v-model="dailyQuestionsCount" min="1" max="100" step="1" :disabled="isSaving" />
+                    </div>
+                    <p class="text-xs text-muted-foreground">
+                        How many exercises per day are you ready to complete? <br />
+                        Must be from 1 to 100.
+                    </p>
                     <p v-if="countValidationError" class="text-xs text-destructive">{{ countValidationError }}</p>
                 </div>
             </div>
@@ -255,7 +262,10 @@ watch(
                         + Interval
                     </Button>
 
-                    <p class="text-xs text-muted-foreground">Set one or more time intervals in HH:mm format.</p>
+                    <p class="text-xs text-muted-foreground">
+                        Set one or more time intervals in HH:mm format.<br />
+                        This time is used to determine, when bot can send exercises to you in Telegram.
+                    </p>
                     <p v-if="scheduleValidationError" class="text-xs text-destructive">{{ scheduleValidationError }}</p>
                 </div>
             </div>
