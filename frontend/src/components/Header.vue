@@ -51,19 +51,7 @@
                                 <Moon v-else class="h-4 w-4" />
                                 <span>Change theme</span>
                             </div>
-                            <button
-                                @click.stop="toggleTheme"
-                                type="button"
-                                class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-                                :class="isDark ? 'bg-primary' : 'bg-muted'"
-                                role="switch"
-                                :aria-checked="isDark"
-                            >
-                                <span
-                                    class="inline-block h-5 w-5 transform rounded-full bg-background transition-transform"
-                                    :class="isDark ? 'translate-x-5' : 'translate-x-1'"
-                                />
-                            </button>
+                            <ToggleSwitch :model-value="isDark" @update:model-value="setTheme" @click.stop />
                         </div>
 
                         <button
@@ -97,6 +85,7 @@ import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { Sun, Moon, ChevronDown, Settings, LogOut } from 'lucide-vue-next'
+import { ToggleSwitch } from '@/components/ui/toggle-switch'
 
 const route = useRoute()
 const router = useRouter()
@@ -131,9 +120,9 @@ onBeforeUnmount(() => {
     document.removeEventListener('click', handleClickOutside)
 })
 
-const toggleTheme = () => {
-    isDark.value = !isDark.value
-    if (isDark.value) {
+const setTheme = (nextIsDark: boolean) => {
+    isDark.value = nextIsDark
+    if (nextIsDark) {
         document.documentElement.classList.add('dark')
         localStorage.setItem('theme', 'dark')
     } else {

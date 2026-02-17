@@ -6,6 +6,8 @@ import { useToast } from '@/composables/useToast.ts'
 import { useAuthStore } from '@/stores/auth.ts'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { InputNumber } from '@/components/ui/input-number'
+import { ToggleSwitch } from '@/components/ui/toggle-switch'
 
 const props = defineProps<{
     settings?: UserSettings
@@ -21,8 +23,6 @@ const dailyQuestionsSchedule = ref<UserTelegramScheduleItem[]>([])
 const isSaving = ref(false)
 
 const timezoneLabel = computed(() => props.settings?.time_zone || 'UTC')
-const isDailyQuestionsOptionsDisabled = computed(() => !botEnabled.value)
-const isScheduleOptionsDisabled = computed(() => !botEnabled.value || !dailyQuestionsEnabled.value)
 
 const parseTime = (time: string) => {
     if (!/^\d{2}:\d{2}$/.test(time)) return null
@@ -38,8 +38,6 @@ const parseTime = (time: string) => {
 }
 
 const countValidationError = computed(() => {
-    if (isScheduleOptionsDisabled.value) return ''
-
     if (!Number.isInteger(dailyQuestionsCount.value)) return 'Daily questions count must be an integer.'
     if (dailyQuestionsCount.value <= 0 || dailyQuestionsCount.value > 100) {
         return 'Daily questions count must be between 1 and 100.'
@@ -49,8 +47,6 @@ const countValidationError = computed(() => {
 })
 
 const scheduleValidationError = computed(() => {
-    if (isScheduleOptionsDisabled.value) return ''
-
     const intervals = dailyQuestionsSchedule.value
         .map((item, index) => {
             const from = parseTime(item.from)
@@ -106,7 +102,6 @@ const hasChanged = computed(() => {
     if (!props.settings) return false
 
     const currentTelegram = props.settings.telegram
-    if (botEnabled.value !== currentTelegram.bot_enabled) return true
     if (dailyQuestionsEnabled.value !== currentTelegram.daily_questions_enabled) return true
     if (dailyQuestionsCount.value !== currentTelegram.daily_questions_count) return true
 
@@ -186,7 +181,7 @@ watch(
             <CardTitle>Telegram</CardTitle>
             <CardDescription>Bot and notification controls for your Telegram account.</CardDescription>
         </CardHeader>
-        <CardContent class="relative space-y-4" :disabled="!props.settings?.telegram.bot_enabled">
+        <CardContent class="relative" :disabled="!props.settings?.telegram.bot_enabled">
             <template v-slot:disable-reason>
                 <Card class="p-5 flex flex-col items-center">
                     <span> To enable Telegram bot, send him any message: </span>
@@ -201,54 +196,23 @@ watch(
                 </Card>
             </template>
 
-            <!--            <div class="flex justify-between">-->
-            <!--                <div>Daily questions enabled?</div>-->
-            <!--                <div>Daily questions count?</div>-->
-            <!--            </div>-->
-
-            <!--            <div>Questions Schedule</div>-->
-
-            <div class="space-y-2 rounded-lg p-4" :class="isDailyQuestionsOptionsDisabled ? 'opacity-60' : ''">
-                <div class="flex items-center justify-between gap-4">
-                    <p class="text-sm font-semibold text-foreground">Daily Questions Enabled</p>
-                    <button
-                        type="button"
-                        class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-                        :class="dailyQuestionsEnabled ? 'bg-primary' : 'bg-muted'"
-                        role="switch"
-                        :aria-checked="dailyQuestionsEnabled"
-                        :disabled="isDailyQuestionsOptionsDisabled || isSaving"
-                        @click="dailyQuestionsEnabled = !dailyQuestionsEnabled"
-                    >
-                        <span
-                            class="inline-block h-5 w-5 transform rounded-full bg-background transition-transform"
-                            :class="dailyQuestionsEnabled ? 'translate-x-5' : 'translate-x-1'"
-                        />
-                    </button>
-                </div>
-                <p class="text-xs text-muted-foreground">Controls if the bot sends your daily vocabulary questions.</p>
-            </div>
-
-            <div
-                class="grid grid-cols-1 gap-4 p-4 md:grid-cols-2"
-                :class="isScheduleOptionsDisabled ? 'opacity-60' : ''"
-            >
+            <div class="grid grid-cols-1 md:grid-cols-2 p-4">
                 <div class="space-y-2">
+                    <p class="text-sm font-semibold text-foreground">Daily Questions Enabled</p>
+                    <ToggleSwitch v-model="dailyQuestionsEnabled" :disabled="isSaving" />
+                    <p class="text-xs text-muted-foreground">
+                        Controls if the bot sends your daily vocabulary questions.
+                    </p>
+                </div>
+                <div class="space-y-2" :class="dailyQuestionsEnabled ? '' : 'opacity-60'">
                     <p class="text-sm font-semibold text-foreground">Daily Questions Count</p>
-                    <input
-                        :value="dailyQuestionsCount"
-                        type="number"
-                        min="1"
-                        max="100"
-                        step="1"
-                        :disabled="isScheduleOptionsDisabled || isSaving"
-                        class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                        @input="dailyQuestionsCount = Number(($event.target as HTMLInputElement).value)"
-                    />
+                    <InputNumber v-model="dailyQuestionsCount" min="1" max="100" step="1" :disabled="isSaving" />
                     <p class="text-xs text-muted-foreground">Must be from 1 to 100.</p>
                     <p v-if="countValidationError" class="text-xs text-destructive">{{ countValidationError }}</p>
                 </div>
+            </div>
 
+            <div class="p-4" :class="dailyQuestionsEnabled ? '' : 'opacity-60'">
                 <div class="space-y-2">
                     <div class="flex items-center justify-between gap-4">
                         <p class="text-sm font-semibold text-foreground">Questions Schedule</p>
@@ -258,46 +222,37 @@ watch(
                     <div class="space-y-2">
                         <div
                             v-for="(item, index) in dailyQuestionsSchedule"
-                            :key="`${index}-${item.from}-${item.to}`"
+                            :key="index"
                             class="flex items-center gap-2"
                         >
+                            <span class="text-muted-foreground">From</span>
                             <input
                                 :value="item.from"
-                                type="time"
-                                min="00:00"
-                                max="23:59"
-                                :disabled="isScheduleOptionsDisabled || isSaving"
+                                type="text"
+                                inputmode="numeric"
+                                placeholder="HH:mm"
+                                :disabled="isSaving"
                                 class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                                 @input="setScheduleTime(index, 'from', ($event.target as HTMLInputElement).value)"
                             />
                             <span class="text-muted-foreground">to</span>
                             <input
                                 :value="item.to"
-                                type="time"
-                                min="00:00"
-                                max="23:59"
-                                :disabled="isScheduleOptionsDisabled || isSaving"
+                                type="text"
+                                inputmode="numeric"
+                                placeholder="HH:mm"
+                                :disabled="isSaving"
                                 class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                                 @input="setScheduleTime(index, 'to', ($event.target as HTMLInputElement).value)"
                             />
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                :disabled="isScheduleOptionsDisabled || isSaving"
-                                @click="removeScheduleItem(index)"
-                            >
+                            <Button variant="outline" size="sm" :disabled="isSaving" @click="removeScheduleItem(index)">
                                 Delete
                             </Button>
                         </div>
                     </div>
 
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        :disabled="isScheduleOptionsDisabled || isSaving"
-                        @click="addScheduleItem"
-                    >
-                        Add interval
+                    <Button variant="outline" size="sm" :disabled="isSaving" @click="addScheduleItem">
+                        + Interval
                     </Button>
 
                     <p class="text-xs text-muted-foreground">Set one or more time intervals in HH:mm format.</p>
