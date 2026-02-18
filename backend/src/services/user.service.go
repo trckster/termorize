@@ -1,12 +1,15 @@
 package services
 
 import (
+	"errors"
 	"strings"
 	"termorize/src/auth"
 	"termorize/src/data/db"
 	"termorize/src/enums"
 	"termorize/src/models"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 func defaultUserSettings(timezone string) models.UserSettings {
@@ -77,4 +80,50 @@ func UpdateUserSettings(userID uint, settings models.UserSettings) (*models.User
 	}
 
 	return &user, nil
+}
+
+func UpdateUserTelegramBotEnabled(telegramID int64, botEnabled bool) error {
+	var user models.User
+
+	if err := db.DB.Where("telegram_id = ?", telegramID).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+
+		return err
+	}
+
+	if user.Settings.Telegram.BotEnabled == botEnabled {
+		return nil
+	}
+
+	settings := user.Settings
+	settings.Telegram.BotEnabled = botEnabled
+
+	return db.DB.Model(&user).Update("settings", settings).Error
+}
+
+func EnsureUserByTelegramID(telegramID int64, username string, firstName string, lastName string) error {
+	var user models.User
+
+	err := db.DB.Where("telegram_id = ?", telegramID).First(&user).Error
+	if err == nil {
+		return nil
+	}
+
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+
+	settings := defaultUserSettings("")
+	settings.Telegram.BotEnabled = true
+
+	user = models.User{
+		TelegramID: telegramID,
+		Username:   username,
+		Name:       strings.TrimSpace(firstName + " " + lastName),
+		Settings:   settings,
+	}
+
+	return db.DB.Create(&user).Error
 }
