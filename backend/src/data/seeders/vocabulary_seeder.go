@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"termorize/src/data/db"
 	"termorize/src/enums"
+	"termorize/src/logger"
 	"termorize/src/models"
 
 	"github.com/google/uuid"
@@ -284,7 +285,7 @@ func SeedVocabulary(req VocabularySeedRequest) error {
 		}
 	}
 
-	fmt.Printf("Successfully seeded vocabulary items for user ID %d\n", *userID)
+	logger.L().Infow("successfully seeded vocabulary items", "user_id", *userID)
 	return nil
 }
 

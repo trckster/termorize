@@ -2,9 +2,8 @@ package telegram
 
 import (
 	"encoding/json"
-	"fmt"
-	"log"
 	"net/http"
+	"termorize/src/logger"
 	"termorize/src/utils"
 
 	"github.com/gin-gonic/gin"
@@ -23,7 +22,7 @@ func HandleWebhook(c *gin.Context) {
 		return
 	}
 
-	log.Println("Telegram > " + string(body))
+	logger.L().Infow("telegram webhook payload", "body", string(body))
 
 	var update webhookUpdate
 	if err := json.Unmarshal(body, &update); err != nil {
@@ -34,7 +33,7 @@ func HandleWebhook(c *gin.Context) {
 	if update.Message == nil {
 		if update.MyChatMember != nil {
 			// TODO set botEnabled=true/false for this user
-			log.Println("Telegram > Bot was blocked or unblocked")
+			logger.L().Infow("telegram bot was blocked or unblocked")
 			c.Status(http.StatusOK)
 			return
 		} else {
@@ -53,7 +52,7 @@ func HandleWebhook(c *gin.Context) {
 	if err != nil {
 		if err.Error() == "blocked" {
 			// TODO set botEnabled=false for this user
-			log.Println(fmt.Sprintf("Blocked! %v", err))
+			logger.L().Warnw("telegram bot blocked", "error", err)
 			c.Status(http.StatusOK)
 			return
 		}
@@ -63,7 +62,7 @@ func HandleWebhook(c *gin.Context) {
 	}
 
 	if !response.OK {
-		log.Println("Telegram is not OK (!) with our message: " + utils.MustMarshalToString(response))
+		logger.L().Warnw("telegram response not ok", "response", utils.MustMarshalToString(response))
 	}
 
 	c.Status(http.StatusOK)

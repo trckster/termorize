@@ -4,8 +4,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"termorize/src/config"
+	"termorize/src/logger"
 )
 
 type setWebhookRequest struct {
@@ -38,7 +38,7 @@ func SetupWebhook() error {
 		return fmt.Errorf("telegram setWebhook failed: %s", response.Description)
 	}
 
-	log.Println("Telegram webhook set successfully at " + config.GetTelegramWebhookURL())
+	logger.L().Infow("telegram webhook set", "url", config.GetTelegramWebhookURL())
 
 	return nil
 }

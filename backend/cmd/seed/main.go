@@ -5,25 +5,27 @@ import _ "termorize/src/utils"
 
 import (
 	"flag"
-	"log"
 	"strconv"
 	"termorize/src/config"
 	"termorize/src/data/db"
 	"termorize/src/data/seeders"
+	"termorize/src/logger"
 )
 
 func main() {
+	defer logger.Sync()
+
 	userIDFlag := flag.String("uid", "", "User ID to seed vocabulary for (optional)")
 	flag.Parse()
 
 	config.LoadEnv()
 
 	if err := db.Connect(); err != nil {
-		log.Fatalf("Database connection failed: %v", err)
+		logger.L().Fatalw("database connection failed", "error", err)
 	}
 
 	if err := db.Migrate(); err != nil {
-		log.Fatalf("Migration failed: %v", err)
+		logger.L().Fatalw("migration failed", "error", err)
 	}
 
 	req := seeders.VocabularySeedRequest{}
@@ -31,13 +33,13 @@ func main() {
 	if *userIDFlag != "" {
 		userID, err := strconv.ParseUint(*userIDFlag, 10, 32)
 		if err != nil {
-			log.Fatalf("Invalid user ID: %v", err)
+			logger.L().Fatalw("invalid user id", "error", err)
 		}
 		id := uint(userID)
 		req.UserID = &id
 	}
 
 	if err := seeders.SeedVocabulary(req); err != nil {
-		log.Fatalf("Seeding failed: %v", err)
+		logger.L().Fatalw("seeding failed", "error", err)
 	}
 }

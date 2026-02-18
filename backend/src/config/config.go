@@ -1,9 +1,9 @@
 package config
 
 import (
-	"log"
 	"net/url"
 	"os"
+	"termorize/src/logger"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -50,7 +50,7 @@ func getRequiredEnv(key string) string {
 func LoadEnv() {
 	err := godotenv.Load()
 	if err != nil {
-		log.Println("No .env file found, using environment variables")
+		logger.L().Infow("no .env file found, using environment variables")
 	}
 
 	config = &Config{

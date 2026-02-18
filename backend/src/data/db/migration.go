@@ -2,11 +2,11 @@ package db
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"termorize/src/logger"
 )
 
 type Migration struct {
@@ -43,7 +43,7 @@ func RunMigrations() error {
 			continue
 		}
 
-		log.Printf("Running migration: %s\n", migration.Name)
+		logger.L().Infow("running migration", "name", migration.Name)
 		if err := migration.Up(); err != nil {
 			return fmt.Errorf("migration %s failed: %w", migration.Name, err)
 		}
@@ -52,7 +52,7 @@ func RunMigrations() error {
 			return fmt.Errorf("failed to record migration %s: %w", migration.Name, err)
 		}
 
-		log.Printf("Migration completed: %s\n", migration.Name)
+		logger.L().Infow("migration completed", "name", migration.Name)
 	}
 
 	return nil

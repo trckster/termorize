@@ -4,26 +4,28 @@ package main
 import _ "termorize/src/utils"
 
 import (
-	"log"
 	"termorize/src/config"
 	"termorize/src/data/db"
 	"termorize/src/http"
 	"termorize/src/integrations/telegram"
+	"termorize/src/logger"
 )
 
 func main() {
+	defer logger.Sync()
+
 	config.LoadEnv()
 
 	if err := db.Connect(); err != nil {
-		log.Fatalf("Database connection failed: %v", err)
+		logger.L().Fatalw("database connection failed", "error", err)
 	}
 
 	if err := db.Migrate(); err != nil {
-		log.Fatalf("Migration failed: %v", err)
+		logger.L().Fatalw("migration failed", "error", err)
 	}
 
 	if err := telegram.SetupWebhook(); err != nil {
-		log.Fatalf("Telegram webhook setup failed: %v", err)
+		logger.L().Fatalw("telegram webhook setup failed", "error", err)
 	}
 
 	http.LaunchServer()
