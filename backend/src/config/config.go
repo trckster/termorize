@@ -15,13 +15,14 @@ type Config struct {
 	Port      string
 	Secret    string
 
-	DBHost           string
-	DBPort           string
-	DBName           string
-	DBUser           string
-	DBPassword       string
-	TelegramBotToken string
-	GoogleApiKey     string
+	DBHost             string
+	DBPort             string
+	DBName             string
+	DBUser             string
+	DBPassword         string
+	TelegramBotToken   string
+	TelegramWebhookURL string
+	GoogleApiKey       string
 
 	JWTExpirationTime time.Duration
 }
@@ -64,8 +65,9 @@ func LoadEnv() {
 		DBUser:     getRequiredEnv("DB_USER"),
 		DBPassword: getRequiredEnv("DB_PASSWORD"),
 
-		TelegramBotToken: getRequiredEnv("TELEGRAM_BOT_TOKEN"),
-		GoogleApiKey:     getRequiredEnv("GOOGLE_API_KEY"),
+		TelegramBotToken:   getRequiredEnv("TELEGRAM_BOT_TOKEN"),
+		TelegramWebhookURL: getRequiredEnv("TELEGRAM_WEBHOOK_URL"),
+		GoogleApiKey:       getRequiredEnv("GOOGLE_API_KEY"),
 
 		JWTExpirationTime: 12 * time.Hour,
 	}
@@ -92,6 +94,8 @@ func GetPublicURL() string {
 func IsLocal() bool {
 	return config.Env == "local"
 }
+
+func IsProduction() bool { return config.Env == "prod" }
 
 func GetPort() string {
 	return config.Port
@@ -123,6 +127,10 @@ func GetDBPassword() string {
 
 func GetTelegramBotToken() string {
 	return config.TelegramBotToken
+}
+
+func GetTelegramWebhookURL() string {
+	return config.TelegramWebhookURL
 }
 
 func GetGoogleApiKey() string {

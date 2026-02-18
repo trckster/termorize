@@ -1,9 +1,7 @@
 package http
 
 import (
-	"net/http"
 	"termorize/src/config"
-	"termorize/src/controllers"
 	"termorize/src/http/middlewares"
 	"termorize/src/http/validators"
 
@@ -13,10 +11,14 @@ import (
 )
 
 func LaunchServer() {
+	if config.IsProduction() {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
 	router := gin.Default()
 	router.SetTrustedProxies(nil)
 
-	registerValidators()
+	registerCustomValidators()
 
 	router.Use(middlewares.CorsMiddleware())
 
@@ -30,32 +32,10 @@ func LaunchServer() {
 	router.Run(":" + config.GetPort())
 }
 
-func registerValidators() {
+func registerCustomValidators() {
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("enum", validators.ValidateEnum)
 		v.RegisterValidation("timezone", validators.ValidateTimezone)
 		v.RegisterValidation("hhmm", validators.ValidateHHMM)
 	}
-}
-
-func defineProtectedRoutes(group *gin.RouterGroup) {
-	group.GET("/me", controllers.Me)
-	group.PUT("/settings", controllers.UpdateSettings)
-
-	group.GET("/vocabulary", controllers.GetVocabulary)
-	group.POST("/vocabulary", controllers.CreateVocabulary)
-	group.DELETE("/vocabulary/:id", controllers.DeleteVocabulary)
-
-	group.POST("/translate", controllers.Translate)
-}
-
-func definePublicRoutes(group *gin.RouterGroup) {
-	group.GET("/ping", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "nice"})
-	})
-
-	group.POST("/telegram/login", controllers.TelegramLogin)
-	group.POST("/logout", controllers.Logout)
-
-	group.GET("/settings", controllers.GetSettings)
 }

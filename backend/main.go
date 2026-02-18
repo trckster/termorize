@@ -8,6 +8,7 @@ import (
 	"termorize/src/config"
 	"termorize/src/data/db"
 	"termorize/src/http"
+	"termorize/src/integrations/telegram"
 )
 
 func main() {
@@ -19,6 +20,10 @@ func main() {
 
 	if err := db.Migrate(); err != nil {
 		log.Fatalf("Migration failed: %v", err)
+	}
+
+	if err := telegram.SetupWebhook(); err != nil {
+		log.Fatalf("Telegram webhook setup failed: %v", err)
 	}
 
 	http.LaunchServer()
