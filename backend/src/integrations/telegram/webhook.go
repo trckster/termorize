@@ -24,6 +24,11 @@ func BuildWebhookSecret() string {
 }
 
 func SetupWebhook() error {
+	if config.GetTelegramWebhookURL() == "" {
+		logger.L().Warnw("telegram webhook url is missing in env")
+		return nil
+	}
+
 	body := setWebhookRequest{
 		URL:         config.GetTelegramWebhookURL(),
 		SecretToken: BuildWebhookSecret(),

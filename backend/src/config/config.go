@@ -66,7 +66,7 @@ func LoadEnv() {
 		DBPassword: getRequiredEnv("DB_PASSWORD"),
 
 		TelegramBotToken:   getRequiredEnv("TELEGRAM_BOT_TOKEN"),
-		TelegramWebhookURL: getRequiredEnv("TELEGRAM_WEBHOOK_URL"),
+		TelegramWebhookURL: getEnv("TELEGRAM_WEBHOOK_URL", ""),
 		GoogleApiKey:       getRequiredEnv("GOOGLE_API_KEY"),
 
 		JWTExpirationTime: 12 * time.Hour,
