@@ -40,9 +40,9 @@ func MapOffsetOnSchedule(schedule []models.UserTelegramQuestionsScheduleItem, mi
 		toHour, _ := strconv.Atoi(to[0])
 		toMinute, _ := strconv.Atoi(to[1])
 
-		minutesOnInterval := (toHour-fromHour)*60 + toMinute - fromMinute
+		minutesOnInterval := (toHour-fromHour)*60 + toMinute - fromMinute + 1
 
-		if remainingOffset <= minutesOnInterval {
+		if remainingOffset < minutesOnInterval {
 			return fromHour*60 + fromMinute + remainingOffset
 		}
 

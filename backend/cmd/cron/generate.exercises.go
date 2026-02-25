@@ -18,10 +18,6 @@ func main() {
 		logger.L().Fatalw("database connection failed", "error", err)
 	}
 
-	if err := db.Migrate(); err != nil {
-		logger.L().Fatalw("migration failed", "error", err)
-	}
-
 	if err := services.GenerateDailyExercises(); err != nil {
 		logger.L().Fatalw("generation of daily exercises failed", "error", err)
 	}
