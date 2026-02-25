@@ -127,3 +127,20 @@ func EnsureUserByTelegramID(telegramID int64, username string, firstName string,
 
 	return db.DB.Create(&user).Error
 }
+
+func GetUsersWithEnabledDailyQuestions() ([]models.User, error) {
+	var users []models.User
+	err := db.DB.
+		Where("settings->'telegram'->'bot_enabled' = ?", true).
+		Where("settings->'telegram'->'daily_questions_enabled' = ?", true).
+		Find(&users).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return users, nil
+		}
+		return nil, err
+	}
+
+	return users, nil
+}

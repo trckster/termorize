@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS "users"
     "username"    VARCHAR(255),
     "telegram_id" BIGINT UNIQUE,
     "name"        VARCHAR(255),
-    "settings"    JSONB     DEFAULT '{}'::jsonb,
+    "settings" JSONB DEFAULT '{}'::jsonb,
     "created_at"  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at"  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS "translations"
     "source"         VARCHAR(50) NOT NULL,
     "user_id"        INTEGER,
     "created_at"     TIMESTAMP        DEFAULT CURRENT_TIMESTAMP,
+
     CONSTRAINT "fk_translations_original_id" FOREIGN KEY ("original_id") REFERENCES "words" ("id") ON DELETE CASCADE,
     CONSTRAINT "fk_translations_translation_id" FOREIGN KEY ("translation_id") REFERENCES "words" ("id") ON DELETE CASCADE,
     CONSTRAINT "fk_translations_user_id" FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
@@ -42,9 +43,10 @@ CREATE TABLE IF NOT EXISTS "vocabulary"
     "id"             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "user_id"        INTEGER NOT NULL,
     "translation_id" UUID    NOT NULL,
-    "progress"       JSONB            DEFAULT '[]',
+    "progress" JSONB DEFAULT '[]',
     "created_at"     TIMESTAMP        DEFAULT CURRENT_TIMESTAMP,
     "mastered_at"    TIMESTAMP,
+
     CONSTRAINT "fk_vocabulary_user_id" FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE,
     CONSTRAINT "fk_vocabulary_translation_id" FOREIGN KEY ("translation_id") REFERENCES "translations" ("id") ON DELETE CASCADE,
     UNIQUE ("user_id", "translation_id")
@@ -52,4 +54,32 @@ CREATE TABLE IF NOT EXISTS "vocabulary"
 
 CREATE INDEX IF NOT EXISTS "index_vocabulary_user_id" ON "vocabulary" ("user_id");
 CREATE INDEX IF NOT EXISTS "index_vocabulary_translation_id" ON "vocabulary" ("translation_id");
-CREATE INDEX IF NOT EXISTS "index_user_translation" ON "vocabulary" ("user_id", "translation_id");
+CREATE INDEX IF NOT EXISTS "index_vocabulary_user_translation" ON "vocabulary" ("user_id", "translation_id");
+
+CREATE TABLE IF NOT EXISTS "exercises"
+(
+    "id"            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "type"          VARCHAR(50) NOT NULL,
+    "status"        VARCHAR(50) NOT NULL,
+    "user_id"       INTEGER     NOT NULL,
+
+    "scheduled_for" TIMESTAMP,
+    "started_at"    TIMESTAMP,
+    "finished_at"   TIMESTAMP,
+    "created_at"    TIMESTAMP        DEFAULT CURRENT_TIMESTAMP,
+    "updated_at"    TIMESTAMP        DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "fk_exercises_user_id" FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS "index_exercises_scheduled_for" ON "exercises" ("scheduled_for");
+CREATE INDEX IF NOT EXISTS "index_exercises_user" ON "exercises" ("user_id");
+
+CREATE TABLE IF NOT EXISTS "vocabulary_exercises"
+(
+    "exercise_id"   UUID NOT NULL,
+    "vocabulary_id" UUID NOT NULL,
+
+    CONSTRAINT "fk_vocabulary_exercises_exercise_id" FOREIGN KEY ("exercise_id") REFERENCES "exercises" ("id") ON DELETE CASCADE,
+    CONSTRAINT "fk_vocabulary_exercises_vocabulary_id" FOREIGN KEY ("vocabulary_id") REFERENCES "vocabulary" ("id") ON DELETE CASCADE
+)

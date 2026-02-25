@@ -13,3 +13,18 @@ const (
 	TranslationSourceDictionary TranslationSource = "dictionary"
 	TranslationSourceGoogle     TranslationSource = "google"
 )
+
+type ExerciseType string
+
+const (
+	ExerciseTypeBasic ExerciseType = "basic"
+)
+
+type ExerciseStatus string
+
+const (
+	ExerciseStatusPending    ExerciseStatus = "pending"
+	ExerciseStatusInProgress ExerciseStatus = "inProgress"
+	ExerciseStatusIgnored    ExerciseStatus = "ignored"
+	ExerciseStatusFinished   ExerciseStatus = "finished"
+)
