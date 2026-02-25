@@ -50,6 +50,12 @@ func HandleWebhook(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to ensure user"})
 			return
 		}
+
+		if err := services.UpdateUserTelegramBotEnabled(telegramID, true); err != nil {
+			logger.L().Warnw("failed to enable telegram bot for user", "error", err, "telegram_id", telegramID)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update user settings"})
+			return
+		}
 	}
 
 	if update.Message.Text == "" {
