@@ -9,6 +9,7 @@ import (
 	"termorize/src/http"
 	"termorize/src/integrations/telegram"
 	"termorize/src/logger"
+	"termorize/src/runners"
 )
 
 func main() {
@@ -27,6 +28,8 @@ func main() {
 	if err := telegram.SetupWebhook(); err != nil {
 		logger.L().Fatalw("telegram webhook setup failed", "error", err)
 	}
+
+	runners.StartExerciseRunner()
 
 	http.LaunchServer()
 }

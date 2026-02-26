@@ -32,6 +32,13 @@ type message struct {
 	From      *user  `json:"from,omitempty"`
 }
 
+type callbackQuery struct {
+	ID      string   `json:"id"`
+	From    *user    `json:"from"`
+	Message *message `json:"message,omitempty"`
+	Data    string   `json:"data,omitempty"`
+}
+
 type chat struct {
 	ID        int64    `json:"id"`
 	FirstName string   `json:"first_name"`

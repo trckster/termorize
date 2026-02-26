@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+var ErrBlocked = errors.New("blocked")
+
 func CallAPI[Response any](action string, requestBody any) (*Response, error) {
 	encodedBody, err := json.Marshal(requestBody)
 	if err != nil {
@@ -34,7 +36,7 @@ func CallAPI[Response any](action string, requestBody any) (*Response, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == 403 {
-		return nil, errors.New("blocked")
+		return nil, ErrBlocked
 	}
 
 	if resp.StatusCode >= nethttp.StatusBadRequest {

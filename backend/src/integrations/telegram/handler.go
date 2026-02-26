@@ -3,17 +3,20 @@ package telegram
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"termorize/src/logger"
 	"termorize/src/services"
 	"termorize/src/utils"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type webhookUpdate struct {
-	ID           int                `json:"update_id"`
-	Message      *message           `json:"message"`
-	MyChatMember *chatMemberUpdated `json:"my_chat_member"`
+	ID            int                `json:"update_id"`
+	Message       *message           `json:"message"`
+	MyChatMember  *chatMemberUpdated `json:"my_chat_member"`
+	CallbackQuery *callbackQuery     `json:"callback_query"`
 }
 
 func HandleWebhook(c *gin.Context) {
@@ -33,6 +36,17 @@ func HandleWebhook(c *gin.Context) {
 
 	if update.MyChatMember != nil {
 		handleMyChatMemberUpdate(update.MyChatMember)
+		c.Status(http.StatusOK)
+		return
+	}
+
+	if update.CallbackQuery != nil {
+		if err := handleCallbackQuery(update.CallbackQuery); err != nil {
+			logger.L().Warnw("failed to handle callback query", "error", err, "callback_query", utils.MustMarshalToString(update.CallbackQuery))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to process callback"})
+			return
+		}
+
 		c.Status(http.StatusOK)
 		return
 	}
@@ -68,30 +82,10 @@ func HandleWebhook(c *gin.Context) {
 		replyText = "Nah... Don't feel like answering here rn"
 	}
 
-	response, err := sendTelegramMessage(update.Message.Chat.ID, replyText)
-
-	if err != nil {
-		if err.Error() == "blocked" {
-			if update.Message.Chat.Type == Private {
-				telegramID, _, _, _ := extractMessageUser(update.Message)
-
-				if updateErr := services.UpdateUserTelegramBotEnabled(telegramID, false); updateErr != nil {
-					logger.L().Warnw("failed to disable telegram bot for user", "error", updateErr, "telegram_id", telegramID)
-				}
-			}
-
-			logger.L().Infow("telegram bot blocked", "error", err)
-			c.Status(http.StatusOK)
-			return
-		}
-
+	if err := SendMessage(update.Message.Chat.ID, replyText); err != nil {
 		logger.L().Warnw("failed to send telegram message", "error", err, "text", replyText)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to send telegram message"})
 		return
-	}
-
-	if !response.OK {
-		logger.L().Warnw("telegram response not ok", "response", utils.MustMarshalToString(response))
 	}
 
 	c.Status(http.StatusOK)
@@ -143,4 +137,74 @@ func extractMessageUser(message *message) (int64, string, string, string) {
 	}
 
 	return telegramID, username, firstName, lastName
+}
+
+func handleCallbackQuery(callback *callbackQuery) error {
+	if callback == nil {
+		return nil
+	}
+
+	if callback.ID != "" {
+		if err := answerTelegramCallbackQuery(callback.ID); err != nil {
+			logger.L().Warnw("failed to answer callback query", "error", err, "callback_id", callback.ID)
+		}
+	}
+
+	if callback.From == nil {
+		return nil
+	}
+
+	action, exerciseID, questionType, ok := parseExerciseCallbackData(callback.Data)
+	if !ok || action != "idk" {
+		return nil
+	}
+
+	if callback.Message != nil {
+		if err := removeMessageInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID); err != nil {
+			logger.L().Warnw("failed to remove inline keyboard", "error", err, "chat_id", callback.Message.Chat.ID, "message_id", callback.Message.MessageID)
+		}
+	}
+
+	updated, err := services.FailExercise(exerciseID)
+	if err != nil || !updated {
+		return err
+	}
+
+	words, err := services.GetExerciseWordsByTelegram(exerciseID, callback.From.ID)
+	if err != nil {
+		return err
+	}
+
+	if words == nil {
+		return nil
+	}
+
+	answerText := buildIDKAnswer(words.OriginalWord, words.TranslationWord, questionType)
+	return SendMessage(callback.From.ID, answerText)
+}
+
+func parseExerciseCallbackData(data string) (string, uuid.UUID, string, bool) {
+	parts := strings.Split(data, ":")
+	if len(parts) != 4 || parts[0] != "exercise" {
+		return "", uuid.Nil, "", false
+	}
+
+	exerciseID, err := uuid.Parse(parts[2])
+	if err != nil {
+		return "", uuid.Nil, "", false
+	}
+
+	if parts[3] != "o2t" && parts[3] != "t2o" {
+		return "", uuid.Nil, "", false
+	}
+
+	return parts[1], exerciseID, parts[3], true
+}
+
+func buildIDKAnswer(originalWord string, translationWord string, questionType string) string {
+	if questionType == "t2o" {
+		return "Correct original word: " + originalWord
+	}
+
+	return "Correct translation: " + translationWord
 }

@@ -1,9 +1,10 @@
 package models
 
 import (
-	"github.com/google/uuid"
 	"termorize/src/enums"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Exercise struct {

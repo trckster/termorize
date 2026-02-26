@@ -26,5 +26,6 @@ const (
 	ExerciseStatusPending    ExerciseStatus = "pending"
 	ExerciseStatusInProgress ExerciseStatus = "inProgress"
 	ExerciseStatusIgnored    ExerciseStatus = "ignored"
-	ExerciseStatusFinished   ExerciseStatus = "finished"
+	ExerciseStatusCompleted  ExerciseStatus = "completed"
+	ExerciseStatusFailed     ExerciseStatus = "failed"
 )

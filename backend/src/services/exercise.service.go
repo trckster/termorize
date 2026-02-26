@@ -12,6 +12,20 @@ import (
 	"gorm.io/gorm"
 )
 
+type PendingExercise struct {
+	ExerciseID      uuid.UUID          `gorm:"column:exercise_id"`
+	ExerciseType    enums.ExerciseType `gorm:"column:exercise_type"`
+	UserID          uint               `gorm:"column:user_id"`
+	TelegramID      int64              `gorm:"column:telegram_id"`
+	OriginalWord    string             `gorm:"column:original_word"`
+	TranslationWord string             `gorm:"column:translation_word"`
+}
+
+type ExerciseWords struct {
+	OriginalWord    string `gorm:"column:original_word"`
+	TranslationWord string `gorm:"column:translation_word"`
+}
+
 func GenerateDailyExercises() error {
 	users, err := GetUsersWithEnabledDailyQuestions()
 	if err != nil {
@@ -105,4 +119,97 @@ func generateExercise(userID uint, vocabularyID uuid.UUID, when time.Time) error
 
 		return nil
 	})
+}
+
+func GetDuePendingExercises(now time.Time) ([]PendingExercise, error) {
+	var exercises []PendingExercise
+
+	err := db.DB.Raw(`
+		SELECT
+			e.id AS exercise_id,
+			e.type AS exercise_type,
+			e.user_id AS user_id,
+			u.telegram_id AS telegram_id,
+			original.word AS original_word,
+			translation.word AS translation_word
+		FROM exercises AS e
+		JOIN users AS u ON u.id = e.user_id
+		JOIN vocabulary_exercises AS ve ON ve.exercise_id = e.id
+		JOIN vocabulary AS v ON v.id = ve.vocabulary_id
+		JOIN translations AS t ON t.id = v.translation_id
+		JOIN words AS original ON original.id = t.original_id
+		JOIN words AS translation ON translation.id = t.translation_id
+		WHERE e.status = ?
+			AND e.type = ?
+			AND e.scheduled_for <= ?
+			AND u.settings->'telegram'->'bot_enabled' = ?
+		ORDER BY e.scheduled_for ASC, e.created_at ASC
+	`, enums.ExerciseStatusPending, enums.ExerciseTypeBasic, now, true).Scan(&exercises).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return exercises, nil
+}
+
+func MarkExerciseInProgress(exerciseID uuid.UUID) error {
+	now := time.Now().UTC()
+
+	return db.DB.Model(&models.Exercise{}).
+		Where("id = ? AND status = ?", exerciseID, enums.ExerciseStatusPending).
+		Updates(map[string]any{
+			"status":     enums.ExerciseStatusInProgress,
+			"started_at": now,
+			"updated_at": now,
+		}).Error
+}
+
+func FailExercise(exerciseID uuid.UUID) (bool, error) {
+	now := time.Now().UTC()
+
+	result := db.DB.Exec(`
+		UPDATE exercises AS e
+		SET status = ?, finished_at = ?, updated_at = ?
+		FROM users AS u
+		WHERE e.id = ?
+			AND e.user_id = u.id
+			AND e.status IN (?, ?)
+	`, enums.ExerciseStatusFailed, now, now, exerciseID, enums.ExerciseStatusPending, enums.ExerciseStatusInProgress)
+
+	if result.Error != nil {
+		return false, result.Error
+	}
+
+	return result.RowsAffected > 0, nil
+}
+
+func GetExerciseWordsByTelegram(exerciseID uuid.UUID, telegramID int64) (*ExerciseWords, error) {
+	var words ExerciseWords
+
+	err := db.DB.Raw(`
+		SELECT
+			original.word AS original_word,
+			translation.word AS translation_word
+		FROM exercises AS e
+		JOIN users AS u ON u.id = e.user_id
+		JOIN vocabulary_exercises AS ve ON ve.exercise_id = e.id
+		JOIN vocabulary AS v ON v.id = ve.vocabulary_id
+		JOIN translations AS t ON t.id = v.translation_id
+		JOIN words AS original ON original.id = t.original_id
+		JOIN words AS translation ON translation.id = t.translation_id
+		WHERE e.id = ?
+			AND u.telegram_id = ?
+		LIMIT 1
+	`, exerciseID, telegramID).Scan(&words).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	if words.OriginalWord == "" && words.TranslationWord == "" {
+		return nil, nil
+	}
+
+	return &words, nil
 }
