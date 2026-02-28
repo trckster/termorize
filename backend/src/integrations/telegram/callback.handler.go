@@ -15,7 +15,7 @@ var callbackDataHandlers = map[string]callbackDataHandler{
 	"menu":     handleMenuCallback,
 }
 
-var menuBackKeyboard = [][]inlineKeyboardButton{{{Text: "Back", CallbackData: "menu:back"}}}
+var menuBackKeyboard = [][]inlineKeyboardButton{{{Text: telegramButtonMenuBack, CallbackData: "menu:back"}}}
 
 func handleCallbackQuery(callback *callbackQuery) error {
 	if callback == nil {
@@ -68,7 +68,7 @@ func parseExerciseCallbackPayload(payload []string) (string, uuid.UUID, string, 
 		return "", uuid.Nil, "", false
 	}
 
-	if payload[2] != "o2t" && payload[2] != "t2o" {
+	if payload[2] != questionTypeOriginalToTranslation && payload[2] != questionTypeTranslationToOriginal {
 		return "", uuid.Nil, "", false
 	}
 
@@ -120,7 +120,7 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 
 	action := payload[0]
 	if action == "back" {
-		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, menuMessageText, menuKeyboard)
+		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, telegramTextMenu, menuKeyboard)
 	}
 
 	selectionText, ok := menuActionToText(action)
@@ -134,24 +134,24 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 func menuActionToText(action string) (string, bool) {
 	switch action {
 	case "add_translation":
-		return "Work in progress here!", true
+		return telegramTextMenuAddTranslation, true
 	case "delete_translation":
-		return "Work in progress here!", true
+		return telegramTextMenuDeleteWord, true
 	case "your_vocabulary":
-		return "Work in progress here!", true
+		return telegramTextMenuVocabulary, true
 	case "statistics":
-		return "Work in progress here!", true
+		return telegramTextMenuStatistics, true
 	case "settings":
-		return "Work in progress here!", true
+		return telegramTextMenuSettings, true
 	default:
 		return "", false
 	}
 }
 
 func buildIDKAnswer(originalWord string, translationWord string, questionType string) string {
-	if questionType == "t2o" {
-		return "Correct original word: " + originalWord
+	if questionType == questionTypeTranslationToOriginal {
+		return telegramTextIDKOriginalPrefix + originalWord
 	}
 
-	return "Correct translation: " + translationWord
+	return telegramTextIDKTranslationPrefix + translationWord
 }

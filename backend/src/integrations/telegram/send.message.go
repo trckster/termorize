@@ -80,7 +80,7 @@ func SendExerciseMessage(chatID int64, text string, exerciseID uuid.UUID, questi
 		ChatID: chatID,
 		Text:   text,
 		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: [][]inlineKeyboardButton{{
-			{Text: "IDK", CallbackData: "exercise:idk:" + exerciseID.String() + ":" + questionType},
+			{Text: telegramButtonExerciseIDK, CallbackData: "exercise:idk:" + exerciseID.String() + ":" + questionType},
 		}}},
 	}
 

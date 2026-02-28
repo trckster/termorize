@@ -7,33 +7,23 @@ import (
 	"termorize/src/services"
 )
 
-const (
-	translateQuestionPrefix = "Translate this word:"
-	originalQuestionPrefix  = "What is the original word for:"
-
-	helpText = "This bot will help you memorize whole bunch of words.\n" +
-		"Send /menu to see options!"
-
-	menuMessageText = "Choose an option:"
-)
-
 var menuKeyboard = [][]inlineKeyboardButton{
-	{{Text: "Add Translation", CallbackData: "menu:add_translation"}, {Text: "Delete Translation", CallbackData: "menu:delete_translation"}},
-	{{Text: "Your Vocabulary", CallbackData: "menu:your_vocabulary"}, {Text: "Statistics", CallbackData: "menu:statistics"}},
-	{{Text: "Settings", CallbackData: "menu:settings"}},
+	{{Text: telegramButtonMenuAddTranslation, CallbackData: "menu:add_translation"}, {Text: telegramButtonMenuDeleteWord, CallbackData: "menu:delete_translation"}},
+	{{Text: telegramButtonMenuVocabulary, CallbackData: "menu:your_vocabulary"}, {Text: telegramButtonMenuStatistics, CallbackData: "menu:statistics"}},
+	{{Text: telegramButtonMenuSettings, CallbackData: "menu:settings"}},
 }
 
 type messageCommandHandler func(message *message, args string) error
 
 var messageCommandHandlers = map[string]messageCommandHandler{
 	"ping": func(message *message, args string) error {
-		return SendMessage(message.Chat.ID, "pong")
+		return SendMessage(message.Chat.ID, telegramTextPong)
 	},
 	"help": func(message *message, args string) error {
-		return SendMessage(message.Chat.ID, helpText)
+		return SendMessage(message.Chat.ID, telegramTextHelp)
 	},
 	"menu": func(message *message, args string) error {
-		return SendMessageWithInlineKeyboard(message.Chat.ID, menuMessageText, menuKeyboard)
+		return SendMessageWithInlineKeyboard(message.Chat.ID, telegramTextMenu, menuKeyboard)
 	},
 	"cancel": func(message *message, args string) error {
 		telegramID, _, _, _ := extractMessageUser(message)
@@ -43,10 +33,10 @@ var messageCommandHandlers = map[string]messageCommandHandler{
 		}
 
 		if !updated {
-			return SendMessage(message.Chat.ID, "Nothing to cancel!")
+			return SendMessage(message.Chat.ID, telegramTextCancelNothing)
 		}
 
-		return SendMessage(message.Chat.ID, "Current action cancelled.")
+		return SendMessage(message.Chat.ID, telegramTextCancelDone)
 	},
 }
 
@@ -62,7 +52,7 @@ func handleMessage(message *message) error {
 	}
 
 	if message.Chat.Type != Private {
-		return SendMessage(message.Chat.ID, "Nah... Don't feel like answering here rn")
+		return SendMessage(message.Chat.ID, telegramTextNonPrivateChat)
 	}
 
 	handledExerciseAnswer, err := handleExerciseAnswer(message)
@@ -101,11 +91,11 @@ func handleExerciseAnswer(message *message) (bool, error) {
 
 	switch exercise.Status {
 	case enums.ExerciseStatusIgnored:
-		return true, SendMessage(message.Chat.ID, "This exercise is outdated.")
+		return true, SendMessage(message.Chat.ID, telegramTextExerciseOutdated)
 	case enums.ExerciseStatusCompleted:
-		return true, SendMessage(message.Chat.ID, "This exercise is already successfully completed!")
+		return true, SendMessage(message.Chat.ID, telegramTextExerciseCompleted)
 	case enums.ExerciseStatusFailed:
-		return true, SendMessage(message.Chat.ID, "This exercise was already attempted and failed!")
+		return true, SendMessage(message.Chat.ID, telegramTextExerciseFailed)
 	case enums.ExerciseStatusPending:
 		return true, nil
 	case enums.ExerciseStatusInProgress:
@@ -127,7 +117,7 @@ func handleExerciseAnswer(message *message) (bool, error) {
 		if err := services.CompleteExercise(exercise.ExerciseID); err != nil {
 			return false, err
 		}
-		return true, SendMessage(message.Chat.ID, "Success")
+		return true, SendMessage(message.Chat.ID, telegramTextExerciseSuccess)
 	}
 
 	updated, err := services.FailExercise(exercise.ExerciseID)
@@ -146,11 +136,11 @@ func handleExerciseAnswer(message *message) (bool, error) {
 func isCorrectExerciseAnswer(answer string, questionType string, originalWord string, translationWord string) bool {
 	normalizedAnswer := strings.TrimSpace(answer)
 
-	if questionType == "o2t" {
+	if questionType == questionTypeOriginalToTranslation {
 		return strings.EqualFold(normalizedAnswer, strings.TrimSpace(translationWord))
 	}
 
-	if questionType == "t2o" {
+	if questionType == questionTypeTranslationToOriginal {
 		return strings.EqualFold(normalizedAnswer, strings.TrimSpace(originalWord))
 	}
 
@@ -160,12 +150,12 @@ func isCorrectExerciseAnswer(answer string, questionType string, originalWord st
 func detectQuestionType(questionText string) (string, bool) {
 	normalizedQuestion := strings.TrimSpace(questionText)
 
-	if strings.HasPrefix(normalizedQuestion, translateQuestionPrefix) {
-		return "o2t", true
+	if strings.HasPrefix(normalizedQuestion, telegramTextQuestionTranslatePrefix) {
+		return questionTypeOriginalToTranslation, true
 	}
 
-	if strings.HasPrefix(normalizedQuestion, originalQuestionPrefix) {
-		return "t2o", true
+	if strings.HasPrefix(normalizedQuestion, telegramTextQuestionOriginalPrefix) {
+		return questionTypeTranslationToOriginal, true
 	}
 
 	return "", false

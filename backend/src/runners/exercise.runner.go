@@ -1,8 +1,6 @@
 package runners
 
 import (
-	"fmt"
-	"math/rand"
 	"sync"
 	"termorize/src/enums"
 	"termorize/src/integrations/telegram"
@@ -44,7 +42,7 @@ func processDueExercises() {
 			continue
 		}
 
-		questionText, questionType := buildBasicExerciseQuestion(exercise.OriginalWord, exercise.TranslationWord)
+		questionText, questionType := telegram.BuildBasicExerciseQuestion(exercise.OriginalWord, exercise.TranslationWord)
 
 		messageID, err := telegram.SendExerciseMessage(exercise.TelegramID, questionText, exercise.ExerciseID, questionType)
 		if err != nil {
@@ -60,12 +58,4 @@ func processDueExercises() {
 			logger.L().Warnw("failed to mark exercise in progress", "error", err, "exercise_id", exercise.ExerciseID)
 		}
 	}
-}
-
-func buildBasicExerciseQuestion(originalWord string, translationWord string) (string, string) {
-	if rand.Intn(2) == 0 {
-		return fmt.Sprintf("Translate this word: %s", originalWord), "o2t"
-	}
-
-	return fmt.Sprintf("What is the original word for: %s", translationWord), "t2o"
 }
