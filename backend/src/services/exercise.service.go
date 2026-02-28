@@ -10,7 +10,10 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
+
+const exerciseProgressStep = 20
 
 type PendingExercise struct {
 	ExerciseID      uuid.UUID          `gorm:"column:exercise_id"`
@@ -203,27 +206,108 @@ func StartTelegramExercise(exerciseID uuid.UUID, telegramMessageID int64) error 
 }
 
 func CompleteExercise(exerciseID uuid.UUID) error {
-	return db.DB.Model(&models.Exercise{}).
-		Where("id = ? AND status = ?", exerciseID, enums.ExerciseStatusInProgress).
-		Updates(map[string]any{
-			"status":      enums.ExerciseStatusCompleted,
-			"finished_at": time.Now().UTC(),
-		}).Error
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		result := tx.Model(&models.Exercise{}).
+			Where("id = ? AND status = ?", exerciseID, enums.ExerciseStatusInProgress).
+			Updates(map[string]any{
+				"status":      enums.ExerciseStatusCompleted,
+				"finished_at": time.Now().UTC(),
+			})
+
+		if result.Error != nil {
+			return result.Error
+		}
+
+		if result.RowsAffected == 0 {
+			return nil
+		}
+
+		return updateVocabularyProgressByExercise(tx, exerciseID, exerciseProgressStep)
+	})
 }
 
 func FailExercise(exerciseID uuid.UUID) (bool, error) {
-	result := db.DB.Model(&models.Exercise{}).
-		Where("id = ? AND status = ?", exerciseID, enums.ExerciseStatusInProgress).
-		Updates(map[string]any{
-			"status":      enums.ExerciseStatusFailed,
-			"finished_at": time.Now().UTC(),
-		})
+	updated := false
 
-	if result.Error != nil {
-		return false, result.Error
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		result := tx.Model(&models.Exercise{}).
+			Where("id = ? AND status = ?", exerciseID, enums.ExerciseStatusInProgress).
+			Updates(map[string]any{
+				"status":      enums.ExerciseStatusFailed,
+				"finished_at": time.Now().UTC(),
+			})
+
+		if result.Error != nil {
+			return result.Error
+		}
+
+		if result.RowsAffected == 0 {
+			return nil
+		}
+
+		updated = true
+		return updateVocabularyProgressByExercise(tx, exerciseID, -exerciseProgressStep)
+	})
+
+	if err != nil {
+		return false, err
 	}
 
-	return result.RowsAffected > 0, nil
+	return updated, nil
+}
+
+func updateVocabularyProgressByExercise(tx *gorm.DB, exerciseID uuid.UUID, delta int) error {
+	var exerciseLink struct {
+		VocabularyID uuid.UUID `gorm:"column:vocabulary_id"`
+	}
+
+	if err := tx.Table("vocabulary_exercises").
+		Select("vocabulary_id").
+		Where("exercise_id = ?", exerciseID).
+		Take(&exerciseLink).Error; err != nil {
+		return err
+	}
+
+	var vocabulary models.Vocabulary
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ?", exerciseLink.VocabularyID).
+		Take(&vocabulary).Error; err != nil {
+		return err
+	}
+
+	found := false
+	for index := range vocabulary.Progress {
+		if vocabulary.Progress[index].Type != enums.KnowledgeTypeTranslation {
+			continue
+		}
+
+		vocabulary.Progress[index].Knowledge = clampProgress(vocabulary.Progress[index].Knowledge + delta)
+		found = true
+		break
+	}
+
+	if !found {
+		vocabulary.Progress = append(vocabulary.Progress, models.ProgressEntry{
+			Knowledge: clampProgress(delta),
+			Type:      enums.KnowledgeTypeTranslation,
+		})
+	}
+
+	return tx.Model(&models.Vocabulary{}).
+		Where("id = ?", vocabulary.ID).
+		Update("progress", vocabulary.Progress).Error
+}
+
+func clampProgress(progress int) int {
+	if progress < 0 {
+		return 0
+	}
+
+	if progress > 100 {
+		return 100
+	}
+
+	return progress
 }
 
 func GetExerciseWordsByTelegram(exerciseID uuid.UUID, telegramID int64) (*ExerciseWords, error) {
