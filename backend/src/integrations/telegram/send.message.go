@@ -9,9 +9,9 @@ import (
 )
 
 type sendMessageRequest struct {
-	ChatID      int64                 `json:"chat_id"`
-	Text        string                `json:"text"`
-	ReplyMarkup *inlineKeyboardMarkup `json:"reply_markup,omitempty"`
+	ChatID      int64       `json:"chat_id"`
+	Text        string      `json:"text"`
+	ReplyMarkup interface{} `json:"reply_markup,omitempty"`
 }
 
 type sendMessageResponse struct {
@@ -48,8 +48,29 @@ type editMessageReplyMarkupResponse struct {
 	OK bool `json:"ok"`
 }
 
+type editMessageTextRequest struct {
+	ChatID      int64                 `json:"chat_id"`
+	MessageID   int64                 `json:"message_id"`
+	Text        string                `json:"text"`
+	ReplyMarkup *inlineKeyboardMarkup `json:"reply_markup,omitempty"`
+}
+
+type editMessageTextResponse struct {
+	OK bool `json:"ok"`
+}
+
 func SendMessage(chatID int64, text string) error {
 	messageRequest := sendMessageRequest{ChatID: chatID, Text: text}
+	_, err := sendMessage(messageRequest)
+	return err
+}
+
+func SendMessageWithInlineKeyboard(chatID int64, text string, keyboard [][]inlineKeyboardButton) error {
+	messageRequest := sendMessageRequest{
+		ChatID:      chatID,
+		Text:        text,
+		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: keyboard},
+	}
 	_, err := sendMessage(messageRequest)
 	return err
 }
@@ -74,6 +95,26 @@ func SendExerciseMessage(chatID int64, text string, exerciseID uuid.UUID, questi
 
 	messageID := response.Result.MessageID
 	return &messageID, nil
+}
+
+func EditMessageTextWithInlineKeyboard(chatID int64, messageID int64, text string, keyboard [][]inlineKeyboardButton) error {
+	request := editMessageTextRequest{
+		ChatID:      chatID,
+		MessageID:   messageID,
+		Text:        text,
+		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: keyboard},
+	}
+
+	response, err := CallAPI[editMessageTextResponse]("editMessageText", request)
+	if err != nil {
+		return err
+	}
+
+	if !response.OK {
+		return errors.New("telegram editMessageText response not ok")
+	}
+
+	return nil
 }
 
 func answerTelegramCallbackQuery(callbackQueryID string) error {

@@ -12,7 +12,10 @@ type callbackDataHandler func(callback *callbackQuery, payload []string) error
 
 var callbackDataHandlers = map[string]callbackDataHandler{
 	"exercise": handleExerciseCallback,
+	"menu":     handleMenuCallback,
 }
+
+var menuBackKeyboard = [][]inlineKeyboardButton{{{Text: "Back", CallbackData: "menu:back"}}}
 
 func handleCallbackQuery(callback *callbackQuery) error {
 	if callback == nil {
@@ -104,6 +107,45 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 
 	answerText := buildIDKAnswer(words.OriginalWord, words.TranslationWord, questionType)
 	return SendMessage(callback.From.ID, answerText)
+}
+
+func handleMenuCallback(callback *callbackQuery, payload []string) error {
+	if callback.Message == nil {
+		return nil
+	}
+
+	if len(payload) != 1 {
+		return nil
+	}
+
+	action := payload[0]
+	if action == "back" {
+		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, menuMessageText, menuKeyboard)
+	}
+
+	selectionText, ok := menuActionToText(action)
+	if !ok {
+		return nil
+	}
+
+	return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, selectionText, menuBackKeyboard)
+}
+
+func menuActionToText(action string) (string, bool) {
+	switch action {
+	case "add_translation":
+		return "Work in progress here!", true
+	case "delete_translation":
+		return "Work in progress here!", true
+	case "your_vocabulary":
+		return "Work in progress here!", true
+	case "statistics":
+		return "Work in progress here!", true
+	case "settings":
+		return "Work in progress here!", true
+	default:
+		return "", false
+	}
 }
 
 func buildIDKAnswer(originalWord string, translationWord string, questionType string) string {

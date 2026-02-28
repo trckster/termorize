@@ -10,13 +10,30 @@ import (
 const (
 	translateQuestionPrefix = "Translate this word:"
 	originalQuestionPrefix  = "What is the original word for:"
+
+	helpText = "This bot will help you memorize whole bunch of words.\n" +
+		"Send /menu to see options!"
+
+	menuMessageText = "Choose an option:"
 )
+
+var menuKeyboard = [][]inlineKeyboardButton{
+	{{Text: "Add Translation", CallbackData: "menu:add_translation"}, {Text: "Delete Translation", CallbackData: "menu:delete_translation"}},
+	{{Text: "Your Vocabulary", CallbackData: "menu:your_vocabulary"}, {Text: "Statistics", CallbackData: "menu:statistics"}},
+	{{Text: "Settings", CallbackData: "menu:settings"}},
+}
 
 type messageCommandHandler func(message *message, args string) error
 
 var messageCommandHandlers = map[string]messageCommandHandler{
 	"ping": func(message *message, args string) error {
 		return SendMessage(message.Chat.ID, "pong")
+	},
+	"help": func(message *message, args string) error {
+		return SendMessage(message.Chat.ID, helpText)
+	},
+	"menu": func(message *message, args string) error {
+		return SendMessageWithInlineKeyboard(message.Chat.ID, menuMessageText, menuKeyboard)
 	},
 }
 
