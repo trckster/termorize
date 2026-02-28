@@ -29,3 +29,12 @@ const (
 	ExerciseStatusCompleted  ExerciseStatus = "completed"
 	ExerciseStatusFailed     ExerciseStatus = "failed"
 )
+
+type TelegramState string
+
+const (
+	TelegramStateNone                   TelegramState = ""
+	TelegramStateDeletingVocabulary     TelegramState = "deletingVocabulary"
+	TelegramStateAddingVocabularyFirst  TelegramState = "addingVocabularyFirst"
+	TelegramStateAddingVocabularySecond TelegramState = "addingVocabularySecond"
+)

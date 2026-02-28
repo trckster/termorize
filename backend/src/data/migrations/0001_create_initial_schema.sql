@@ -1,12 +1,13 @@
 CREATE TABLE IF NOT EXISTS "users"
 (
-    "id"          SERIAL PRIMARY KEY,
-    "username"    VARCHAR(255),
-    "telegram_id" BIGINT UNIQUE,
-    "name"        VARCHAR(255),
-    "settings"    JSONB     DEFAULT '{}'::jsonb,
-    "created_at"  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "updated_at"  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    "id"             SERIAL PRIMARY KEY,
+    "username"       VARCHAR(255),
+    "telegram_id"    BIGINT UNIQUE,
+    "name"           VARCHAR(255),
+    "settings"       JSONB                DEFAULT '{}'::jsonb,
+    "telegram_state" VARCHAR(50) NOT NULL DEFAULT '',
+    "created_at"     TIMESTAMP            DEFAULT CURRENT_TIMESTAMP,
+    "updated_at"     TIMESTAMP            DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS "words"

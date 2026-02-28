@@ -35,11 +35,12 @@ func (p *UserSettings) Scan(value any) error {
 }
 
 type User struct {
-	ID         uint         `json:"id"`
-	Username   string       `json:"username"`
-	TelegramID int64        `json:"-"`
-	Name       string       `json:"name"`
-	Settings   UserSettings `json:"settings"`
-	CreatedAt  time.Time    `json:"created_at"`
-	UpdatedAt  time.Time    `json:"-"`
+	ID            uint                `json:"id"`
+	Username      string              `json:"username"`
+	TelegramID    int64               `json:"-"`
+	Name          string              `json:"name"`
+	Settings      UserSettings        `json:"settings"`
+	TelegramState enums.TelegramState `json:"-" gorm:"default:''"`
+	CreatedAt     time.Time           `json:"created_at"`
+	UpdatedAt     time.Time           `json:"-"`
 }

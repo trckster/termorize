@@ -103,6 +103,28 @@ func UpdateUserTelegramBotEnabled(telegramID int64, botEnabled bool) error {
 	return db.DB.Model(&user).Update("settings", settings).Error
 }
 
+func UpdateUserTelegramState(telegramID int64, state enums.TelegramState) (bool, error) {
+	var user models.User
+
+	if err := db.DB.Where("telegram_id = ?", telegramID).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	if user.TelegramState == state {
+		return false, nil
+	}
+
+	if err := db.DB.Model(&user).Update("telegram_state", state).Error; err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
 func EnsureUserByTelegramID(telegramID int64, username string, firstName string, lastName string) error {
 	var user models.User
 

@@ -35,6 +35,19 @@ var messageCommandHandlers = map[string]messageCommandHandler{
 	"menu": func(message *message, args string) error {
 		return SendMessageWithInlineKeyboard(message.Chat.ID, menuMessageText, menuKeyboard)
 	},
+	"cancel": func(message *message, args string) error {
+		telegramID, _, _, _ := extractMessageUser(message)
+		updated, err := services.UpdateUserTelegramState(telegramID, enums.TelegramStateNone)
+		if err != nil {
+			return err
+		}
+
+		if !updated {
+			return SendMessage(message.Chat.ID, "Nothing to cancel!")
+		}
+
+		return SendMessage(message.Chat.ID, "Current action cancelled.")
+	},
 }
 
 func handleMessage(message *message) error {
