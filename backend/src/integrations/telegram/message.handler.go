@@ -2,8 +2,14 @@ package telegram
 
 import (
 	"strings"
+	"termorize/src/enums"
 	"termorize/src/logger"
 	"termorize/src/services"
+)
+
+const (
+	translateQuestionPrefix = "Translate this word:"
+	originalQuestionPrefix  = "What is the original word for:"
 )
 
 type messageCommandHandler func(message *message, args string) error
@@ -29,6 +35,15 @@ func handleMessage(message *message) error {
 		return SendMessage(message.Chat.ID, "Nah... Don't feel like answering here rn")
 	}
 
+	handledExerciseAnswer, err := handleExerciseAnswer(message)
+	if err != nil {
+		return err
+	}
+
+	if handledExerciseAnswer {
+		return nil
+	}
+
 	if command, args, ok := parseMessageCommand(message.Text); ok {
 		if err := routeMessageCommand(message, command, args); err != nil {
 			return err
@@ -37,6 +52,93 @@ func handleMessage(message *message) error {
 	}
 
 	return SendMessage(message.Chat.ID, message.Text)
+}
+
+func handleExerciseAnswer(message *message) (bool, error) {
+	if message.ReplyToMessage == nil {
+		return false, nil
+	}
+
+	telegramID, _, _, _ := extractMessageUser(message)
+	exercise, err := services.GetExerciseByTelegramMessage(message.ReplyToMessage.MessageID, telegramID)
+	if err != nil {
+		return false, err
+	}
+
+	if exercise == nil {
+		return false, nil
+	}
+
+	switch exercise.Status {
+	case enums.ExerciseStatusIgnored:
+		return true, SendMessage(message.Chat.ID, "This exercise is outdated.")
+	case enums.ExerciseStatusCompleted:
+		return true, SendMessage(message.Chat.ID, "This exercise is already successfully completed!")
+	case enums.ExerciseStatusFailed:
+		return true, SendMessage(message.Chat.ID, "This exercise was already attempted and failed!")
+	case enums.ExerciseStatusPending:
+		return true, nil
+	case enums.ExerciseStatusInProgress:
+	default:
+		return true, nil
+	}
+
+	if err := removeMessageInlineKeyboard(message.Chat.ID, message.ReplyToMessage.MessageID); err != nil {
+		logger.L().Warnw("failed to remove inline keyboard", "error", err, "chat_id", message.Chat.ID, "message_id", message.ReplyToMessage.MessageID)
+	}
+
+	questionType, ok := detectQuestionType(message.ReplyToMessage.Text)
+	if !ok {
+		return true, nil
+	}
+
+	isCorrect := isCorrectExerciseAnswer(message.Text, questionType, exercise.OriginalWord, exercise.TranslationWord)
+	if isCorrect {
+		if err := services.CompleteExercise(exercise.ExerciseID); err != nil {
+			return false, err
+		}
+		return true, SendMessage(message.Chat.ID, "Success")
+	}
+
+	updated, err := services.FailExercise(exercise.ExerciseID)
+	if err != nil {
+		return false, err
+	}
+
+	if !updated {
+		return true, nil
+	}
+
+	answerText := buildIDKAnswer(exercise.OriginalWord, exercise.TranslationWord, questionType)
+	return true, SendMessage(message.Chat.ID, answerText)
+}
+
+func isCorrectExerciseAnswer(answer string, questionType string, originalWord string, translationWord string) bool {
+	normalizedAnswer := strings.TrimSpace(answer)
+
+	if questionType == "o2t" {
+		return strings.EqualFold(normalizedAnswer, strings.TrimSpace(translationWord))
+	}
+
+	if questionType == "t2o" {
+		return strings.EqualFold(normalizedAnswer, strings.TrimSpace(originalWord))
+	}
+
+	return false
+}
+
+func detectQuestionType(questionText string) (string, bool) {
+	normalizedQuestion := strings.TrimSpace(questionText)
+
+	if strings.HasPrefix(normalizedQuestion, translateQuestionPrefix) {
+		return "o2t", true
+	}
+
+	if strings.HasPrefix(normalizedQuestion, originalQuestionPrefix) {
+		return "t2o", true
+	}
+
+	return "", false
 }
 
 func ensurePrivateMessageUser(message *message) error {

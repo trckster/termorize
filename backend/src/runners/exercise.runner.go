@@ -46,12 +46,17 @@ func processDueExercises() {
 
 		questionText, questionType := buildBasicExerciseQuestion(exercise.OriginalWord, exercise.TranslationWord)
 
-		if err := telegram.SendExerciseMessage(exercise.TelegramID, questionText, exercise.ExerciseID, questionType); err != nil {
+		messageID, err := telegram.SendExerciseMessage(exercise.TelegramID, questionText, exercise.ExerciseID, questionType)
+		if err != nil {
 			logger.L().Warnw("failed to send scheduled exercise", "error", err, "exercise_id", exercise.ExerciseID, "telegram_id", exercise.TelegramID)
 			continue
 		}
 
-		if err := services.MarkExerciseInProgress(exercise.ExerciseID); err != nil {
+		if messageID == nil {
+			continue
+		}
+
+		if err := services.StartTelegramExercise(exercise.ExerciseID, *messageID); err != nil {
 			logger.L().Warnw("failed to mark exercise in progress", "error", err, "exercise_id", exercise.ExerciseID)
 		}
 	}

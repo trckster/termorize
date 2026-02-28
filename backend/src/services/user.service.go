@@ -13,7 +13,7 @@ import (
 )
 
 func defaultUserSettings(timezone string) models.UserSettings {
-	if _, err := time.LoadLocation(timezone); err != nil {
+	if _, err := time.LoadLocation(timezone); err != nil || timezone == "" {
 		timezone = "UTC"
 	}
 

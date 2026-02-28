@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS "users"
     "username"    VARCHAR(255),
     "telegram_id" BIGINT UNIQUE,
     "name"        VARCHAR(255),
-    "settings" JSONB DEFAULT '{}'::jsonb,
+    "settings"    JSONB     DEFAULT '{}'::jsonb,
     "created_at"  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at"  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS "vocabulary"
     "id"             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "user_id"        INTEGER NOT NULL,
     "translation_id" UUID    NOT NULL,
-    "progress" JSONB DEFAULT '[]',
+    "progress"       JSONB            DEFAULT '[]'::jsonb,
     "created_at"     TIMESTAMP        DEFAULT CURRENT_TIMESTAMP,
     "mastered_at"    TIMESTAMP,
 
@@ -58,16 +58,17 @@ CREATE INDEX IF NOT EXISTS "index_vocabulary_user_translation" ON "vocabulary" (
 
 CREATE TABLE IF NOT EXISTS "exercises"
 (
-    "id"            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    "type"          VARCHAR(50) NOT NULL,
-    "status"        VARCHAR(50) NOT NULL,
-    "user_id"       INTEGER     NOT NULL,
+    "id"                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "type"                VARCHAR(50) NOT NULL,
+    "status"              VARCHAR(50) NOT NULL,
+    "user_id"             INTEGER     NOT NULL,
+    "telegram_message_id" BIGINT,
 
-    "scheduled_for" TIMESTAMP,
-    "started_at"    TIMESTAMP,
-    "finished_at"   TIMESTAMP,
-    "created_at"    TIMESTAMP        DEFAULT CURRENT_TIMESTAMP,
-    "updated_at"    TIMESTAMP        DEFAULT CURRENT_TIMESTAMP,
+    "scheduled_for"       TIMESTAMP,
+    "started_at"          TIMESTAMP,
+    "finished_at"         TIMESTAMP,
+    "created_at"          TIMESTAMP        DEFAULT CURRENT_TIMESTAMP,
+    "updated_at"          TIMESTAMP        DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "fk_exercises_user_id" FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );

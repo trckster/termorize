@@ -26,6 +26,13 @@ type ExerciseWords struct {
 	TranslationWord string `gorm:"column:translation_word"`
 }
 
+type TelegramMessageExercise struct {
+	ExerciseID      uuid.UUID            `gorm:"column:exercise_id"`
+	Status          enums.ExerciseStatus `gorm:"column:status"`
+	OriginalWord    string               `gorm:"column:original_word"`
+	TranslationWord string               `gorm:"column:translation_word"`
+}
+
 func GenerateDailyExercises() error {
 	users, err := GetUsersWithEnabledDailyQuestions()
 	if err != nil {
@@ -153,29 +160,64 @@ func GetDuePendingExercises(now time.Time) ([]PendingExercise, error) {
 	return exercises, nil
 }
 
-func MarkExerciseInProgress(exerciseID uuid.UUID) error {
-	now := time.Now().UTC()
+func GetExerciseByTelegramMessage(telegramMessageID int64, telegramID int64) (*TelegramMessageExercise, error) {
+	var exercise TelegramMessageExercise
 
+	err := db.DB.Raw(`
+		SELECT
+			e.id AS exercise_id,
+			e.status AS status,
+			original.word AS original_word,
+			translation.word AS translation_word
+		FROM exercises AS e
+		JOIN users AS u ON u.id = e.user_id
+		JOIN vocabulary_exercises AS ve ON ve.exercise_id = e.id
+		JOIN vocabulary AS v ON v.id = ve.vocabulary_id
+		JOIN translations AS t ON t.id = v.translation_id
+		JOIN words AS original ON original.id = t.original_id
+		JOIN words AS translation ON translation.id = t.translation_id
+		WHERE e.telegram_message_id = ?
+			AND u.telegram_id = ?
+		LIMIT 1
+	`, telegramMessageID, telegramID).Scan(&exercise).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	if exercise.ExerciseID == uuid.Nil {
+		return nil, nil
+	}
+
+	return &exercise, nil
+}
+
+func StartTelegramExercise(exerciseID uuid.UUID, telegramMessageID int64) error {
 	return db.DB.Model(&models.Exercise{}).
 		Where("id = ? AND status = ?", exerciseID, enums.ExerciseStatusPending).
 		Updates(map[string]any{
-			"status":     enums.ExerciseStatusInProgress,
-			"started_at": now,
-			"updated_at": now,
+			"status":              enums.ExerciseStatusInProgress,
+			"telegram_message_id": telegramMessageID,
+			"started_at":          time.Now().UTC(),
+		}).Error
+}
+
+func CompleteExercise(exerciseID uuid.UUID) error {
+	return db.DB.Model(&models.Exercise{}).
+		Where("id = ? AND status = ?", exerciseID, enums.ExerciseStatusInProgress).
+		Updates(map[string]any{
+			"status":      enums.ExerciseStatusCompleted,
+			"finished_at": time.Now().UTC(),
 		}).Error
 }
 
 func FailExercise(exerciseID uuid.UUID) (bool, error) {
-	now := time.Now().UTC()
-
-	result := db.DB.Exec(`
-		UPDATE exercises AS e
-		SET status = ?, finished_at = ?, updated_at = ?
-		FROM users AS u
-		WHERE e.id = ?
-			AND e.user_id = u.id
-			AND e.status IN (?, ?)
-	`, enums.ExerciseStatusFailed, now, now, exerciseID, enums.ExerciseStatusPending, enums.ExerciseStatusInProgress)
+	result := db.DB.Model(&models.Exercise{}).
+		Where("id = ? AND status = ?", exerciseID, enums.ExerciseStatusInProgress).
+		Updates(map[string]any{
+			"status":      enums.ExerciseStatusFailed,
+			"finished_at": time.Now().UTC(),
+		})
 
 	if result.Error != nil {
 		return false, result.Error

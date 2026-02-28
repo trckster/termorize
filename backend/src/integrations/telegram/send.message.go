@@ -50,10 +50,11 @@ type editMessageReplyMarkupResponse struct {
 
 func SendMessage(chatID int64, text string) error {
 	messageRequest := sendMessageRequest{ChatID: chatID, Text: text}
-	return sendMessage(messageRequest)
+	_, err := sendMessage(messageRequest)
+	return err
 }
 
-func SendExerciseMessage(chatID int64, text string, exerciseID uuid.UUID, questionType string) error {
+func SendExerciseMessage(chatID int64, text string, exerciseID uuid.UUID, questionType string) (*int64, error) {
 	messageRequest := sendMessageRequest{
 		ChatID: chatID,
 		Text:   text,
@@ -62,7 +63,17 @@ func SendExerciseMessage(chatID int64, text string, exerciseID uuid.UUID, questi
 		}}},
 	}
 
-	return sendMessage(messageRequest)
+	response, err := sendMessage(messageRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	if response == nil {
+		return nil, nil
+	}
+
+	messageID := response.Result.MessageID
+	return &messageID, nil
 }
 
 func answerTelegramCallbackQuery(callbackQueryID string) error {
@@ -70,24 +81,24 @@ func answerTelegramCallbackQuery(callbackQueryID string) error {
 	return err
 }
 
-func sendMessage(messageRequest sendMessageRequest) error {
+func sendMessage(messageRequest sendMessageRequest) (*sendMessageResponse, error) {
 	response, err := CallAPI[sendMessageResponse]("sendMessage", messageRequest)
 	if err != nil {
 		if errors.Is(err, ErrBlocked) {
 			if updateErr := services.UpdateUserTelegramBotEnabled(messageRequest.ChatID, false); updateErr != nil {
 				logger.L().Warnw("failed to disable telegram bot for blocked user", "error", updateErr, "telegram_id", messageRequest.ChatID)
 			}
-			return nil
+			return nil, nil
 		}
 
-		return err
+		return nil, err
 	}
 
 	if !response.OK {
-		return errors.New("telegram response not ok")
+		return nil, errors.New("telegram response not ok")
 	}
 
-	return nil
+	return response, nil
 }
 
 func removeMessageInlineKeyboard(chatID int64, messageID int64) error {
