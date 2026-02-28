@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"strings"
+	"termorize/src/enums"
 	"termorize/src/logger"
 	"termorize/src/services"
 
@@ -16,6 +17,7 @@ var callbackDataHandlers = map[string]callbackDataHandler{
 }
 
 var menuBackKeyboard = [][]inlineKeyboardButton{{{Text: telegramButtonMenuBack, CallbackData: "menu:back"}}}
+var menuCancelKeyboard = [][]inlineKeyboardButton{{{Text: telegramButtonMenuCancel, CallbackData: "menu:cancel"}}}
 
 func handleCallbackQuery(callback *callbackQuery) error {
 	if callback == nil {
@@ -119,8 +121,20 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 	}
 
 	action := payload[0]
-	if action == "back" {
+	if action == "back" || action == "cancel" {
+		if _, err := services.UpdateUserTelegramState(callback.From.ID, enums.TelegramStateNone); err != nil {
+			return err
+		}
+
 		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, telegramTextMenu, menuKeyboard)
+	}
+
+	if action == "delete_translation" {
+		if _, err := services.UpdateUserTelegramState(callback.From.ID, enums.TelegramStateDeletingVocabulary); err != nil {
+			return err
+		}
+
+		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, telegramTextMenuDeleteWord, menuCancelKeyboard)
 	}
 
 	selectionText, ok := menuActionToText(action)
@@ -135,8 +149,6 @@ func menuActionToText(action string) (string, bool) {
 	switch action {
 	case "add_translation":
 		return telegramTextMenuAddTranslation, true
-	case "delete_translation":
-		return telegramTextMenuDeleteWord, true
 	case "your_vocabulary":
 		return telegramTextMenuVocabulary, true
 	case "statistics":

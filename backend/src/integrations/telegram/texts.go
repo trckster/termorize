@@ -32,10 +32,13 @@ const (
 	telegramTextQuestionOriginalFormat  = "What is the original word for: %s"
 
 	telegramTextMenuAddTranslation = "Work in progress here!"
-	telegramTextMenuDeleteWord     = "Work in progress here!"
+	telegramTextMenuDeleteWord     = "Which word do you want to delete from vocabulary? 🗑️"
 	telegramTextMenuVocabulary     = "Work in progress here!"
 	telegramTextMenuStatistics     = "Work in progress here!"
 	telegramTextMenuSettings       = "Work in progress here!"
+
+	telegramTextDeleteCompleted = "Done ✅"
+	telegramTextDeleteNotFound  = "Word not found ❌"
 
 	telegramTextIDKOriginalPrefix    = "Correct original word: "
 	telegramTextIDKTranslationPrefix = "Correct translation: "
@@ -48,6 +51,7 @@ const (
 	telegramButtonMenuStatistics     = "Statistics"
 	telegramButtonMenuSettings       = "Settings"
 	telegramButtonMenuBack           = "Back"
+	telegramButtonMenuCancel         = "Cancel"
 	telegramButtonExerciseIDK        = "IDK"
 )
 

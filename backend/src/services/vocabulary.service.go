@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"strings"
 	"termorize/src/data/db"
 	"termorize/src/enums"
 	"termorize/src/models"
@@ -186,4 +187,37 @@ func DeleteVocabulary(userID uint, vocabID uuid.UUID) error {
 
 		return nil
 	})
+}
+
+func DeleteVocabularyByWord(userID uint, word string) (bool, error) {
+	normalizedWord := strings.TrimSpace(word)
+	if normalizedWord == "" {
+		return false, nil
+	}
+
+	var vocabulary models.Vocabulary
+	err := db.DB.
+		Model(&models.Vocabulary{}).
+		Select("vocabulary.*").
+		Joins("JOIN translations ON translations.id = vocabulary.translation_id").
+		Joins("JOIN words AS original_words ON original_words.id = translations.original_id").
+		Joins("JOIN words AS translation_words ON translation_words.id = translations.translation_id").
+		Where("vocabulary.user_id = ?", userID).
+		Where("LOWER(original_words.word) = LOWER(?) OR LOWER(translation_words.word) = LOWER(?)", normalizedWord, normalizedWord).
+		Order("vocabulary.created_at DESC").
+		First(&vocabulary).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	if err := DeleteVocabulary(userID, vocabulary.ID); err != nil {
+		return false, err
+	}
+
+	return true, nil
 }

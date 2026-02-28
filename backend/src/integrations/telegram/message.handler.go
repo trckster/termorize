@@ -64,6 +64,15 @@ func handleMessage(message *message) error {
 		return nil
 	}
 
+	handledStateMessage, err := handleStateMessage(message)
+	if err != nil {
+		return err
+	}
+
+	if handledStateMessage {
+		return nil
+	}
+
 	if command, args, ok := parseMessageCommand(message.Text); ok {
 		if err := routeMessageCommand(message, command, args); err != nil {
 			return err
@@ -72,6 +81,46 @@ func handleMessage(message *message) error {
 	}
 
 	return SendMessage(message.Chat.ID, message.Text)
+}
+
+func handleStateMessage(message *message) (bool, error) {
+	if strings.HasPrefix(strings.TrimSpace(message.Text), "/") {
+		return false, nil
+	}
+
+	if strings.EqualFold(strings.TrimSpace(message.Text), telegramButtonMenuCancel) {
+		telegramID, _, _, _ := extractMessageUser(message)
+		if _, err := services.UpdateUserTelegramState(telegramID, enums.TelegramStateNone); err != nil {
+			return true, err
+		}
+
+		return true, SendMessageWithInlineKeyboard(message.Chat.ID, telegramTextMenu, menuKeyboard)
+	}
+
+	telegramID, _, _, _ := extractMessageUser(message)
+	user, err := services.GetUserByTelegramID(telegramID)
+	if err != nil {
+		return false, err
+	}
+
+	if user == nil || user.TelegramState != enums.TelegramStateDeletingVocabulary {
+		return false, nil
+	}
+
+	deleted, err := services.DeleteVocabularyByWord(user.ID, message.Text)
+	if err != nil {
+		return true, err
+	}
+
+	if !deleted {
+		return true, SendMessage(message.Chat.ID, telegramTextDeleteNotFound)
+	}
+
+	if _, err := services.UpdateUserTelegramState(telegramID, enums.TelegramStateNone); err != nil {
+		return true, err
+	}
+
+	return true, SendMessage(message.Chat.ID, telegramTextDeleteCompleted)
 }
 
 func handleExerciseAnswer(message *message) (bool, error) {

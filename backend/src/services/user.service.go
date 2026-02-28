@@ -125,6 +125,20 @@ func UpdateUserTelegramState(telegramID int64, state enums.TelegramState) (bool,
 	return true, nil
 }
 
+func GetUserByTelegramID(telegramID int64) (*models.User, error) {
+	var user models.User
+
+	if err := db.DB.Where("telegram_id = ?", telegramID).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+
+		return nil, err
+	}
+
+	return &user, nil
+}
+
 func EnsureUserByTelegramID(telegramID int64, username string, firstName string, lastName string) error {
 	var user models.User
 
