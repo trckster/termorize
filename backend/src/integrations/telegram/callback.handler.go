@@ -60,25 +60,21 @@ func routeCallbackData(callback *callbackQuery) error {
 	return handler(callback, payload)
 }
 
-func parseExerciseCallbackPayload(payload []string) (string, uuid.UUID, string, bool) {
-	if len(payload) != 3 {
-		return "", uuid.Nil, "", false
+func parseExerciseCallbackPayload(payload []string) (string, uuid.UUID, bool) {
+	if len(payload) != 2 {
+		return "", uuid.Nil, false
 	}
 
 	exerciseID, err := uuid.Parse(payload[1])
 	if err != nil {
-		return "", uuid.Nil, "", false
+		return "", uuid.Nil, false
 	}
 
-	if payload[2] != questionTypeOriginalToTranslation && payload[2] != questionTypeTranslationToOriginal {
-		return "", uuid.Nil, "", false
-	}
-
-	return payload[0], exerciseID, payload[2], true
+	return payload[0], exerciseID, true
 }
 
 func handleExerciseCallback(callback *callbackQuery, payload []string) error {
-	action, exerciseID, questionType, ok := parseExerciseCallbackPayload(payload)
+	action, exerciseID, ok := parseExerciseCallbackPayload(payload)
 	if !ok || action != "idk" {
 		return nil
 	}
@@ -107,8 +103,8 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 		return nil
 	}
 
-	answerText := buildIDKAnswer(words.OriginalWord, words.TranslationWord, questionType)
-	return SendMessage(callback.From.ID, answerText)
+	answerText := buildIDKAnswer(words.OriginalWord, words.TranslationWord, words.ExerciseType)
+	return SendMessageMarkdown(callback.From.ID, answerText)
 }
 
 func handleMenuCallback(callback *callbackQuery, payload []string) error {
@@ -151,7 +147,7 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 			return nil
 		}
 
-		messageText := buildAddVocabularyFirstText(user.Settings.NativeLanguage.DisplayName(), user.Settings.MainLearningLanguage.DisplayName())
+		messageText := buildAddVocabularyFirstText(user.Settings.NativeLanguage.DisplayNameWithFlag(), user.Settings.MainLearningLanguage.DisplayNameWithFlag())
 		return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, messageText, menuCancelKeyboard)
 	}
 
@@ -176,10 +172,10 @@ func menuActionToText(action string) (string, bool) {
 	}
 }
 
-func buildIDKAnswer(originalWord string, translationWord string, questionType string) string {
-	if questionType == questionTypeTranslationToOriginal {
-		return telegramTextIDKOriginalPrefix + originalWord
+func buildIDKAnswer(originalWord string, translationWord string, exerciseType enums.ExerciseType) string {
+	if exerciseType == enums.ExerciseTypeBasicReversed {
+		return telegramTextIDKOriginalPrefix + "*" + originalWord + "*"
 	}
 
-	return telegramTextIDKTranslationPrefix + translationWord
+	return telegramTextIDKTranslationPrefix + "*" + translationWord + "*"
 }

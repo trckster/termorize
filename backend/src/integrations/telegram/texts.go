@@ -2,14 +2,11 @@ package telegram
 
 import (
 	"fmt"
-	"math/rand"
 	"termorize/src/config"
+	"termorize/src/enums"
 )
 
 const (
-	questionTypeOriginalToTranslation = "o2t"
-	questionTypeTranslationToOriginal = "t2o"
-
 	telegramTextHelp = "This bot will help you memorize a whole bunch of words.\n" +
 		"Send /menu to see options!"
 	telegramTextMenu = "📌 *Menu* 📌"
@@ -26,15 +23,7 @@ const (
 	telegramTextExerciseFailed    = "This exercise was already attempted and failed 😔"
 	telegramTextExerciseSuccess   = "That's right! ✅"
 
-	// TODO Ought to be reworked
-	telegramTextQuestionTranslatePrefix = "Translate this word:"
-	telegramTextQuestionOriginalPrefix  = "What is the original word for:"
-
-	// TODO Ought to be reworked
-	telegramTextQuestionTranslateFormat = "Translate this word: %s\n\n" +
-		"(answer via reply to this message)"
-	telegramTextQuestionOriginalFormat = "What is the original word for: %s\n\n" +
-		"(answer via reply to this message)"
+	telegramTextQuestionTranslateFormat = "Translate word *%s* to %s"
 
 	telegramTextMenuDeleteWord = "Send the word you want to delete from vocabulary 🗑️"
 	telegramTextMenuVocabulary = "⚒️ Work in progress here! ⚒️"
@@ -66,20 +55,22 @@ const (
 	telegramButtonExerciseIDK        = "Don't know"
 )
 
-func BuildBasicExerciseQuestion(originalWord string, translationWord string) (string, string) {
-	if rand.Intn(2) == 0 {
-		return buildTranslateQuestionText(originalWord), questionTypeOriginalToTranslation
+func BuildBasicExerciseQuestion(
+	originalWord string,
+	translationWord string,
+	originalLanguage enums.Language,
+	translationLanguage enums.Language,
+	exerciseType enums.ExerciseType,
+) string {
+	if exerciseType == enums.ExerciseTypeBasicReversed {
+		return buildTranslateQuestionText(translationWord, originalLanguage.DisplayNameWithFlag())
 	}
 
-	return buildOriginalQuestionText(translationWord), questionTypeTranslationToOriginal
+	return buildTranslateQuestionText(originalWord, translationLanguage.DisplayNameWithFlag())
 }
 
-func buildTranslateQuestionText(word string) string {
-	return fmt.Sprintf(telegramTextQuestionTranslateFormat, word)
-}
-
-func buildOriginalQuestionText(word string) string {
-	return fmt.Sprintf(telegramTextQuestionOriginalFormat, word)
+func buildTranslateQuestionText(word string, language string) string {
+	return fmt.Sprintf(telegramTextQuestionTranslateFormat, word, language)
 }
 
 func buildAddVocabularyFirstText(nativeLanguage string, mainLearningLanguage string) string {

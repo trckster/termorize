@@ -38,13 +38,19 @@ func processDueExercises() {
 	}
 
 	for _, exercise := range exercises {
-		if exercise.ExerciseType != enums.ExerciseTypeBasic {
+		if !isSupportedBasicExerciseType(exercise.ExerciseType) {
 			continue
 		}
 
-		questionText, questionType := telegram.BuildBasicExerciseQuestion(exercise.OriginalWord, exercise.TranslationWord)
+		questionText := telegram.BuildBasicExerciseQuestion(
+			exercise.OriginalWord,
+			exercise.TranslationWord,
+			exercise.OriginalLanguage,
+			exercise.TranslationLanguage,
+			exercise.ExerciseType,
+		)
 
-		messageID, err := telegram.SendExerciseMessage(exercise.TelegramID, questionText, exercise.ExerciseID, questionType)
+		messageID, err := telegram.SendExerciseMessage(exercise.TelegramID, questionText, exercise.ExerciseID)
 		if err != nil {
 			logger.L().Warnw("failed to send scheduled exercise", "error", err, "exercise_id", exercise.ExerciseID, "telegram_id", exercise.TelegramID)
 			continue
@@ -57,5 +63,14 @@ func processDueExercises() {
 		if err := services.StartTelegramExercise(exercise.ExerciseID, *messageID); err != nil {
 			logger.L().Warnw("failed to mark exercise in progress", "error", err, "exercise_id", exercise.ExerciseID)
 		}
+	}
+}
+
+func isSupportedBasicExerciseType(exerciseType enums.ExerciseType) bool {
+	switch exerciseType {
+	case enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed:
+		return true
+	default:
+		return false
 	}
 }

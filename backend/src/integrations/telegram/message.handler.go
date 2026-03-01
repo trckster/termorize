@@ -22,6 +22,9 @@ var messageCommandHandlers = map[string]messageCommandHandler{
 	"help": func(message *message, args string) error {
 		return SendMessage(message.Chat.ID, telegramTextHelp)
 	},
+	"start": func(message *message, args string) error {
+		return SendMessage(message.Chat.ID, telegramTextHelp)
+	},
 	"menu": func(message *message, args string) error {
 		return SendMessageWithInlineKeyboardMarkdown(message.Chat.ID, telegramTextMenu, menuKeyboard)
 	},
@@ -193,12 +196,7 @@ func handleExerciseAnswer(message *message) (bool, error) {
 		logger.L().Warnw("failed to remove inline keyboard", "error", err, "chat_id", message.Chat.ID, "message_id", message.ReplyToMessage.MessageID)
 	}
 
-	questionType, ok := detectQuestionType(message.ReplyToMessage.Text)
-	if !ok {
-		return true, nil
-	}
-
-	isCorrect := isCorrectExerciseAnswer(message.Text, questionType, exercise.OriginalWord, exercise.TranslationWord)
+	isCorrect := isCorrectExerciseAnswer(message.Text, exercise.ExerciseType, exercise.OriginalWord, exercise.TranslationWord)
 	if isCorrect {
 		if err := services.CompleteExercise(exercise.ExerciseID); err != nil {
 			return false, err
@@ -215,36 +213,22 @@ func handleExerciseAnswer(message *message) (bool, error) {
 		return true, nil
 	}
 
-	answerText := buildIDKAnswer(exercise.OriginalWord, exercise.TranslationWord, questionType)
-	return true, SendMessage(message.Chat.ID, answerText)
+	answerText := buildIDKAnswer(exercise.OriginalWord, exercise.TranslationWord, exercise.ExerciseType)
+	return true, SendMessageMarkdown(message.Chat.ID, answerText)
 }
 
-func isCorrectExerciseAnswer(answer string, questionType string, originalWord string, translationWord string) bool {
+func isCorrectExerciseAnswer(answer string, exerciseType enums.ExerciseType, originalWord string, translationWord string) bool {
 	normalizedAnswer := strings.TrimSpace(answer)
 
-	if questionType == questionTypeOriginalToTranslation {
+	if exerciseType == enums.ExerciseTypeBasicDirect {
 		return strings.EqualFold(normalizedAnswer, strings.TrimSpace(translationWord))
 	}
 
-	if questionType == questionTypeTranslationToOriginal {
+	if exerciseType == enums.ExerciseTypeBasicReversed {
 		return strings.EqualFold(normalizedAnswer, strings.TrimSpace(originalWord))
 	}
 
 	return false
-}
-
-func detectQuestionType(questionText string) (string, bool) {
-	normalizedQuestion := strings.TrimSpace(questionText)
-
-	if strings.HasPrefix(normalizedQuestion, telegramTextQuestionTranslatePrefix) {
-		return questionTypeOriginalToTranslation, true
-	}
-
-	if strings.HasPrefix(normalizedQuestion, telegramTextQuestionOriginalPrefix) {
-		return questionTypeTranslationToOriginal, true
-	}
-
-	return "", false
 }
 
 func ensurePrivateMessageUser(message *message) error {
@@ -298,7 +282,7 @@ func parseMessageCommand(text string) (string, string, bool) {
 func routeMessageCommand(message *message, command string, args string) error {
 	handler, exists := messageCommandHandlers[command]
 	if !exists {
-		return nil
+		return SendMessage(message.Chat.ID, "Unknown command! /help")
 	}
 
 	return handler(message, args)

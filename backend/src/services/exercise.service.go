@@ -16,21 +16,25 @@ import (
 const exerciseProgressStep = 20
 
 type PendingExercise struct {
-	ExerciseID      uuid.UUID          `gorm:"column:exercise_id"`
+	ExerciseID          uuid.UUID          `gorm:"column:exercise_id"`
+	ExerciseType        enums.ExerciseType `gorm:"column:exercise_type"`
+	UserID              uint               `gorm:"column:user_id"`
+	TelegramID          int64              `gorm:"column:telegram_id"`
+	OriginalWord        string             `gorm:"column:original_word"`
+	OriginalLanguage    enums.Language     `gorm:"column:original_language"`
+	TranslationWord     string             `gorm:"column:translation_word"`
+	TranslationLanguage enums.Language     `gorm:"column:translation_language"`
+}
+
+type ExerciseWords struct {
 	ExerciseType    enums.ExerciseType `gorm:"column:exercise_type"`
-	UserID          uint               `gorm:"column:user_id"`
-	TelegramID      int64              `gorm:"column:telegram_id"`
 	OriginalWord    string             `gorm:"column:original_word"`
 	TranslationWord string             `gorm:"column:translation_word"`
 }
 
-type ExerciseWords struct {
-	OriginalWord    string `gorm:"column:original_word"`
-	TranslationWord string `gorm:"column:translation_word"`
-}
-
 type TelegramMessageExercise struct {
 	ExerciseID      uuid.UUID            `gorm:"column:exercise_id"`
+	ExerciseType    enums.ExerciseType   `gorm:"column:exercise_type"`
 	Status          enums.ExerciseStatus `gorm:"column:status"`
 	OriginalWord    string               `gorm:"column:original_word"`
 	TranslationWord string               `gorm:"column:translation_word"`
@@ -109,8 +113,13 @@ func getEligibleVocabularyIDs(userID uint, limit uint) ([]uuid.UUID, error) {
 
 func generateExercise(userID uint, vocabularyID uuid.UUID, when time.Time) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
+		exerciseType := enums.ExerciseTypeBasicDirect
+		if rand.Intn(2) == 0 {
+			exerciseType = enums.ExerciseTypeBasicReversed
+		}
+
 		exercise := models.Exercise{
-			Type:         enums.ExerciseTypeBasic,
+			Type:         exerciseType,
 			Status:       enums.ExerciseStatusPending,
 			UserID:       userID,
 			ScheduledFor: &when,
@@ -141,7 +150,9 @@ func GetDuePendingExercises(now time.Time) ([]PendingExercise, error) {
 			e.user_id AS user_id,
 			u.telegram_id AS telegram_id,
 			original.word AS original_word,
-			translation.word AS translation_word
+			original.language AS original_language,
+			translation.word AS translation_word,
+			translation.language AS translation_language
 		FROM exercises AS e
 		JOIN users AS u ON u.id = e.user_id
 		JOIN vocabulary_exercises AS ve ON ve.exercise_id = e.id
@@ -150,11 +161,11 @@ func GetDuePendingExercises(now time.Time) ([]PendingExercise, error) {
 		JOIN words AS original ON original.id = t.original_id
 		JOIN words AS translation ON translation.id = t.translation_id
 		WHERE e.status = ?
-			AND e.type = ?
+			AND e.type IN (?, ?)
 			AND e.scheduled_for <= ?
 			AND u.settings->'telegram'->'bot_enabled' = ?
 		ORDER BY e.scheduled_for ASC, e.created_at ASC
-	`, enums.ExerciseStatusPending, enums.ExerciseTypeBasic, now, true).Scan(&exercises).Error
+	`, enums.ExerciseStatusPending, enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, now, true).Scan(&exercises).Error
 
 	if err != nil {
 		return nil, err
@@ -169,6 +180,7 @@ func GetExerciseByTelegramMessage(telegramMessageID int64, telegramID int64) (*T
 	err := db.DB.Raw(`
 		SELECT
 			e.id AS exercise_id,
+			e.type AS exercise_type,
 			e.status AS status,
 			original.word AS original_word,
 			translation.word AS translation_word
@@ -315,6 +327,7 @@ func GetExerciseWordsByTelegram(exerciseID uuid.UUID, telegramID int64) (*Exerci
 
 	err := db.DB.Raw(`
 		SELECT
+			e.type AS exercise_type,
 			original.word AS original_word,
 			translation.word AS translation_word
 		FROM exercises AS e

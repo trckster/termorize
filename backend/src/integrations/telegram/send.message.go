@@ -67,6 +67,12 @@ func SendMessage(chatID int64, text string) error {
 	return err
 }
 
+func SendMessageMarkdown(chatID int64, text string) error {
+	messageRequest := sendMessageRequest{ChatID: chatID, Text: text, ParseMode: "Markdown"}
+	_, err := sendMessage(messageRequest)
+	return err
+}
+
 func SendMessageWithInlineKeyboard(chatID int64, text string, keyboard [][]inlineKeyboardButton) error {
 	messageRequest := sendMessageRequest{
 		ChatID:      chatID,
@@ -88,12 +94,13 @@ func SendMessageWithInlineKeyboardMarkdown(chatID int64, text string, keyboard [
 	return err
 }
 
-func SendExerciseMessage(chatID int64, text string, exerciseID uuid.UUID, questionType string) (*int64, error) {
+func SendExerciseMessage(chatID int64, text string, exerciseID uuid.UUID) (*int64, error) {
 	messageRequest := sendMessageRequest{
-		ChatID: chatID,
-		Text:   text,
+		ChatID:    chatID,
+		Text:      text,
+		ParseMode: "Markdown",
 		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: [][]inlineKeyboardButton{{
-			{Text: telegramButtonExerciseIDK, CallbackData: "exercise:idk:" + exerciseID.String() + ":" + questionType},
+			{Text: telegramButtonExerciseIDK, CallbackData: "exercise:idk:" + exerciseID.String()},
 		}}},
 	}
 

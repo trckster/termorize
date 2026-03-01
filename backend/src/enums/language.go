@@ -32,3 +32,22 @@ func (l Language) DisplayName() string {
 		return string(l)
 	}
 }
+
+func (l Language) DisplayNameWithFlag() string {
+	return l.Flag() + " " + l.DisplayName()
+}
+
+func (l Language) Flag() string {
+	switch l {
+	case LanguageEn:
+		return "🇬🇧"
+	case LanguageRu:
+		return "🇷🇺"
+	case LanguageIt:
+		return "🇮🇹"
+	case LanguageDe:
+		return "🇩🇪"
+	default:
+		return "🏳️"
+	}
+}
