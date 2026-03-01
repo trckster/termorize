@@ -8,21 +8,3 @@ Here are sources of Telegram bot, that can:
 
 Bot: [@termorize_bot](https://t.me/termorize_bot)
 
-# Run locally
-
-Set environment variables inside .env and run docker compose:
-
-```shell
-docker compose up --build
-```
-
-# Deploy
-
-CI is not set up. Clone latest version manually and run it with docker compose.
-
-# Todo list
-
-1. Translations mass import.
-2. Translations mass export.
-3. Generate improved statistics every week.
-4. Fix .env creation inside Dockerfiles.
