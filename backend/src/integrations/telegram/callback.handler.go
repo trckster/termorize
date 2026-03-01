@@ -77,7 +77,7 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 		}
 	}
 
-	updated, err := services.FailExercise(exerciseID)
+	updated, translationKnowledge, err := services.FailExercise(exerciseID)
 	if err != nil {
 		return err
 	}
@@ -95,7 +95,13 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 		return nil
 	}
 
-	answerText := buildIDKAnswer(words.OriginalWord, words.TranslationWord, words.ExerciseType)
+	answerText := buildExerciseIDKResultText(
+		words.OriginalWord,
+		words.TranslationWord,
+		words.OriginalLanguage,
+		words.TranslationLanguage,
+		translationKnowledge,
+	)
 	return SendMessageMarkdown(callback.From.ID, answerText)
 }
 

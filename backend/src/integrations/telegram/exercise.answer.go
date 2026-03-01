@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"fmt"
 	"strings"
 	"termorize/src/enums"
 	"termorize/src/logger"
@@ -39,13 +40,20 @@ func handleExerciseAnswer(message *message) (bool, error) {
 	}
 
 	if isCorrectExerciseAnswer(message.Text, exercise.ExerciseType, exercise.OriginalWord, exercise.TranslationWord) {
-		if err := services.CompleteExercise(exercise.ExerciseID); err != nil {
+		updated, translationKnowledge, err := services.CompleteExercise(exercise.ExerciseID)
+		if err != nil {
 			return false, err
 		}
-		return true, SendMessage(message.Chat.ID, telegramTextExerciseSuccess)
+
+		if !updated {
+			return true, nil
+		}
+
+		answerText := buildExerciseSuccessResultText(translationKnowledge)
+		return true, SendMessageMarkdown(message.Chat.ID, answerText)
 	}
 
-	updated, err := services.FailExercise(exercise.ExerciseID)
+	updated, translationKnowledge, err := services.FailExercise(exercise.ExerciseID)
 	if err != nil {
 		return false, err
 	}
@@ -54,8 +62,38 @@ func handleExerciseAnswer(message *message) (bool, error) {
 		return true, nil
 	}
 
-	answerText := buildIDKAnswer(exercise.OriginalWord, exercise.TranslationWord, exercise.ExerciseType)
+	answerText := buildExerciseInvalidResultText(
+		exercise.OriginalWord,
+		exercise.TranslationWord,
+		exercise.OriginalLanguage,
+		exercise.TranslationLanguage,
+		translationKnowledge,
+	)
 	return true, SendMessageMarkdown(message.Chat.ID, answerText)
+}
+
+func buildExerciseSuccessResultText(translationKnowledge int) string {
+	return telegramTextExerciseSuccess + "\n\n" + fmt.Sprintf(telegramTextExerciseTranslationKnowledgeUpFormat, translationKnowledge)
+}
+
+func buildExerciseInvalidResultText(originalWord string, translationWord string, originalLanguage enums.Language, translationLanguage enums.Language, translationKnowledge int) string {
+	answerPair := buildExerciseAnswerPairText(originalWord, translationWord, originalLanguage, translationLanguage)
+	return telegramTextExerciseInvalid + "\n\n" + answerPair + "\n\n" + fmt.Sprintf(telegramTextExerciseTranslationKnowledgeDownFormat, translationKnowledge)
+}
+
+func buildExerciseIDKResultText(originalWord string, translationWord string, originalLanguage enums.Language, translationLanguage enums.Language, translationKnowledge int) string {
+	answerPair := buildExerciseAnswerPairText(originalWord, translationWord, originalLanguage, translationLanguage)
+	return telegramTextExerciseIDK + "\n\n" + answerPair + "\n\n" + fmt.Sprintf(telegramTextExerciseTranslationKnowledgeDownFormat, translationKnowledge)
+}
+
+func buildExerciseAnswerPairText(originalWord string, translationWord string, originalLanguage enums.Language, translationLanguage enums.Language) string {
+	return fmt.Sprintf(
+		telegramTextExerciseAnswerPairFormat,
+		originalLanguage.Flag(),
+		originalWord,
+		translationWord,
+		translationLanguage.Flag(),
+	)
 }
 
 func isCorrectExerciseAnswer(answer string, exerciseType enums.ExerciseType, originalWord string, translationWord string) bool {
@@ -69,12 +107,4 @@ func isCorrectExerciseAnswer(answer string, exerciseType enums.ExerciseType, ori
 	default:
 		return false
 	}
-}
-
-func buildIDKAnswer(originalWord string, translationWord string, exerciseType enums.ExerciseType) string {
-	if exerciseType == enums.ExerciseTypeBasicReversed {
-		return telegramTextIDKOriginalPrefix + "*" + originalWord + "*"
-	}
-
-	return telegramTextIDKTranslationPrefix + "*" + translationWord + "*"
 }

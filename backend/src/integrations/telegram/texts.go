@@ -19,10 +19,15 @@ const (
 
 	telegramTextNonPrivateChat = "Nah... Don't feel like answering here rn"
 
-	telegramTextExerciseOutdated  = "This exercise is outdated 🕰️"
-	telegramTextExerciseCompleted = "This exercise is already successfully completed 🗸"
-	telegramTextExerciseFailed    = "This exercise was already attempted and failed 😔"
-	telegramTextExerciseSuccess   = "That's right! ✅"
+	telegramTextExerciseOutdated                       = "This exercise is outdated 🕰️"
+	telegramTextExerciseCompleted                      = "This exercise is already successfully completed 🗸"
+	telegramTextExerciseFailed                         = "This exercise was already attempted and failed 😔"
+	telegramTextExerciseSuccess                        = "That's right! ✅"
+	telegramTextExerciseInvalid                        = "Not quite... ❌"
+	telegramTextExerciseIDK                            = "Alright, answer is:"
+	telegramTextExerciseAnswerPairFormat               = "%s %s — %s %s"
+	telegramTextExerciseTranslationKnowledgeUpFormat   = "Translation knowledge: *%d%%* 📈"
+	telegramTextExerciseTranslationKnowledgeDownFormat = "Translation knowledge: *%d%%* 📉"
 
 	telegramTextQuestionTranslateFormat = "Translate word *%s* to %s"
 
@@ -40,9 +45,6 @@ const (
 
 	telegramTextDeleteCompleted = "Done ✅"
 	telegramTextDeleteNotFound  = "Word not found ❌"
-
-	telegramTextIDKOriginalPrefix    = "Correct original word: "
-	telegramTextIDKTranslationPrefix = "Correct translation: "
 )
 
 const (

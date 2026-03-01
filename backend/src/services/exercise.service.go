@@ -27,17 +27,21 @@ type PendingExercise struct {
 }
 
 type ExerciseWords struct {
-	ExerciseType    enums.ExerciseType `gorm:"column:exercise_type"`
-	OriginalWord    string             `gorm:"column:original_word"`
-	TranslationWord string             `gorm:"column:translation_word"`
+	ExerciseType        enums.ExerciseType `gorm:"column:exercise_type"`
+	OriginalWord        string             `gorm:"column:original_word"`
+	OriginalLanguage    enums.Language     `gorm:"column:original_language"`
+	TranslationWord     string             `gorm:"column:translation_word"`
+	TranslationLanguage enums.Language     `gorm:"column:translation_language"`
 }
 
 type TelegramMessageExercise struct {
-	ExerciseID      uuid.UUID            `gorm:"column:exercise_id"`
-	ExerciseType    enums.ExerciseType   `gorm:"column:exercise_type"`
-	Status          enums.ExerciseStatus `gorm:"column:status"`
-	OriginalWord    string               `gorm:"column:original_word"`
-	TranslationWord string               `gorm:"column:translation_word"`
+	ExerciseID          uuid.UUID            `gorm:"column:exercise_id"`
+	ExerciseType        enums.ExerciseType   `gorm:"column:exercise_type"`
+	Status              enums.ExerciseStatus `gorm:"column:status"`
+	OriginalWord        string               `gorm:"column:original_word"`
+	OriginalLanguage    enums.Language       `gorm:"column:original_language"`
+	TranslationWord     string               `gorm:"column:translation_word"`
+	TranslationLanguage enums.Language       `gorm:"column:translation_language"`
 }
 
 func GenerateDailyExercises() error {
@@ -183,7 +187,9 @@ func GetExerciseByTelegramMessage(telegramMessageID int64, telegramID int64) (*T
 			e.type AS exercise_type,
 			e.status AS status,
 			original.word AS original_word,
-			translation.word AS translation_word
+			original.language AS original_language,
+			translation.word AS translation_word,
+			translation.language AS translation_language
 		FROM exercises AS e
 		JOIN users AS u ON u.id = e.user_id
 		JOIN vocabulary_exercises AS ve ON ve.exercise_id = e.id
@@ -217,8 +223,11 @@ func StartTelegramExercise(exerciseID uuid.UUID, telegramMessageID int64) error 
 		}).Error
 }
 
-func CompleteExercise(exerciseID uuid.UUID) error {
-	return db.DB.Transaction(func(tx *gorm.DB) error {
+func CompleteExercise(exerciseID uuid.UUID) (bool, int, error) {
+	updated := false
+	translationKnowledge := 0
+
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
 		result := tx.Model(&models.Exercise{}).
 			Where("id = ? AND status = ?", exerciseID, enums.ExerciseStatusInProgress).
 			Updates(map[string]any{
@@ -234,12 +243,23 @@ func CompleteExercise(exerciseID uuid.UUID) error {
 			return nil
 		}
 
-		return updateVocabularyProgressByExercise(tx, exerciseID, exerciseProgressStep)
+		updated = true
+
+		var updateErr error
+		translationKnowledge, updateErr = updateVocabularyProgressByExercise(tx, exerciseID, exerciseProgressStep)
+		return updateErr
 	})
+
+	if err != nil {
+		return false, 0, err
+	}
+
+	return updated, translationKnowledge, nil
 }
 
-func FailExercise(exerciseID uuid.UUID) (bool, error) {
+func FailExercise(exerciseID uuid.UUID) (bool, int, error) {
 	updated := false
+	translationKnowledge := 0
 
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
 		result := tx.Model(&models.Exercise{}).
@@ -258,17 +278,20 @@ func FailExercise(exerciseID uuid.UUID) (bool, error) {
 		}
 
 		updated = true
-		return updateVocabularyProgressByExercise(tx, exerciseID, -exerciseProgressStep)
+
+		var updateErr error
+		translationKnowledge, updateErr = updateVocabularyProgressByExercise(tx, exerciseID, -exerciseProgressStep)
+		return updateErr
 	})
 
 	if err != nil {
-		return false, err
+		return false, 0, err
 	}
 
-	return updated, nil
+	return updated, translationKnowledge, nil
 }
 
-func updateVocabularyProgressByExercise(tx *gorm.DB, exerciseID uuid.UUID, delta int) error {
+func updateVocabularyProgressByExercise(tx *gorm.DB, exerciseID uuid.UUID, delta int) (int, error) {
 	var exerciseLink struct {
 		VocabularyID uuid.UUID `gorm:"column:vocabulary_id"`
 	}
@@ -277,16 +300,17 @@ func updateVocabularyProgressByExercise(tx *gorm.DB, exerciseID uuid.UUID, delta
 		Select("vocabulary_id").
 		Where("exercise_id = ?", exerciseID).
 		Take(&exerciseLink).Error; err != nil {
-		return err
+		return 0, err
 	}
 
 	var vocabulary models.Vocabulary
 	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where("id = ?", exerciseLink.VocabularyID).
 		Take(&vocabulary).Error; err != nil {
-		return err
+		return 0, err
 	}
 
+	translationKnowledge := 0
 	found := false
 	for index := range vocabulary.Progress {
 		if vocabulary.Progress[index].Type != enums.KnowledgeTypeTranslation {
@@ -294,20 +318,27 @@ func updateVocabularyProgressByExercise(tx *gorm.DB, exerciseID uuid.UUID, delta
 		}
 
 		vocabulary.Progress[index].Knowledge = clampProgress(vocabulary.Progress[index].Knowledge + delta)
+		translationKnowledge = vocabulary.Progress[index].Knowledge
 		found = true
 		break
 	}
 
 	if !found {
+		translationKnowledge = clampProgress(delta)
 		vocabulary.Progress = append(vocabulary.Progress, models.ProgressEntry{
-			Knowledge: clampProgress(delta),
+			Knowledge: translationKnowledge,
 			Type:      enums.KnowledgeTypeTranslation,
 		})
 	}
 
-	return tx.Model(&models.Vocabulary{}).
+	err := tx.Model(&models.Vocabulary{}).
 		Where("id = ?", vocabulary.ID).
 		Update("progress", vocabulary.Progress).Error
+	if err != nil {
+		return 0, err
+	}
+
+	return translationKnowledge, nil
 }
 
 func clampProgress(progress int) int {
@@ -329,7 +360,9 @@ func GetExerciseWordsByTelegram(exerciseID uuid.UUID, telegramID int64) (*Exerci
 		SELECT
 			e.type AS exercise_type,
 			original.word AS original_word,
-			translation.word AS translation_word
+			original.language AS original_language,
+			translation.word AS translation_word,
+			translation.language AS translation_language
 		FROM exercises AS e
 		JOIN users AS u ON u.id = e.user_id
 		JOIN vocabulary_exercises AS ve ON ve.exercise_id = e.id
