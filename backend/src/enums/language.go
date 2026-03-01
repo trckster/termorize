@@ -17,3 +17,18 @@ func AllLanguages() []string {
 		string(LanguageDe),
 	}
 }
+
+func (l Language) DisplayName() string {
+	switch l {
+	case LanguageEn:
+		return "English"
+	case LanguageRu:
+		return "Russian"
+	case LanguageIt:
+		return "Italian"
+	case LanguageDe:
+		return "German"
+	default:
+		return string(l)
+	}
+}

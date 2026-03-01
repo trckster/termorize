@@ -11,6 +11,7 @@ import (
 type sendMessageRequest struct {
 	ChatID      int64       `json:"chat_id"`
 	Text        string      `json:"text"`
+	ParseMode   string      `json:"parse_mode,omitempty"`
 	ReplyMarkup interface{} `json:"reply_markup,omitempty"`
 }
 
@@ -52,6 +53,7 @@ type editMessageTextRequest struct {
 	ChatID      int64                 `json:"chat_id"`
 	MessageID   int64                 `json:"message_id"`
 	Text        string                `json:"text"`
+	ParseMode   string                `json:"parse_mode,omitempty"`
 	ReplyMarkup *inlineKeyboardMarkup `json:"reply_markup,omitempty"`
 }
 
@@ -69,6 +71,17 @@ func SendMessageWithInlineKeyboard(chatID int64, text string, keyboard [][]inlin
 	messageRequest := sendMessageRequest{
 		ChatID:      chatID,
 		Text:        text,
+		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: keyboard},
+	}
+	_, err := sendMessage(messageRequest)
+	return err
+}
+
+func SendMessageWithInlineKeyboardMarkdown(chatID int64, text string, keyboard [][]inlineKeyboardButton) error {
+	messageRequest := sendMessageRequest{
+		ChatID:      chatID,
+		Text:        text,
+		ParseMode:   "Markdown",
 		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: keyboard},
 	}
 	_, err := sendMessage(messageRequest)
@@ -102,6 +115,27 @@ func EditMessageTextWithInlineKeyboard(chatID int64, messageID int64, text strin
 		ChatID:      chatID,
 		MessageID:   messageID,
 		Text:        text,
+		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: keyboard},
+	}
+
+	response, err := CallAPI[editMessageTextResponse]("editMessageText", request)
+	if err != nil {
+		return err
+	}
+
+	if !response.OK {
+		return errors.New("telegram editMessageText response not ok")
+	}
+
+	return nil
+}
+
+func EditMessageTextWithInlineKeyboardMarkdown(chatID int64, messageID int64, text string, keyboard [][]inlineKeyboardButton) error {
+	request := editMessageTextRequest{
+		ChatID:      chatID,
+		MessageID:   messageID,
+		Text:        text,
+		ParseMode:   "Markdown",
 		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: keyboard},
 	}
 

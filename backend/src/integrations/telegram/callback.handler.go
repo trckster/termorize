@@ -126,7 +126,7 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 			return err
 		}
 
-		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, telegramTextMenu, menuKeyboard)
+		return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, telegramTextMenu, menuKeyboard)
 	}
 
 	if action == "delete_translation" {
@@ -135,6 +135,24 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 		}
 
 		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, telegramTextMenuDeleteWord, menuCancelKeyboard)
+	}
+
+	if action == "add_translation" {
+		if _, err := services.UpdateUserTelegramState(callback.From.ID, enums.TelegramStateAddingVocabulary); err != nil {
+			return err
+		}
+
+		user, err := services.GetUserByTelegramID(callback.From.ID)
+		if err != nil {
+			return err
+		}
+
+		if user == nil {
+			return nil
+		}
+
+		messageText := buildAddVocabularyFirstText(user.Settings.NativeLanguage.DisplayName(), user.Settings.MainLearningLanguage.DisplayName())
+		return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, messageText, menuCancelKeyboard)
 	}
 
 	selectionText, ok := menuActionToText(action)
@@ -147,8 +165,6 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 
 func menuActionToText(action string) (string, bool) {
 	switch action {
-	case "add_translation":
-		return telegramTextMenuAddTranslation, true
 	case "your_vocabulary":
 		return telegramTextMenuVocabulary, true
 	case "statistics":

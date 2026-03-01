@@ -30,6 +30,12 @@ type VocabularyListResponse struct {
 	Pagination Pagination          `json:"pagination"`
 }
 
+const translationAlreadyExistsError = "translation already exists"
+
+func IsTranslationAlreadyExistsError(err error) bool {
+	return err != nil && err.Error() == translationAlreadyExistsError
+}
+
 func GetOrCreateWord(word string, language enums.Language) (*models.Word, error) {
 	var existingWord models.Word
 	result := db.DB.Where("word = ? AND language = ?", word, language).First(&existingWord)

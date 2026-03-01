@@ -33,8 +33,7 @@ const (
 type TelegramState string
 
 const (
-	TelegramStateNone                   TelegramState = ""
-	TelegramStateDeletingVocabulary     TelegramState = "deletingVocabulary"
-	TelegramStateAddingVocabularyFirst  TelegramState = "addingVocabularyFirst"
-	TelegramStateAddingVocabularySecond TelegramState = "addingVocabularySecond"
+	TelegramStateNone               TelegramState = ""
+	TelegramStateDeletingVocabulary TelegramState = "deletingVocabulary"
+	TelegramStateAddingVocabulary   TelegramState = "addingVocabulary"
 )

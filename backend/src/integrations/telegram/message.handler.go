@@ -23,7 +23,7 @@ var messageCommandHandlers = map[string]messageCommandHandler{
 		return SendMessage(message.Chat.ID, telegramTextHelp)
 	},
 	"menu": func(message *message, args string) error {
-		return SendMessageWithInlineKeyboard(message.Chat.ID, telegramTextMenu, menuKeyboard)
+		return SendMessageWithInlineKeyboardMarkdown(message.Chat.ID, telegramTextMenu, menuKeyboard)
 	},
 	"cancel": func(message *message, args string) error {
 		telegramID, _, _, _ := extractMessageUser(message)
@@ -94,7 +94,7 @@ func handleStateMessage(message *message) (bool, error) {
 			return true, err
 		}
 
-		return true, SendMessageWithInlineKeyboard(message.Chat.ID, telegramTextMenu, menuKeyboard)
+		return true, SendMessageWithInlineKeyboardMarkdown(message.Chat.ID, telegramTextMenu, menuKeyboard)
 	}
 
 	telegramID, _, _, _ := extractMessageUser(message)
@@ -103,7 +103,44 @@ func handleStateMessage(message *message) (bool, error) {
 		return false, err
 	}
 
-	if user == nil || user.TelegramState != enums.TelegramStateDeletingVocabulary {
+	if user == nil {
+		return false, nil
+	}
+
+	if user.TelegramState == enums.TelegramStateAddingVocabulary {
+		parts := strings.SplitN(message.Text, ":", 2)
+		if len(parts) != 2 {
+			return true, SendMessage(message.Chat.ID, telegramTextAddVocabularyInvalid)
+		}
+
+		nativeWord := strings.TrimSpace(parts[0])
+		learningWord := strings.TrimSpace(parts[1])
+		if nativeWord == "" || learningWord == "" {
+			return true, SendMessage(message.Chat.ID, telegramTextAddVocabularyInvalid)
+		}
+
+		_, err := services.CreateVocabulary(user.ID, services.CreateVocabularyRequest{
+			Original:            learningWord,
+			Translation:         nativeWord,
+			OriginalLanguage:    user.Settings.MainLearningLanguage,
+			TranslationLanguage: user.Settings.NativeLanguage,
+		})
+		if err != nil {
+			if services.IsTranslationAlreadyExistsError(err) {
+				return true, SendMessage(message.Chat.ID, telegramTextAddVocabularyExists)
+			}
+
+			return true, err
+		}
+
+		if _, err := services.UpdateUserTelegramState(telegramID, enums.TelegramStateNone); err != nil {
+			return true, err
+		}
+
+		return true, SendMessage(message.Chat.ID, telegramTextAddVocabularyDone)
+	}
+
+	if user.TelegramState != enums.TelegramStateDeletingVocabulary {
 		return false, nil
 	}
 

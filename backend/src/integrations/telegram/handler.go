@@ -33,7 +33,7 @@ func HandleWebhook(c *gin.Context) {
 
 	if err := handleUpdate(&update); err != nil {
 		logger.L().Warnw("failed to process telegram webhook update", "error", err, "update", utils.MustMarshalToString(update))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to process update"})
+		c.JSON(http.StatusOK, gin.H{"error": "failed to process update"})
 		return
 	}
 
