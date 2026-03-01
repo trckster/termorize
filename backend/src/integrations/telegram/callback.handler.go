@@ -9,16 +9,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type callbackDataHandler func(callback *callbackQuery, payload []string) error
-
-var callbackDataHandlers = map[string]callbackDataHandler{
-	"exercise": handleExerciseCallback,
-	"menu":     handleMenuCallback,
-}
-
-var menuBackKeyboard = [][]inlineKeyboardButton{{{Text: telegramButtonMenuBack, CallbackData: "menu:back"}}}
-var menuCancelKeyboard = [][]inlineKeyboardButton{{{Text: telegramButtonMenuCancel, CallbackData: "menu:cancel"}}}
-
 func handleCallbackQuery(callback *callbackQuery) error {
 	if callback == nil {
 		return nil
@@ -52,30 +42,32 @@ func routeCallbackData(callback *callbackQuery) error {
 		return nil
 	}
 
-	handler, exists := callbackDataHandlers[handlerType]
-	if !exists {
+	switch handlerType {
+	case callbackTypeExercise:
+		return handleExerciseCallback(callback, payload)
+	case callbackTypeMenu:
+		return handleMenuCallback(callback, payload)
+	default:
 		return nil
 	}
-
-	return handler(callback, payload)
 }
 
-func parseExerciseCallbackPayload(payload []string) (string, uuid.UUID, bool) {
-	if len(payload) != 2 {
-		return "", uuid.Nil, false
+func parseExerciseIDKPayload(payload []string) (uuid.UUID, bool) {
+	if len(payload) != 2 || payload[0] != exerciseActionIDK {
+		return uuid.Nil, false
 	}
 
 	exerciseID, err := uuid.Parse(payload[1])
 	if err != nil {
-		return "", uuid.Nil, false
+		return uuid.Nil, false
 	}
 
-	return payload[0], exerciseID, true
+	return exerciseID, true
 }
 
 func handleExerciseCallback(callback *callbackQuery, payload []string) error {
-	action, exerciseID, ok := parseExerciseCallbackPayload(payload)
-	if !ok || action != "idk" {
+	exerciseID, ok := parseExerciseIDKPayload(payload)
+	if !ok {
 		return nil
 	}
 
@@ -117,7 +109,7 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 	}
 
 	action := payload[0]
-	if action == "back" || action == "cancel" {
+	if action == menuActionBack || action == menuActionCancel {
 		if _, err := services.UpdateUserTelegramState(callback.From.ID, enums.TelegramStateNone); err != nil {
 			return err
 		}
@@ -125,7 +117,7 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 		return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, telegramTextMenu, menuKeyboard)
 	}
 
-	if action == "delete_translation" {
+	if action == menuActionDeleteTranslation {
 		if _, err := services.UpdateUserTelegramState(callback.From.ID, enums.TelegramStateDeletingVocabulary); err != nil {
 			return err
 		}
@@ -133,7 +125,7 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, telegramTextMenuDeleteWord, menuCancelKeyboard)
 	}
 
-	if action == "add_translation" {
+	if action == menuActionAddTranslation {
 		if _, err := services.UpdateUserTelegramState(callback.From.ID, enums.TelegramStateAddingVocabulary); err != nil {
 			return err
 		}
@@ -157,25 +149,4 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 	}
 
 	return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, selectionText, menuBackKeyboard)
-}
-
-func menuActionToText(action string) (string, bool) {
-	switch action {
-	case "your_vocabulary":
-		return telegramTextMenuVocabulary, true
-	case "statistics":
-		return telegramTextMenuStatistics, true
-	case "settings":
-		return telegramTextMenuSettings, true
-	default:
-		return "", false
-	}
-}
-
-func buildIDKAnswer(originalWord string, translationWord string, exerciseType enums.ExerciseType) string {
-	if exerciseType == enums.ExerciseTypeBasicReversed {
-		return telegramTextIDKOriginalPrefix + "*" + originalWord + "*"
-	}
-
-	return telegramTextIDKTranslationPrefix + "*" + translationWord + "*"
 }

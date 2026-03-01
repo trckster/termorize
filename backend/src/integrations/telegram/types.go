@@ -5,7 +5,6 @@ type chatMemberStatus = string
 const (
 	Member chatMemberStatus = "member"
 	Kicked chatMemberStatus = "kicked"
-	// There are more, but we don't need them just yet
 )
 
 type chatType = string

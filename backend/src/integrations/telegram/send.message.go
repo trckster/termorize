@@ -8,6 +8,8 @@ import (
 	"github.com/google/uuid"
 )
 
+const telegramParseModeMarkdown = "Markdown"
+
 type sendMessageRequest struct {
 	ChatID      int64       `json:"chat_id"`
 	Text        string      `json:"text"`
@@ -68,7 +70,7 @@ func SendMessage(chatID int64, text string) error {
 }
 
 func SendMessageMarkdown(chatID int64, text string) error {
-	messageRequest := sendMessageRequest{ChatID: chatID, Text: text, ParseMode: "Markdown"}
+	messageRequest := sendMessageRequest{ChatID: chatID, Text: text, ParseMode: telegramParseModeMarkdown}
 	_, err := sendMessage(messageRequest)
 	return err
 }
@@ -87,7 +89,7 @@ func SendMessageWithInlineKeyboardMarkdown(chatID int64, text string, keyboard [
 	messageRequest := sendMessageRequest{
 		ChatID:      chatID,
 		Text:        text,
-		ParseMode:   "Markdown",
+		ParseMode:   telegramParseModeMarkdown,
 		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: keyboard},
 	}
 	_, err := sendMessage(messageRequest)
@@ -98,9 +100,9 @@ func SendExerciseMessage(chatID int64, text string, exerciseID uuid.UUID) (*int6
 	messageRequest := sendMessageRequest{
 		ChatID:    chatID,
 		Text:      text,
-		ParseMode: "Markdown",
+		ParseMode: telegramParseModeMarkdown,
 		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: [][]inlineKeyboardButton{{
-			{Text: telegramButtonExerciseIDK, CallbackData: "exercise:idk:" + exerciseID.String()},
+			{Text: telegramButtonExerciseIDK, CallbackData: callbackTypeExercise + ":" + exerciseActionIDK + ":" + exerciseID.String()},
 		}}},
 	}
 
@@ -125,16 +127,7 @@ func EditMessageTextWithInlineKeyboard(chatID int64, messageID int64, text strin
 		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: keyboard},
 	}
 
-	response, err := CallAPI[editMessageTextResponse]("editMessageText", request)
-	if err != nil {
-		return err
-	}
-
-	if !response.OK {
-		return errors.New("telegram editMessageText response not ok")
-	}
-
-	return nil
+	return editMessageText(request)
 }
 
 func EditMessageTextWithInlineKeyboardMarkdown(chatID int64, messageID int64, text string, keyboard [][]inlineKeyboardButton) error {
@@ -142,10 +135,14 @@ func EditMessageTextWithInlineKeyboardMarkdown(chatID int64, messageID int64, te
 		ChatID:      chatID,
 		MessageID:   messageID,
 		Text:        text,
-		ParseMode:   "Markdown",
+		ParseMode:   telegramParseModeMarkdown,
 		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: keyboard},
 	}
 
+	return editMessageText(request)
+}
+
+func editMessageText(request editMessageTextRequest) error {
 	response, err := CallAPI[editMessageTextResponse]("editMessageText", request)
 	if err != nil {
 		return err
@@ -159,8 +156,16 @@ func EditMessageTextWithInlineKeyboardMarkdown(chatID int64, messageID int64, te
 }
 
 func answerTelegramCallbackQuery(callbackQueryID string) error {
-	_, err := CallAPI[answerCallbackQueryResponse]("answerCallbackQuery", answerCallbackQueryRequest{CallbackQueryID: callbackQueryID})
-	return err
+	response, err := CallAPI[answerCallbackQueryResponse]("answerCallbackQuery", answerCallbackQueryRequest{CallbackQueryID: callbackQueryID})
+	if err != nil {
+		return err
+	}
+
+	if !response.OK {
+		return errors.New("telegram answerCallbackQuery response not ok")
+	}
+
+	return nil
 }
 
 func sendMessage(messageRequest sendMessageRequest) (*sendMessageResponse, error) {

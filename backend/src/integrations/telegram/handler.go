@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"termorize/src/logger"
-	"termorize/src/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -23,16 +22,16 @@ func HandleWebhook(c *gin.Context) {
 		return
 	}
 
-	logger.L().Infow("telegram webhook payload", "body", string(body))
-
 	var update webhookUpdate
 	if err := json.Unmarshal(body, &update); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
 		return
 	}
 
+	logger.L().Debugw("telegram webhook update", "update_id", update.ID)
+
 	if err := handleUpdate(&update); err != nil {
-		logger.L().Warnw("failed to process telegram webhook update", "error", err, "update", utils.MustMarshalToString(update))
+		logger.L().Warnw("failed to process telegram webhook update", "error", err, "update_id", update.ID)
 		c.JSON(http.StatusOK, gin.H{"error": "failed to process update"})
 		return
 	}

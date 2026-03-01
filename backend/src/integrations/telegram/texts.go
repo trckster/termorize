@@ -11,7 +11,8 @@ const (
 		"Send /menu to see options!"
 	telegramTextMenu = "📌 *Menu* 📌"
 
-	telegramTextPong = "pong"
+	telegramTextPong           = "pong"
+	telegramTextUnknownCommand = "Unknown command! /help"
 
 	telegramTextCancelNothing = "Nothing to cancel!"
 	telegramTextCancelDone    = "Current action cancelled 👌"
