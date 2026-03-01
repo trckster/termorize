@@ -30,10 +30,18 @@ func (t *Translation) BeforeSave(_ *gorm.DB) error {
 
 func (t *Translation) BeforeCreate(tx *gorm.DB) error {
 	var count int64
-	tx.Model(&Translation{}).
-		Where("user_id = ? AND ((original_id = ? AND translation_id = ?) OR (original_id = ? AND translation_id = ?))",
-			t.UserID, t.OriginalID, t.TranslationID, t.TranslationID, t.OriginalID).
-		Count(&count)
+	// TODO not quite right. Should check source
+	query := tx.Model(&Translation{}).
+		Where("((original_id = ? AND translation_id = ?) OR (original_id = ? AND translation_id = ?))",
+			t.OriginalID, t.TranslationID, t.TranslationID, t.OriginalID)
+
+	if t.UserID == nil {
+		query = query.Where("user_id IS NULL")
+	} else {
+		query = query.Where("user_id = ?", *t.UserID)
+	}
+
+	query.Count(&count)
 
 	if count > 0 {
 		return errors.New("translation already exists")

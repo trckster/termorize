@@ -45,6 +45,9 @@ const (
 
 	telegramTextDeleteCompleted = "Done ✅"
 	telegramTextDeleteNotFound  = "Word not found ❌"
+
+	telegramTextVocabularyAutoAddedSuffix   = "\n\nIt was added to vocabulary"
+	telegramTextVocabularyManualAddedSuffix = "\n\nSuccessfully added to vocabulary"
 )
 
 const (
@@ -56,6 +59,8 @@ const (
 	telegramButtonMenuBack           = "Back"
 	telegramButtonMenuCancel         = "Cancel"
 	telegramButtonExerciseIDK        = "Don't know"
+	telegramButtonVocabularyAdd      = "Add to vocabulary"
+	telegramButtonVocabularyDelete   = "Delete from vocabulary"
 )
 
 func BuildBasicExerciseQuestion(

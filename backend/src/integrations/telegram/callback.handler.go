@@ -47,6 +47,8 @@ func routeCallbackData(callback *callbackQuery) error {
 		return handleExerciseCallback(callback, payload)
 	case callbackTypeMenu:
 		return handleMenuCallback(callback, payload)
+	case callbackTypeVocabulary:
+		return handleVocabularyCallback(callback, payload)
 	default:
 		return nil
 	}

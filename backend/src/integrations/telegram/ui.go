@@ -1,8 +1,9 @@
 package telegram
 
 const (
-	callbackTypeMenu     = "menu"
-	callbackTypeExercise = "exercise"
+	callbackTypeMenu       = "menu"
+	callbackTypeExercise   = "exercise"
+	callbackTypeVocabulary = "vocabulary"
 
 	menuActionBack              = "back"
 	menuActionCancel            = "cancel"
@@ -13,6 +14,9 @@ const (
 	menuActionSettings          = "settings"
 
 	exerciseActionIDK = "idk"
+
+	vocabularyActionAdd    = "add"
+	vocabularyActionDelete = "delete"
 )
 
 var menuKeyboard = [][]inlineKeyboardButton{
@@ -23,6 +27,20 @@ var menuKeyboard = [][]inlineKeyboardButton{
 
 var menuBackKeyboard = [][]inlineKeyboardButton{{{Text: telegramButtonMenuBack, CallbackData: callbackTypeMenu + ":" + menuActionBack}}}
 var menuCancelKeyboard = [][]inlineKeyboardButton{{{Text: telegramButtonMenuCancel, CallbackData: callbackTypeMenu + ":" + menuActionCancel}}}
+
+func buildVocabularyAddKeyboard(translationID string) [][]inlineKeyboardButton {
+	return [][]inlineKeyboardButton{{{
+		Text:         telegramButtonVocabularyAdd,
+		CallbackData: callbackTypeVocabulary + ":" + vocabularyActionAdd + ":" + translationID,
+	}}}
+}
+
+func buildVocabularyDeleteKeyboard(vocabularyID string) [][]inlineKeyboardButton {
+	return [][]inlineKeyboardButton{{{
+		Text:         telegramButtonVocabularyDelete,
+		CallbackData: callbackTypeVocabulary + ":" + vocabularyActionDelete + ":" + vocabularyID,
+	}}}
+}
 
 func menuActionToText(action string) (string, bool) {
 	switch action {

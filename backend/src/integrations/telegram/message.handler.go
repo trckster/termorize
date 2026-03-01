@@ -37,5 +37,14 @@ func handleMessage(message *message) error {
 		return routeMessageCommand(message, command)
 	}
 
+	handledTranslationMessage, err := handlePlainTranslationMessage(message)
+	if err != nil {
+		return err
+	}
+
+	if handledTranslationMessage {
+		return nil
+	}
+
 	return SendMessage(message.Chat.ID, message.Text)
 }
