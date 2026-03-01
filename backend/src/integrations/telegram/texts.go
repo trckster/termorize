@@ -3,6 +3,7 @@ package telegram
 import (
 	"fmt"
 	"math/rand"
+	"termorize/src/config"
 )
 
 const (
@@ -42,7 +43,7 @@ const (
 
 	telegramTextAddVocabularyFirstFormat = "Send translation separated by colon (from *%s* to *%s*).\n\n" +
 		"Example — *река:river*\n\n" +
-		"To add translation in different languages, proceed to the website: <⚒️ TODO link to the website ⚒️>"
+		"To add translation in different languages, proceed to the website: %s"
 	telegramTextAddVocabularyDone    = "Translation added ✅"
 	telegramTextAddVocabularyExists  = "Current translation already exists in vocabulary"
 	telegramTextAddVocabularyInvalid = "Invalid format. Send translation as word1:word2"
@@ -82,5 +83,5 @@ func buildOriginalQuestionText(word string) string {
 }
 
 func buildAddVocabularyFirstText(nativeLanguage string, mainLearningLanguage string) string {
-	return fmt.Sprintf(telegramTextAddVocabularyFirstFormat, nativeLanguage, mainLearningLanguage)
+	return fmt.Sprintf(telegramTextAddVocabularyFirstFormat, nativeLanguage, mainLearningLanguage, config.GetPublicURL())
 }
