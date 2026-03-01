@@ -35,7 +35,7 @@ func handlePlainTranslationMessage(message *message) (bool, error) {
 		return true, err
 	}
 
-	baseText := buildVocabularyTranslationText(sourceLanguage, word, translationResult.TranslatedWord, targetLanguage)
+	baseText := buildVocabularyTranslationText(sourceLanguage, translationResult.SourceWord, translationResult.TranslatedWord, targetLanguage)
 	if len(strings.Fields(word)) < 5 {
 		vocabulary, createErr := services.CreateVocabularyByTranslation(user.ID, translationResult.TranslationID)
 		if createErr == nil {

@@ -14,6 +14,7 @@ import (
 
 type TranslationResult struct {
 	TranslationID  uuid.UUID
+	SourceWord     string
 	TranslatedWord string
 }
 
@@ -55,16 +56,7 @@ func TranslateWithTranslation(fromWord string, fromLanguage enums.Language, toLa
 	}
 
 	if existingTranslation != nil {
-		return &TranslationResult{TranslationID: existingTranslation.ID, TranslatedWord: existingTranslation.Translation.Word}, nil
-	}
-
-	existingReversedTranslation, err := findExistingReversedTranslation(sourceWord.ID, toLanguage)
-	if err != nil {
-		return nil, err
-	}
-
-	if existingReversedTranslation != nil {
-		return &TranslationResult{TranslationID: existingReversedTranslation.ID, TranslatedWord: existingReversedTranslation.Original.Word}, nil
+		return &TranslationResult{TranslationID: existingTranslation.ID, SourceWord: existingTranslation.Original.Word, TranslatedWord: existingTranslation.Translation.Word}, nil
 	}
 
 	googleClient := google.NewTranslateClient()
@@ -91,7 +83,7 @@ func TranslateWithTranslation(fromWord string, fromLanguage enums.Language, toLa
 	translation.Original = sourceWord
 	translation.Translation = targetWord
 
-	return &TranslationResult{TranslationID: translation.ID, TranslatedWord: targetWord.Word}, nil
+	return &TranslationResult{TranslationID: translation.ID, SourceWord: sourceWord.Word, TranslatedWord: targetWord.Word}, nil
 }
 
 func findExistingTranslation(sourceWordID uuid.UUID, targetLanguage enums.Language) (*models.Translation, error) {
@@ -104,29 +96,6 @@ func findExistingTranslation(sourceWordID uuid.UUID, targetLanguage enums.Langua
 		Where("translations.source != ?", enums.TranslationSourceUser).
 		Where("original_id = ?", sourceWordID).
 		Where("translation_word.language = ?", string(targetLanguage)).
-		First(&translation)
-
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, result.Error
-	}
-
-	return &translation, nil
-}
-
-// TODO I guess we shouldn't be using it
-func findExistingReversedTranslation(sourceWordID uuid.UUID, targetLanguage enums.Language) (*models.Translation, error) {
-	var translation models.Translation
-
-	result := db.DB.
-		Joins("JOIN words AS original_word ON original_word.id = translations.original_id").
-		Preload("Original").
-		Preload("Translation").
-		Where("translations.source != ?", enums.TranslationSourceUser).
-		Where("translation_id = ?", sourceWordID).
-		Where("original_word.language = ?", string(targetLanguage)).
 		First(&translation)
 
 	if result.Error != nil {

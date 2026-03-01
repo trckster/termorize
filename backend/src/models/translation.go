@@ -29,15 +29,17 @@ func (t *Translation) BeforeSave(_ *gorm.DB) error {
 }
 
 func (t *Translation) BeforeCreate(tx *gorm.DB) error {
-	var count int64
-	// TODO not quite right. Should check source
-	query := tx.Model(&Translation{}).
-		Where("((original_id = ? AND translation_id = ?) OR (original_id = ? AND translation_id = ?))",
-			t.OriginalID, t.TranslationID, t.TranslationID, t.OriginalID)
+	if t.UserID == nil && t.Source == enums.TranslationSourceUser {
+		return errors.New("user ID is not set for source=translation")
+	}
 
-	if t.UserID == nil {
-		query = query.Where("user_id IS NULL")
-	} else {
+	var count int64
+	query := tx.Model(&Translation{}).
+		Where("original_id = ?", t.OriginalID).
+		Where("translation_id = ?", t.TranslationID).
+		Where("source = ?", t.Source)
+
+	if t.UserID != nil {
 		query = query.Where("user_id = ?", *t.UserID)
 	}
 
