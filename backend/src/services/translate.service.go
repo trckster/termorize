@@ -45,51 +45,68 @@ func Translate(fromWord string, fromLanguage enums.Language, toLanguage enums.La
 }
 
 func TranslateWithTranslation(fromWord string, fromLanguage enums.Language, toLanguage enums.Language) (*TranslationResult, error) {
-	sourceWord, err := GetOrCreateWord(fromWord, fromLanguage)
+	var result TranslationResult
+
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		sourceWord, err := GetOrCreateWord(tx, fromWord, fromLanguage)
+		if err != nil {
+			return err
+		}
+
+		existingTranslation, err := findExistingTranslation(tx, sourceWord.ID, toLanguage)
+		if err != nil {
+			return err
+		}
+
+		if existingTranslation != nil {
+			result = TranslationResult{
+				TranslationID:  existingTranslation.ID,
+				SourceWord:     existingTranslation.Original.Word,
+				TranslatedWord: existingTranslation.Translation.Word,
+			}
+			return nil
+		}
+
+		googleClient := google.NewTranslateClient()
+		translatedText, err := googleClient.Translate(fromWord, string(fromLanguage), string(toLanguage))
+		if err != nil {
+			return err
+		}
+
+		targetWord, err := GetOrCreateWord(tx, translatedText, toLanguage)
+		if err != nil {
+			return err
+		}
+
+		translation := models.Translation{
+			OriginalID:    sourceWord.ID,
+			TranslationID: targetWord.ID,
+			Source:        enums.TranslationSourceGoogle,
+		}
+
+		if err := tx.Create(&translation).Error; err != nil {
+			return err
+		}
+
+		result = TranslationResult{
+			TranslationID:  translation.ID,
+			SourceWord:     sourceWord.Word,
+			TranslatedWord: targetWord.Word,
+		}
+
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	existingTranslation, err := findExistingTranslation(sourceWord.ID, toLanguage)
-	if err != nil {
-		return nil, err
-	}
-
-	if existingTranslation != nil {
-		return &TranslationResult{TranslationID: existingTranslation.ID, SourceWord: existingTranslation.Original.Word, TranslatedWord: existingTranslation.Translation.Word}, nil
-	}
-
-	googleClient := google.NewTranslateClient()
-	translatedText, err := googleClient.Translate(fromWord, string(fromLanguage), string(toLanguage))
-	if err != nil {
-		return nil, err
-	}
-
-	targetWord, err := GetOrCreateWord(translatedText, toLanguage)
-	if err != nil {
-		return nil, err
-	}
-
-	translation := models.Translation{
-		OriginalID:    sourceWord.ID,
-		TranslationID: targetWord.ID,
-		Source:        enums.TranslationSourceGoogle,
-	}
-
-	if err := db.DB.Create(&translation).Error; err != nil {
-		return nil, err
-	}
-
-	translation.Original = sourceWord
-	translation.Translation = targetWord
-
-	return &TranslationResult{TranslationID: translation.ID, SourceWord: sourceWord.Word, TranslatedWord: targetWord.Word}, nil
+	return &result, nil
 }
 
-func findExistingTranslation(sourceWordID uuid.UUID, targetLanguage enums.Language) (*models.Translation, error) {
+func findExistingTranslation(conn *gorm.DB, sourceWordID uuid.UUID, targetLanguage enums.Language) (*models.Translation, error) {
 	var translation models.Translation
 
-	result := db.DB.
+	result := conn.
 		Joins("JOIN words AS translation_word ON translation_word.id = translations.translation_id").
 		Preload("Original").
 		Preload("Translation").

@@ -36,11 +36,11 @@ func IsTranslationAlreadyExistsError(err error) bool {
 	return err != nil && err.Error() == translationAlreadyExistsError
 }
 
-func GetOrCreateWord(word string, language enums.Language) (*models.Word, error) {
+func GetOrCreateWord(conn *gorm.DB, word string, language enums.Language) (*models.Word, error) {
 	normalizedWord := strings.TrimSpace(word)
 
 	var existingWord models.Word
-	result := db.DB.Where("LOWER(word) = LOWER(?) AND language = ?", normalizedWord, language).First(&existingWord)
+	result := conn.Where("LOWER(word) = LOWER(?) AND language = ?", normalizedWord, language).First(&existingWord)
 
 	if result.Error == nil {
 		return &existingWord, nil
@@ -55,7 +55,7 @@ func GetOrCreateWord(word string, language enums.Language) (*models.Word, error)
 		Language: language,
 	}
 
-	if err := db.DB.Create(&newWord).Error; err != nil {
+	if err := conn.Create(&newWord).Error; err != nil {
 		return nil, err
 	}
 
@@ -63,85 +63,103 @@ func GetOrCreateWord(word string, language enums.Language) (*models.Word, error)
 }
 
 func CreateVocabulary(userID uint, req CreateVocabularyRequest) (*models.Vocabulary, error) {
-	originalWord, err := GetOrCreateWord(req.Original, req.OriginalLanguage)
+	var vocabulary models.Vocabulary
+
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		originalWord, err := GetOrCreateWord(tx, req.Original, req.OriginalLanguage)
+		if err != nil {
+			return err
+		}
+
+		translatedWord, err := GetOrCreateWord(tx, req.Translation, req.TranslationLanguage)
+		if err != nil {
+			return err
+		}
+
+		translation := models.Translation{
+			OriginalID:    originalWord.ID,
+			TranslationID: translatedWord.ID,
+			Source:        enums.TranslationSourceUser,
+			UserID:        &userID,
+		}
+
+		if err := tx.Create(&translation).Error; err != nil {
+			return err
+		}
+
+		vocabulary = models.Vocabulary{
+			UserID:        userID,
+			TranslationID: translation.ID,
+			Progress: models.ProgressEntries{{
+				Knowledge: 0,
+				Type:      enums.KnowledgeTypeTranslation,
+			}},
+		}
+
+		if err := tx.Create(&vocabulary).Error; err != nil {
+			return err
+		}
+
+		vocabulary.Translation = &translation
+		vocabulary.Translation.Original = originalWord
+		vocabulary.Translation.Translation = translatedWord
+
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	translatedWord, err := GetOrCreateWord(req.Translation, req.TranslationLanguage)
-	if err != nil {
-		return nil, err
-	}
-
-	translation := models.Translation{
-		OriginalID:    originalWord.ID,
-		TranslationID: translatedWord.ID,
-		Source:        enums.TranslationSourceUser,
-		UserID:        &userID,
-	}
-
-	if err := db.DB.Create(&translation).Error; err != nil {
-		return nil, err
-	}
-
-	vocabulary := models.Vocabulary{
-		UserID:        userID,
-		TranslationID: translation.ID,
-		Progress: models.ProgressEntries{{
-			Knowledge: 0,
-			Type:      enums.KnowledgeTypeTranslation,
-		}},
-	}
-
-	if err := db.DB.Create(&vocabulary).Error; err != nil {
-		return nil, err
-	}
-
-	vocabulary.Translation = &translation
-	vocabulary.Translation.Original = originalWord
-	vocabulary.Translation.Translation = translatedWord
 
 	return &vocabulary, nil
 }
 
 func CreateVocabularyByTranslation(userID uint, translationID uuid.UUID) (*models.Vocabulary, error) {
-	var translation models.Translation
-	if err := db.DB.
-		Preload("Original").
-		Preload("Translation").
-		Where("id = ?", translationID).
-		First(&translation).Error; err != nil {
+	var vocabulary models.Vocabulary
+
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		var translation models.Translation
+		if err := tx.
+			Preload("Original").
+			Preload("Translation").
+			Where("id = ?", translationID).
+			First(&translation).Error; err != nil {
+			return err
+		}
+
+		var count int64
+		if err := tx.
+			Model(&models.Vocabulary{}).
+			Joins("JOIN translations ON translations.id = vocabulary.translation_id").
+			Where("vocabulary.user_id = ?", userID).
+			Where("(translations.original_id = ? AND translations.translation_id = ?) OR (translations.original_id = ? AND translations.translation_id = ?)", translation.OriginalID, translation.TranslationID, translation.TranslationID, translation.OriginalID).
+			Count(&count).Error; err != nil {
+			return err
+		}
+
+		if count > 0 {
+			return errors.New(translationAlreadyExistsError)
+		}
+
+		vocabulary = models.Vocabulary{
+			UserID:        userID,
+			TranslationID: translationID,
+			Progress: models.ProgressEntries{{
+				Knowledge: 0,
+				Type:      enums.KnowledgeTypeTranslation,
+			}},
+		}
+
+		if err := tx.Create(&vocabulary).Error; err != nil {
+			return err
+		}
+
+		vocabulary.Translation = &translation
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
 
-	var count int64
-	if err := db.DB.
-		Model(&models.Vocabulary{}).
-		Joins("JOIN translations ON translations.id = vocabulary.translation_id").
-		Where("vocabulary.user_id = ?", userID).
-		Where("(translations.original_id = ? AND translations.translation_id = ?) OR (translations.original_id = ? AND translations.translation_id = ?)", translation.OriginalID, translation.TranslationID, translation.TranslationID, translation.OriginalID).
-		Count(&count).Error; err != nil {
-		return nil, err
-	}
-
-	if count > 0 {
-		return nil, errors.New(translationAlreadyExistsError)
-	}
-
-	vocabulary := models.Vocabulary{
-		UserID:        userID,
-		TranslationID: translationID,
-		Progress: models.ProgressEntries{{
-			Knowledge: 0,
-			Type:      enums.KnowledgeTypeTranslation,
-		}},
-	}
-
-	if err := db.DB.Create(&vocabulary).Error; err != nil {
-		return nil, err
-	}
-
-	vocabulary.Translation = &translation
 	return &vocabulary, nil
 }
 

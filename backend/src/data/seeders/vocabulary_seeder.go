@@ -228,70 +228,81 @@ var wordPairs = []WordPair{
 }
 
 func SeedVocabulary(req VocabularySeedRequest) error {
-	userID := req.UserID
+	var selectedUserID uint
 
-	if userID == nil {
-		selectedUser, err := getDefaultUser()
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		userID := req.UserID
+
+		if userID == nil {
+			selectedUser, err := getDefaultUser(tx)
+			if err != nil {
+				return err
+			}
+			userID = &selectedUser.ID
+		}
+
+		selectedUserID = *userID
+
+		user := &models.User{}
+		if err := tx.First(user, userID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("user with id %d not found", *userID)
+			}
+			return fmt.Errorf("failed to query user: %w", err)
+		}
+
+		words, err := getOrCreateWords(tx)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get or create words: %w", err)
 		}
-		userID = &selectedUser.ID
-	}
 
-	user := &models.User{}
-	if err := db.DB.First(user, userID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("user with id %d not found", *userID)
-		}
-		return fmt.Errorf("failed to query user: %w", err)
-	}
-
-	words, err := getOrCreateWords()
-	if err != nil {
-		return fmt.Errorf("failed to get or create words: %w", err)
-	}
-
-	translations, err := generateTranslation(words)
-	if err != nil {
-		return fmt.Errorf("failed to generate vocabulary and translations: %w", err)
-	}
-
-	for i := range translations {
-		existingTranslation, err := getExistingTranslation(translations[i].OriginalID, translations[i].TranslationID)
+		translations, err := generateTranslation(words)
 		if err != nil {
-			return fmt.Errorf("failed to check existing translation: %w", err)
+			return fmt.Errorf("failed to generate vocabulary and translations: %w", err)
 		}
-		if existingTranslation != nil {
-			translations[i].ID = existingTranslation.ID
-		} else {
-			if err := db.DB.Create(&translations[i]).Error; err != nil {
-				return fmt.Errorf("failed to create translation: %w", err)
+
+		for i := range translations {
+			existingTranslation, err := getExistingTranslation(tx, translations[i].OriginalID, translations[i].TranslationID)
+			if err != nil {
+				return fmt.Errorf("failed to check existing translation: %w", err)
+			}
+			if existingTranslation != nil {
+				translations[i].ID = existingTranslation.ID
+			} else {
+				if err := tx.Create(&translations[i]).Error; err != nil {
+					return fmt.Errorf("failed to create translation: %w", err)
+				}
+			}
+
+			vocabulary := models.Vocabulary{
+				UserID:        *userID,
+				TranslationID: translations[i].ID,
+				Progress: models.ProgressEntries{{
+					Knowledge: rand.Intn(101),
+					Type:      enums.KnowledgeTypeTranslation,
+				}},
+			}
+			if err := tx.FirstOrCreate(&vocabulary, models.Vocabulary{
+				UserID:        vocabulary.UserID,
+				TranslationID: vocabulary.TranslationID,
+			}).Error; err != nil {
+				return fmt.Errorf("failed to create vocabulary item: %w", err)
 			}
 		}
 
-		vocabulary := models.Vocabulary{
-			UserID:        *userID,
-			TranslationID: translations[i].ID,
-			Progress: models.ProgressEntries{{
-				Knowledge: rand.Intn(101),
-				Type:      enums.KnowledgeTypeTranslation,
-			}},
-		}
-		if err := db.DB.FirstOrCreate(&vocabulary, models.Vocabulary{
-			UserID:        vocabulary.UserID,
-			TranslationID: vocabulary.TranslationID,
-		}).Error; err != nil {
-			return fmt.Errorf("failed to create vocabulary item: %w", err)
-		}
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
-	logger.L().Infow("successfully seeded vocabulary items", "user_id", *userID)
+	logger.L().Infow("successfully seeded vocabulary items", "user_id", selectedUserID)
 	return nil
 }
 
-func getDefaultUser() (*models.User, error) {
+func getDefaultUser(tx *gorm.DB) (*models.User, error) {
 	var count int64
-	if err := db.DB.Model(&models.User{}).Count(&count).Error; err != nil {
+	if err := tx.Model(&models.User{}).Count(&count).Error; err != nil {
 		return nil, fmt.Errorf("failed to count users: %w", err)
 	}
 
@@ -304,14 +315,14 @@ func getDefaultUser() (*models.User, error) {
 	}
 
 	user := &models.User{}
-	if err := db.DB.First(user).Error; err != nil {
+	if err := tx.First(user).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch first user: %w", err)
 	}
 
 	return user, nil
 }
 
-func getOrCreateWords() (map[string]uuid.UUID, error) {
+func getOrCreateWords(tx *gorm.DB) (map[string]uuid.UUID, error) {
 	wordsByLangAndValue := make(map[string]uuid.UUID)
 
 	languages := []struct {
@@ -330,7 +341,7 @@ func getOrCreateWords() (map[string]uuid.UUID, error) {
 			key := fmt.Sprintf("%s_%s", wordValues[i], lang.lang)
 
 			var existingWord models.Word
-			result := db.DB.Where("word = ? AND language = ?", wordValues[i], lang.lang).First(&existingWord)
+			result := tx.Where("word = ? AND language = ?", wordValues[i], lang.lang).First(&existingWord)
 			if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 				return nil, fmt.Errorf("failed to query existing word: %w", result.Error)
 			}
@@ -340,7 +351,7 @@ func getOrCreateWords() (map[string]uuid.UUID, error) {
 					Word:     wordValues[i],
 					Language: lang.lang,
 				}
-				if err := db.DB.Create(&newWord).Error; err != nil {
+				if err := tx.Create(&newWord).Error; err != nil {
 					return nil, fmt.Errorf("failed to create word: %w", err)
 				}
 				wordsByLangAndValue[key] = newWord.ID
@@ -419,9 +430,9 @@ func generateTranslation(wordsByLangAndValue map[string]uuid.UUID) ([]models.Tra
 	return translations, nil
 }
 
-func getExistingTranslation(originalID, translationID uuid.UUID) (*models.Translation, error) {
+func getExistingTranslation(tx *gorm.DB, originalID, translationID uuid.UUID) (*models.Translation, error) {
 	var existingTranslation models.Translation
-	result := db.DB.Where(
+	result := tx.Where(
 		"(original_id = ? AND translation_id = ?) OR (original_id = ? AND translation_id = ?)",
 		originalID, translationID, translationID, originalID,
 	).First(&existingTranslation)

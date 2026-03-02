@@ -32,50 +32,55 @@ func defaultUserSettings(timezone string) models.UserSettings {
 
 func CreateOrUpdateUserByTelegramAuthData(data auth.TelegramAuthData, timezone string) (*models.User, error) {
 	var user models.User
-	result := db.DB.Where("telegram_id = ?", data.ID).First(&user)
 
-	if result.Error == nil {
-		return updateUserByTelegramAuthData(&user, data)
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		result := tx.Where("telegram_id = ?", data.ID).First(&user)
+
+		if result.Error == nil {
+			user.Name = strings.TrimSpace(data.FirstName + " " + data.LastName)
+			user.Username = data.Username
+			return tx.Save(&user).Error
+		}
+
+		if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return result.Error
+		}
+
+		user = models.User{
+			TelegramID: data.ID,
+			Username:   data.Username,
+			Name:       strings.TrimSpace(data.FirstName + " " + data.LastName),
+			Settings:   defaultUserSettings(timezone),
+		}
+
+		return tx.Create(&user).Error
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	return createUserByTelegramAuthData(data, timezone)
-}
-
-func createUserByTelegramAuthData(data auth.TelegramAuthData, timezone string) (*models.User, error) {
-	user := models.User{
-		TelegramID: data.ID,
-		Username:   data.Username,
-		Name:       strings.TrimSpace(data.FirstName + " " + data.LastName),
-		Settings:   defaultUserSettings(timezone),
-	}
-
-	err := db.DB.Create(&user).Error
-
-	return &user, err
-}
-
-func updateUserByTelegramAuthData(user *models.User, data auth.TelegramAuthData) (*models.User, error) {
-	user.Name = strings.TrimSpace(data.FirstName + " " + data.LastName)
-	user.Username = data.Username
-
-	return user, db.DB.Save(&user).Error
+	return &user, nil
 }
 
 func UpdateUserSettings(userID uint, settings models.UserSettings) (*models.User, error) {
 	var user models.User
 
-	if err := db.DB.Where("id = ?", userID).First(&user).Error; err != nil {
-		return nil, err
-	}
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("id = ?", userID).First(&user).Error; err != nil {
+			return err
+		}
 
-	// Edit of this flag is acceptable only via interaction with bot.
-	// - Enable bot by sending any message
-	// - Disable bot by blocking it
-	settings.Telegram.BotEnabled = user.Settings.Telegram.BotEnabled
+		settings.Telegram.BotEnabled = user.Settings.Telegram.BotEnabled
 
-	user.Settings = settings
+		user.Settings = settings
 
-	if err := db.DB.Save(&user).Error; err != nil {
+		if err := tx.Save(&user).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
 
@@ -83,46 +88,58 @@ func UpdateUserSettings(userID uint, settings models.UserSettings) (*models.User
 }
 
 func UpdateUserTelegramBotEnabled(telegramID int64, botEnabled bool) error {
-	var user models.User
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var user models.User
 
-	if err := db.DB.Where("telegram_id = ?", telegramID).First(&user).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if err := tx.Where("telegram_id = ?", telegramID).First(&user).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil
+			}
+
+			return err
+		}
+
+		if user.Settings.Telegram.BotEnabled == botEnabled {
 			return nil
 		}
 
-		return err
-	}
+		settings := user.Settings
+		settings.Telegram.BotEnabled = botEnabled
 
-	if user.Settings.Telegram.BotEnabled == botEnabled {
-		return nil
-	}
-
-	settings := user.Settings
-	settings.Telegram.BotEnabled = botEnabled
-
-	return db.DB.Model(&user).Update("settings", settings).Error
+		return tx.Model(&user).Update("settings", settings).Error
+	})
 }
 
 func UpdateUserTelegramState(telegramID int64, state enums.TelegramState) (bool, error) {
-	var user models.User
+	updated := false
 
-	if err := db.DB.Where("telegram_id = ?", telegramID).First(&user).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return false, nil
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		var user models.User
+
+		if err := tx.Where("telegram_id = ?", telegramID).First(&user).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil
+			}
+
+			return err
 		}
 
+		if user.TelegramState == state {
+			return nil
+		}
+
+		if err := tx.Model(&user).Update("telegram_state", state).Error; err != nil {
+			return err
+		}
+
+		updated = true
+		return nil
+	})
+	if err != nil {
 		return false, err
 	}
 
-	if user.TelegramState == state {
-		return false, nil
-	}
-
-	if err := db.DB.Model(&user).Update("telegram_state", state).Error; err != nil {
-		return false, err
-	}
-
-	return true, nil
+	return updated, nil
 }
 
 func GetUserByTelegramID(telegramID int64) (*models.User, error) {
@@ -140,28 +157,30 @@ func GetUserByTelegramID(telegramID int64) (*models.User, error) {
 }
 
 func EnsureUserByTelegramID(telegramID int64, username string, firstName string, lastName string) error {
-	var user models.User
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var user models.User
 
-	err := db.DB.Where("telegram_id = ?", telegramID).First(&user).Error
-	if err == nil {
-		return nil
-	}
+		err := tx.Where("telegram_id = ?", telegramID).First(&user).Error
+		if err == nil {
+			return nil
+		}
 
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return err
-	}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
 
-	settings := defaultUserSettings("")
-	settings.Telegram.BotEnabled = true
+		settings := defaultUserSettings("")
+		settings.Telegram.BotEnabled = true
 
-	user = models.User{
-		TelegramID: telegramID,
-		Username:   username,
-		Name:       strings.TrimSpace(firstName + " " + lastName),
-		Settings:   settings,
-	}
+		user = models.User{
+			TelegramID: telegramID,
+			Username:   username,
+			Name:       strings.TrimSpace(firstName + " " + lastName),
+			Settings:   settings,
+		}
 
-	return db.DB.Create(&user).Error
+		return tx.Create(&user).Error
+	})
 }
 
 func GetUsersWithEnabledDailyQuestions() ([]models.User, error) {
