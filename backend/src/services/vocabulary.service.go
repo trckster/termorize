@@ -18,6 +18,10 @@ type CreateVocabularyRequest struct {
 	TranslationLanguage enums.Language `json:"translation_language" binding:"required,enum=Language,nefield=OriginalLanguage"`
 }
 
+type CreateVocabularyByTranslationRequest struct {
+	TranslationID uuid.UUID `json:"translation_id" binding:"required"`
+}
+
 type Pagination struct {
 	Page       int   `json:"page"`
 	PageSize   int   `json:"page_size"`
@@ -31,9 +35,14 @@ type VocabularyListResponse struct {
 }
 
 const translationAlreadyExistsError = "translation already exists"
+const translationNotFoundError = "translation not found"
 
-func IsTranslationAlreadyExistsError(err error) bool {
+func TranslationAlreadyExistsError(err error) bool {
 	return err != nil && err.Error() == translationAlreadyExistsError
+}
+
+func TranslationNotFoundError(err error) bool {
+	return err != nil && err.Error() == translationNotFoundError
 }
 
 func GetOrCreateWord(conn *gorm.DB, word string, language enums.Language) (*models.Word, error) {
@@ -90,10 +99,7 @@ func CreateVocabulary(userID uint, req CreateVocabularyRequest) (*models.Vocabul
 		vocabulary = models.Vocabulary{
 			UserID:        userID,
 			TranslationID: translation.ID,
-			Progress: models.ProgressEntries{{
-				Knowledge: 0,
-				Type:      enums.KnowledgeTypeTranslation,
-			}},
+			Progress:      models.BuildDefaultProgress(),
 		}
 
 		if err := tx.Create(&vocabulary).Error; err != nil {
@@ -143,10 +149,7 @@ func CreateVocabularyByTranslation(userID uint, translationID uuid.UUID) (*model
 		vocabulary = models.Vocabulary{
 			UserID:        userID,
 			TranslationID: translationID,
-			Progress: models.ProgressEntries{{
-				Knowledge: 0,
-				Type:      enums.KnowledgeTypeTranslation,
-			}},
+			Progress:      models.BuildDefaultProgress(),
 		}
 
 		if err := tx.Create(&vocabulary).Error; err != nil {
@@ -159,6 +162,46 @@ func CreateVocabularyByTranslation(userID uint, translationID uuid.UUID) (*model
 	if err != nil {
 		return nil, err
 	}
+
+	return &vocabulary, nil
+}
+
+func CreateVocabularyByTranslationID(userID uint, translationID uuid.UUID) (*models.Vocabulary, error) {
+	var vocabulary models.Vocabulary
+
+	var translation models.Translation
+	if err := db.DB.
+		Preload("Original").
+		Preload("Translation").
+		Where("id = ?", translationID).
+		First(&translation).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New(translationNotFoundError)
+		}
+
+		return nil, err
+	}
+
+	var existingVocabulary models.Vocabulary
+	if err := db.DB.
+		Where("user_id = ? AND translation_id = ?", userID, translationID).
+		First(&existingVocabulary).Error; err == nil {
+		return nil, errors.New(translationAlreadyExistsError)
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
+	vocabulary = models.Vocabulary{
+		UserID:        userID,
+		TranslationID: translationID,
+		Progress:      models.BuildDefaultProgress(),
+	}
+
+	if err := db.DB.Create(&vocabulary).Error; err != nil {
+		return nil, err
+	}
+
+	vocabulary.Translation = &translation
 
 	return &vocabulary, nil
 }

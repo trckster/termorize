@@ -274,13 +274,13 @@ func SeedVocabulary(req VocabularySeedRequest) error {
 				}
 			}
 
+			progress := models.BuildDefaultProgress()
+			progress[0].Knowledge = rand.Intn(101)
+
 			vocabulary := models.Vocabulary{
 				UserID:        *userID,
 				TranslationID: translations[i].ID,
-				Progress: models.ProgressEntries{{
-					Knowledge: rand.Intn(101),
-					Type:      enums.KnowledgeTypeTranslation,
-				}},
+				Progress:      progress,
 			}
 			if err := tx.FirstOrCreate(&vocabulary, models.Vocabulary{
 				UserID:        vocabulary.UserID,

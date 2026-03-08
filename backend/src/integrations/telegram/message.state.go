@@ -54,7 +54,7 @@ func handleAddingVocabularyMessage(message *message, user *models.User, telegram
 		TranslationLanguage: user.Settings.NativeLanguage,
 	})
 	if err != nil {
-		if services.IsTranslationAlreadyExistsError(err) {
+		if services.TranslationAlreadyExistsError(err) {
 			return SendMessage(message.Chat.ID, telegramTextAddVocabularyExists)
 		}
 

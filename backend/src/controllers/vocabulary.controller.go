@@ -32,6 +32,33 @@ func CreateVocabulary(c *gin.Context) {
 	c.JSON(nethttp.StatusCreated, vocabulary)
 }
 
+func CreateVocabularyByTranslation(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+
+	var req services.CreateVocabularyByTranslationRequest
+	if !validators.BindJSONWithErrors(c, &req) {
+		return
+	}
+
+	vocabulary, err := services.CreateVocabularyByTranslationID(userID, req.TranslationID)
+	if err != nil {
+		if services.TranslationAlreadyExistsError(err) {
+			c.JSON(nethttp.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
+
+		if services.TranslationNotFoundError(err) {
+			c.JSON(nethttp.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(nethttp.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(nethttp.StatusCreated, vocabulary)
+}
+
 func GetVocabulary(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 

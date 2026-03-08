@@ -42,3 +42,10 @@ type Vocabulary struct {
 func (v *Vocabulary) TableName() string {
 	return "vocabulary"
 }
+
+func BuildDefaultProgress() ProgressEntries {
+	return ProgressEntries{{
+		Knowledge: 0,
+		Type:      enums.KnowledgeTypeTranslation,
+	}}
+}
