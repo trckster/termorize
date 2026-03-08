@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { translationApi } from '@/api/translation.ts'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 
@@ -12,6 +12,13 @@ let debounceTimer: ReturnType<typeof setTimeout> | null = null
 const activeField = ref<'source' | 'target' | null>(null)
 const isLoadingSource = ref(false)
 const isLoadingTarget = ref(false)
+const translationSource = ref('')
+const translationSourceLabel = computed(() => {
+    if (translationSource.value === 'user') return 'User'
+    if (translationSource.value === 'dictionary') return 'Dictionary'
+    if (translationSource.value === 'google') return 'Google'
+    return translationSource.value
+})
 
 const performTranslation = async (
     fromText: string,
@@ -22,6 +29,7 @@ const performTranslation = async (
 ) => {
     if (!fromText.trim()) {
         updateTarget('')
+        translationSource.value = ''
         return
     }
 
@@ -32,9 +40,11 @@ const performTranslation = async (
             from_language: fromLang,
             to_language: toLang,
         })
-        updateTarget(result)
+        updateTarget(result.translation)
+        translationSource.value = result.source
     } catch (error) {
         console.error('Translation error:', error)
+        translationSource.value = ''
     } finally {
         setLoading(false)
     }
@@ -233,6 +243,9 @@ const handleSwapLanguages = () => {
                     ⇄ Swap Languages
                 </button>
             </div>
+            <p v-if="translationSource" class="mt-3 text-center text-xs text-muted-foreground">
+                Source: {{ translationSourceLabel }}
+            </p>
         </div>
     </main>
 </template>

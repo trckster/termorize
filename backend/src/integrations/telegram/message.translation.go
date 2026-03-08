@@ -30,7 +30,7 @@ func handlePlainTranslationMessage(message *message) (bool, error) {
 		return true, err
 	}
 
-	translationResult, err := services.TranslateWithTranslation(word, sourceLanguage, targetLanguage)
+	translationResult, err := services.Translate(word, sourceLanguage, targetLanguage)
 	if err != nil {
 		return true, err
 	}

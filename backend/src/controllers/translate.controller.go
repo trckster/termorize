@@ -7,6 +7,7 @@ import (
 	"termorize/src/services"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type TranslateRequest struct {
@@ -16,7 +17,9 @@ type TranslateRequest struct {
 }
 
 type TranslateResponse struct {
-	Translation string `json:"translation"`
+	ID          uuid.UUID               `json:"id"`
+	Translation string                  `json:"translation"`
+	Source      enums.TranslationSource `json:"source"`
 }
 
 func Translate(c *gin.Context) {
@@ -31,5 +34,9 @@ func Translate(c *gin.Context) {
 		return
 	}
 
-	c.JSON(nethttp.StatusOK, TranslateResponse{Translation: translation})
+	c.JSON(nethttp.StatusOK, TranslateResponse{
+		ID:          translation.TranslationID,
+		Translation: translation.TranslatedWord,
+		Source:      translation.Source,
+	})
 }

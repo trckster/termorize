@@ -16,6 +16,7 @@ type TranslationResult struct {
 	TranslationID  uuid.UUID
 	SourceWord     string
 	TranslatedWord string
+	Source         enums.TranslationSource
 }
 
 func DetectLanguage(text string) (enums.Language, bool, error) {
@@ -35,16 +36,7 @@ func DetectLanguage(text string) (enums.Language, bool, error) {
 	return language, false, nil
 }
 
-func Translate(fromWord string, fromLanguage enums.Language, toLanguage enums.Language) (string, error) {
-	result, err := TranslateWithTranslation(fromWord, fromLanguage, toLanguage)
-	if err != nil {
-		return "", err
-	}
-
-	return result.TranslatedWord, nil
-}
-
-func TranslateWithTranslation(fromWord string, fromLanguage enums.Language, toLanguage enums.Language) (*TranslationResult, error) {
+func Translate(fromWord string, fromLanguage enums.Language, toLanguage enums.Language) (*TranslationResult, error) {
 	var result TranslationResult
 
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
@@ -63,6 +55,7 @@ func TranslateWithTranslation(fromWord string, fromLanguage enums.Language, toLa
 				TranslationID:  existingTranslation.ID,
 				SourceWord:     existingTranslation.Original.Word,
 				TranslatedWord: existingTranslation.Translation.Word,
+				Source:         existingTranslation.Source,
 			}
 			return nil
 		}
@@ -92,6 +85,7 @@ func TranslateWithTranslation(fromWord string, fromLanguage enums.Language, toLa
 			TranslationID:  translation.ID,
 			SourceWord:     sourceWord.Word,
 			TranslatedWord: targetWord.Word,
+			Source:         translation.Source,
 		}
 
 		return nil

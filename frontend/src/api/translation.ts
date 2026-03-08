@@ -7,12 +7,14 @@ export type TranslateRequest = {
 }
 
 export type TranslateResponse = {
+    id: string
     translation: string
+    source: 'user' | 'dictionary' | 'google'
 }
 
 export const translationApi = {
-    async translate(request: TranslateRequest): Promise<string> {
+    async translate(request: TranslateRequest): Promise<TranslateResponse> {
         const response = await apiCall<TranslateResponse>('/translate', 'POST', request)
-        return response.body.translation
+        return response.body
     },
 }
