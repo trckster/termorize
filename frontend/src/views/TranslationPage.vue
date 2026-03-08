@@ -4,12 +4,32 @@ import { translationApi } from '@/api/translation.ts'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import { Kbd } from '@/components/ui/kbd'
 import { useToast } from '@/composables/useToast.ts'
+import { useAuthStore } from '@/stores/auth.ts'
+
+const authStore = useAuthStore()
+
+const getInitialLanguages = () => {
+    const nativeLanguage = authStore.user?.settings.native_language || 'en'
+    let mainLearningLanguage = authStore.user?.settings.main_learning_language || 'ru'
+
+    if (nativeLanguage === mainLearningLanguage) {
+        mainLearningLanguage = nativeLanguage === 'en' ? 'ru' : 'en'
+    }
+
+    return {
+        source: nativeLanguage,
+        target: mainLearningLanguage,
+    }
+}
+
+const initialLanguages = getInitialLanguages()
 
 const sourceText = ref('')
 const translatedText = ref('')
 const sourceTextareaRef = ref<HTMLTextAreaElement | null>(null)
-const sourceLang = ref('en')
-const targetLang = ref('ru')
+const targetTextareaRef = ref<HTMLTextAreaElement | null>(null)
+const sourceLang = ref(initialLanguages.source)
+const targetLang = ref(initialLanguages.target)
 const translationId = ref<string | null>(null)
 const isSavingVocabulary = ref(false)
 
@@ -235,7 +255,37 @@ const saveTranslationToVocabulary = async () => {
 }
 
 const handleShortcut = (event: KeyboardEvent) => {
-    if (!event.ctrlKey || event.key.toLowerCase() !== 's') {
+    if (event.key === 'Tab') {
+        event.preventDefault()
+
+        const sourceElement = sourceTextareaRef.value
+        const targetElement = targetTextareaRef.value
+        const activeElement = document.activeElement
+
+        if (event.shiftKey) {
+            if (activeElement === targetElement) {
+                sourceElement?.focus()
+                activeField.value = 'source'
+                return
+            }
+
+            targetElement?.focus()
+            activeField.value = 'target'
+            return
+        }
+
+        if (activeElement === sourceElement) {
+            targetElement?.focus()
+            activeField.value = 'target'
+            return
+        }
+
+        sourceElement?.focus()
+        activeField.value = 'source'
+        return
+    }
+
+    if (!event.ctrlKey || event.code !== 'KeyS') {
         return
     }
 
@@ -311,6 +361,7 @@ onBeforeUnmount(() => {
                     </div>
                     <div class="relative">
                         <textarea
+                            ref="targetTextareaRef"
                             v-model="translatedText"
                             @focus="activeField = 'target'"
                             placeholder="Translation will appear here..."
