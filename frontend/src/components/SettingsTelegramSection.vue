@@ -88,6 +88,10 @@ const scheduleValidationError = computed(() => {
     for (let index = 1; index < intervals.length; index++) {
         const previous = intervals[index - 1]
         const current = intervals[index]
+        if (!previous || !current) {
+            continue
+        }
+
         if (current.from < previous.to) {
             return 'Schedule intervals cannot overlap.'
         }
@@ -111,8 +115,13 @@ const hasChanged = computed(() => {
 })
 
 const setScheduleTime = (index: number, key: 'from' | 'to', value: string) => {
+    const scheduleItem = dailyQuestionsSchedule.value[index]
+    if (!scheduleItem) {
+        return
+    }
+
     dailyQuestionsSchedule.value[index] = {
-        ...dailyQuestionsSchedule.value[index],
+        ...scheduleItem,
         [key]: value,
     }
 }

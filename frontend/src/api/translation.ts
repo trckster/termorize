@@ -17,4 +17,10 @@ export const translationApi = {
         const response = await apiCall<TranslateResponse>('/translate', 'POST', request)
         return response.body
     },
+
+    async addVocabularyByTranslation(translationId: string): Promise<void> {
+        await apiCall('/vocabulary/translation', 'POST', {
+            translation_id: translationId,
+        })
+    },
 }

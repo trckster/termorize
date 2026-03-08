@@ -1,12 +1,19 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { translationApi } from '@/api/translation.ts'
 import LanguageSelector from '@/components/LanguageSelector.vue'
+import { Kbd } from '@/components/ui/kbd'
+import { useToast } from '@/composables/useToast.ts'
 
 const sourceText = ref('')
 const translatedText = ref('')
+const sourceTextareaRef = ref<HTMLTextAreaElement | null>(null)
 const sourceLang = ref('en')
 const targetLang = ref('ru')
+const translationId = ref<string | null>(null)
+const isSavingVocabulary = ref(false)
+
+const { addToast } = useToast()
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 const activeField = ref<'source' | 'target' | null>(null)
@@ -30,6 +37,7 @@ const performTranslation = async (
     if (!fromText.trim()) {
         updateTarget('')
         translationSource.value = ''
+        translationId.value = null
         return
     }
 
@@ -42,9 +50,11 @@ const performTranslation = async (
         })
         updateTarget(result.translation)
         translationSource.value = result.source
+        translationId.value = result.id
     } catch (error) {
         console.error('Translation error:', error)
         translationSource.value = ''
+        translationId.value = null
     } finally {
         setLoading(false)
     }
@@ -70,6 +80,7 @@ watch(
     sourceText,
     (newValue) => {
         if (activeField.value !== 'source') return
+        translationId.value = null
         debouncedTranslate(
             newValue,
             sourceLang.value,
@@ -89,6 +100,7 @@ watch(
     translatedText,
     (newValue) => {
         if (activeField.value !== 'target') return
+        translationId.value = null
         debouncedTranslate(
             newValue,
             targetLang.value,
@@ -108,6 +120,7 @@ watch(
     sourceLang,
     () => {
         if (activeField.value === 'source' && sourceText.value.trim()) {
+            translationId.value = null
             debouncedTranslate(
                 sourceText.value,
                 sourceLang.value,
@@ -120,6 +133,7 @@ watch(
                 }
             )
         } else if (activeField.value === 'target' && translatedText.value.trim()) {
+            translationId.value = null
             debouncedTranslate(
                 translatedText.value,
                 targetLang.value,
@@ -140,6 +154,7 @@ watch(
     targetLang,
     () => {
         if (activeField.value === 'source' && sourceText.value.trim()) {
+            translationId.value = null
             debouncedTranslate(
                 sourceText.value,
                 sourceLang.value,
@@ -152,6 +167,7 @@ watch(
                 }
             )
         } else if (activeField.value === 'target' && translatedText.value.trim()) {
+            translationId.value = null
             debouncedTranslate(
                 translatedText.value,
                 targetLang.value,
@@ -172,6 +188,81 @@ const handleSwapLanguages = () => {
     ;[sourceLang.value, targetLang.value] = [targetLang.value, sourceLang.value]
     ;[sourceText.value, translatedText.value] = [translatedText.value, sourceText.value]
 }
+
+const saveTranslationToVocabulary = async () => {
+    if (!translationId.value) {
+        addToast({
+            title: 'Warning',
+            description: 'No translation is available yet. Translate text first.',
+            duration: 3000,
+        })
+        return
+    }
+
+    if (isSavingVocabulary.value) {
+        return
+    }
+
+    isSavingVocabulary.value = true
+    try {
+        await translationApi.addVocabularyByTranslation(translationId.value)
+        addToast({
+            title: 'Success!',
+            description: 'Translation added to vocabulary.',
+            variant: 'success',
+            duration: 3000,
+        })
+    } catch (error) {
+        const apiError = error as { status?: number }
+        if (apiError.status === 409) {
+            addToast({
+                title: 'Warning',
+                description: 'This vocabulary already exists.',
+                duration: 3000,
+            })
+            return
+        }
+
+        addToast({
+            title: 'Error',
+            description: 'Failed to add translation to vocabulary. Please try again.',
+            variant: 'destructive',
+            duration: 5000,
+        })
+    } finally {
+        isSavingVocabulary.value = false
+    }
+}
+
+const handleShortcut = (event: KeyboardEvent) => {
+    if (!event.ctrlKey || event.key.toLowerCase() !== 's') {
+        return
+    }
+
+    event.preventDefault()
+
+    if (event.shiftKey) {
+        handleSwapLanguages()
+        return
+    }
+
+    void saveTranslationToVocabulary()
+}
+
+onMounted(() => {
+    window.addEventListener('keydown', handleShortcut)
+    void nextTick(() => {
+        sourceTextareaRef.value?.focus()
+        activeField.value = 'source'
+    })
+})
+
+onBeforeUnmount(() => {
+    window.removeEventListener('keydown', handleShortcut)
+    if (debounceTimer) {
+        clearTimeout(debounceTimer)
+    }
+})
 </script>
 
 <template>
@@ -191,6 +282,7 @@ const handleSwapLanguages = () => {
                     </div>
                     <div class="relative">
                         <textarea
+                            ref="sourceTextareaRef"
                             v-model="sourceText"
                             @focus="activeField = 'source'"
                             placeholder="Enter text to translate..."
@@ -235,17 +327,19 @@ const handleSwapLanguages = () => {
                 </div>
             </div>
 
-            <div class="flex justify-center mt-6">
-                <button
-                    @click="handleSwapLanguages"
-                    class="px-4 py-2 rounded-lg border border-border text-foreground hover:border-primary transition-colors font-medium"
-                >
-                    ⇄ Swap Languages
-                </button>
-            </div>
             <p v-if="translationSource" class="mt-3 text-center text-xs text-muted-foreground">
                 Source: {{ translationSourceLabel }}
             </p>
+            <div class="mt-4 flex flex-col items-center gap-2 text-xs text-muted-foreground">
+                <div class="flex items-center gap-2">
+                    <span>Swap languages</span>
+                    <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + Shift + S</Kbd>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span>Save to vocabulary</span>
+                    <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + S</Kbd>
+                </div>
+            </div>
         </div>
     </main>
 </template>
