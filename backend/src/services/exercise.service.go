@@ -13,7 +13,10 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-const exerciseProgressStep = 20
+const (
+	exerciseProgressStep     = 20
+	exerciseExpirationPeriod = 7 * 24 * time.Hour
+)
 
 type PendingExercise struct {
 	ExerciseID          uuid.UUID          `gorm:"column:exercise_id"`
@@ -220,6 +223,19 @@ func StartTelegramExercise(exerciseID uuid.UUID, telegramMessageID int64) error 
 			"status":              enums.ExerciseStatusInProgress,
 			"telegram_message_id": telegramMessageID,
 			"started_at":          time.Now().UTC(),
+		}).Error
+}
+
+func ExpireStaleInProgressExercises(now time.Time) error {
+	expiresBefore := now.Add(-exerciseExpirationPeriod)
+
+	return db.DB.Model(&models.Exercise{}).
+		Where("status = ?", enums.ExerciseStatusInProgress).
+		Where("started_at IS NOT NULL").
+		Where("started_at <= ?", expiresBefore).
+		Updates(map[string]any{
+			"status":      enums.ExerciseStatusIgnored,
+			"finished_at": now,
 		}).Error
 }
 

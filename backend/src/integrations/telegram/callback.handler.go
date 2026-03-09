@@ -73,10 +73,30 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 		return nil
 	}
 
-	if callback.Message != nil {
-		if err := removeMessageInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID); err != nil {
-			logger.L().Warnw("failed to remove inline keyboard", "error", err, "chat_id", callback.Message.Chat.ID, "message_id", callback.Message.MessageID)
-		}
+	if callback.Message == nil {
+		return nil
+	}
+
+	exercise, err := services.GetExerciseByTelegramMessage(callback.Message.MessageID, callback.From.ID)
+	if err != nil {
+		return err
+	}
+
+	if exercise == nil || exercise.ExerciseID != exerciseID {
+		return nil
+	}
+
+	switch exercise.Status {
+	case enums.ExerciseStatusIgnored:
+		return SendMessage(callback.From.ID, telegramTextExerciseOutdated)
+	case enums.ExerciseStatusCompleted:
+		return SendMessage(callback.From.ID, telegramTextExerciseCompleted)
+	case enums.ExerciseStatusFailed:
+		return SendMessage(callback.From.ID, telegramTextExerciseFailed)
+	}
+
+	if err := removeMessageInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID); err != nil {
+		logger.L().Warnw("failed to remove inline keyboard", "error", err, "chat_id", callback.Message.Chat.ID, "message_id", callback.Message.MessageID)
 	}
 
 	updated, translationKnowledge, err := services.FailExercise(exerciseID)

@@ -31,6 +31,10 @@ func runExerciseRunner() {
 func processDueExercises() {
 	now := time.Now().UTC()
 
+	if err := services.ExpireStaleInProgressExercises(now); err != nil {
+		logger.L().Errorw("failed to expire stale in-progress exercises", "error", err)
+	}
+
 	exercises, err := services.GetDuePendingExercises(now)
 	if err != nil {
 		logger.L().Errorw("failed to fetch due pending exercises", "error", err)
