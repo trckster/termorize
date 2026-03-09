@@ -13,6 +13,10 @@ const languageNames: Record<string, string> = {
     ru: 'Russian',
     it: 'Italian',
     de: 'German',
+    es: 'Spanish',
+    fr: 'French',
+    pl: 'Polish',
+    tr: 'Turkish',
 }
 
 const languageEmojis: Record<string, string> = {
@@ -20,6 +24,10 @@ const languageEmojis: Record<string, string> = {
     ru: '🇷🇺',
     it: '🇮🇹',
     de: '🇩🇪',
+    es: '🇪🇸',
+    fr: '🇫🇷',
+    pl: '🇵🇱',
+    tr: '🇹🇷',
 }
 
 const fallbackFlag = '🏳'
