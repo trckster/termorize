@@ -255,7 +255,7 @@ const saveTranslationToVocabulary = async () => {
 }
 
 const handleShortcut = (event: KeyboardEvent) => {
-    if (event.key === 'Tab') {
+    if (event.key === 'Tab' && !event.ctrlKey && !event.metaKey && !event.altKey) {
         event.preventDefault()
 
         const sourceElement = sourceTextareaRef.value
