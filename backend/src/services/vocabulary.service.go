@@ -36,13 +36,32 @@ type VocabularyListResponse struct {
 
 const translationAlreadyExistsError = "translation already exists"
 const translationNotFoundError = "translation not found"
+const vocabularyNotFoundError = "vocabulary item not found"
+const invalidPageError = "page must be greater than 0"
+const invalidPageSizeError = "page size must be between 1 and 1000"
+
+var (
+	ErrTranslationAlreadyExists = errors.New(translationAlreadyExistsError)
+	ErrTranslationNotFound      = errors.New(translationNotFoundError)
+	ErrVocabularyNotFound       = errors.New(vocabularyNotFoundError)
+	ErrInvalidPage              = errors.New(invalidPageError)
+	ErrInvalidPageSize          = errors.New(invalidPageSizeError)
+)
 
 func TranslationAlreadyExistsError(err error) bool {
-	return err != nil && err.Error() == translationAlreadyExistsError
+	return errors.Is(err, ErrTranslationAlreadyExists)
 }
 
 func TranslationNotFoundError(err error) bool {
-	return err != nil && err.Error() == translationNotFoundError
+	return errors.Is(err, ErrTranslationNotFound)
+}
+
+func VocabularyNotFoundError(err error) bool {
+	return errors.Is(err, ErrVocabularyNotFound)
+}
+
+func InvalidPaginationError(err error) bool {
+	return errors.Is(err, ErrInvalidPage) || errors.Is(err, ErrInvalidPageSize)
 }
 
 func GetOrCreateWord(conn *gorm.DB, word string, language enums.Language) (*models.Word, error) {
@@ -143,7 +162,7 @@ func CreateVocabularyByTranslation(userID uint, translationID uuid.UUID) (*model
 		}
 
 		if count > 0 {
-			return errors.New(translationAlreadyExistsError)
+			return ErrTranslationAlreadyExists
 		}
 
 		vocabulary = models.Vocabulary{
@@ -166,53 +185,13 @@ func CreateVocabularyByTranslation(userID uint, translationID uuid.UUID) (*model
 	return &vocabulary, nil
 }
 
-func CreateVocabularyByTranslationID(userID uint, translationID uuid.UUID) (*models.Vocabulary, error) {
-	var vocabulary models.Vocabulary
-
-	var translation models.Translation
-	if err := db.DB.
-		Preload("Original").
-		Preload("Translation").
-		Where("id = ?", translationID).
-		First(&translation).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New(translationNotFoundError)
-		}
-
-		return nil, err
-	}
-
-	var existingVocabulary models.Vocabulary
-	if err := db.DB.
-		Where("user_id = ? AND translation_id = ?", userID, translationID).
-		First(&existingVocabulary).Error; err == nil {
-		return nil, errors.New(translationAlreadyExistsError)
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, err
-	}
-
-	vocabulary = models.Vocabulary{
-		UserID:        userID,
-		TranslationID: translationID,
-		Progress:      models.BuildDefaultProgress(),
-	}
-
-	if err := db.DB.Create(&vocabulary).Error; err != nil {
-		return nil, err
-	}
-
-	vocabulary.Translation = &translation
-
-	return &vocabulary, nil
-}
-
 func GetVocabulary(userID uint, page, pageSize int) (*VocabularyListResponse, error) {
 	if page <= 0 {
-		return nil, errors.New("page must be greater than 0")
+		return nil, ErrInvalidPage
 	}
 
 	if pageSize < 1 || pageSize > 1000 {
-		return nil, errors.New("page size must be between 1 and 1000")
+		return nil, ErrInvalidPageSize
 	}
 
 	var total int64
@@ -256,7 +235,7 @@ func DeleteVocabulary(userID uint, vocabID uuid.UUID) error {
 		var vocabulary models.Vocabulary
 		if err := tx.Where("id = ? AND user_id = ?", vocabID, userID).First(&vocabulary).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.New("vocabulary item not found")
+				return ErrVocabularyNotFound
 			}
 			return err
 		}

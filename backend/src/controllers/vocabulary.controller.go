@@ -20,7 +20,7 @@ func CreateVocabulary(c *gin.Context) {
 
 	vocabulary, err := services.CreateVocabulary(userID, req)
 	if err != nil {
-		if err.Error() == "translation already exists" {
+		if services.TranslationAlreadyExistsError(err) {
 			c.JSON(nethttp.StatusConflict, gin.H{"error": err.Error()})
 			return
 		}
@@ -40,7 +40,7 @@ func CreateVocabularyByTranslation(c *gin.Context) {
 		return
 	}
 
-	vocabulary, err := services.CreateVocabularyByTranslationID(userID, req.TranslationID)
+	vocabulary, err := services.CreateVocabularyByTranslation(userID, req.TranslationID)
 	if err != nil {
 		if services.TranslationAlreadyExistsError(err) {
 			c.JSON(nethttp.StatusConflict, gin.H{"error": err.Error()})
@@ -79,7 +79,7 @@ func GetVocabulary(c *gin.Context) {
 
 	response, err := services.GetVocabulary(userID, page, pageSize)
 	if err != nil {
-		if err.Error() == "page must be greater than 0" || err.Error() == "page size must be between 1 and 1000" {
+		if services.InvalidPaginationError(err) {
 			c.JSON(nethttp.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
@@ -102,7 +102,7 @@ func DeleteVocabulary(c *gin.Context) {
 	}
 
 	if err := services.DeleteVocabulary(userID, vocabID); err != nil {
-		if err.Error() == "vocabulary item not found" {
+		if services.VocabularyNotFoundError(err) {
 			c.JSON(nethttp.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}

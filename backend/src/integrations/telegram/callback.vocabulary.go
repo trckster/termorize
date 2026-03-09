@@ -75,7 +75,7 @@ func handleVocabularyDeleteCallback(callback *callbackQuery, payload []string) e
 	}
 
 	err = services.DeleteVocabulary(user.ID, vocabularyID)
-	if err != nil && err.Error() != "vocabulary item not found" {
+	if err != nil && !services.VocabularyNotFoundError(err) {
 		return err
 	}
 
