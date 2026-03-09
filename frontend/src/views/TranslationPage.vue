@@ -96,22 +96,61 @@ const debouncedTranslate = (
     }, 500)
 }
 
+const queueSourceToTargetTranslation = (fromText: string) => {
+    debouncedTranslate(
+        fromText,
+        sourceLang.value,
+        targetLang.value,
+        (text) => {
+            translatedText.value = text
+        },
+        (loading) => {
+            isLoadingTarget.value = loading
+        }
+    )
+}
+
+const queueTargetToSourceTranslation = (fromText: string) => {
+    debouncedTranslate(
+        fromText,
+        targetLang.value,
+        sourceLang.value,
+        (text) => {
+            sourceText.value = text
+        },
+        (loading) => {
+            isLoadingSource.value = loading
+        }
+    )
+}
+
+const triggerActiveFieldTranslation = (requireText: boolean = false) => {
+    if (activeField.value === 'source') {
+        if (requireText && !sourceText.value.trim()) {
+            return
+        }
+
+        translationId.value = null
+        queueSourceToTargetTranslation(sourceText.value)
+        return
+    }
+
+    if (activeField.value === 'target') {
+        if (requireText && !translatedText.value.trim()) {
+            return
+        }
+
+        translationId.value = null
+        queueTargetToSourceTranslation(translatedText.value)
+    }
+}
+
 watch(
     sourceText,
     (newValue) => {
         if (activeField.value !== 'source') return
         translationId.value = null
-        debouncedTranslate(
-            newValue,
-            sourceLang.value,
-            targetLang.value,
-            (text) => {
-                translatedText.value = text
-            },
-            (loading) => {
-                isLoadingTarget.value = loading
-            }
-        )
+        queueSourceToTargetTranslation(newValue)
     },
     { immediate: false }
 )
@@ -121,17 +160,7 @@ watch(
     (newValue) => {
         if (activeField.value !== 'target') return
         translationId.value = null
-        debouncedTranslate(
-            newValue,
-            targetLang.value,
-            sourceLang.value,
-            (text) => {
-                sourceText.value = text
-            },
-            (loading) => {
-                isLoadingSource.value = loading
-            }
-        )
+        queueTargetToSourceTranslation(newValue)
     },
     { immediate: false }
 )
@@ -139,33 +168,7 @@ watch(
 watch(
     sourceLang,
     () => {
-        if (activeField.value === 'source' && sourceText.value.trim()) {
-            translationId.value = null
-            debouncedTranslate(
-                sourceText.value,
-                sourceLang.value,
-                targetLang.value,
-                (text) => {
-                    translatedText.value = text
-                },
-                (loading) => {
-                    isLoadingTarget.value = loading
-                }
-            )
-        } else if (activeField.value === 'target' && translatedText.value.trim()) {
-            translationId.value = null
-            debouncedTranslate(
-                translatedText.value,
-                targetLang.value,
-                sourceLang.value,
-                (text) => {
-                    sourceText.value = text
-                },
-                (loading) => {
-                    isLoadingSource.value = loading
-                }
-            )
-        }
+        triggerActiveFieldTranslation(true)
     },
     { immediate: false }
 )
@@ -173,33 +176,7 @@ watch(
 watch(
     targetLang,
     () => {
-        if (activeField.value === 'source' && sourceText.value.trim()) {
-            translationId.value = null
-            debouncedTranslate(
-                sourceText.value,
-                sourceLang.value,
-                targetLang.value,
-                (text) => {
-                    translatedText.value = text
-                },
-                (loading) => {
-                    isLoadingTarget.value = loading
-                }
-            )
-        } else if (activeField.value === 'target' && translatedText.value.trim()) {
-            translationId.value = null
-            debouncedTranslate(
-                translatedText.value,
-                targetLang.value,
-                sourceLang.value,
-                (text) => {
-                    sourceText.value = text
-                },
-                (loading) => {
-                    isLoadingSource.value = loading
-                }
-            )
-        }
+        triggerActiveFieldTranslation(true)
     },
     { immediate: false }
 )

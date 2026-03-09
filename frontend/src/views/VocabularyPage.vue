@@ -236,24 +236,28 @@ const isAdding = ref(false)
 
 const settingsStore = useSettingsStore()
 
-const newTranslation = ref({
+type NewTranslationForm = {
+    word1: string
+    word2: string
+    language1: string
+    language2: string
+}
+
+const defaultNewTranslation = (): NewTranslationForm => ({
     word1: '',
     word2: '',
     language1: 'en',
     language2: 'ru',
 })
 
+const newTranslation = ref<NewTranslationForm>(defaultNewTranslation())
+
 const isFormValid = computed(() => {
-    return newTranslation.value.word1.trim() && newTranslation.value.word2.trim()
+    return newTranslation.value.word1.trim().length > 0 && newTranslation.value.word2.trim().length > 0
 })
 
 const resetForm = () => {
-    newTranslation.value = {
-        word1: '',
-        word2: '',
-        language1: 'en',
-        language2: 'ru',
-    }
+    newTranslation.value = defaultNewTranslation()
 }
 
 const { addToast } = useToast()

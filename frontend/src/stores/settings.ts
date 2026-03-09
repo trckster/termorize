@@ -22,6 +22,11 @@ const languageEmojis: Record<string, string> = {
     de: '🇩🇪',
 }
 
+const fallbackFlag = '🏳'
+
+const getLanguageName = (code: string) => languageNames[code] || code.toUpperCase()
+const getLanguageFlag = (code: string) => languageEmojis[code] || fallbackFlag
+
 export const useSettingsStore = defineStore('settings', () => {
     const settings = ref<Settings | null>(null)
 
@@ -32,13 +37,13 @@ export const useSettingsStore = defineStore('settings', () => {
     const languageOptions = computed<LanguageOption[]>(() => {
         return languages.value.map((code) => ({
             code,
-            name: languageNames[code] || code.toUpperCase(),
-            emoji: languageEmojis[code] || '🏳',
+            name: getLanguageName(code),
+            emoji: getLanguageFlag(code),
         }))
     })
 
     const getFlag = (languageCode: string) => {
-        return languageEmojis[languageCode] || '🏳'
+        return getLanguageFlag(languageCode)
     }
 
     const fetchSettings = async () => {

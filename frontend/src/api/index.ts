@@ -1,7 +1,4 @@
-let API_URL = import.meta.env.VITE_API_URL
-if (API_URL.endsWith('/')) {
-    API_URL.replace(/\/$/, '')
-}
+const API_URL = import.meta.env.VITE_API_URL.replace(/\/$/, '')
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
 
@@ -10,11 +7,13 @@ interface ApiResponse<T> {
     body: T
 }
 
+export const unwrapBody = <T>(response: ApiResponse<T>): T => response.body
+
 export default async function apiCall<T>(
     url: string,
     method: HttpMethod = 'GET',
-    data: any = {},
-    headers: object = {}
+    data: object = {},
+    headers: HeadersInit = {}
 ): Promise<ApiResponse<T>> {
     const payload: RequestInit = {
         method: method,
@@ -32,8 +31,15 @@ export default async function apiCall<T>(
 
     if (method !== 'GET') {
         payload.body = JSON.stringify(dataToSend)
-    } else {
-        fullUrl += '?' + new URLSearchParams(dataToSend as Record<string, string>)
+    } else if (Object.keys(dataToSend).length > 0) {
+        fullUrl +=
+            '?' +
+            new URLSearchParams(
+                Object.entries(dataToSend).reduce<Record<string, string>>((acc, [key, value]) => {
+                    acc[key] = String(value)
+                    return acc
+                }, {})
+            )
     }
 
     const response = await fetch(fullUrl, payload)
@@ -59,17 +65,15 @@ export default async function apiCall<T>(
     }
 }
 
-function sanitizeData(data: any): object {
-    const result = { ...data }
+function sanitizeData(data: object): Record<string, unknown> {
+    const result: Record<string, unknown> = {}
 
-    for (const key in result) {
-        if (result[key] === undefined) {
-            delete result[key]
+    for (const [key, value] of Object.entries(data)) {
+        if (value === undefined) {
+            continue
         }
 
-        if (result[key] === true || result[key] === false) {
-            result[key] = +result[key]
-        }
+        result[key] = typeof value === 'boolean' ? +value : value
     }
 
     return result

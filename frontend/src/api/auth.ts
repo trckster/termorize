@@ -1,4 +1,4 @@
-import apiCall from '@/api/index.ts'
+import apiCall, { unwrapBody } from '@/api/index.ts'
 
 export interface TelegramAuthData {
     id: number
@@ -39,15 +39,13 @@ export interface UserTelegramScheduleItem {
 
 export const authApi = {
     async login(authData: TelegramAuthData): Promise<User | null> {
-        const response = await apiCall<User>('/telegram/login', 'POST', authData, {
+        return apiCall<User>('/telegram/login', 'POST', authData, {
             'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-        })
-
-        return response.body
+        }).then(unwrapBody)
     },
 
     async getCurrentUser(): Promise<User | null> {
-        return await apiCall<User>('/me').then((r) => r.body)
+        return apiCall<User>('/me').then(unwrapBody)
     },
 
     async logout(): Promise<void> {

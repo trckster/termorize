@@ -1,4 +1,4 @@
-import apiCall from '@/api/index.ts'
+import apiCall, { unwrapBody } from '@/api/index.ts'
 import type { Paginated } from '@/api/pagination.ts'
 
 type VocabularyItemProgress = {
@@ -36,25 +36,27 @@ export type VocabularyItem = {
 
 export const vocabularyApi = {
     async getVocabulary(page: number = 1, pageSize: number = 100): Promise<Paginated<VocabularyItem>> {
-        const response = await apiCall<Paginated<VocabularyItem>>('/vocabulary', 'GET', {
+        return apiCall<Paginated<VocabularyItem>>('/vocabulary', 'GET', {
             page,
             page_size: pageSize,
-        })
-
-        return response.body
+        }).then(unwrapBody)
     },
 
     async deleteVocabulary(id: string): Promise<void> {
         await apiCall<void>(`/vocabulary/${id}`, 'DELETE')
     },
 
-    async addVocabulary(original: string, translation: string, originalLanguage: string, translationLanguage: string): Promise<VocabularyItem> {
-        const response = await apiCall<VocabularyItem>('/vocabulary', 'POST', {
+    async addVocabulary(
+        original: string,
+        translation: string,
+        originalLanguage: string,
+        translationLanguage: string
+    ): Promise<VocabularyItem> {
+        return apiCall<VocabularyItem>('/vocabulary', 'POST', {
             original,
             translation,
             original_language: originalLanguage,
             translation_language: translationLanguage,
-        })
-        return response.body
+        }).then(unwrapBody)
     },
 }

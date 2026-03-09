@@ -1,4 +1,4 @@
-import apiCall from '@/api/index.ts'
+import apiCall, { unwrapBody } from '@/api/index.ts'
 
 export type TranslateRequest = {
     from_word: string
@@ -14,8 +14,7 @@ export type TranslateResponse = {
 
 export const translationApi = {
     async translate(request: TranslateRequest): Promise<TranslateResponse> {
-        const response = await apiCall<TranslateResponse>('/translate', 'POST', request)
-        return response.body
+        return apiCall<TranslateResponse>('/translate', 'POST', request).then(unwrapBody)
     },
 
     async addVocabularyByTranslation(translationId: string): Promise<void> {
