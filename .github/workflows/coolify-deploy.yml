@@ -1,0 +1,24 @@
+name: Deploy to Coolify
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Coolify deployment webhook
+        env:
+          COOLIFY_DEPLOY_WEBHOOK: ${{ secrets.COOLIFY_DEPLOY_WEBHOOK }}
+        run: |
+          if [ -z "$COOLIFY_DEPLOY_WEBHOOK" ]; then
+            echo "Missing COOLIFY_DEPLOY_WEBHOOK secret" >&2
+            exit 1
+          fi
+
+          curl --fail --silent --show-error --request POST "$COOLIFY_DEPLOY_WEBHOOK"

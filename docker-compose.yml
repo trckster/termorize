@@ -1,0 +1,50 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
+        VITE_BOT_USERNAME: ${VITE_BOT_USERNAME}
+    depends_on:
+      - backend
+    expose:
+      - '80'
+
+  backend:
+    build:
+      context: ./backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ENV: ${ENV:-prod}
+      PUBLIC_URL: ${PUBLIC_URL}
+      TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL}
+      PORT: '8080'
+      SECRET: ${SECRET}
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      DB_NAME: ${DB_NAME:-termorize}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+    expose:
+      - '8080'
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:-termorize}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
