@@ -20,6 +20,15 @@
                 >
                     Vocabulary
                 </router-link>
+                <router-link
+                    to="/exercises"
+                    :class="[
+                        'text-sm font-medium transition-colors hover:text-foreground',
+                        route.path === '/exercises' ? 'text-foreground' : 'text-muted-foreground',
+                    ]"
+                >
+                    Exercises
+                </router-link>
             </nav>
 
             <div class="flex items-center gap-4">

@@ -26,6 +26,11 @@ const router = createRouter({
                     component: () => import('@/views/VocabularyPage.vue'),
                 },
                 {
+                    path: 'exercises',
+                    name: 'exercises',
+                    component: () => import('@/views/ExercisesPage.vue'),
+                },
+                {
                     path: 'settings',
                     name: 'settings',
                     component: () => import('@/views/SettingsPage.vue'),

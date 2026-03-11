@@ -47,6 +47,13 @@ type TelegramMessageExercise struct {
 	TranslationLanguage enums.Language       `gorm:"column:translation_language"`
 }
 
+type ExerciseStatistics struct {
+	InProgress int64 `json:"in_progress" gorm:"column:in_progress"`
+	Done       int64 `json:"done" gorm:"column:done"`
+	Failed     int64 `json:"failed" gorm:"column:failed"`
+	Ignored    int64 `json:"ignored" gorm:"column:ignored"`
+}
+
 func GenerateDailyExercises() error {
 	users, err := GetUsersWithEnabledDailyQuestions()
 	if err != nil {
@@ -400,4 +407,23 @@ func GetExerciseWordsByTelegram(exerciseID uuid.UUID, telegramID int64) (*Exerci
 	}
 
 	return &words, nil
+}
+
+func GetExerciseStatistics(userID uint) (*ExerciseStatistics, error) {
+	var statistics ExerciseStatistics
+
+	err := db.DB.Raw(`
+		SELECT
+			COUNT(*) FILTER (WHERE status = ?) AS in_progress,
+			COUNT(*) FILTER (WHERE status = ?) AS done,
+			COUNT(*) FILTER (WHERE status = ?) AS failed,
+			COUNT(*) FILTER (WHERE status = ?) AS ignored
+		FROM exercises
+		WHERE user_id = ?
+	`, enums.ExerciseStatusInProgress, enums.ExerciseStatusCompleted, enums.ExerciseStatusFailed, enums.ExerciseStatusIgnored, userID).Scan(&statistics).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &statistics, nil
 }
