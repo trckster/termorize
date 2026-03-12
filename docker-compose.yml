@@ -1,3 +1,17 @@
+x-backend-env: &backend-env
+  ENV: ${ENV:-prod}
+  PUBLIC_URL: ${PUBLIC_URL}
+  TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL}
+  PORT: '8080'
+  SECRET: ${SECRET}
+  DB_HOST: postgres
+  DB_PORT: '5432'
+  DB_NAME: ${DB_NAME:-termorize}
+  DB_USER: ${DB_USER}
+  DB_PASSWORD: ${DB_PASSWORD}
+  GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+
 services:
   frontend:
     build:
@@ -13,24 +27,21 @@ services:
   backend:
     build:
       context: ./backend
+    image: termorize-backend:local
     depends_on:
       postgres:
         condition: service_healthy
-    environment:
-      ENV: ${ENV:-prod}
-      PUBLIC_URL: ${PUBLIC_URL}
-      TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL}
-      PORT: '8080'
-      SECRET: ${SECRET}
-      DB_HOST: postgres
-      DB_PORT: '5432'
-      DB_NAME: ${DB_NAME:-termorize}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+    environment: *backend-env
     expose:
       - '8080'
+
+  scheduler:
+    image: termorize-backend:local
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment: *backend-env
+    command: ["supercronic", "/app/crontab"]
 
   postgres:
     image: postgres:17-alpine
