@@ -70,12 +70,19 @@ func UpdateUserSettings(userID uint, settings models.UserSettings) (*models.User
 			return err
 		}
 
+		wasDailyQuestionsEnabled := user.Settings.Telegram.DailyQuestionsEnabled
 		settings.Telegram.BotEnabled = user.Settings.Telegram.BotEnabled
 
 		user.Settings = settings
 
 		if err := tx.Save(&user).Error; err != nil {
 			return err
+		}
+
+		if wasDailyQuestionsEnabled && !settings.Telegram.DailyQuestionsEnabled {
+			if err := DeletePendingExercisesByUserID(tx, user.ID); err != nil {
+				return err
+			}
 		}
 
 		return nil

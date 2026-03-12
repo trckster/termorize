@@ -64,6 +64,8 @@ func processDueExercises() {
 			continue
 		}
 
+		logger.L().Infow("exercise sent", "username", exercise.Username)
+
 		if err := services.StartTelegramExercise(exercise.ExerciseID, *messageID); err != nil {
 			logger.L().Warnw("failed to mark exercise in progress", "error", err, "exercise_id", exercise.ExerciseID)
 		}

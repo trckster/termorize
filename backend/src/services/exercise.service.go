@@ -22,6 +22,7 @@ type PendingExercise struct {
 	ExerciseID          uuid.UUID          `gorm:"column:exercise_id"`
 	ExerciseType        enums.ExerciseType `gorm:"column:exercise_type"`
 	UserID              uint               `gorm:"column:user_id"`
+	Username            string             `gorm:"column:username"`
 	TelegramID          int64              `gorm:"column:telegram_id"`
 	OriginalWord        string             `gorm:"column:original_word"`
 	OriginalLanguage    enums.Language     `gorm:"column:original_language"`
@@ -60,44 +61,61 @@ func GenerateDailyExercises() error {
 		return err
 	}
 
+	targetDate := time.Now().UTC().AddDate(0, 0, 1)
+	targetDateString := targetDate.Format("2006-01-02")
+	generatedExercisesCount := 0
+	usersWithGeneratedExercisesCount := 0
+
 	for _, user := range users {
-		GenerateExercises(user)
+		generatedCount := GenerateExercises(user, targetDate)
+		if generatedCount == 0 {
+			continue
+		}
+
+		generatedExercisesCount += generatedCount
+		usersWithGeneratedExercisesCount++
 	}
+
+	logger.L().Infow("daily exercises generated", "date", targetDateString, "exercise_count", generatedExercisesCount, "user_count", usersWithGeneratedExercisesCount)
 
 	return nil
 }
 
-func GenerateExercises(user models.User) {
+func GenerateExercises(user models.User, targetDate time.Time) int {
 	location, _ := time.LoadLocation(user.Settings.TimeZone)
-
-	now := time.Now().In(location)
-	midnight := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, location)
-	nextMidnight := midnight.AddDate(0, 0, 1)
+	targetMidnight := time.Date(targetDate.Year(), targetDate.Month(), targetDate.Day(), 0, 0, 0, 0, location)
 
 	totalMinutes := CountTotalMinutesInSchedule(user.Settings.Telegram.DailyQuestionsSchedule)
 	requestedExercisesCount := user.Settings.Telegram.DailyQuestionsCount
 
 	if requestedExercisesCount <= 0 {
-		return
+		return 0
 	}
 
 	vocabularyIDs, err := getEligibleVocabularyIDs(user.ID, requestedExercisesCount)
 	if err != nil {
 		logger.L().Errorw("failed to select vocabulary for exercises", "user_id", user.ID, "error", err)
-		return
+		return 0
 	}
+
+	generatedCount := 0
 
 	for _, vocabularyID := range vocabularyIDs {
 		midnightOffset := rand.Intn(totalMinutes)
 
 		realOffsetInMinutes := MapOffsetOnSchedule(user.Settings.Telegram.DailyQuestionsSchedule, midnightOffset)
 
-		exerciseScheduleTime := nextMidnight.Add(time.Duration(realOffsetInMinutes) * time.Minute).UTC()
+		exerciseScheduleTime := targetMidnight.Add(time.Duration(realOffsetInMinutes) * time.Minute).UTC()
 
 		if err := generateExercise(user.ID, vocabularyID, exerciseScheduleTime); err != nil {
 			logger.L().Errorw("failed to generate exercise", "user_id", user.ID, "scheduled_for", exerciseScheduleTime, "error", err)
+			continue
 		}
+
+		generatedCount++
 	}
+
+	return generatedCount
 }
 
 func getEligibleVocabularyIDs(userID uint, limit uint) ([]uuid.UUID, error) {
@@ -159,9 +177,10 @@ func GetDuePendingExercises(now time.Time) ([]PendingExercise, error) {
 
 	err := db.DB.Raw(`
 		SELECT
-			e.id AS exercise_id,
+		e.id AS exercise_id,
 			e.type AS exercise_type,
 			e.user_id AS user_id,
+			u.username AS username,
 			u.telegram_id AS telegram_id,
 			original.word AS original_word,
 			original.language AS original_language,
@@ -231,6 +250,11 @@ func StartTelegramExercise(exerciseID uuid.UUID, telegramMessageID int64) error 
 			"telegram_message_id": telegramMessageID,
 			"started_at":          time.Now().UTC(),
 		}).Error
+}
+
+func DeletePendingExercisesByUserID(tx *gorm.DB, userID uint) error {
+	return tx.Where("user_id = ? AND status = ?", userID, enums.ExerciseStatusPending).
+		Delete(&models.Exercise{}).Error
 }
 
 func ExpireStaleInProgressExercises(now time.Time) error {

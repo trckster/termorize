@@ -207,7 +207,7 @@ watch(
 
             <div class="grid grid-cols-1 md:grid-cols-2 p-4">
                 <div class="space-y-2">
-                    <p class="text-sm font-semibold text-foreground">Daily Questions Enabled</p>
+                    <p class="text-sm font-semibold text-foreground">Send Daily Exercises?</p>
                     <div class="h-10 flex items-center">
                         <ToggleSwitch v-model="dailyQuestionsEnabled" :disabled="isSaving" />
                     </div>
