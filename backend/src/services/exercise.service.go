@@ -15,6 +15,7 @@ import (
 
 const (
 	exerciseProgressStep     = 20
+	exerciseReminderPeriod   = 24 * time.Hour
 	exerciseExpirationPeriod = 7 * 24 * time.Hour
 )
 
@@ -36,6 +37,12 @@ type ExerciseWords struct {
 	OriginalLanguage    enums.Language     `gorm:"column:original_language"`
 	TranslationWord     string             `gorm:"column:translation_word"`
 	TranslationLanguage enums.Language     `gorm:"column:translation_language"`
+}
+
+type PendingExerciseReminder struct {
+	ExerciseID        uuid.UUID `gorm:"column:exercise_id"`
+	TelegramID        int64     `gorm:"column:telegram_id"`
+	TelegramMessageID int64     `gorm:"column:telegram_message_id"`
 }
 
 type TelegramMessageExercise struct {
@@ -255,6 +262,46 @@ func StartTelegramExercise(exerciseID uuid.UUID, telegramMessageID int64) error 
 func DeletePendingExercisesByUserID(tx *gorm.DB, userID uint) error {
 	return tx.Where("user_id = ? AND status = ?", userID, enums.ExerciseStatusPending).
 		Delete(&models.Exercise{}).Error
+}
+
+func GetDueExerciseReminders(now time.Time) ([]PendingExerciseReminder, error) {
+	var reminders []PendingExerciseReminder
+	remindBefore := now.Add(-exerciseReminderPeriod)
+
+	err := db.DB.Raw(`
+		SELECT
+			e.id AS exercise_id,
+			u.telegram_id AS telegram_id,
+			e.telegram_message_id AS telegram_message_id
+		FROM exercises AS e
+		JOIN users AS u ON u.id = e.user_id
+		WHERE e.status = ?
+			AND e.telegram_message_id IS NOT NULL
+			AND e.started_at IS NOT NULL
+			AND e.started_at <= ?
+			AND e.reminder_sent_at IS NULL
+			AND u.settings->'telegram'->'bot_enabled' = ?
+		ORDER BY e.started_at ASC
+	`, enums.ExerciseStatusInProgress, remindBefore, true).Scan(&reminders).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return reminders, nil
+}
+
+func MarkExerciseReminderSent(exerciseID uuid.UUID, reminderSentAt time.Time) (bool, error) {
+	result := db.DB.Model(&models.Exercise{}).
+		Where("id = ? AND status = ?", exerciseID, enums.ExerciseStatusInProgress).
+		Where("reminder_sent_at IS NULL").
+		Update("reminder_sent_at", reminderSentAt)
+
+	if result.Error != nil {
+		return false, result.Error
+	}
+
+	return result.RowsAffected > 0, nil
 }
 
 func ExpireStaleInProgressExercises(now time.Time) error {

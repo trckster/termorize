@@ -11,10 +11,11 @@ import (
 const telegramParseModeMarkdown = "Markdown"
 
 type sendMessageRequest struct {
-	ChatID      int64       `json:"chat_id"`
-	Text        string      `json:"text"`
-	ParseMode   string      `json:"parse_mode,omitempty"`
-	ReplyMarkup interface{} `json:"reply_markup,omitempty"`
+	ChatID           int64       `json:"chat_id"`
+	Text             string      `json:"text"`
+	ParseMode        string      `json:"parse_mode,omitempty"`
+	ReplyToMessageID *int64      `json:"reply_to_message_id,omitempty"`
+	ReplyMarkup      interface{} `json:"reply_markup,omitempty"`
 }
 
 type sendMessageResponse struct {
@@ -117,6 +118,16 @@ func SendExerciseMessage(chatID int64, text string, exerciseID uuid.UUID) (*int6
 
 	messageID := response.Result.MessageID
 	return &messageID, nil
+}
+
+func SendReplyMessage(chatID int64, text string, replyToMessageID int64) error {
+	messageRequest := sendMessageRequest{
+		ChatID:           chatID,
+		Text:             text,
+		ReplyToMessageID: &replyToMessageID,
+	}
+	_, err := sendMessage(messageRequest)
+	return err
 }
 
 func EditMessageTextWithInlineKeyboard(chatID int64, messageID int64, text string, keyboard [][]inlineKeyboardButton) error {

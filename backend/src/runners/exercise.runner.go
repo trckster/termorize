@@ -35,6 +35,10 @@ func processDueExercises() {
 		logger.L().Errorw("failed to expire stale in-progress exercises", "error", err)
 	}
 
+	if err := processDueExerciseReminders(now); err != nil {
+		logger.L().Errorw("failed to process exercise reminders", "error", err)
+	}
+
 	exercises, err := services.GetDuePendingExercises(now)
 	if err != nil {
 		logger.L().Errorw("failed to fetch due pending exercises", "error", err)
@@ -70,6 +74,38 @@ func processDueExercises() {
 			logger.L().Warnw("failed to mark exercise in progress", "error", err, "exercise_id", exercise.ExerciseID)
 		}
 	}
+}
+
+func processDueExerciseReminders(now time.Time) error {
+	reminders, err := services.GetDueExerciseReminders(now)
+	if err != nil {
+		return err
+	}
+
+	for _, reminder := range reminders {
+		if err := telegram.SendReplyMessage(
+			reminder.TelegramID,
+			telegram.BuildExerciseReminderText(),
+			reminder.TelegramMessageID,
+		); err != nil {
+			logger.L().Warnw("failed to send exercise reminder", "error", err, "exercise_id", reminder.ExerciseID, "telegram_id", reminder.TelegramID)
+			continue
+		}
+
+		updated, err := services.MarkExerciseReminderSent(reminder.ExerciseID, now)
+		if err != nil {
+			logger.L().Warnw("failed to mark exercise reminder as sent", "error", err, "exercise_id", reminder.ExerciseID)
+			continue
+		}
+
+		if !updated {
+			continue
+		}
+
+		logger.L().Infow("exercise reminder sent", "exercise_id", reminder.ExerciseID, "telegram_id", reminder.TelegramID)
+	}
+
+	return nil
 }
 
 func isSupportedBasicExerciseType(exerciseType enums.ExerciseType) bool {

@@ -14,11 +14,12 @@ type Exercise struct {
 	UserID            uint                 `json:"-"`
 	TelegramMessageID *int64               `json:"-"`
 
-	ScheduledFor *time.Time `json:"-"`
-	StartedAt    *time.Time `json:"starts_at"`
-	FinishedAt   *time.Time `json:"finishes_at"`
-	CreatedAt    time.Time  `json:"-"`
-	UpdatedAt    time.Time  `json:"-"`
+	ScheduledFor   *time.Time `json:"-"`
+	StartedAt      *time.Time `json:"starts_at"`
+	ReminderSentAt *time.Time `json:"-"`
+	FinishedAt     *time.Time `json:"finishes_at"`
+	CreatedAt      time.Time  `json:"-"`
+	UpdatedAt      time.Time  `json:"-"`
 
 	User *User `json:"-"`
 }

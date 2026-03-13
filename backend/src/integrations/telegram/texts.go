@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"fmt"
+	"math/rand"
 	"termorize/src/config"
 	"termorize/src/enums"
 )
@@ -83,4 +84,20 @@ func buildTranslateQuestionText(word string, language string) string {
 
 func buildAddVocabularyFirstText(nativeLanguage string, mainLearningLanguage string) string {
 	return fmt.Sprintf(telegramTextAddVocabularyFirstFormat, nativeLanguage, mainLearningLanguage, config.GetPublicURL())
+}
+
+var telegramTextExerciseReminderPhrases = []string{
+	"You are one answer away from finishing this one.",
+	"Give this exercise a quick finish.",
+	"Come back and close this exercise out.",
+	"You have got this - finish the exercise.",
+	"Take one more minute and finish this exercise.",
+}
+
+func BuildExerciseReminderText() string {
+	if len(telegramTextExerciseReminderPhrases) == 0 {
+		return "Finish this exercise."
+	}
+
+	return telegramTextExerciseReminderPhrases[rand.Intn(len(telegramTextExerciseReminderPhrases))]
 }
