@@ -12,9 +12,9 @@
                     </DialogTrigger>
                     <DialogContent class="sm:max-w-md">
                         <DialogHeader>
-                            <DialogTitle>Add Translation</DialogTitle>
+                            <DialogTitle>Add Your Own Translation</DialogTitle>
                             <DialogDescription>
-                                Enter two words and their languages to add a new translation.
+                                Enter two words/texts and their languages to add a new translation.
                             </DialogDescription>
                         </DialogHeader>
                         <form @submit.prevent="handleAdd" class="space-y-4 py-4">

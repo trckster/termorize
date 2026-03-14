@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func defaultUserSettings(timezone string) models.UserSettings {
+func defaultUserSettings(timezone string, botEnabled bool) models.UserSettings {
 	if _, err := time.LoadLocation(timezone); err != nil || timezone == "" {
 		timezone = "UTC"
 	}
@@ -22,10 +22,10 @@ func defaultUserSettings(timezone string) models.UserSettings {
 		MainLearningLanguage: enums.LanguageEn,
 		TimeZone:             timezone,
 		Telegram: models.UserTelegramSettings{
-			BotEnabled:             false,
-			DailyQuestionsEnabled:  false,
-			DailyQuestionsCount:    0,
-			DailyQuestionsSchedule: []models.UserTelegramQuestionsScheduleItem{},
+			BotEnabled:             botEnabled,
+			DailyQuestionsEnabled:  true,
+			DailyQuestionsCount:    2,
+			DailyQuestionsSchedule: []models.UserTelegramQuestionsScheduleItem{{From: "10:00", To: "22:00"}},
 		},
 	}
 }
@@ -50,7 +50,7 @@ func CreateOrUpdateUserByTelegramAuthData(data auth.TelegramAuthData, timezone s
 			TelegramID: data.ID,
 			Username:   data.Username,
 			Name:       strings.TrimSpace(data.FirstName + " " + data.LastName),
-			Settings:   defaultUserSettings(timezone),
+			Settings:   defaultUserSettings(timezone, true),
 		}
 
 		return tx.Create(&user).Error
@@ -176,14 +176,11 @@ func EnsureUserByTelegramID(telegramID int64, username string, firstName string,
 			return err
 		}
 
-		settings := defaultUserSettings("")
-		settings.Telegram.BotEnabled = true
-
 		user = models.User{
 			TelegramID: telegramID,
 			Username:   username,
 			Name:       strings.TrimSpace(firstName + " " + lastName),
-			Settings:   settings,
+			Settings:   defaultUserSettings("", true),
 		}
 
 		return tx.Create(&user).Error
