@@ -6,6 +6,10 @@ import { Kbd } from '@/components/ui/kbd'
 import { useToast } from '@/composables/useToast.ts'
 import { useAuthStore } from '@/stores/auth.ts'
 
+type LanguageSelectorInstance = {
+    focusInput: () => Promise<void>
+}
+
 const authStore = useAuthStore()
 
 const getInitialLanguages = () => {
@@ -28,6 +32,8 @@ const sourceText = ref('')
 const translatedText = ref('')
 const sourceTextareaRef = ref<HTMLTextAreaElement | null>(null)
 const targetTextareaRef = ref<HTMLTextAreaElement | null>(null)
+const sourceLanguageSelectorRef = ref<LanguageSelectorInstance | null>(null)
+const targetLanguageSelectorRef = ref<LanguageSelectorInstance | null>(null)
 const sourceLang = ref(initialLanguages.source)
 const targetLang = ref(initialLanguages.target)
 const translationId = ref<string | null>(null)
@@ -232,6 +238,18 @@ const saveTranslationToVocabulary = async () => {
 }
 
 const handleShortcut = (event: KeyboardEvent) => {
+    if (event.ctrlKey && event.code === 'KeyL') {
+        event.preventDefault()
+
+        if (event.shiftKey) {
+            void targetLanguageSelectorRef.value?.focusInput()
+            return
+        }
+
+        void sourceLanguageSelectorRef.value?.focusInput()
+        return
+    }
+
     if (event.key === 'Tab' && !event.ctrlKey && !event.metaKey && !event.altKey) {
         event.preventDefault()
 
@@ -301,6 +319,7 @@ onBeforeUnmount(() => {
                         <label class="text-sm font-medium text-foreground">From</label>
                         <div class="w-52">
                             <LanguageSelector
+                                ref="sourceLanguageSelectorRef"
                                 v-model="sourceLang"
                                 placeholder="From language"
                                 :disabled-values="[targetLang]"
@@ -330,6 +349,7 @@ onBeforeUnmount(() => {
                         <label class="text-sm font-medium text-foreground">To</label>
                         <div class="w-52">
                             <LanguageSelector
+                                ref="targetLanguageSelectorRef"
                                 v-model="targetLang"
                                 placeholder="To language"
                                 :disabled-values="[sourceLang]"
@@ -358,15 +378,17 @@ onBeforeUnmount(() => {
             <p v-if="translationSource" class="mt-3 text-center text-xs text-muted-foreground">
                 Source: {{ translationSourceLabel }}
             </p>
-            <div class="mt-4 flex flex-col items-center gap-2 text-xs text-muted-foreground">
-                <div class="flex items-center gap-2">
-                    <span>Swap languages</span>
-                    <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + Shift + S</Kbd>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span>Save to vocabulary</span>
-                    <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + S</Kbd>
-                </div>
+            <div
+                class="mt-4 hidden w-fit mx-auto grid-cols-[max-content_max-content] items-center gap-x-3 gap-y-2 text-xs text-muted-foreground md:grid"
+            >
+                <span class="justify-self-end text-right">Save to vocabulary</span>
+                <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + S</Kbd>
+                <span class="justify-self-end text-right">Swap languages</span>
+                <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + Shift + S</Kbd>
+                <span class="justify-self-end text-right">Focus first language</span>
+                <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + L</Kbd>
+                <span class="justify-self-end text-right">Focus second language</span>
+                <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + Shift + L</Kbd>
             </div>
         </div>
     </main>
