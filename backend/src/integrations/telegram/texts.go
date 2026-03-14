@@ -30,7 +30,8 @@ const (
 	telegramTextExerciseTranslationKnowledgeUpFormat   = "Translation knowledge: *%d%%* 📈"
 	telegramTextExerciseTranslationKnowledgeDownFormat = "Translation knowledge: *%d%%* 📉"
 
-	telegramTextQuestionTranslateFormat = "Translate word *%s* to %s"
+	telegramTextQuestionTranslateFormat = "Translate word *%s* to %s\n\n" +
+		"(answer with reply)"
 
 	telegramTextMenuDeleteWord = "Send the word you want to delete from vocabulary 🗑️"
 	telegramTextMenuVocabulary = "⚒️ Work in progress here! ⚒️"
@@ -47,8 +48,8 @@ const (
 	telegramTextDeleteCompleted = "Done ✅"
 	telegramTextDeleteNotFound  = "Word not found ❌"
 
-	telegramTextVocabularyAutoAddedSuffix   = "\n\nIt was added to vocabulary"
-	telegramTextVocabularyManualAddedSuffix = "\n\nSuccessfully added to vocabulary"
+	telegramTextVocabularyAutoAddedSuffix   = "\n\nIt was added to your vocabulary"
+	telegramTextVocabularyManualAddedSuffix = "\n\nSuccessfully added to your vocabulary"
 )
 
 const (

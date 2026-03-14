@@ -47,7 +47,7 @@ func handleVocabularyAddCallback(callback *callbackQuery, payload []string) erro
 	}
 
 	_, err = services.CreateVocabularyByTranslation(user.ID, translationID)
-	if err != nil && !services.TranslationAlreadyExistsError(err) {
+	if err != nil && !services.VocabularyAlreadyExistsError(err) {
 		return err
 	}
 

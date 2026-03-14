@@ -284,7 +284,15 @@ const handleAdd = async () => {
             duration: 3000,
         })
     } catch (error) {
-        console.error('Failed to add translation:', error)
+        const apiError = error as { status?: number }
+        if (apiError.status === 409) {
+            addToast({
+                title: 'Warning',
+                description: 'This vocabulary already exists.',
+                duration: 3000,
+            })
+            return
+        }
         addToast({
             title: 'Error',
             description: 'Failed to add translation. Please try again.',

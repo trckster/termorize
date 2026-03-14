@@ -20,7 +20,7 @@ func CreateVocabulary(c *gin.Context) {
 
 	vocabulary, err := services.CreateVocabulary(userID, req)
 	if err != nil {
-		if services.TranslationAlreadyExistsError(err) {
+		if services.VocabularyAlreadyExistsError(err) {
 			c.JSON(nethttp.StatusConflict, gin.H{"error": err.Error()})
 			return
 		}
@@ -42,7 +42,7 @@ func CreateVocabularyByTranslation(c *gin.Context) {
 
 	vocabulary, err := services.CreateVocabularyByTranslation(userID, req.TranslationID)
 	if err != nil {
-		if services.TranslationAlreadyExistsError(err) {
+		if services.VocabularyAlreadyExistsError(err) {
 			c.JSON(nethttp.StatusConflict, gin.H{"error": err.Error()})
 			return
 		}

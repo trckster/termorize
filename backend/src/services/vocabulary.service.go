@@ -34,22 +34,22 @@ type VocabularyListResponse struct {
 	Pagination Pagination          `json:"pagination"`
 }
 
-const translationAlreadyExistsError = "translation already exists"
+const vocabularyAlreadyExistsError = "vocabulary already exists"
 const translationNotFoundError = "translation not found"
 const vocabularyNotFoundError = "vocabulary item not found"
 const invalidPageError = "page must be greater than 0"
 const invalidPageSizeError = "page size must be between 1 and 1000"
 
 var (
-	ErrTranslationAlreadyExists = errors.New(translationAlreadyExistsError)
-	ErrTranslationNotFound      = errors.New(translationNotFoundError)
-	ErrVocabularyNotFound       = errors.New(vocabularyNotFoundError)
-	ErrInvalidPage              = errors.New(invalidPageError)
-	ErrInvalidPageSize          = errors.New(invalidPageSizeError)
+	ErrVocabularyAlreadyExists = errors.New(vocabularyAlreadyExistsError)
+	ErrTranslationNotFound     = errors.New(translationNotFoundError)
+	ErrVocabularyNotFound      = errors.New(vocabularyNotFoundError)
+	ErrInvalidPage             = errors.New(invalidPageError)
+	ErrInvalidPageSize         = errors.New(invalidPageSizeError)
 )
 
-func TranslationAlreadyExistsError(err error) bool {
-	return errors.Is(err, ErrTranslationAlreadyExists)
+func VocabularyAlreadyExistsError(err error) bool {
+	return errors.Is(err, ErrVocabularyAlreadyExists)
 }
 
 func TranslationNotFoundError(err error) bool {
@@ -104,15 +104,37 @@ func CreateVocabulary(userID uint, req CreateVocabularyRequest) (*models.Vocabul
 			return err
 		}
 
-		translation := models.Translation{
-			OriginalID:    originalWord.ID,
-			TranslationID: translatedWord.ID,
-			Source:        enums.TranslationSourceUser,
-			UserID:        &userID,
+		var translation models.Translation
+		result := tx.
+			Where("(original_id = ? AND translation_id = ?) OR (original_id = ? AND translation_id = ?)",
+				originalWord.ID, translatedWord.ID, translatedWord.ID, originalWord.ID).
+			Where("source = ?", enums.TranslationSourceUser).
+			Where("user_id = ?", userID).
+			First(&translation)
+
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			translation = models.Translation{
+				OriginalID:    originalWord.ID,
+				TranslationID: translatedWord.ID,
+				Source:        enums.TranslationSourceUser,
+				UserID:        &userID,
+			}
+
+			if err := tx.Create(&translation).Error; err != nil {
+				return err
+			}
+		} else if result.Error != nil {
+			return result.Error
 		}
 
-		if err := tx.Create(&translation).Error; err != nil {
-			return err
+		var count int64
+		tx.Model(&models.Vocabulary{}).
+			Where("user_id = ?", userID).
+			Where("translation_id = ?", translation.ID).
+			Count(&count)
+
+		if count > 0 {
+			return ErrVocabularyAlreadyExists
 		}
 
 		vocabulary = models.Vocabulary{
@@ -162,7 +184,7 @@ func CreateVocabularyByTranslation(userID uint, translationID uuid.UUID) (*model
 		}
 
 		if count > 0 {
-			return ErrTranslationAlreadyExists
+			return ErrVocabularyAlreadyExists
 		}
 
 		vocabulary = models.Vocabulary{

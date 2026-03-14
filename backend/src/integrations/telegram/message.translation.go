@@ -42,7 +42,7 @@ func handlePlainTranslationMessage(message *message) (bool, error) {
 			return true, SendMessageWithInlineKeyboard(message.Chat.ID, baseText+telegramTextVocabularyAutoAddedSuffix, buildVocabularyDeleteKeyboard(vocabulary.ID.String()))
 		}
 
-		if services.TranslationAlreadyExistsError(createErr) {
+		if services.VocabularyAlreadyExistsError(createErr) {
 			return true, SendMessage(message.Chat.ID, baseText)
 		}
 
