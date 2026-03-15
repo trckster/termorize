@@ -8,10 +8,12 @@ import (
 )
 
 type UserSettings struct {
-	NativeLanguage       enums.Language       `json:"native_language"`
-	MainLearningLanguage enums.Language       `json:"main_learning_language"`
-	TimeZone             string               `json:"time_zone"`
-	Telegram             UserTelegramSettings `json:"telegram"`
+	SystemLanguage            enums.Language       `json:"system_language"`
+	MainLearningLanguage      enums.Language       `json:"main_learning_language"`
+	TranslationSourceLanguage enums.Language       `json:"translation_source_language"`
+	TranslationTargetLanguage enums.Language       `json:"translation_target_language"`
+	TimeZone                  string               `json:"time_zone"`
+	Telegram                  UserTelegramSettings `json:"telegram"`
 }
 
 type UserTelegramSettings struct {
@@ -27,11 +29,37 @@ type UserTelegramQuestionsScheduleItem struct {
 }
 
 func (s UserSettings) Value() (driver.Value, error) {
+	s = s.WithDefaults()
 	return json.Marshal(s)
 }
 
 func (p *UserSettings) Scan(value any) error {
-	return json.Unmarshal(value.([]byte), p)
+	if err := json.Unmarshal(value.([]byte), p); err != nil {
+		return err
+	}
+
+	*p = p.WithDefaults()
+	return nil
+}
+
+func (s UserSettings) WithDefaults() UserSettings {
+	if s.SystemLanguage == "" {
+		s.SystemLanguage = enums.LanguageRu
+	}
+
+	if s.MainLearningLanguage == "" {
+		s.MainLearningLanguage = enums.LanguageEn
+	}
+
+	if s.TranslationSourceLanguage == "" {
+		s.TranslationSourceLanguage = enums.LanguageEn
+	}
+
+	if s.TranslationTargetLanguage == "" {
+		s.TranslationTargetLanguage = enums.LanguageRu
+	}
+
+	return s
 }
 
 type User struct {

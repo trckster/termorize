@@ -95,6 +95,10 @@ onMounted(() => {
                 </div>
             </section>
 
+            <section class="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900">
+                Exercises created before 15th of March are lost due to migration to a newer version of application.
+            </section>
+
             <div v-if="errorMessage" class="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
                 {{ errorMessage }}
             </div>

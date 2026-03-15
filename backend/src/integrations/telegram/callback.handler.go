@@ -167,7 +167,10 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 			return nil
 		}
 
-		messageText := buildAddVocabularyFirstText(user.Settings.NativeLanguage.DisplayNameWithFlag(), user.Settings.MainLearningLanguage.DisplayNameWithFlag())
+		messageText := buildAddVocabularyFirstText(
+			user.Settings.TranslationSourceLanguage.DisplayNameWithFlag(),
+			user.Settings.TranslationTargetLanguage.DisplayNameWithFlag(),
+		)
 		return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, messageText, menuCancelKeyboard)
 	}
 

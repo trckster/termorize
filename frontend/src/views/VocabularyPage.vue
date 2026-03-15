@@ -200,7 +200,8 @@
 
 <script setup lang="ts">
 import { vocabularyApi, type VocabularyItem } from '@/api/vocabulary.ts'
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed, watch } from 'vue'
+import { useAuthStore } from '@/stores/auth.ts'
 import { useSettingsStore } from '@/stores/settings.ts'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import { Pagination, PaginationContent, PaginationItem, PaginationEllipsis } from '@/components/ui/pagination'
@@ -234,6 +235,7 @@ const deletingId = ref<string | null>(null)
 const isAddDialogOpen = ref(false)
 const isAdding = ref(false)
 
+const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
 
 type NewTranslationForm = {
@@ -246,8 +248,13 @@ type NewTranslationForm = {
 const defaultNewTranslation = (): NewTranslationForm => ({
     word1: '',
     word2: '',
-    language1: 'en',
-    language2: 'ru',
+    language1: authStore.user?.settings.translation_source_language || 'en',
+    language2:
+        authStore.user?.settings.translation_target_language === authStore.user?.settings.translation_source_language
+            ? authStore.user?.settings.translation_source_language === 'en'
+                ? 'ru'
+                : 'en'
+            : authStore.user?.settings.translation_target_language || 'ru',
 })
 
 const newTranslation = ref<NewTranslationForm>(defaultNewTranslation())
@@ -259,6 +266,12 @@ const isFormValid = computed(() => {
 const resetForm = () => {
     newTranslation.value = defaultNewTranslation()
 }
+
+watch(isAddDialogOpen, (isOpen) => {
+    if (isOpen) {
+        resetForm()
+    }
+})
 
 const { addToast } = useToast()
 

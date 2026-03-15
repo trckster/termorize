@@ -39,7 +39,7 @@ const (
 	telegramTextMenuSettings   = "⚒️ Work in progress here! ⚒️"
 
 	telegramTextAddVocabularyFirstFormat = "Send translation separated by colon (from *%s* to *%s*).\n\n" +
-		"Example — *река:river*\n\n" +
+		"Example — *river:река*\n\n" +
 		"To add translation in different languages, proceed to the website: %s"
 	telegramTextAddVocabularyDone    = "Translation added ✅"
 	telegramTextAddVocabularyExists  = "Current translation already exists in vocabulary"
@@ -83,8 +83,8 @@ func buildTranslateQuestionText(word string, language string) string {
 	return fmt.Sprintf(telegramTextQuestionTranslateFormat, word, language)
 }
 
-func buildAddVocabularyFirstText(nativeLanguage string, mainLearningLanguage string) string {
-	return fmt.Sprintf(telegramTextAddVocabularyFirstFormat, nativeLanguage, mainLearningLanguage, config.GetPublicURL())
+func buildAddVocabularyFirstText(systemLanguage string, mainLearningLanguage string) string {
+	return fmt.Sprintf(telegramTextAddVocabularyFirstFormat, systemLanguage, mainLearningLanguage, config.GetPublicURL())
 }
 
 var telegramTextExerciseReminderPhrases = []string{

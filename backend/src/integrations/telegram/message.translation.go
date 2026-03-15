@@ -53,31 +53,31 @@ func handlePlainTranslationMessage(message *message) (bool, error) {
 }
 
 func detectMessageTranslationLanguages(user *models.User, text string) (enums.Language, enums.Language, error) {
-	nativeLanguage := user.Settings.NativeLanguage
-	learningLanguage := user.Settings.MainLearningLanguage
+	sourceLanguage := user.Settings.TranslationSourceLanguage
+	targetLanguage := user.Settings.TranslationTargetLanguage
 
 	detectedLanguage, matchedSupportedLanguage, err := services.DetectLanguage(text)
 	if err == nil && matchedSupportedLanguage {
-		if detectedLanguage == nativeLanguage {
-			return nativeLanguage, learningLanguage, nil
+		if detectedLanguage == sourceLanguage {
+			return sourceLanguage, targetLanguage, nil
 		}
 
-		if detectedLanguage == learningLanguage {
-			return learningLanguage, nativeLanguage, nil
+		if detectedLanguage == targetLanguage {
+			return targetLanguage, sourceLanguage, nil
 		}
 	}
 
 	if containsCyrillic(text) {
-		if nativeLanguage == enums.LanguageRu {
-			return nativeLanguage, learningLanguage, nil
+		if sourceLanguage == enums.LanguageRu {
+			return sourceLanguage, targetLanguage, nil
 		}
 
-		if learningLanguage == enums.LanguageRu {
-			return learningLanguage, nativeLanguage, nil
+		if targetLanguage == enums.LanguageRu {
+			return targetLanguage, sourceLanguage, nil
 		}
 	}
 
-	return nativeLanguage, learningLanguage, nil
+	return sourceLanguage, targetLanguage, nil
 }
 
 func buildVocabularyTranslationText(sourceLanguage enums.Language, sourceWord string, translatedWord string, targetLanguage enums.Language) string {

@@ -42,16 +42,16 @@ func handleStateMessage(message *message) (bool, error) {
 }
 
 func handleAddingVocabularyMessage(message *message, user *models.User, telegramID int64) error {
-	nativeWord, learningWord, ok := parseVocabularyPair(message.Text)
+	sourceWord, targetWord, ok := parseVocabularyPair(message.Text)
 	if !ok {
 		return SendMessage(message.Chat.ID, telegramTextAddVocabularyInvalid)
 	}
 
 	_, err := services.CreateVocabulary(user.ID, services.CreateVocabularyRequest{
-		Original:            learningWord,
-		Translation:         nativeWord,
-		OriginalLanguage:    user.Settings.MainLearningLanguage,
-		TranslationLanguage: user.Settings.NativeLanguage,
+		Original:            sourceWord,
+		Translation:         targetWord,
+		OriginalLanguage:    user.Settings.TranslationSourceLanguage,
+		TranslationLanguage: user.Settings.TranslationTargetLanguage,
 	})
 	if err != nil {
 		if services.VocabularyAlreadyExistsError(err) {

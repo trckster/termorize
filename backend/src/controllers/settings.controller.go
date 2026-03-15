@@ -14,10 +14,12 @@ import (
 )
 
 type UpdateSettingsRequest struct {
-	NativeLanguage       enums.Language                `json:"native_language" binding:"required,enum=Language"`
-	MainLearningLanguage enums.Language                `json:"main_learning_language" binding:"required,enum=Language"`
-	TimeZone             string                        `json:"time_zone" binding:"required,timezone"`
-	Telegram             UpdateSettingsTelegramRequest `json:"telegram" binding:"required"`
+	SystemLanguage            enums.Language                `json:"system_language" binding:"required,enum=Language"`
+	MainLearningLanguage      enums.Language                `json:"main_learning_language" binding:"required,enum=Language"`
+	TranslationSourceLanguage enums.Language                `json:"translation_source_language" binding:"required,enum=Language,nefield=TranslationTargetLanguage"`
+	TranslationTargetLanguage enums.Language                `json:"translation_target_language" binding:"required,enum=Language,nefield=TranslationSourceLanguage"`
+	TimeZone                  string                        `json:"time_zone" binding:"required,timezone"`
+	Telegram                  UpdateSettingsTelegramRequest `json:"telegram" binding:"required"`
 }
 
 type UpdateSettingsTelegramRequest struct {
@@ -46,9 +48,11 @@ func UpdateSettings(c *gin.Context) {
 	}
 
 	settings := models.UserSettings{
-		NativeLanguage:       req.NativeLanguage,
-		MainLearningLanguage: req.MainLearningLanguage,
-		TimeZone:             strings.TrimSpace(req.TimeZone),
+		SystemLanguage:            req.SystemLanguage,
+		MainLearningLanguage:      req.MainLearningLanguage,
+		TranslationSourceLanguage: req.TranslationSourceLanguage,
+		TranslationTargetLanguage: req.TranslationTargetLanguage,
+		TimeZone:                  strings.TrimSpace(req.TimeZone),
 		Telegram: models.UserTelegramSettings{
 			DailyQuestionsEnabled: req.Telegram.DailyQuestionsEnabled,
 			DailyQuestionsCount:   req.Telegram.DailyQuestionsCount,

@@ -15,7 +15,7 @@ const props = defineProps<{
 const authStore = useAuthStore()
 const { addToast } = useToast()
 
-const nativeLanguage = ref(props.settings?.native_language || '')
+const systemLanguage = ref(props.settings?.system_language || '')
 const mainLearningLanguage = ref(props.settings?.main_learning_language || '')
 const isSaving = ref(false)
 
@@ -23,7 +23,7 @@ const hasLanguageSettingsChanged = computed(() => {
     if (!props.settings) return false
 
     return (
-        nativeLanguage.value !== props.settings.native_language ||
+        systemLanguage.value !== props.settings.system_language ||
         mainLearningLanguage.value !== props.settings.main_learning_language
     )
 })
@@ -36,7 +36,7 @@ const saveLanguageSettings = async () => {
     try {
         authStore.user = await settingsApi.updateSettings({
             ...props.settings,
-            native_language: nativeLanguage.value,
+            system_language: systemLanguage.value,
             main_learning_language: mainLearningLanguage.value,
         })
 
@@ -62,7 +62,7 @@ const saveLanguageSettings = async () => {
 watch(
     () => props.settings,
     (nextSettings) => {
-        nativeLanguage.value = nextSettings?.native_language || ''
+        systemLanguage.value = nextSettings?.system_language || ''
         mainLearningLanguage.value = nextSettings?.main_learning_language || ''
     },
     { immediate: true }
@@ -78,11 +78,12 @@ watch(
         <CardContent class="space-y-4">
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div class="space-y-2 rounded-lg p-4">
-                    <p class="text-sm font-semibold text-foreground">Native Language</p>
-                    <LanguageSelector v-model="nativeLanguage" placeholder="Select native language" />
+                    <p class="text-sm font-semibold text-foreground">System Language</p>
+                    <LanguageSelector v-model="systemLanguage" placeholder="Select system language" :disabled="true" />
                     <p class="text-xs text-muted-foreground">
-                        This is your main language. We use it in quizzes to explain vocabulary words and crossword
-                        tasks.
+                        Currently only English is supported!
+                        <!--                        This is your main language. We use it in quizzes to explain vocabulary words and crossword-->
+                        <!--                        tasks.-->
                     </p>
                 </div>
 

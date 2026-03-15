@@ -18,9 +18,11 @@ func defaultUserSettings(timezone string, botEnabled bool) models.UserSettings {
 	}
 
 	return models.UserSettings{
-		NativeLanguage:       enums.LanguageRu,
-		MainLearningLanguage: enums.LanguageEn,
-		TimeZone:             timezone,
+		SystemLanguage:            enums.LanguageRu,
+		MainLearningLanguage:      enums.LanguageEn,
+		TranslationSourceLanguage: enums.LanguageEn,
+		TranslationTargetLanguage: enums.LanguageRu,
+		TimeZone:                  timezone,
 		Telegram: models.UserTelegramSettings{
 			BotEnabled:             botEnabled,
 			DailyQuestionsEnabled:  true,
@@ -72,6 +74,7 @@ func UpdateUserSettings(userID uint, settings models.UserSettings) (*models.User
 
 		wasDailyQuestionsEnabled := user.Settings.Telegram.DailyQuestionsEnabled
 		settings.Telegram.BotEnabled = user.Settings.Telegram.BotEnabled
+		settings = settings.WithDefaults()
 
 		user.Settings = settings
 

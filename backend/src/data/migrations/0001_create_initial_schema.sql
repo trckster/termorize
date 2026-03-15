@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS "exercises"
     "telegram_message_id" BIGINT,
 
     "scheduled_for"       TIMESTAMP,
+    "reminder_sent_at"    TIMESTAMP,
     "started_at"          TIMESTAMP,
     "finished_at"         TIMESTAMP,
     "created_at"          TIMESTAMP        DEFAULT CURRENT_TIMESTAMP,

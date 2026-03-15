@@ -21,11 +21,13 @@ const props = withDefaults(
         modelValue?: string
         placeholder?: string
         disabledValues?: string[]
+        disabled?: boolean
     }>(),
     {
         modelValue: '',
         placeholder: 'Select language',
         disabledValues: () => [],
+        disabled: false,
     }
 )
 
@@ -97,14 +99,22 @@ defineExpose({
 
 <template>
     <div ref="rootRef" class="w-full">
-        <ComboboxRoot v-model="selectedValue" v-model:open="isOpen" :open-on-click="true" class="w-full">
+        <ComboboxRoot
+            v-model="selectedValue"
+            v-model:open="isOpen"
+            :open-on-click="!disabled"
+            class="w-full"
+            :disabled="disabled"
+        >
             <ComboboxAnchor class="relative w-full">
                 <ComboboxInput
                     :display-value="getSelectedLabel"
                     :placeholder="placeholder"
+                    :disabled="disabled"
                     class="w-full rounded-md border border-input bg-background px-3 py-2 pr-10 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 />
                 <ComboboxTrigger
+                    :disabled="disabled"
                     class="absolute right-0 top-0 flex h-full px-3 items-center text-muted-foreground transition-colors hover:text-foreground"
                 >
                     <ChevronsUpDown class="h-4 w-4" />

@@ -19,8 +19,10 @@ export interface User {
 }
 
 export interface UserSettings {
-    native_language: string
+    system_language: string
     main_learning_language: string
+    translation_source_language: string
+    translation_target_language: string
     time_zone: string
     telegram: UserTelegramSettings
 }

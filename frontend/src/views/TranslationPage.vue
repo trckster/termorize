@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { settingsApi } from '@/api/settings.ts'
 import { translationApi } from '@/api/translation.ts'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import { Kbd } from '@/components/ui/kbd'
@@ -12,17 +13,24 @@ type LanguageSelectorInstance = {
 
 const authStore = useAuthStore()
 
-const getInitialLanguages = () => {
-    const nativeLanguage = authStore.user?.settings.native_language || 'en'
-    let mainLearningLanguage = authStore.user?.settings.main_learning_language || 'ru'
-
-    if (nativeLanguage === mainLearningLanguage) {
-        mainLearningLanguage = nativeLanguage === 'en' ? 'ru' : 'en'
+const getDistinctTargetLanguage = (sourceLanguage: string, targetLanguage: string) => {
+    if (sourceLanguage !== targetLanguage) {
+        return targetLanguage
     }
 
+    return sourceLanguage === 'en' ? 'ru' : 'en'
+}
+
+const getInitialLanguages = () => {
+    const sourceLanguage = authStore.user?.settings.translation_source_language || 'en'
+    const targetLanguage = getDistinctTargetLanguage(
+        sourceLanguage,
+        authStore.user?.settings.translation_target_language || 'ru'
+    )
+
     return {
-        source: nativeLanguage,
-        target: mainLearningLanguage,
+        source: sourceLanguage,
+        target: targetLanguage,
     }
 }
 
@@ -42,6 +50,7 @@ const isSavingVocabulary = ref(false)
 const { addToast } = useToast()
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
+let settingsSaveTimer: ReturnType<typeof setTimeout> | null = null
 const activeField = ref<'source' | 'target' | null>(null)
 const isLoadingSource = ref(false)
 const isLoadingTarget = ref(false)
@@ -52,6 +61,53 @@ const translationSourceLabel = computed(() => {
     if (translationSource.value === 'google') return 'Google'
     return translationSource.value
 })
+
+const persistTranslationLanguages = async () => {
+    const user = authStore.user
+    if (!user) {
+        return
+    }
+
+    const nextTargetLanguage = getDistinctTargetLanguage(sourceLang.value, targetLang.value)
+    if (nextTargetLanguage !== targetLang.value) {
+        targetLang.value = nextTargetLanguage
+        return
+    }
+
+    const currentSettings = user.settings
+    if (
+        currentSettings.translation_source_language === sourceLang.value &&
+        currentSettings.translation_target_language === targetLang.value
+    ) {
+        return
+    }
+
+    try {
+        authStore.user = await settingsApi.updateSettings({
+            ...currentSettings,
+            translation_source_language: sourceLang.value,
+            translation_target_language: targetLang.value,
+        })
+    } catch (error) {
+        console.error('Failed to save translation languages:', error)
+        addToast({
+            title: 'Error',
+            description: 'Failed to save translation languages. Please try again.',
+            variant: 'destructive',
+            duration: 5000,
+        })
+    }
+}
+
+const queuePersistTranslationLanguages = () => {
+    if (settingsSaveTimer) {
+        clearTimeout(settingsSaveTimer)
+    }
+
+    settingsSaveTimer = setTimeout(() => {
+        void persistTranslationLanguages()
+    }, 300)
+}
 
 const performTranslation = async (
     fromText: string,
@@ -175,6 +231,7 @@ watch(
     sourceLang,
     () => {
         triggerActiveFieldTranslation(true)
+        queuePersistTranslationLanguages()
     },
     { immediate: false }
 )
@@ -183,6 +240,7 @@ watch(
     targetLang,
     () => {
         triggerActiveFieldTranslation(true)
+        queuePersistTranslationLanguages()
     },
     { immediate: false }
 )
@@ -306,6 +364,9 @@ onBeforeUnmount(() => {
     window.removeEventListener('keydown', handleShortcut)
     if (debounceTimer) {
         clearTimeout(debounceTimer)
+    }
+    if (settingsSaveTimer) {
+        clearTimeout(settingsSaveTimer)
     }
 })
 </script>
