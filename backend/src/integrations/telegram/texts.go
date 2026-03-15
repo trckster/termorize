@@ -33,10 +33,21 @@ const (
 	telegramTextQuestionTranslateFormat = "Translate word *%s* to %s\n\n" +
 		"(answer with reply)"
 
-	telegramTextMenuDeleteWord = "Send the word you want to delete from vocabulary 🗑️"
-	telegramTextMenuVocabulary = "⚒️ Work in progress here! ⚒️"
-	telegramTextMenuStatistics = "⚒️ Work in progress here! ⚒️"
-	telegramTextMenuSettings   = "⚒️ Work in progress here! ⚒️"
+	telegramTextMenuDeleteWord   = "Send the word you want to delete from vocabulary 🗑️"
+	telegramTextMenuVocabulary   = "⚒️ Work in progress here! ⚒️"
+	telegramTextMenuStatistics   = "⚒️ Work in progress here! ⚒️"
+	telegramTextMenuSettings     = "⚒️ Work in progress here! ⚒️"
+	telegramTextMenuWhatsGoingOn = "Привет! 👋\n\n" +
+		"Это новая версия бота. 🤖\n\n" +
+		"Плохие новости: 😕\n" +
+		"- история ответов на вопросы утеряна\n" +
+		"- часть ранее доступного функционала сейчас не работает\n" +
+		"- интерфейс на английском языке\n\n" +
+		"Хорошие новости: ✨\n" +
+		"- я планирую добавить возможность изменить язык интерфейса. Хотя бы на русский\n" +
+		"- теперь у бота есть сайт. Пока что там пустовато, но в перспективе сайт позволит сделать то, что нельзя делать в боте\n" +
+		"- все места, где сейчас заглушки, будут восстановлены 🚀\n\n" +
+		"По любым вопросам пишите: @trckster"
 
 	telegramTextAddVocabularyFirstFormat = "Send translation separated by colon (from *%s* to *%s*).\n\n" +
 		"Example — *river:река*\n\n" +
@@ -58,6 +69,7 @@ const (
 	telegramButtonMenuVocabulary     = "Your Vocabulary"
 	telegramButtonMenuStatistics     = "Statistics"
 	telegramButtonMenuSettings       = "Settings"
+	telegramButtonMenuWhatsGoingOn   = "Что происходит?"
 	telegramButtonMenuBack           = "Back"
 	telegramButtonMenuCancel         = "Cancel"
 	telegramButtonExerciseIDK        = "Don't know"

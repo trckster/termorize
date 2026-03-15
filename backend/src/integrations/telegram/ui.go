@@ -12,6 +12,7 @@ const (
 	menuActionVocabulary        = "your_vocabulary"
 	menuActionStatistics        = "statistics"
 	menuActionSettings          = "settings"
+	menuActionWhatsGoingOn      = "whats_going_on"
 
 	exerciseActionIDK = "idk"
 
@@ -22,7 +23,7 @@ const (
 var menuKeyboard = [][]inlineKeyboardButton{
 	{{Text: telegramButtonMenuAddTranslation, CallbackData: callbackTypeMenu + ":" + menuActionAddTranslation}, {Text: telegramButtonMenuDeleteWord, CallbackData: callbackTypeMenu + ":" + menuActionDeleteTranslation}},
 	{{Text: telegramButtonMenuVocabulary, CallbackData: callbackTypeMenu + ":" + menuActionVocabulary}, {Text: telegramButtonMenuStatistics, CallbackData: callbackTypeMenu + ":" + menuActionStatistics}},
-	{{Text: telegramButtonMenuSettings, CallbackData: callbackTypeMenu + ":" + menuActionSettings}},
+	{{Text: telegramButtonMenuSettings, CallbackData: callbackTypeMenu + ":" + menuActionSettings}, {Text: telegramButtonMenuWhatsGoingOn, CallbackData: callbackTypeMenu + ":" + menuActionWhatsGoingOn}},
 }
 
 var menuBackKeyboard = [][]inlineKeyboardButton{{{Text: telegramButtonMenuBack, CallbackData: callbackTypeMenu + ":" + menuActionBack}}}
@@ -50,6 +51,8 @@ func menuActionToText(action string) (string, bool) {
 		return telegramTextMenuStatistics, true
 	case menuActionSettings:
 		return telegramTextMenuSettings, true
+	case menuActionWhatsGoingOn:
+		return telegramTextMenuWhatsGoingOn, true
 	default:
 		return "", false
 	}
