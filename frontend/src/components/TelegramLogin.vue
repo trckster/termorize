@@ -1,45 +1,25 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { Send } from 'lucide-vue-next'
+import { Button } from '@/components/ui/button'
 
-const telegramWidgetContainer = ref<HTMLElement | null>(null)
-
-type TelegramAuthResult = {
-    id: number
-    auth_date: number
-    username: string
-    first_name: string
-    last_name: string
-    hash: string
-}
-
-const emit = defineEmits<{
-    (e: 'auth', data: TelegramAuthResult): void
+defineProps<{
+    loading?: boolean
 }>()
 
-window.onTelegramAuth = (authData: TelegramAuthResult) => {
-    emit('auth', authData)
-}
-
-declare global {
-    interface Window {
-        onTelegramAuth: (user: any) => void
-    }
-}
-
-onMounted(() => {
-    if (telegramWidgetContainer.value) {
-        const script = document.createElement('script')
-        script.src = 'https://telegram.org/js/telegram-widget.js?22'
-        script.setAttribute('data-telegram-login', import.meta.env.VITE_BOT_USERNAME)
-        script.setAttribute('data-size', 'large')
-        script.setAttribute('data-onauth', 'onTelegramAuth(user)')
-        script.setAttribute('data-request-access', 'write')
-        script.async = true
-        telegramWidgetContainer.value.appendChild(script)
-    }
-})
+const emit = defineEmits<{
+    (e: 'start'): void
+}>()
 </script>
 
 <template>
-    <div ref="telegramWidgetContainer"></div>
+    <Button
+        type="button"
+        size="lg"
+        class="w-full gap-3 bg-[#229ED9] text-white hover:bg-[#1d8fc5] focus-visible:ring-[#229ED9]"
+        :disabled="loading"
+        @click="emit('start')"
+    >
+        <Send class="size-4" />
+        {{ loading ? 'Redirecting to Telegram...' : 'Continue via Telegram' }}
+    </Button>
 </template>

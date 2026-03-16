@@ -1,14 +1,19 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { authApi, type TelegramAuthData, type User } from '@/api/auth.ts'
+import { authApi, type TelegramLoginCallbackPayload, type User } from '@/api/auth.ts'
 
 export const useAuthStore = defineStore('auth', () => {
     const user = ref<User | null>(null)
     const isAuthenticated = computed(() => !!user.value)
     const hasCheckedAuth = ref(false)
 
-    const login = async (authData: TelegramAuthData) => {
-        user.value = await authApi.login(authData)
+    const startTelegramLogin = async () => {
+        return authApi.startTelegramLogin()
+    }
+
+    const completeTelegramLogin = async (payload: TelegramLoginCallbackPayload) => {
+        user.value = await authApi.completeTelegramLogin(payload)
+        hasCheckedAuth.value = true
     }
 
     const logout = async () => {
@@ -18,6 +23,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     const getCurrentUser = async () => {
         if (isAuthenticated.value) {
+            hasCheckedAuth.value = true
             return user.value
         }
 
@@ -30,7 +36,8 @@ export const useAuthStore = defineStore('auth', () => {
         user,
         isAuthenticated,
         hasCheckedAuth,
-        login,
+        startTelegramLogin,
+        completeTelegramLogin,
         logout,
         getCurrentUser,
     }

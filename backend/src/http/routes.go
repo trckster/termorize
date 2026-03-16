@@ -28,7 +28,8 @@ func definePublicRoutes(group *gin.RouterGroup) {
 		c.JSON(http.StatusOK, gin.H{"status": "nice"})
 	})
 
-	group.POST("/telegram/login", controllers.TelegramLogin)
+	group.POST("/telegram/login/start", controllers.StartTelegramLogin)
+	group.POST("/telegram/login/callback", controllers.CompleteTelegramLogin)
 	group.POST("/logout", controllers.Logout)
 
 	group.GET("/settings", controllers.GetSettings)
