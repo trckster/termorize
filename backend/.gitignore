@@ -4,3 +4,4 @@
 test.txt
 test.go
 termorize
+.env.prod

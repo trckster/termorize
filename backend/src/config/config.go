@@ -24,7 +24,6 @@ type Config struct {
 	TelegramBotToken          string
 	TelegramLoginClientID     string
 	TelegramLoginClientSecret string
-	TelegramLoginRedirectURL  string
 	TelegramWebhookURL        string
 
 	GoogleApiKey string
@@ -76,7 +75,6 @@ func LoadEnv() {
 		TelegramWebhookURL:        getEnv("TELEGRAM_WEBHOOK_URL", ""),
 		TelegramLoginClientID:     getRequiredEnv("TELEGRAM_LOGIN_CLIENT_ID"),
 		TelegramLoginClientSecret: getRequiredEnv("TELEGRAM_LOGIN_CLIENT_SECRET"),
-		TelegramLoginRedirectURL:  getEnv("TELEGRAM_LOGIN_REDIRECT_URL", publicURL+"/login/telegram/callback"),
 
 		GoogleApiKey: getRequiredEnv("GOOGLE_API_KEY"),
 
@@ -153,7 +151,7 @@ func GetTelegramLoginClientSecret() string {
 }
 
 func GetTelegramLoginRedirectURL() string {
-	return config.TelegramLoginRedirectURL
+	return config.PublicURL + "/login/telegram/callback"
 }
 
 func GetGoogleApiKey() string {
