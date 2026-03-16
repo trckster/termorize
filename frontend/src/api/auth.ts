@@ -1,13 +1,12 @@
 import apiCall, { unwrapBody } from '@/api/index.ts'
 
-export interface TelegramAuthData {
-    id: number
-    auth_date: number
-    username: string
-    first_name: string
-    last_name: string
-    photo_url: string
-    hash: string
+export interface TelegramLoginStartResponse {
+    auth_url: string
+}
+
+export interface TelegramLoginCallbackPayload {
+    code: string
+    state: string
 }
 
 export interface User {
@@ -40,8 +39,12 @@ export interface UserTelegramScheduleItem {
 }
 
 export const authApi = {
-    async login(authData: TelegramAuthData): Promise<User | null> {
-        return apiCall<User>('/telegram/login', 'POST', authData, {
+    async startTelegramLogin(): Promise<string> {
+        return apiCall<TelegramLoginStartResponse>('/telegram/login/start', 'POST').then((response) => response.body.auth_url)
+    },
+
+    async completeTelegramLogin(payload: TelegramLoginCallbackPayload): Promise<User | null> {
+        return apiCall<User>('/telegram/login/callback', 'POST', payload, {
             'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
         }).then(unwrapBody)
     },

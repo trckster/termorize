@@ -11,6 +11,12 @@ const router = createRouter({
             meta: { guest: true },
         },
         {
+            path: '/login/telegram/callback',
+            name: 'telegram-login-callback',
+            component: () => import('@/views/TelegramLoginCallbackPage.vue'),
+            meta: { guest: true },
+        },
+        {
             path: '/',
             component: () => import('@/layouts/MainLayout.vue'),
             meta: { requiresAuth: true },
