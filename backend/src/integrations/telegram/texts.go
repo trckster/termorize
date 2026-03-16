@@ -45,13 +45,13 @@ const (
 		"- интерфейс на английском языке\n\n" +
 		"Хорошие новости: ✨\n" +
 		"- я планирую добавить возможность изменить язык интерфейса. Хотя бы на русский\n" +
-		"- теперь у бота есть сайт. Пока что там пустовато, но в перспективе сайт позволит сделать то, что нельзя делать в боте\n" +
+		"- теперь у бота есть сайт [который пока не работает]. Пока что там пустовато, но в перспективе сайт позволит сделать то, что нельзя делать в боте\n" +
 		"- все места, где сейчас заглушки, будут восстановлены 🚀\n\n" +
 		"По любым вопросам пишите: @trckster"
 
 	telegramTextAddVocabularyFirstFormat = "Send translation separated by colon (from *%s* to *%s*).\n\n" +
 		"Example — *river:река*\n\n" +
-		"To add translation in different languages, proceed to the website: %s"
+		"To add translation in different languages, proceed to the website: %s [login is not working yet, I'll fix it soon]"
 	telegramTextAddVocabularyDone    = "Translation added ✅"
 	telegramTextAddVocabularyExists  = "Current translation already exists in vocabulary"
 	telegramTextAddVocabularyInvalid = "Invalid format. Send translation as word1:word2"
