@@ -1,10 +1,14 @@
 package controllers
 
 import (
+	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"termorize/src/auth"
+	"termorize/src/config"
 	"termorize/src/data/db"
+	"termorize/src/http/validators"
 	"termorize/src/models"
 	"termorize/src/services"
 	"time"
@@ -12,23 +16,58 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func TelegramLogin(c *gin.Context) {
-	var data auth.TelegramAuthData
-	if err := c.BindJSON(&data); err != nil {
+func StartTelegramLogin(c *gin.Context) {
+	if !auth.IsTelegramLoginConfigured() {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "telegram login is not configured"})
 		return
 	}
 
-	if !auth.ValidateTelegramAuth(data) {
-		c.Status(http.StatusUnauthorized)
+	redirectURI := getTelegramLoginRedirectURL(c)
+	if redirectURI == "" {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "telegram login redirect is invalid"})
 		return
 	}
 
-	timezone := getRequestTimeZone(c)
-
-	user, err := services.CreateOrUpdateUserByTelegramAuthData(data, timezone)
+	session, err := auth.NewTelegramLoginSession()
 	if err != nil {
-		// TODO add zap as logger
-		c.Status(http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to start telegram login"})
+		return
+	}
+	session.RedirectURI = redirectURI
+
+	sessionToken, err := auth.IssueTelegramLoginSessionToken(*session)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to start telegram login"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"auth_url": auth.BuildTelegramLoginURL(*session, sessionToken)})
+}
+
+func CompleteTelegramLogin(c *gin.Context) {
+	var request auth.TelegramLoginCallbackRequest
+	if !validators.BindJSONWithErrors(c, &request) {
+		return
+	}
+
+	session, err := auth.DecodeTelegramLoginSessionToken(request.State)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "telegram login session is invalid"})
+		return
+	}
+
+	profile, err := auth.ExchangeTelegramLoginCode(request.Code, session.CodeVerifier, session.RedirectURI, session.Nonce)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error":   "telegram login failed",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	user, err := services.CreateOrUpdateUserByTelegramProfile(*profile, getRequestTimeZone(c))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save user"})
 		return
 	}
 
@@ -61,4 +100,18 @@ func getRequestTimeZone(c *gin.Context) string {
 	}
 
 	return timezone
+}
+
+func getTelegramLoginRedirectURL(c *gin.Context) string {
+	origin := strings.TrimSpace(c.GetHeader("Origin"))
+	if origin == "" {
+		return config.GetTelegramLoginRedirectURL()
+	}
+
+	parsedOrigin, err := url.Parse(origin)
+	if err != nil || parsedOrigin.Scheme == "" || parsedOrigin.Host == "" {
+		return config.GetTelegramLoginRedirectURL()
+	}
+
+	return fmt.Sprintf("%s://%s/login/telegram/callback", parsedOrigin.Scheme, parsedOrigin.Host)
 }

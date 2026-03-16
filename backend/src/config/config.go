@@ -15,14 +15,19 @@ type Config struct {
 	Port      string
 	Secret    string
 
-	DBHost             string
-	DBPort             string
-	DBName             string
-	DBUser             string
-	DBPassword         string
-	TelegramBotToken   string
-	TelegramWebhookURL string
-	GoogleApiKey       string
+	DBHost     string
+	DBPort     string
+	DBName     string
+	DBUser     string
+	DBPassword string
+
+	TelegramBotToken          string
+	TelegramLoginClientID     string
+	TelegramLoginClientSecret string
+	TelegramLoginRedirectURL  string
+	TelegramWebhookURL        string
+
+	GoogleApiKey string
 
 	JWTExpirationTime time.Duration
 }
@@ -53,9 +58,11 @@ func LoadEnv() {
 		logger.L().Infow("no .env file found, using environment variables")
 	}
 
+	publicURL := getEnv("PUBLIC_URL", "http://localhost:3000")
+
 	config = &Config{
 		Env:       getEnv("ENV", "prod"),
-		PublicURL: getEnv("PUBLIC_URL", "http://localhost:3000"),
+		PublicURL: publicURL,
 		Port:      getEnv("PORT", "8080"),
 		Secret:    getRequiredEnv("SECRET"),
 
@@ -65,9 +72,13 @@ func LoadEnv() {
 		DBUser:     getRequiredEnv("DB_USER"),
 		DBPassword: getRequiredEnv("DB_PASSWORD"),
 
-		TelegramBotToken:   getRequiredEnv("TELEGRAM_BOT_TOKEN"),
-		TelegramWebhookURL: getEnv("TELEGRAM_WEBHOOK_URL", ""),
-		GoogleApiKey:       getRequiredEnv("GOOGLE_API_KEY"),
+		TelegramBotToken:          getRequiredEnv("TELEGRAM_BOT_TOKEN"),
+		TelegramWebhookURL:        getEnv("TELEGRAM_WEBHOOK_URL", ""),
+		TelegramLoginClientID:     getRequiredEnv("TELEGRAM_LOGIN_CLIENT_ID"),
+		TelegramLoginClientSecret: getRequiredEnv("TELEGRAM_LOGIN_CLIENT_SECRET"),
+		TelegramLoginRedirectURL:  getEnv("TELEGRAM_LOGIN_REDIRECT_URL", publicURL+"/login/telegram/callback"),
+
+		GoogleApiKey: getRequiredEnv("GOOGLE_API_KEY"),
 
 		JWTExpirationTime: 12 * time.Hour,
 	}
@@ -131,6 +142,18 @@ func GetTelegramBotToken() string {
 
 func GetTelegramWebhookURL() string {
 	return config.TelegramWebhookURL
+}
+
+func GetTelegramLoginClientID() string {
+	return config.TelegramLoginClientID
+}
+
+func GetTelegramLoginClientSecret() string {
+	return config.TelegramLoginClientSecret
+}
+
+func GetTelegramLoginRedirectURL() string {
+	return config.TelegramLoginRedirectURL
 }
 
 func GetGoogleApiKey() string {

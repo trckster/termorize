@@ -32,15 +32,15 @@ func defaultUserSettings(timezone string, botEnabled bool) models.UserSettings {
 	}
 }
 
-func CreateOrUpdateUserByTelegramAuthData(data auth.TelegramAuthData, timezone string) (*models.User, error) {
+func CreateOrUpdateUserByTelegramProfile(profile auth.TelegramUserProfile, timezone string) (*models.User, error) {
 	var user models.User
 
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		result := tx.Where("telegram_id = ?", data.ID).First(&user)
+		result := tx.Where("telegram_id = ?", profile.ID).First(&user)
 
 		if result.Error == nil {
-			user.Name = strings.TrimSpace(data.FirstName + " " + data.LastName)
-			user.Username = data.Username
+			user.Name = strings.TrimSpace(profile.Name)
+			user.Username = profile.Username
 			return tx.Save(&user).Error
 		}
 
@@ -49,9 +49,9 @@ func CreateOrUpdateUserByTelegramAuthData(data auth.TelegramAuthData, timezone s
 		}
 
 		user = models.User{
-			TelegramID: data.ID,
-			Username:   data.Username,
-			Name:       strings.TrimSpace(data.FirstName + " " + data.LastName),
+			TelegramID: profile.ID,
+			Username:   profile.Username,
+			Name:       strings.TrimSpace(profile.Name),
 			Settings:   defaultUserSettings(timezone, true),
 		}
 

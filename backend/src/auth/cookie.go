@@ -10,7 +10,7 @@ import (
 const authCookieName = "auth"
 
 func SetAuthCookie(c *gin.Context, token string) {
-	setAuthCookie(c, token, int(config.GetJWTExpirationTime().Seconds()))
+	setCookie(c, authCookieName, token, int(config.GetJWTExpirationTime().Seconds()), authCookieSameSite())
 }
 
 func GetAuthCookie(c *gin.Context) (string, error) {
@@ -18,17 +18,21 @@ func GetAuthCookie(c *gin.Context) (string, error) {
 }
 
 func DeleteAuthCookie(c *gin.Context) {
-	setAuthCookie(c, "", -1)
+	setCookie(c, authCookieName, "", -1, authCookieSameSite())
 }
 
-func setAuthCookie(c *gin.Context, token string, time int) {
+func authCookieSameSite() http.SameSite {
 	sameSite := http.SameSiteStrictMode
 	if config.IsLocal() {
 		sameSite = http.SameSiteNoneMode
 	}
 
+	return sameSite
+}
+
+func setCookie(c *gin.Context, name string, token string, time int, sameSite http.SameSite) {
 	cookie := &http.Cookie{
-		Name:     authCookieName,
+		Name:     name,
 		Value:    token,
 		Path:     "/",
 		Domain:   config.GetDomain(),
