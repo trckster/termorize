@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter, type LocationQueryValue } from 'vue-router'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/stores/auth'
@@ -39,13 +39,14 @@ onMounted(async () => {
     }
 })
 
-function getSingleQueryParam(value: string | string[] | null | undefined): string | null {
+function getSingleQueryParam(value: LocationQueryValue | LocationQueryValue[] | undefined): string | null {
     if (typeof value === 'string') {
         return value
     }
 
     if (Array.isArray(value) && value.length > 0) {
-        return value[0]
+        const firstValue = value[0]
+        return typeof firstValue === 'string' ? firstValue : null
     }
 
     return null
