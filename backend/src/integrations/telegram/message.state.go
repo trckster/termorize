@@ -42,6 +42,10 @@ func handleStateMessage(message *message) (bool, error) {
 }
 
 func handleAddingVocabularyMessage(message *message, user *models.User, telegramID int64) error {
+	if strings.Count(message.Text, ":") > 1 {
+		return SendMessage(message.Chat.ID, telegramTextAddVocabularyTooManyColons)
+	}
+
 	sourceWord, targetWord, ok := parseVocabularyPair(message.Text)
 	if !ok {
 		return SendMessage(message.Chat.ID, telegramTextAddVocabularyInvalid)

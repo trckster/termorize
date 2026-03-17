@@ -51,10 +51,11 @@ const (
 
 	telegramTextAddVocabularyFirstFormat = "Send translation separated by colon (from *%s* to *%s*).\n\n" +
 		"Example — *river:река*\n\n" +
-		"To add translation in different languages, proceed to the website: %s"
-	telegramTextAddVocabularyDone    = "Translation added ✅"
-	telegramTextAddVocabularyExists  = "Current translation already exists in vocabulary"
-	telegramTextAddVocabularyInvalid = "Invalid format. Send translation as word1:word2"
+		"To add translation in different languages, proceed here: t.me/termorize_bot/app"
+	telegramTextAddVocabularyDone          = "Translation added ✅"
+	telegramTextAddVocabularyExists        = "Current translation already exists in vocabulary"
+	telegramTextAddVocabularyInvalid       = "Invalid format. Send translation as word1:word2"
+	telegramTextAddVocabularyTooManyColons = "Invalid format. Use only one colon to separate word and translation"
 
 	telegramTextDeleteCompleted = "Done ✅"
 	telegramTextDeleteNotFound  = "Word not found ❌"
