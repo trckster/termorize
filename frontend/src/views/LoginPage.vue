@@ -35,11 +35,44 @@ const startTelegramLogin = async () => {
 }
 
 const toggleDebug = () => {
-    debugOutput.value = debugOutput.value === null ? formatTelegramDebugData(window.Telegram) : null
+    debugOutput.value = debugOutput.value === null ? formatTelegramDebugData() : null
 }
 
-function formatTelegramDebugData(value: unknown): string {
-    return JSON.stringify({ Telegram: serializeTelegramValue(value) ?? null }, null, 2)
+function formatTelegramDebugData(): string {
+    return JSON.stringify(buildDebugSnapshot(), null, 2)
+}
+
+function buildDebugSnapshot() {
+    return {
+        timestamp: new Date().toISOString(),
+        location: {
+            href: window.location.href,
+            origin: window.location.origin,
+            pathname: window.location.pathname,
+            search: window.location.search,
+            hash: window.location.hash,
+        },
+        document: {
+            referrer: document.referrer,
+            readyState: document.readyState,
+        },
+        navigator: {
+            userAgent: window.navigator.userAgent,
+            language: window.navigator.language,
+            languages: window.navigator.languages,
+            platform: window.navigator.platform,
+            onLine: window.navigator.onLine,
+            cookieEnabled: window.navigator.cookieEnabled,
+        },
+        telegramScriptLoaded: hasTelegramSdkScript(),
+        telegram: serializeTelegramValue(window.Telegram) ?? null,
+        telegramWebAppInitData: getTelegramWebAppInitData(),
+        urlParams: Object.fromEntries(new URLSearchParams(window.location.search).entries()),
+    }
+}
+
+function hasTelegramSdkScript(): boolean {
+    return Array.from(document.scripts).some((script) => script.src.includes('telegram-web-app.js'))
 }
 
 function serializeTelegramValue(value: unknown, seen = new WeakSet<object>()): unknown {
@@ -102,7 +135,13 @@ function getErrorMessage(err: unknown, fallback: string): string {
             </CardHeader>
             <CardContent class="flex flex-col items-center gap-4 pt-2">
                 <TelegramLogin :loading="isLoading" :inside-telegram="isInsideTelegram" @start="startTelegramLogin" />
-                <Button type="button" variant="outline" size="sm" class="border-border/60 text-muted-foreground" @click="toggleDebug">
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    class="border-border/60 bg-muted text-muted-foreground hover:bg-muted/80"
+                    @click="toggleDebug"
+                >
                     {{ debugOutput === null ? 'Debug' : 'Hide debug' }}
                 </Button>
                 <div v-if="error" class="text-center text-sm text-destructive">{{ error }}</div>
