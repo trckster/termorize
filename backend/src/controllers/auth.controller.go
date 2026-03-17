@@ -50,19 +50,40 @@ func CompleteTelegramLogin(c *gin.Context) {
 		return
 	}
 
-	session, err := auth.DecodeTelegramLoginSessionToken(request.State)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "telegram login session is invalid"})
-		return
-	}
+	var (
+		profile *auth.TelegramUserProfile
+		err     error
+	)
 
-	profile, err := auth.ExchangeTelegramLoginCode(request.Code, session.CodeVerifier, session.RedirectURI, session.Nonce)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error":   "telegram login failed",
-			"details": err.Error(),
-		})
-		return
+	if strings.TrimSpace(request.InitData) != "" {
+		profile, err = auth.ValidateTelegramInitData(request.InitData)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error":   "telegram login failed",
+				"details": err.Error(),
+			})
+			return
+		}
+	} else {
+		if strings.TrimSpace(request.Code) == "" || strings.TrimSpace(request.State) == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "telegram login payload is invalid"})
+			return
+		}
+
+		session, err := auth.DecodeTelegramLoginSessionToken(request.State)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "telegram login session is invalid"})
+			return
+		}
+
+		profile, err = auth.ExchangeTelegramLoginCode(request.Code, session.CodeVerifier, session.RedirectURI, session.Nonce)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error":   "telegram login failed",
+				"details": err.Error(),
+			})
+			return
+		}
 	}
 
 	user, err := services.CreateOrUpdateUserByTelegramProfile(*profile, getRequestTimeZone(c))

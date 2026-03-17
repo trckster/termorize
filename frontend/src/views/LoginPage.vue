@@ -1,17 +1,29 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import TelegramLogin from '@/components/TelegramLogin.vue'
+import { getTelegramWebAppInitData, isTelegramWebApp } from '@/lib/telegram'
 import { useAuthStore } from '@/stores/auth'
 
+const router = useRouter()
 const authStore = useAuthStore()
 const error = ref<string | null>(null)
 const isLoading = ref(false)
+const isInsideTelegram = isTelegramWebApp()
 
 const startTelegramLogin = async () => {
     try {
         error.value = null
         isLoading.value = true
+
+        const initData = getTelegramWebAppInitData()
+        if (initData) {
+            await authStore.completeTelegramLogin({ init_data: initData })
+            await router.replace('/')
+            return
+        }
+
         const authUrl = await authStore.startTelegramLogin()
         window.location.assign(authUrl)
     } catch (err) {
@@ -26,8 +38,8 @@ function getErrorMessage(err: unknown, fallback: string): string {
     }
 
     if (typeof err === 'object' && err !== null && 'body' in err) {
-        const body = (err as { body?: { error?: string; message?: string } }).body
-        return body?.error || body?.message || fallback
+        const body = (err as { body?: { error?: string; details?: string; message?: string } }).body
+        return body?.details || body?.error || body?.message || fallback
     }
 
     return fallback
@@ -44,7 +56,7 @@ function getErrorMessage(err: unknown, fallback: string): string {
                 </CardDescription>
             </CardHeader>
             <CardContent class="flex flex-col items-center gap-4 pt-2">
-                <TelegramLogin :loading="isLoading" @start="startTelegramLogin" />
+                <TelegramLogin :loading="isLoading" :inside-telegram="isInsideTelegram" @start="startTelegramLogin" />
                 <div v-if="error" class="text-center text-sm text-destructive">{{ error }}</div>
             </CardContent>
         </Card>

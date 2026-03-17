@@ -58,8 +58,8 @@ function getErrorMessage(err: unknown, fallback: string): string {
     }
 
     if (typeof err === 'object' && err !== null && 'body' in err) {
-        const body = (err as { body?: { error?: string; message?: string } }).body
-        return body?.error || body?.message || fallback
+        const body = (err as { body?: { error?: string; details?: string; message?: string } }).body
+        return body?.details || body?.error || body?.message || fallback
     }
 
     return fallback

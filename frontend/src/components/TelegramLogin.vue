@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 
 defineProps<{
     loading?: boolean
+    insideTelegram?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -20,6 +21,6 @@ const emit = defineEmits<{
         @click="emit('start')"
     >
         <Send class="size-4" />
-        {{ loading ? 'Redirecting to Telegram...' : 'Continue via Telegram' }}
+        {{ loading ? (insideTelegram ? 'Authorizing in Telegram...' : 'Redirecting to Telegram...') : (insideTelegram ? 'Continue in Telegram' : 'Continue via Telegram') }}
     </Button>
 </template>

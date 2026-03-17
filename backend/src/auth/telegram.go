@@ -1,10 +1,12 @@
 package auth
 
 import (
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +14,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"termorize/src/config"
@@ -26,6 +29,8 @@ const telegramTokenEndpoint = telegramIssuer + "/token"
 const telegramJWKSURL = telegramIssuer + "/.well-known/jwks.json"
 const telegramLoginScope = "openid profile telegram:bot_access"
 const telegramLoginSessionTTL = 60 * time.Minute
+const telegramInitDataTTL = 24 * time.Hour
+const telegramWebAppDataKey = "WebAppData"
 
 type TelegramLoginSession struct {
 	CodeVerifier string
@@ -42,8 +47,9 @@ type TelegramLoginSessionClaims struct {
 }
 
 type TelegramLoginCallbackRequest struct {
-	Code  string `json:"code" binding:"required"`
-	State string `json:"state" binding:"required"`
+	Code     string `json:"code"`
+	State    string `json:"state"`
+	InitData string `json:"init_data"`
 }
 
 type TelegramUserProfile struct {
@@ -79,6 +85,13 @@ type telegramIDTokenClaims struct {
 	PhoneNumber       string                `json:"phone_number"`
 	Nonce             string                `json:"nonce"`
 	jwt.RegisteredClaims
+}
+
+type telegramWebAppUser struct {
+	ID        int64  `json:"id"`
+	Username  string `json:"username"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
 }
 
 type telegramNumericString int64
@@ -259,6 +272,65 @@ func ValidateTelegramIDToken(idToken string, expectedNonce string) (*TelegramUse
 	}, nil
 }
 
+func ValidateTelegramInitData(initData string) (*TelegramUserProfile, error) {
+	values, err := url.ParseQuery(initData)
+	if err != nil {
+		return nil, errors.New("telegram init data is malformed")
+	}
+
+	receivedHash := strings.TrimSpace(values.Get("hash"))
+	if receivedHash == "" {
+		return nil, errors.New("telegram init data missing hash")
+	}
+
+	authDateRaw := strings.TrimSpace(values.Get("auth_date"))
+	if authDateRaw == "" {
+		return nil, errors.New("telegram init data missing auth_date")
+	}
+
+	authDateUnix, err := strconv.ParseInt(authDateRaw, 10, 64)
+	if err != nil {
+		return nil, errors.New("telegram init data auth_date is invalid")
+	}
+
+	authDate := time.Unix(authDateUnix, 0)
+	if time.Since(authDate) > telegramInitDataTTL || authDate.After(time.Now().Add(1*time.Minute)) {
+		return nil, errors.New("telegram init data has expired")
+	}
+
+	dataCheckString := buildTelegramInitDataCheckString(values)
+	secret := telegramInitDataSecret(config.GetTelegramBotToken())
+	expectedHash := telegramInitDataHash(secret, dataCheckString)
+	if !hmac.Equal([]byte(strings.ToLower(receivedHash)), []byte(expectedHash)) {
+		return nil, errors.New("telegram init data hash is invalid")
+	}
+
+	rawUser := strings.TrimSpace(values.Get("user"))
+	if rawUser == "" {
+		return nil, errors.New("telegram init data missing user")
+	}
+
+	var user telegramWebAppUser
+	if err := json.Unmarshal([]byte(rawUser), &user); err != nil {
+		return nil, errors.New("telegram init data user is invalid")
+	}
+
+	if user.ID == 0 {
+		return nil, errors.New("telegram init data missing user id")
+	}
+
+	name := strings.TrimSpace(strings.Join([]string{user.FirstName, user.LastName}, " "))
+	if name == "" {
+		name = user.Username
+	}
+
+	return &TelegramUserProfile{
+		ID:       user.ID,
+		Username: user.Username,
+		Name:     name,
+	}, nil
+}
+
 func fetchTelegramPublicKey(expectedKid string) (*rsa.PublicKey, error) {
 	response, err := (&http.Client{Timeout: 10 * time.Second}).Get(telegramJWKSURL)
 	if err != nil {
@@ -285,6 +357,38 @@ func fetchTelegramPublicKey(expectedKid string) (*rsa.PublicKey, error) {
 	}
 
 	return nil, errors.New("telegram jwks key not found")
+}
+
+func buildTelegramInitDataCheckString(values url.Values) string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		if key == "hash" {
+			continue
+		}
+
+		keys = append(keys, key)
+	}
+
+	sort.Strings(keys)
+
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		parts = append(parts, key+"="+values.Get(key))
+	}
+
+	return strings.Join(parts, "\n")
+}
+
+func telegramInitDataSecret(botToken string) []byte {
+	mac := hmac.New(sha256.New, []byte(telegramWebAppDataKey))
+	mac.Write([]byte(botToken))
+	return mac.Sum(nil)
+}
+
+func telegramInitDataHash(secret []byte, dataCheckString string) string {
+	mac := hmac.New(sha256.New, secret)
+	mac.Write([]byte(dataCheckString))
+	return hex.EncodeToString(mac.Sum(nil))
 }
 
 func jwkToRSAPublicKey(key telegramJWK) (*rsa.PublicKey, error) {

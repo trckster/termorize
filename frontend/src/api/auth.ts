@@ -5,8 +5,9 @@ export interface TelegramLoginStartResponse {
 }
 
 export interface TelegramLoginCallbackPayload {
-    code: string
-    state: string
+    code?: string
+    state?: string
+    init_data?: string
 }
 
 export interface User {
