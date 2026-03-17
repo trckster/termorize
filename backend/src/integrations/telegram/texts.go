@@ -3,9 +3,10 @@ package telegram
 import (
 	"fmt"
 	"math/rand"
-	"termorize/src/config"
 	"termorize/src/enums"
 )
+
+const telegramMiniAppURL = "t.me/termorize\\_bot/app"
 
 const (
 	telegramTextHelp = "This bot will help you memorize a whole bunch of words.\n" +
@@ -51,7 +52,7 @@ const (
 
 	telegramTextAddVocabularyFirstFormat = "Send translation separated by colon (from *%s* to *%s*).\n\n" +
 		"Example — *river:река*\n\n" +
-		"To add translation in different languages, proceed here: t.me/termorize_bot/app"
+		"To add translation in different languages, proceed here: %s"
 	telegramTextAddVocabularyDone          = "Translation added ✅"
 	telegramTextAddVocabularyExists        = "Current translation already exists in vocabulary"
 	telegramTextAddVocabularyInvalid       = "Invalid format. Send translation as word1:word2"
@@ -97,7 +98,7 @@ func buildTranslateQuestionText(word string, language string) string {
 }
 
 func buildAddVocabularyFirstText(systemLanguage string, mainLearningLanguage string) string {
-	return fmt.Sprintf(telegramTextAddVocabularyFirstFormat, systemLanguage, mainLearningLanguage, config.GetPublicURL())
+	return fmt.Sprintf(telegramTextAddVocabularyFirstFormat, systemLanguage, mainLearningLanguage, telegramMiniAppURL)
 }
 
 var telegramTextExerciseReminderPhrases = []string{

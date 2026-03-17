@@ -40,7 +40,13 @@ func CallAPI[Response any](action string, requestBody any) (*Response, error) {
 	}
 
 	if resp.StatusCode >= nethttp.StatusBadRequest {
-		return nil, fmt.Errorf("telegram api returned status %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		trimmedBody := string(bytes.TrimSpace(body))
+		if trimmedBody == "" {
+			return nil, fmt.Errorf("telegram api returned status %d", resp.StatusCode)
+		}
+
+		return nil, fmt.Errorf("telegram api returned status %d: %s", resp.StatusCode, trimmedBody)
 	}
 
 	body, err := io.ReadAll(resp.Body)
