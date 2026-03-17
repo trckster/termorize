@@ -19,7 +19,7 @@ const handleClick = () => {
 <template>
     <button
         type="button"
-        class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+        class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
         :class="modelValue ? 'bg-primary' : 'bg-muted'"
         role="switch"
         :aria-checked="modelValue"

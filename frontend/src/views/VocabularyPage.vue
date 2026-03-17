@@ -67,7 +67,7 @@
                 </Dialog>
             </div>
 
-            <div class="space-y-2 mb-8">
+            <div v-if="vocabulary.length > 0" class="space-y-2 mb-8">
                 <div
                     v-for="item in vocabulary"
                     :key="item.id"
@@ -172,6 +172,20 @@
                 </div>
             </div>
 
+            <div
+                v-else-if="!isLoadingVocabulary"
+                class="mb-8 flex min-h-72 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 px-6 text-center"
+            >
+                <h2 class="text-xl font-semibold text-foreground">Your vocabulary is empty</h2>
+                <p class="mt-2 max-w-md text-sm text-muted-foreground">
+                    Save your first word pair here. Start with a translation and add it to vocabulary.
+                </p>
+                <Button class="mt-5" @click="isAddDialogOpen = true">
+                    <Plus class="mr-2 h-4 w-4" />
+                    Add Translation
+                </Button>
+            </div>
+
             <Pagination
                 v-if="paginationData.total > 0"
                 v-slot="{ page }"
@@ -234,6 +248,7 @@ const paginationData = ref<PaginationData>({
 const deletingId = ref<string | null>(null)
 const isAddDialogOpen = ref(false)
 const isAdding = ref(false)
+const isLoadingVocabulary = ref(false)
 
 const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
@@ -318,10 +333,15 @@ const handleAdd = async () => {
 }
 
 const fetchVocabulary = async (page: number) => {
+    isLoadingVocabulary.value = true
     currentPage.value = page
-    const response = await vocabularyApi.getVocabulary(page, paginationData.value.page_size)
-    vocabulary.value = response.data
-    paginationData.value = response.pagination
+    try {
+        const response = await vocabularyApi.getVocabulary(page, paginationData.value.page_size)
+        vocabulary.value = response.data
+        paginationData.value = response.pagination
+    } finally {
+        isLoadingVocabulary.value = false
+    }
 }
 
 const handlePageChange = async (page: number) => {

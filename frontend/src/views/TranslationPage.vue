@@ -4,7 +4,9 @@ import { settingsApi } from '@/api/settings.ts'
 import { translationApi } from '@/api/translation.ts'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import { Kbd } from '@/components/ui/kbd'
+import { Button } from '@/components/ui/button'
 import { useToast } from '@/composables/useToast.ts'
+import { usePhoneViewport } from '@/composables/usePhoneViewport.ts'
 import { useAuthStore } from '@/stores/auth.ts'
 
 type LanguageSelectorInstance = {
@@ -12,6 +14,7 @@ type LanguageSelectorInstance = {
 }
 
 const authStore = useAuthStore()
+const { isPhoneViewport } = usePhoneViewport()
 
 const getDistinctTargetLanguage = (sourceLanguage: string, targetLanguage: string) => {
     if (sourceLanguage !== targetLanguage) {
@@ -439,6 +442,11 @@ onBeforeUnmount(() => {
             <p v-if="translationSource" class="mt-3 text-center text-xs text-muted-foreground">
                 Source: {{ translationSourceLabel }}
             </p>
+            <div v-if="isPhoneViewport" class="mt-4 flex justify-center">
+                <Button @click="saveTranslationToVocabulary" :disabled="isSavingVocabulary || !translationId">
+                    {{ isSavingVocabulary ? 'Saving...' : 'Save to vocabulary' }}
+                </Button>
+            </div>
             <div
                 class="mt-4 hidden w-fit mx-auto grid-cols-[max-content_max-content] items-center gap-x-3 gap-y-2 text-xs text-muted-foreground md:grid"
             >

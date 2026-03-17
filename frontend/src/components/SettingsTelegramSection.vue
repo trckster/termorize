@@ -248,7 +248,7 @@ watch(
                                 inputmode="numeric"
                                 placeholder="HH:mm"
                                 :disabled="isSaving"
-                                class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                                class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                                 @input="setScheduleTime(index, 'from', ($event.target as HTMLInputElement).value)"
                             />
                             <span class="text-muted-foreground">to</span>
@@ -258,7 +258,7 @@ watch(
                                 inputmode="numeric"
                                 placeholder="HH:mm"
                                 :disabled="isSaving"
-                                class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                                class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                                 @input="setScheduleTime(index, 'to', ($event.target as HTMLInputElement).value)"
                             />
                             <Button variant="outline" size="sm" :disabled="isSaving" @click="removeScheduleItem(index)">

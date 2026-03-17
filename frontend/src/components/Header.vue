@@ -72,16 +72,18 @@
                             <span>Settings</span>
                         </button>
 
-                        <div class="my-1 border-t border-border"></div>
+                        <template v-if="!isMiniApp">
+                            <div class="my-1 border-t border-border"></div>
 
-                        <button
-                            @click="handleLogout"
-                            class="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive hover:text-primary-foreground"
-                            role="menuitem"
-                        >
-                            <LogOut class="h-4 w-4" />
-                            <span>Logout</span>
-                        </button>
+                            <button
+                                @click="handleLogout"
+                                class="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive hover:text-primary-foreground"
+                                role="menuitem"
+                            >
+                                <LogOut class="h-4 w-4" />
+                                <span>Logout</span>
+                            </button>
+                        </template>
                     </div>
                 </div>
             </div>
@@ -95,12 +97,14 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { Sun, Moon, ChevronDown, Settings, LogOut } from 'lucide-vue-next'
 import { ToggleSwitch } from '@/components/ui/toggle-switch'
+import { isTelegramWebApp } from '@/lib/telegram.ts'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
 const user = computed(() => authStore.user)
+const isMiniApp = isTelegramWebApp()
 const isDark = ref(false)
 const isProfileMenuOpen = ref(false)
 const profileMenuRef = ref<HTMLElement | null>(null)
