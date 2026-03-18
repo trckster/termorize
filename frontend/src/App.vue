@@ -1,15 +1,32 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, onBeforeUnmount } from 'vue'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import ToastProvider from '@/components/ToastProvider.vue'
 
-onMounted(() => {
+const applyTheme = () => {
     const theme = localStorage.getItem('theme')
     if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
         document.documentElement.classList.add('dark')
     } else {
         document.documentElement.classList.remove('dark')
     }
+}
+
+const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)')
+
+const handleSystemThemeChange = () => {
+    if (!localStorage.getItem('theme')) {
+        applyTheme()
+    }
+}
+
+onMounted(() => {
+    applyTheme()
+    systemThemeQuery.addEventListener('change', handleSystemThemeChange)
+})
+
+onBeforeUnmount(() => {
+    systemThemeQuery.removeEventListener('change', handleSystemThemeChange)
 })
 </script>
 

@@ -380,29 +380,33 @@ onBeforeUnmount(() => {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="space-y-3">
                     <div class="flex items-center justify-between">
-                        <label class="text-sm font-medium text-foreground">From</label>
+                        <label for="source-text" class="text-sm font-medium text-foreground">From</label>
                         <div class="w-52">
                             <LanguageSelector
                                 ref="sourceLanguageSelectorRef"
                                 v-model="sourceLang"
                                 placeholder="From language"
                                 :disabled-values="[targetLang]"
+                                aria-label="Source language"
                             />
                         </div>
                     </div>
                     <div class="relative">
                         <textarea
+                            id="source-text"
                             ref="sourceTextareaRef"
                             v-model="sourceText"
                             @focus="activeField = 'source'"
                             placeholder="Enter text to translate..."
-                            class="w-full h-64 p-4 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                            class="w-full h-40 md:h-64 p-4 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                         />
                         <div
                             v-if="isLoadingSource"
+                            role="status"
+                            aria-label="Translating..."
                             class="absolute inset-0 flex items-center justify-center bg-background/50 rounded-lg"
                         >
-                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                            <div class="motion-safe:animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                         </div>
                     </div>
                     <p class="text-xs text-muted-foreground text-right">{{ sourceText.length }} characters</p>
@@ -410,29 +414,33 @@ onBeforeUnmount(() => {
 
                 <div class="space-y-3">
                     <div class="flex items-center justify-between">
-                        <label class="text-sm font-medium text-foreground">To</label>
+                        <label for="target-text" class="text-sm font-medium text-foreground">To</label>
                         <div class="w-52">
                             <LanguageSelector
                                 ref="targetLanguageSelectorRef"
                                 v-model="targetLang"
                                 placeholder="To language"
                                 :disabled-values="[sourceLang]"
+                                aria-label="Target language"
                             />
                         </div>
                     </div>
                     <div class="relative">
                         <textarea
+                            id="target-text"
                             ref="targetTextareaRef"
                             v-model="translatedText"
                             @focus="activeField = 'target'"
                             placeholder="Translation will appear here..."
-                            class="w-full h-64 p-4 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                            class="w-full h-40 md:h-64 p-4 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                         />
                         <div
                             v-if="isLoadingTarget"
+                            role="status"
+                            aria-label="Translating..."
                             class="absolute inset-0 flex items-center justify-center bg-background/50 rounded-lg"
                         >
-                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                            <div class="motion-safe:animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                         </div>
                     </div>
                     <p class="text-xs text-muted-foreground text-right">{{ translatedText.length }} characters</p>

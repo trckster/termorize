@@ -209,7 +209,7 @@ watch(
                 <div class="space-y-2">
                     <p class="text-sm font-semibold text-foreground">Send Daily Exercises?</p>
                     <div class="h-10 flex items-center">
-                        <ToggleSwitch v-model="dailyQuestionsEnabled" :disabled="isSaving" />
+                        <ToggleSwitch v-model="dailyQuestionsEnabled" :disabled="isSaving" label="Send daily exercises" />
                     </div>
                     <p class="text-xs text-muted-foreground">
                         Controls if the bot sends you daily vocabulary exercises.
@@ -218,7 +218,7 @@ watch(
                 <div class="space-y-2" :class="dailyQuestionsEnabled ? '' : 'opacity-60'">
                     <p class="text-sm font-semibold text-foreground">Daily Questions Count</p>
                     <div class="h-10 flex items-center">
-                        <InputNumber v-model="dailyQuestionsCount" min="1" max="100" step="1" :disabled="isSaving" />
+                        <InputNumber v-model="dailyQuestionsCount" min="1" max="100" step="1" :disabled="isSaving || !dailyQuestionsEnabled" />
                     </div>
                     <p class="text-xs text-muted-foreground">
                         How many exercises per day are you ready to complete? <br />
@@ -241,33 +241,35 @@ watch(
                             :key="index"
                             class="flex items-center gap-2"
                         >
-                            <span class="text-muted-foreground">From</span>
+                            <label :for="`schedule-from-${index}`" class="text-muted-foreground">From</label>
                             <input
+                                :id="`schedule-from-${index}`"
                                 :value="item.from"
                                 type="text"
                                 inputmode="numeric"
                                 placeholder="HH:mm"
-                                :disabled="isSaving"
+                                :disabled="isSaving || !dailyQuestionsEnabled"
                                 class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                                 @input="setScheduleTime(index, 'from', ($event.target as HTMLInputElement).value)"
                             />
-                            <span class="text-muted-foreground">to</span>
+                            <label :for="`schedule-to-${index}`" class="text-muted-foreground">to</label>
                             <input
+                                :id="`schedule-to-${index}`"
                                 :value="item.to"
                                 type="text"
                                 inputmode="numeric"
                                 placeholder="HH:mm"
-                                :disabled="isSaving"
+                                :disabled="isSaving || !dailyQuestionsEnabled"
                                 class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                                 @input="setScheduleTime(index, 'to', ($event.target as HTMLInputElement).value)"
                             />
-                            <Button variant="outline" size="sm" :disabled="isSaving" @click="removeScheduleItem(index)">
+                            <Button variant="outline" size="sm" :disabled="isSaving || !dailyQuestionsEnabled" @click="removeScheduleItem(index)">
                                 Delete
                             </Button>
                         </div>
                     </div>
 
-                    <Button variant="outline" size="sm" :disabled="isSaving" @click="addScheduleItem">
+                    <Button variant="outline" size="sm" :disabled="isSaving || !dailyQuestionsEnabled" @click="addScheduleItem">
                         + Interval
                     </Button>
 

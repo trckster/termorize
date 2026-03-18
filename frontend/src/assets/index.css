@@ -99,3 +99,23 @@
         background-size: cover;
     }
 }
+
+@layer utilities {
+    /* Bottom nav content clearance: nav height (4rem) + iOS home indicator */
+    .pb-safe-nav {
+        padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+    }
+
+    @media (min-width: 768px) {
+        .pb-safe-nav {
+            padding-bottom: 0;
+        }
+    }
+
+    /* Respect user's motion preference for spinning animations */
+    @media (prefers-reduced-motion: reduce) {
+        .motion-safe\:animate-spin {
+            animation: none;
+        }
+    }
+}

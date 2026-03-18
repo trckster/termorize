@@ -24,7 +24,7 @@ const statisticCards = computed(() => [
         description: 'Active exercises waiting for completion.',
         value: statistics.value.in_progress,
         icon: Activity,
-        accentClass: 'text-sky-600 bg-sky-500/10 border-sky-500/20',
+        accentClass: 'text-sky-600 dark:text-sky-400 bg-sky-500/10 dark:bg-sky-400/10 border-sky-500/20 dark:border-sky-400/20',
     },
     {
         key: 'done',
@@ -32,7 +32,7 @@ const statisticCards = computed(() => [
         description: 'Exercises answered successfully.',
         value: statistics.value.done,
         icon: CheckCircle2,
-        accentClass: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
+        accentClass: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 dark:bg-emerald-400/10 border-emerald-500/20 dark:border-emerald-400/20',
     },
     {
         key: 'failed',
@@ -40,7 +40,7 @@ const statisticCards = computed(() => [
         description: 'Exercises answered incorrectly.',
         value: statistics.value.failed,
         icon: AlertCircle,
-        accentClass: 'text-rose-600 bg-rose-500/10 border-rose-500/20',
+        accentClass: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 dark:bg-rose-400/10 border-rose-500/20 dark:border-rose-400/20',
     },
     {
         key: 'ignored',
@@ -48,7 +48,7 @@ const statisticCards = computed(() => [
         description: 'Exercises that expired without an answer.',
         value: statistics.value.ignored,
         icon: Ban,
-        accentClass: 'text-amber-600 bg-amber-500/10 border-amber-500/20',
+        accentClass: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 dark:bg-amber-400/10 border-amber-500/20 dark:border-amber-400/20',
     },
 ])
 
@@ -95,7 +95,7 @@ onMounted(() => {
                 </div>
             </section>
 
-            <section class="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900">
+            <section class="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-300">
                 Exercises created before 15th of March are lost due to migration to a newer version of application.
             </section>
 

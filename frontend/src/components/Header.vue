@@ -1,9 +1,11 @@
 <template>
     <header class="border-b border-border bg-background">
         <div class="flex items-center justify-between px-6 py-4">
-            <nav class="flex gap-8">
+            <span class="text-sm font-semibold tracking-tight md:hidden">Termorize</span>
+            <nav class="hidden md:flex gap-8">
                 <router-link
                     to="/"
+                    :aria-current="route.path === '/' ? 'page' : undefined"
                     :class="[
                         'text-sm font-medium transition-colors hover:text-foreground',
                         route.path === '/' ? 'text-foreground' : 'text-muted-foreground',
@@ -13,6 +15,7 @@
                 </router-link>
                 <router-link
                     to="/vocabulary"
+                    :aria-current="route.path === '/vocabulary' ? 'page' : undefined"
                     :class="[
                         'text-sm font-medium transition-colors hover:text-foreground',
                         route.path === '/vocabulary' ? 'text-foreground' : 'text-muted-foreground',
@@ -22,6 +25,7 @@
                 </router-link>
                 <router-link
                     to="/exercises"
+                    :aria-current="route.path === '/exercises' ? 'page' : undefined"
                     :class="[
                         'text-sm font-medium transition-colors hover:text-foreground',
                         route.path === '/exercises' ? 'text-foreground' : 'text-muted-foreground',
@@ -35,8 +39,9 @@
                 <div ref="profileMenuRef" class="relative">
                     <button
                         @click.stop="toggleProfileMenu"
-                        class="inline-flex items-center gap-3 rounded-md px-2 py-1 text-left transition-colors hover:bg-accent"
+                        class="inline-flex items-center gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-accent"
                         aria-haspopup="menu"
+                        aria-label="Open profile menu"
                         :aria-expanded="isProfileMenuOpen"
                     >
                         <div class="text-right">

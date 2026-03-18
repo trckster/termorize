@@ -2,6 +2,7 @@
 interface Props {
     modelValue: boolean
     disabled?: boolean
+    label?: string
 }
 
 const props = defineProps<Props>()
@@ -23,6 +24,7 @@ const handleClick = () => {
         :class="modelValue ? 'bg-primary' : 'bg-muted'"
         role="switch"
         :aria-checked="modelValue"
+        :aria-label="label"
         :disabled="disabled"
         @click="handleClick"
     >

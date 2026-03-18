@@ -22,12 +22,14 @@ const props = withDefaults(
         placeholder?: string
         disabledValues?: string[]
         disabled?: boolean
+        ariaLabel?: string
     }>(),
     {
         modelValue: '',
         placeholder: 'Select language',
         disabledValues: () => [],
         disabled: false,
+        ariaLabel: undefined,
     }
 )
 
@@ -111,6 +113,7 @@ defineExpose({
                     :display-value="getSelectedLabel"
                     :placeholder="placeholder"
                     :disabled="disabled"
+                    :aria-label="ariaLabel"
                     class="w-full rounded-md border border-input bg-background px-3 py-2 pr-10 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 />
                 <ComboboxTrigger

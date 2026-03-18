@@ -25,11 +25,13 @@
                                         v-model="newTranslation.language1"
                                         placeholder="Select language"
                                         :disabled-values="[newTranslation.language2]"
+                                        aria-label="Language 1"
                                     />
                                 </div>
                                 <div class="space-y-2">
-                                    <label class="text-sm font-medium">Word 1</label>
+                                    <label for="vocab-word1" class="text-sm font-medium">Word 1</label>
                                     <input
+                                        id="vocab-word1"
                                         v-model="newTranslation.word1"
                                         type="text"
                                         placeholder="Enter word"
@@ -44,11 +46,13 @@
                                         v-model="newTranslation.language2"
                                         placeholder="Select language"
                                         :disabled-values="[newTranslation.language1]"
+                                        aria-label="Language 2"
                                     />
                                 </div>
                                 <div class="space-y-2">
-                                    <label class="text-sm font-medium">Word 2</label>
+                                    <label for="vocab-word2" class="text-sm font-medium">Word 2</label>
                                     <input
+                                        id="vocab-word2"
                                         v-model="newTranslation.word2"
                                         type="text"
                                         placeholder="Enter translation"
@@ -77,15 +81,19 @@
                         <!-- Part 1: Words -->
                         <div class="md:col-span-4">
                             <h3 class="font-semibold text-foreground flex items-center gap-2">
-                                <span class="text-xl">{{
-                                    settingsStore.getFlag(item.translation.original.language)
-                                }}</span>
+                                <span
+                                    class="text-xl"
+                                    role="img"
+                                    :aria-label="getLanguageName(item.translation.original.language)"
+                                >{{ settingsStore.getFlag(item.translation.original.language) }}</span>
                                 <span class="text-lg">{{ item.translation.original.word }}</span>
                                 <span class="text-muted-foreground">-</span>
                                 <span class="text-lg">{{ item.translation.translation.word }}</span>
-                                <span class="text-xl">{{
-                                    settingsStore.getFlag(item.translation.translation.language)
-                                }}</span>
+                                <span
+                                    class="text-xl"
+                                    role="img"
+                                    :aria-label="getLanguageName(item.translation.translation.language)"
+                                >{{ settingsStore.getFlag(item.translation.translation.language) }}</span>
                             </h3>
                         </div>
 
@@ -125,7 +133,8 @@
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        class="h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive hover:bg-destructive/10"
+                                        class="text-muted-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition-opacity hover:text-destructive hover:bg-destructive/10"
+                                        :aria-label="`Delete ${item.translation.original.word} — ${item.translation.translation.word}`"
                                         @click.stop
                                     >
                                         <Trash2 class="h-4 w-4" />
@@ -200,7 +209,7 @@
                 <PaginationContent v-slot="{ items }" class="flex justify-center gap-1">
                     <template v-for="(item, index) in items">
                         <PaginationItem v-if="item.type === 'page'" :key="index" :value="item.value" as-child>
-                            <Button class="w-9 h-9 p-0" :variant="item.value === page ? 'default' : 'outline'">
+                            <Button class="h-11 w-11 p-0" :variant="item.value === page ? 'default' : 'outline'">
                                 {{ item.value }}
                             </Button>
                         </PaginationItem>
@@ -252,6 +261,9 @@ const isLoadingVocabulary = ref(false)
 
 const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
+
+const getLanguageName = (code: string) =>
+    settingsStore.languageOptions.find((l) => l.code === code)?.name || code.toUpperCase()
 
 type NewTranslationForm = {
     word1: string
