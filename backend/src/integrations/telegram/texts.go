@@ -6,7 +6,7 @@ import (
 	"termorize/src/enums"
 )
 
-const telegramMiniAppURL = "t.me/termorize\\_bot/app"
+const telegramMiniAppURL = "https://t.me/termorize_bot/app"
 
 const (
 	telegramTextHelp = "This bot will help you memorize a whole bunch of words.\n" +
@@ -52,7 +52,7 @@ const (
 
 	telegramTextAddVocabularyFirstFormat = "Send translation separated by colon (from *%s* to *%s*).\n\n" +
 		"Example — *river:река*\n\n" +
-		"To add translation in different languages, proceed here: %s"
+		"To add translation in different languages, use the *Open App* button in Menu"
 	telegramTextAddVocabularyDone          = "Translation added ✅"
 	telegramTextAddVocabularyExists        = "Current translation already exists in vocabulary"
 	telegramTextAddVocabularyInvalid       = "Invalid format. Send translation as word1:word2"
@@ -66,6 +66,7 @@ const (
 )
 
 const (
+	telegramButtonMenuOpenApp        = "Open App 🌐"
 	telegramButtonMenuAddTranslation = "Add Translation"
 	telegramButtonMenuDeleteWord     = "Delete Translation"
 	telegramButtonMenuVocabulary     = "Your Vocabulary"
@@ -98,7 +99,7 @@ func buildTranslateQuestionText(word string, language string) string {
 }
 
 func buildAddVocabularyFirstText(systemLanguage string, mainLearningLanguage string) string {
-	return fmt.Sprintf(telegramTextAddVocabularyFirstFormat, systemLanguage, mainLearningLanguage, telegramMiniAppURL)
+	return fmt.Sprintf(telegramTextAddVocabularyFirstFormat, systemLanguage, mainLearningLanguage)
 }
 
 var telegramTextExerciseReminderPhrases = []string{
