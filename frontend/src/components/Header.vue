@@ -77,18 +77,27 @@
                             <span>Settings</span>
                         </button>
 
-                        <template v-if="!isMiniApp">
-                            <div class="my-1 border-t border-border"></div>
+                        <div class="my-1 border-t border-border"></div>
 
-                            <button
-                                @click="handleLogout"
-                                class="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive hover:text-primary-foreground"
-                                role="menuitem"
-                            >
-                                <LogOut class="h-4 w-4" />
-                                <span>Logout</span>
-                            </button>
-                        </template>
+                        <button
+                            v-if="!isMiniApp"
+                            @click="handleLogout"
+                            class="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive hover:text-primary-foreground"
+                            role="menuitem"
+                        >
+                            <LogOut class="h-4 w-4" />
+                            <span>Logout</span>
+                        </button>
+
+                        <button
+                            v-if="isMiniApp"
+                            @click="handleLogout"
+                            class="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive hover:text-primary-foreground"
+                            role="menuitem"
+                        >
+                            <LogOut class="h-4 w-4" />
+                            <span>Relogin</span>
+                        </button>
                     </div>
                 </div>
             </div>
