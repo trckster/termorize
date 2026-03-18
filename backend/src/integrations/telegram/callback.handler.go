@@ -132,11 +132,12 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 		return nil
 	}
 
-	if len(payload) != 1 {
+	if len(payload) == 0 {
 		return nil
 	}
 
 	action := payload[0]
+
 	if action == menuActionBack || action == menuActionCancel {
 		if _, err := services.UpdateUserTelegramState(callback.From.ID, enums.TelegramStateNone); err != nil {
 			return err
@@ -171,7 +172,48 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 			user.Settings.TranslationSourceLanguage.DisplayNameWithFlag(),
 			user.Settings.TranslationTargetLanguage.DisplayNameWithFlag(),
 		)
-		return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, messageText, menuCancelKeyboard)
+		keyboard := buildAddTranslationKeyboard(user.Settings.TranslationSourceLanguage, user.Settings.TranslationTargetLanguage)
+		return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, messageText, keyboard)
+	}
+
+	if action == menuActionChangeSourceLang || action == menuActionChangeTargetLang {
+		user, err := services.GetUserByTelegramID(callback.From.ID)
+		if err != nil {
+			return err
+		}
+
+		if user == nil {
+			return nil
+		}
+
+		isSource := action == menuActionChangeSourceLang
+		keyboard := buildLanguageSelectionKeyboard(user.Settings.TranslationSourceLanguage, user.Settings.TranslationTargetLanguage, isSource)
+		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, telegramTextChooseLanguage, keyboard)
+	}
+
+	if action == menuActionSetSourceLang || action == menuActionSetTargetLang {
+		if len(payload) != 2 {
+			return nil
+		}
+
+		langCode := enums.Language(payload[1])
+		isSource := action == menuActionSetSourceLang
+
+		user, err := services.UpdateUserTranslationLanguage(callback.From.ID, isSource, langCode)
+		if err != nil {
+			return err
+		}
+
+		if user == nil {
+			return nil
+		}
+
+		messageText := buildAddVocabularyFirstText(
+			user.Settings.TranslationSourceLanguage.DisplayNameWithFlag(),
+			user.Settings.TranslationTargetLanguage.DisplayNameWithFlag(),
+		)
+		keyboard := buildAddTranslationKeyboard(user.Settings.TranslationSourceLanguage, user.Settings.TranslationTargetLanguage)
+		return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, messageText, keyboard)
 	}
 
 	selectionText, ok := menuActionToText(action)

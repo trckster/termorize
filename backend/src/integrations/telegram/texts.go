@@ -50,9 +50,10 @@ const (
 		"- все места, где сейчас заглушки, будут восстановлены 🚀\n\n" +
 		"По любым вопросам пишите: @trckster"
 
+	telegramTextChooseLanguage = "Choose language:"
+
 	telegramTextAddVocabularyFirstFormat = "Send translation separated by colon (from *%s* to *%s*).\n\n" +
-		"Example — *river:река*\n\n" +
-		"To add translation in different languages, use the *Open App* button in Menu"
+		"Example — *river:река*"
 	telegramTextAddVocabularyDone          = "Translation added ✅"
 	telegramTextAddVocabularyExists        = "Current translation already exists in vocabulary"
 	telegramTextAddVocabularyInvalid       = "Invalid format. Send translation as word1:word2"

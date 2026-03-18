@@ -1,5 +1,7 @@
 package telegram
 
+import "termorize/src/enums"
+
 const (
 	callbackTypeMenu       = "menu"
 	callbackTypeExercise   = "exercise"
@@ -13,6 +15,10 @@ const (
 	menuActionStatistics        = "statistics"
 	menuActionSettings          = "settings"
 	menuActionWhatsGoingOn      = "whats_going_on"
+	menuActionChangeSourceLang  = "change_source_lang"
+	menuActionChangeTargetLang  = "change_target_lang"
+	menuActionSetSourceLang     = "set_source_lang"
+	menuActionSetTargetLang     = "set_target_lang"
 
 	exerciseActionIDK = "idk"
 
@@ -42,6 +48,42 @@ func buildVocabularyDeleteKeyboard(vocabularyID string) [][]inlineKeyboardButton
 		Text:         telegramButtonVocabularyDelete,
 		CallbackData: callbackTypeVocabulary + ":" + vocabularyActionDelete + ":" + vocabularyID,
 	}}}
+}
+
+func buildAddTranslationKeyboard(sourceLang, targetLang enums.Language) [][]inlineKeyboardButton {
+	return [][]inlineKeyboardButton{
+		{
+			{Text: "Change " + sourceLang.Flag(), CallbackData: callbackTypeMenu + ":" + menuActionChangeSourceLang},
+			{Text: "Change " + targetLang.Flag(), CallbackData: callbackTypeMenu + ":" + menuActionChangeTargetLang},
+		},
+		{{Text: telegramButtonMenuCancel, CallbackData: callbackTypeMenu + ":" + menuActionCancel}},
+	}
+}
+
+func buildLanguageSelectionKeyboard(excludeLang1, excludeLang2 enums.Language, isSource bool) [][]inlineKeyboardButton {
+	action := menuActionSetTargetLang
+	if isSource {
+		action = menuActionSetSourceLang
+	}
+
+	var rows [][]inlineKeyboardButton
+	for _, langStr := range enums.AllLanguages() {
+		lang := enums.Language(langStr)
+		if lang == excludeLang1 || lang == excludeLang2 {
+			continue
+		}
+		rows = append(rows, []inlineKeyboardButton{{
+			Text:         lang.DisplayNameWithFlag(),
+			CallbackData: callbackTypeMenu + ":" + action + ":" + langStr,
+		}})
+	}
+
+	rows = append(rows, []inlineKeyboardButton{{
+		Text:         telegramButtonMenuCancel,
+		CallbackData: callbackTypeMenu + ":" + menuActionAddTranslation,
+	}})
+
+	return rows
 }
 
 func menuActionToText(action string) (string, bool) {
