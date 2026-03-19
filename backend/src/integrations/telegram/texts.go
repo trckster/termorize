@@ -57,6 +57,7 @@ type BotTexts struct {
 	ButtonVocabulary       string
 	ButtonStatistics       string
 	ButtonSettings         string
+	ButtonSystemLanguage   string
 	ButtonWhatsGoingOn     string
 	ButtonBack             string
 	ButtonCancel           string
@@ -95,7 +96,7 @@ var botTextsEn = BotTexts{
 	MenuDeleteWord: "Send the word you want to delete from vocabulary 🗑️",
 	MenuVocabulary: "⚒️ Work in progress here! ⚒️",
 	MenuStatistics: "⚒️ Work in progress here! ⚒️",
-	MenuSettings:   "⚒️ Work in progress here! ⚒️",
+	MenuSettings:   "Yet you can only change the system language here.\n\n⚒️ Work in progress here! ⚒️",
 	MenuWhatsGoingOn: "Hello! 👋\n\n" +
 		"This is the new version of the bot. 🤖\n\n" +
 		"Bad news: 😕\n" +
@@ -126,6 +127,7 @@ var botTextsEn = BotTexts{
 	ButtonVocabulary:       "Your Vocabulary",
 	ButtonStatistics:       "Statistics",
 	ButtonSettings:         "Settings",
+	ButtonSystemLanguage:   "System Language",
 	ButtonWhatsGoingOn:     "What's happening?",
 	ButtonBack:             "Back",
 	ButtonCancel:           "Cancel",
@@ -176,7 +178,7 @@ var botTextsRu = BotTexts{
 	MenuDeleteWord: "Отправь слово, которое хочешь удалить из словаря 🗑️",
 	MenuVocabulary: "⚒️ В процессе разработки! ⚒️",
 	MenuStatistics: "⚒️ В процессе разработки! ⚒️",
-	MenuSettings:   "⚒️ В процессе разработки! ⚒️",
+	MenuSettings:   "Здесь можно пока что только поменять язык системы.\n\n⚒️ В процессе разработки! ⚒️",
 	MenuWhatsGoingOn: "Привет! 👋\n\n" +
 		"Это новая версия бота. 🤖\n\n" +
 		"Плохие новости: 😕\n" +
@@ -208,6 +210,7 @@ var botTextsRu = BotTexts{
 	ButtonVocabulary:       "Мой словарь",
 	ButtonStatistics:       "Статистика",
 	ButtonSettings:         "Настройки",
+	ButtonSystemLanguage:   "Язык системы",
 	ButtonWhatsGoingOn:     "Что происходит?",
 	ButtonBack:             "Назад",
 	ButtonCancel:           "Отмена",

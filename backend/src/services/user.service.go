@@ -223,6 +223,35 @@ func UpdateUserTranslationLanguage(telegramID int64, isSource bool, lang enums.L
 	return &user, nil
 }
 
+func UpdateUserSystemLanguage(telegramID int64, lang enums.Language) (*models.User, error) {
+	var user models.User
+
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("telegram_id = ?", telegramID).First(&user).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil
+			}
+
+			return err
+		}
+
+		settings := user.Settings
+		settings.SystemLanguage = lang
+
+		user.Settings = settings
+		return tx.Model(&user).Update("settings", settings).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if user.ID == 0 {
+		return nil, nil
+	}
+
+	return &user, nil
+}
+
 func GetUsersWithEnabledDailyQuestions() ([]models.User, error) {
 	var users []models.User
 	err := db.DB.

@@ -17,8 +17,10 @@ const (
 	menuActionWhatsGoingOn      = "whats_going_on"
 	menuActionChangeSourceLang  = "change_source_lang"
 	menuActionChangeTargetLang  = "change_target_lang"
+	menuActionChangeSystemLang  = "change_system_lang"
 	menuActionSetSourceLang     = "set_source_lang"
 	menuActionSetTargetLang     = "set_target_lang"
+	menuActionSetSystemLang     = "set_system_lang"
 
 	exerciseActionIDK = "idk"
 
@@ -37,6 +39,13 @@ func getMenuKeyboard(t BotTexts) [][]inlineKeyboardButton {
 
 func getMenuBackKeyboard(t BotTexts) [][]inlineKeyboardButton {
 	return [][]inlineKeyboardButton{{{Text: t.ButtonBack, CallbackData: callbackTypeMenu + ":" + menuActionBack}}}
+}
+
+func buildSettingsKeyboard(systemLang enums.Language, t BotTexts) [][]inlineKeyboardButton {
+	return [][]inlineKeyboardButton{
+		{{Text: t.ButtonSystemLanguage + " " + systemLang.Flag(), CallbackData: callbackTypeMenu + ":" + menuActionChangeSystemLang}},
+		{{Text: t.ButtonBack, CallbackData: callbackTypeMenu + ":" + menuActionBack}},
+	}
 }
 
 func getMenuCancelKeyboard(t BotTexts) [][]inlineKeyboardButton {
@@ -91,6 +100,28 @@ func buildLanguageSelectionKeyboard(excludeLang1, excludeLang2 enums.Language, i
 	}})
 
 	return rows
+}
+
+func buildSystemLanguageSelectionKeyboard(t BotTexts) [][]inlineKeyboardButton {
+	var rows [][]inlineKeyboardButton
+	for _, lang := range getSupportedSystemLanguages() {
+		langStr := string(lang)
+		rows = append(rows, []inlineKeyboardButton{{
+			Text:         lang.DisplayNameWithFlag(),
+			CallbackData: callbackTypeMenu + ":" + menuActionSetSystemLang + ":" + langStr,
+		}})
+	}
+
+	rows = append(rows, []inlineKeyboardButton{{
+		Text:         t.ButtonCancel,
+		CallbackData: callbackTypeMenu + ":" + menuActionSettings,
+	}})
+
+	return rows
+}
+
+func getSupportedSystemLanguages() []enums.Language {
+	return []enums.Language{enums.LanguageEn, enums.LanguageRu}
 }
 
 func menuActionToText(action string, t BotTexts) (string, bool) {

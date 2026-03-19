@@ -196,6 +196,11 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, t.ChooseLanguage, keyboard)
 	}
 
+	if action == menuActionChangeSystemLang {
+		keyboard := buildSystemLanguageSelectionKeyboard(t)
+		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, t.ChooseLanguage, keyboard)
+	}
+
 	if action == menuActionSetSourceLang || action == menuActionSetTargetLang {
 		if len(payload) != 2 {
 			return nil
@@ -220,6 +225,51 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 		)
 		keyboard := buildAddTranslationKeyboard(user.Settings.TranslationSourceLanguage, user.Settings.TranslationTargetLanguage, t)
 		return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, messageText, keyboard)
+	}
+
+	if action == menuActionSetSystemLang {
+		if len(payload) != 2 {
+			return nil
+		}
+
+		langCode := enums.Language(payload[1])
+		isSupported := false
+		for _, lang := range getSupportedSystemLanguages() {
+			if lang == langCode {
+				isSupported = true
+				break
+			}
+		}
+		if !isSupported {
+			return nil
+		}
+
+		user, err := services.UpdateUserSystemLanguage(callback.From.ID, langCode)
+		if err != nil {
+			return err
+		}
+
+		if user == nil {
+			return nil
+		}
+
+		updatedTexts := GetBotTexts(user.Settings.SystemLanguage)
+		keyboard := buildSettingsKeyboard(user.Settings.SystemLanguage, updatedTexts)
+		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, updatedTexts.MenuSettings, keyboard)
+	}
+
+	if action == menuActionSettings {
+		user, err := services.GetUserByTelegramID(callback.From.ID)
+		if err != nil {
+			return err
+		}
+
+		if user == nil {
+			return nil
+		}
+
+		keyboard := buildSettingsKeyboard(user.Settings.SystemLanguage, t)
+		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, t.MenuSettings, keyboard)
 	}
 
 	selectionText, ok := menuActionToText(action, t)
