@@ -429,9 +429,22 @@ func updateVocabularyProgressByExercise(tx *gorm.DB, exerciseID uuid.UUID, delta
 		})
 	}
 
+	var masteredAt *time.Time
+	if translationKnowledge >= 100 {
+		if vocabulary.MasteredAt != nil {
+			masteredAt = vocabulary.MasteredAt
+		} else {
+			now := time.Now().UTC()
+			masteredAt = &now
+		}
+	}
+
 	err := tx.Model(&models.Vocabulary{}).
 		Where("id = ?", vocabulary.ID).
-		Update("progress", vocabulary.Progress).Error
+		Updates(map[string]any{
+			"progress":    vocabulary.Progress,
+			"mastered_at": masteredAt,
+		}).Error
 	if err != nil {
 		return 0, err
 	}
