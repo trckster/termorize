@@ -4,6 +4,7 @@ import type { User } from '@/api/auth.ts'
 import { settingsApi } from '@/api/settings.ts'
 import { useAuthStore } from '@/stores/auth.ts'
 import { useToast } from '@/composables/useToast.ts'
+import { useI18n } from '@/composables/useI18n'
 import { formatDate } from '@/lib/utils.ts'
 import { Button } from '@/components/ui/button'
 import { Combobox } from '@/components/ui/combobox'
@@ -15,6 +16,7 @@ const props = defineProps<{
 
 const authStore = useAuthStore()
 const { addToast } = useToast()
+const { t } = useI18n()
 
 const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 
@@ -63,16 +65,16 @@ const saveTimezone = async () => {
         })
 
         addToast({
-            title: 'Saved',
-            description: 'Settings were saved successfully.',
+            title: t.value.toastSavedTitle,
+            description: t.value.toastSavedDescription,
             variant: 'success',
             duration: 3000,
         })
     } catch (error) {
         console.error('Failed to save settings:', error)
         addToast({
-            title: 'Error',
-            description: 'Failed to save settings. Please try again.',
+            title: t.value.toastErrorTitle,
+            description: t.value.toastSaveErrorDescription,
             variant: 'destructive',
             duration: 5000,
         })
@@ -84,27 +86,27 @@ const saveTimezone = async () => {
 const fields = computed(() => [
     {
         key: 'id',
-        label: 'ID',
+        label: t.value.settingsCommonFieldId,
         value: props.user?.id,
-        explanation: 'Unique account identifier in Termorize.',
+        explanation: t.value.settingsCommonFieldIdExplanation,
     },
     {
         key: 'created_at',
-        label: 'Creation Date',
-        value: props.user?.created_at ? formatDate(props.user.created_at) : 'Not available',
-        explanation: 'Date and time when your Termorize account was created.',
+        label: t.value.settingsCommonFieldCreatedAt,
+        value: props.user?.created_at ? formatDate(props.user.created_at) : t.value.settingsCommonFieldNotAvailable,
+        explanation: t.value.settingsCommonFieldCreatedAtExplanation,
     },
     {
         key: 'name',
-        label: 'Name',
-        value: props.user?.name || 'Not available',
-        explanation: 'Your Telegram name.',
+        label: t.value.settingsCommonFieldName,
+        value: props.user?.name || t.value.settingsCommonFieldNotAvailable,
+        explanation: t.value.settingsCommonFieldNameExplanation,
     },
     {
         key: 'username',
-        label: 'Username',
-        value: props.user?.username ? `@${props.user.username}` : 'Not available',
-        explanation: 'Your Telegram username.',
+        label: t.value.settingsCommonFieldUsername,
+        value: props.user?.username ? `@${props.user.username}` : t.value.settingsCommonFieldNotAvailable,
+        explanation: t.value.settingsCommonFieldUsernameExplanation,
     },
 ])
 </script>
@@ -112,8 +114,8 @@ const fields = computed(() => [
 <template>
     <Card>
         <CardHeader>
-            <CardTitle>Common</CardTitle>
-            <CardDescription>Basic account information from your profile.</CardDescription>
+            <CardTitle>{{ t.settingsCommonTitle }}</CardTitle>
+            <CardDescription>{{ t.settingsCommonDescription }}</CardDescription>
         </CardHeader>
         <CardContent class="space-y-4">
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -128,22 +130,22 @@ const fields = computed(() => [
                 </div>
 
                 <div class="space-y-2 rounded-lg p-4">
-                    <p class="text-sm font-semibold text-foreground">Timezone</p>
+                    <p class="text-sm font-semibold text-foreground">{{ t.settingsCommonFieldTimezone }}</p>
                     <Combobox
                         v-model="timezone"
                         :options="timezoneOptions"
-                        placeholder="Select timezone"
-                        search-placeholder="Search timezone..."
-                        empty-text="No timezone found."
+                        :placeholder="t.settingsCommonTimezonePlaceholder"
+                        :search-placeholder="t.settingsCommonTimezoneSearchPlaceholder"
+                        :empty-text="t.settingsCommonTimezoneNotFound"
                     />
                     <p class="text-xs text-muted-foreground">
-                        Your preferred timezone used for daily schedule and time-based features.
+                        {{ t.settingsCommonFieldTimezoneExplanation }}
                     </p>
                 </div>
             </div>
             <div class="px-4" v-if="hasTimezoneChanged">
                 <Button v-if="hasTimezoneChanged" :disabled="isSaving" @click="saveTimezone">
-                    {{ isSaving ? 'Saving...' : 'Save' }}
+                    {{ isSaving ? t.saving : t.save }}
                 </Button>
             </div>
         </CardContent>

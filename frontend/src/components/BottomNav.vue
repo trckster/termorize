@@ -26,16 +26,19 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { Home, BookOpen, Brain } from 'lucide-vue-next'
+import { useI18n } from '@/composables/useI18n'
 
 const route = useRoute()
+const { t } = useI18n()
 
-const navItems = [
-    { to: '/', label: 'Home', icon: Home },
-    { to: '/vocabulary', label: 'Vocabulary', icon: BookOpen },
-    { to: '/exercises', label: 'Exercises', icon: Brain },
-]
+const navItems = computed(() => [
+    { to: '/', label: t.value.navHome, icon: Home },
+    { to: '/vocabulary', label: t.value.navVocabulary, icon: BookOpen },
+    { to: '/exercises', label: t.value.navExercises, icon: Brain },
+])
 
 const isActive = (path: string) => route.path === path
 </script>

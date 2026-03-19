@@ -2,60 +2,60 @@
     <main class="px-6 py-8">
         <div class="max-w-6xl mx-auto">
             <div class="flex justify-between items-center mb-8">
-                <h1 class="text-3xl font-bold text-foreground">Saved Words</h1>
+                <h1 class="text-3xl font-bold text-foreground">{{ t.vocabularyTitle }}</h1>
                 <Dialog v-model:open="isAddDialogOpen">
                     <DialogTrigger as-child>
                         <Button>
                             <Plus class="h-4 w-4 mr-2" />
-                            Add Translation
+                            {{ t.vocabularyAddButton }}
                         </Button>
                     </DialogTrigger>
                     <DialogContent class="sm:max-w-md">
                         <DialogHeader>
-                            <DialogTitle>Add Your Own Translation</DialogTitle>
+                            <DialogTitle>{{ t.vocabularyDialogTitle }}</DialogTitle>
                             <DialogDescription>
-                                Enter two words/texts and their languages to add a new translation.
+                                {{ t.vocabularyDialogDescription }}
                             </DialogDescription>
                         </DialogHeader>
                         <form @submit.prevent="handleAdd" class="space-y-4 py-4">
                             <div class="grid grid-cols-2 gap-4">
                                 <div class="space-y-2">
-                                    <label class="text-sm font-medium">Language 1</label>
+                                    <label class="text-sm font-medium">{{ t.vocabularyLanguage1 }}</label>
                                     <LanguageSelector
                                         v-model="newTranslation.language1"
-                                        placeholder="Select language"
+                                        :placeholder="t.vocabularySelectLanguagePlaceholder"
                                         :disabled-values="[newTranslation.language2]"
                                         aria-label="Language 1"
                                     />
                                 </div>
                                 <div class="space-y-2">
-                                    <label for="vocab-word1" class="text-sm font-medium">Word 1</label>
+                                    <label for="vocab-word1" class="text-sm font-medium">{{ t.vocabularyWord1 }}</label>
                                     <input
                                         id="vocab-word1"
                                         v-model="newTranslation.word1"
                                         type="text"
-                                        placeholder="Enter word"
+                                        :placeholder="t.vocabularyWord1Placeholder"
                                         class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                                     />
                                 </div>
                             </div>
                             <div class="grid grid-cols-2 gap-4">
                                 <div class="space-y-2">
-                                    <label class="text-sm font-medium">Language 2</label>
+                                    <label class="text-sm font-medium">{{ t.vocabularyLanguage2 }}</label>
                                     <LanguageSelector
                                         v-model="newTranslation.language2"
-                                        placeholder="Select language"
+                                        :placeholder="t.vocabularySelectLanguagePlaceholder"
                                         :disabled-values="[newTranslation.language1]"
                                         aria-label="Language 2"
                                     />
                                 </div>
                                 <div class="space-y-2">
-                                    <label for="vocab-word2" class="text-sm font-medium">Word 2</label>
+                                    <label for="vocab-word2" class="text-sm font-medium">{{ t.vocabularyWord2 }}</label>
                                     <input
                                         id="vocab-word2"
                                         v-model="newTranslation.word2"
                                         type="text"
-                                        placeholder="Enter translation"
+                                        :placeholder="t.vocabularyWord2Placeholder"
                                         class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                                     />
                                 </div>
@@ -63,7 +63,7 @@
                             <DialogFooter class="justify-center sm:justify-center pt-4">
                                 <Button type="submit" :disabled="isAdding || !isFormValid">
                                     <Loader2 v-if="isAdding" class="mr-2 h-4 w-4 animate-spin" />
-                                    {{ isAdding ? 'Adding...' : 'Add Translation' }}
+                                    {{ isAdding ? t.adding : t.vocabularyAddButton }}
                                 </Button>
                             </DialogFooter>
                         </form>
@@ -109,7 +109,7 @@
                                 </div>
                             </div>
                             <div v-else class="text-sm text-muted-foreground text-center py-2">
-                                No progress recorded
+                                {{ t.vocabularyNoProgress }}
                             </div>
                         </div>
 
@@ -124,8 +124,8 @@
                                     </span>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p>Created: {{ formatDate(item.created_at) }}</p>
-                                    <p v-if="item.mastered_at">Mastered: {{ formatDate(item.mastered_at) }}</p>
+                                    <p>{{ t.vocabularyCreatedAt }} {{ formatDate(item.created_at) }}</p>
+                                    <p v-if="item.mastered_at">{{ t.vocabularyMasteredAt }} {{ formatDate(item.mastered_at) }}</p>
                                 </TooltipContent>
                             </Tooltip>
                             <Dialog>
@@ -142,22 +142,21 @@
                                 </DialogTrigger>
                                 <DialogContent class="sm:max-w-md">
                                     <DialogHeader>
-                                        <DialogTitle>Delete Vocabulary Item</DialogTitle>
+                                        <DialogTitle>{{ t.vocabularyDeleteDialogTitle }}</DialogTitle>
                                         <DialogDescription>
-                                            Are you sure you want to delete "<span
+                                            {{ t.vocabularyDeleteConfirmPrefix }}<span
                                                 class="font-medium text-foreground"
                                                 >{{ item.translation.original.word }}</span
                                             >
                                             -
                                             <span class="font-medium text-foreground">{{
                                                 item.translation.translation.word
-                                            }}</span
-                                            >"? This action cannot be undone.
+                                            }}</span>{{ t.vocabularyDeleteConfirmSuffix }}
                                         </DialogDescription>
                                     </DialogHeader>
                                     <DialogFooter class="flex gap-2 sm:justify-end">
                                         <DialogClose as-child>
-                                            <Button type="button" variant="secondary"> Cancel </Button>
+                                            <Button type="button" variant="secondary"> {{ t.cancel }} </Button>
                                         </DialogClose>
                                         <DialogClose as-child>
                                             <Button
@@ -170,7 +169,7 @@
                                                     v-if="deletingId === item.id"
                                                     class="mr-2 h-4 w-4 animate-spin"
                                                 />
-                                                {{ deletingId === item.id ? 'Deleting...' : 'Delete' }}
+                                                {{ deletingId === item.id ? t.deleting : t.delete }}
                                             </Button>
                                         </DialogClose>
                                     </DialogFooter>
@@ -185,13 +184,13 @@
                 v-else-if="!isLoadingVocabulary"
                 class="mb-8 flex min-h-72 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 px-6 text-center"
             >
-                <h2 class="text-xl font-semibold text-foreground">Your vocabulary is empty</h2>
+                <h2 class="text-xl font-semibold text-foreground">{{ t.vocabularyEmptyTitle }}</h2>
                 <p class="mt-2 max-w-md text-sm text-muted-foreground">
-                    Save your first word pair here. Start with a translation and add it to vocabulary.
+                    {{ t.vocabularyEmptyDescription }}
                 </p>
                 <Button class="mt-5" @click="isAddDialogOpen = true">
                     <Plus class="mr-2 h-4 w-4" />
-                    Add Translation
+                    {{ t.vocabularyAddButton }}
                 </Button>
             </div>
 
@@ -226,6 +225,7 @@ import { vocabularyApi, type VocabularyItem } from '@/api/vocabulary.ts'
 import { onMounted, ref, computed, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth.ts'
 import { useSettingsStore } from '@/stores/settings.ts'
+import { useI18n } from '@/composables/useI18n'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import { Pagination, PaginationContent, PaginationItem, PaginationEllipsis } from '@/components/ui/pagination'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -245,6 +245,8 @@ import { formatRelativeTime, formatDate } from '@/lib/utils.ts'
 import { Progress } from '@/components/ui/progress'
 import { Trash2, Loader2, Plus } from 'lucide-vue-next'
 import { useToast } from '@/composables/useToast.ts'
+
+const { t } = useI18n()
 
 const vocabulary = ref<VocabularyItem[]>([])
 const currentPage = ref(1)
@@ -318,8 +320,8 @@ const handleAdd = async () => {
         await fetchVocabulary(currentPage.value)
 
         addToast({
-            title: 'Success!',
-            description: 'Translation added successfully.',
+            title: t.value.vocabularyToastSuccessTitle,
+            description: t.value.vocabularyToastSuccessDescription,
             variant: 'success',
             duration: 3000,
         })
@@ -327,15 +329,15 @@ const handleAdd = async () => {
         const apiError = error as { status?: number }
         if (apiError.status === 409) {
             addToast({
-                title: 'Warning',
-                description: 'This vocabulary already exists.',
+                title: t.value.vocabularyToastAlreadyExistsTitle,
+                description: t.value.vocabularyToastAlreadyExistsDescription,
                 duration: 3000,
             })
             return
         }
         addToast({
-            title: 'Error',
-            description: 'Failed to add translation. Please try again.',
+            title: t.value.vocabularyToastErrorTitle,
+            description: t.value.vocabularyToastErrorDescription,
             variant: 'destructive',
             duration: 5000,
         })

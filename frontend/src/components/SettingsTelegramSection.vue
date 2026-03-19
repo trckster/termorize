@@ -4,6 +4,7 @@ import type { UserSettings, UserTelegramScheduleItem } from '@/api/auth.ts'
 import { settingsApi } from '@/api/settings.ts'
 import { useToast } from '@/composables/useToast.ts'
 import { useAuthStore } from '@/stores/auth.ts'
+import { useI18n } from '@/composables/useI18n'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { InputNumber } from '@/components/ui/input-number'
@@ -15,6 +16,7 @@ const props = defineProps<{
 
 const authStore = useAuthStore()
 const { addToast } = useToast()
+const { t } = useI18n()
 
 const botEnabled = ref(false)
 const dailyQuestionsEnabled = ref(false)
@@ -38,9 +40,9 @@ const parseTime = (time: string) => {
 }
 
 const countValidationError = computed(() => {
-    if (!Number.isInteger(dailyQuestionsCount.value)) return 'Daily questions count must be an integer.'
+    if (!Number.isInteger(dailyQuestionsCount.value)) return t.value.settingsTelegramCountValidationInteger
     if (dailyQuestionsCount.value <= 0 || dailyQuestionsCount.value > 100) {
-        return 'Daily questions count must be between 1 and 100.'
+        return t.value.settingsTelegramCountValidationRange
     }
 
     return ''
@@ -58,7 +60,7 @@ const scheduleValidationError = computed(() => {
                     from: -1,
                     to: -1,
                     valid: false,
-                    reason: 'All times must use HH:mm format and stay in range 00:00 to 23:59.',
+                    reason: t.value.settingsTelegramScheduleValidationFormat,
                 }
             }
 
@@ -68,7 +70,7 @@ const scheduleValidationError = computed(() => {
                     from,
                     to,
                     valid: false,
-                    reason: 'Each schedule interval must have "from" earlier than "to".',
+                    reason: t.value.settingsTelegramScheduleValidationOrder,
                 }
             }
 
@@ -93,7 +95,7 @@ const scheduleValidationError = computed(() => {
         }
 
         if (current.from < previous.to) {
-            return 'Schedule intervals cannot overlap.'
+            return t.value.settingsTelegramScheduleValidationOverlap
         }
     }
 
@@ -151,16 +153,16 @@ const saveTelegramSettings = async () => {
         })
 
         addToast({
-            title: 'Saved',
-            description: 'Settings were saved successfully.',
+            title: t.value.toastSavedTitle,
+            description: t.value.toastSavedDescription,
             variant: 'success',
             duration: 3000,
         })
     } catch (error) {
         console.error('Failed to save settings:', error)
         addToast({
-            title: 'Error',
-            description: 'Failed to save settings. Please try again.',
+            title: t.value.toastErrorTitle,
+            description: t.value.toastSaveErrorDescription,
             variant: 'destructive',
             duration: 5000,
         })
@@ -187,13 +189,13 @@ watch(
 <template>
     <Card>
         <CardHeader>
-            <CardTitle>Telegram</CardTitle>
-            <CardDescription>Bot and notification controls for your Telegram account.</CardDescription>
+            <CardTitle>{{ t.settingsTelegramTitle }}</CardTitle>
+            <CardDescription>{{ t.settingsTelegramDescription }}</CardDescription>
         </CardHeader>
         <CardContent class="relative" :disabled="!props.settings?.telegram.bot_enabled">
             <template v-slot:disable-reason>
                 <Card class="p-5 flex flex-col items-center">
-                    <span> To enable Telegram bot, send him any message: </span>
+                    <span> {{ t.settingsTelegramEnableBotNote }} </span>
                     <a
                         href="https://t.me/termorize_bot"
                         target="_blank"
@@ -207,22 +209,22 @@ watch(
 
             <div class="grid grid-cols-1 md:grid-cols-2 p-4">
                 <div class="space-y-2">
-                    <p class="text-sm font-semibold text-foreground">Send Daily Exercises?</p>
+                    <p class="text-sm font-semibold text-foreground">{{ t.settingsTelegramSendDailyTitle }}</p>
                     <div class="h-10 flex items-center">
-                        <ToggleSwitch v-model="dailyQuestionsEnabled" :disabled="isSaving" label="Send daily exercises" />
+                        <ToggleSwitch v-model="dailyQuestionsEnabled" :disabled="isSaving" :label="t.settingsTelegramSendDailyLabel" />
                     </div>
                     <p class="text-xs text-muted-foreground">
-                        Controls if the bot sends you daily vocabulary exercises.
+                        {{ t.settingsTelegramSendDailyNote }}
                     </p>
                 </div>
                 <div class="space-y-2" :class="dailyQuestionsEnabled ? '' : 'opacity-60'">
-                    <p class="text-sm font-semibold text-foreground">Daily Questions Count</p>
+                    <p class="text-sm font-semibold text-foreground">{{ t.settingsTelegramDailyCountTitle }}</p>
                     <div class="h-10 flex items-center">
                         <InputNumber v-model="dailyQuestionsCount" min="1" max="100" step="1" :disabled="isSaving || !dailyQuestionsEnabled" />
                     </div>
                     <p class="text-xs text-muted-foreground">
-                        How many exercises per day are you ready to complete? <br />
-                        Must be from 1 to 100.
+                        {{ t.settingsTelegramDailyCountNote }} <br />
+                        {{ t.settingsTelegramDailyCountMustBe }}
                     </p>
                     <p v-if="countValidationError" class="text-xs text-destructive">{{ countValidationError }}</p>
                 </div>
@@ -231,8 +233,8 @@ watch(
             <div class="p-4" :class="dailyQuestionsEnabled ? '' : 'opacity-60'">
                 <div class="space-y-2">
                     <div class="flex items-center justify-between gap-4">
-                        <p class="text-sm font-semibold text-foreground">Questions Schedule</p>
-                        <p class="text-xs text-muted-foreground">Timezone: {{ timezoneLabel }}</p>
+                        <p class="text-sm font-semibold text-foreground">{{ t.settingsTelegramScheduleTitle }}</p>
+                        <p class="text-xs text-muted-foreground">{{ t.settingsTelegramScheduleTimezonePrefix }} {{ timezoneLabel }}</p>
                     </div>
 
                     <div class="space-y-2">
@@ -241,7 +243,7 @@ watch(
                             :key="index"
                             class="flex items-center gap-2"
                         >
-                            <label :for="`schedule-from-${index}`" class="text-muted-foreground">From</label>
+                            <label :for="`schedule-from-${index}`" class="text-muted-foreground">{{ t.settingsTelegramScheduleFrom }}</label>
                             <input
                                 :id="`schedule-from-${index}`"
                                 :value="item.from"
@@ -252,7 +254,7 @@ watch(
                                 class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                                 @input="setScheduleTime(index, 'from', ($event.target as HTMLInputElement).value)"
                             />
-                            <label :for="`schedule-to-${index}`" class="text-muted-foreground">to</label>
+                            <label :for="`schedule-to-${index}`" class="text-muted-foreground">{{ t.settingsTelegramScheduleTo }}</label>
                             <input
                                 :id="`schedule-to-${index}`"
                                 :value="item.to"
@@ -264,26 +266,23 @@ watch(
                                 @input="setScheduleTime(index, 'to', ($event.target as HTMLInputElement).value)"
                             />
                             <Button variant="outline" size="sm" :disabled="isSaving || !dailyQuestionsEnabled" @click="removeScheduleItem(index)">
-                                Delete
+                                {{ t.settingsTelegramScheduleDelete }}
                             </Button>
                         </div>
                     </div>
 
                     <Button variant="outline" size="sm" :disabled="isSaving || !dailyQuestionsEnabled" @click="addScheduleItem">
-                        + Interval
+                        {{ t.settingsTelegramScheduleAddInterval }}
                     </Button>
 
-                    <p class="text-xs text-muted-foreground">
-                        Set one or more time intervals in HH:mm format.<br />
-                        This time is used to determine, when bot can send exercises to you in Telegram.
-                    </p>
+                    <p class="text-xs text-muted-foreground" style="white-space: pre-line">{{ t.settingsTelegramScheduleNote }}</p>
                     <p v-if="scheduleValidationError" class="text-xs text-destructive">{{ scheduleValidationError }}</p>
                 </div>
             </div>
 
             <div v-if="hasChanged" class="px-4">
                 <Button :disabled="isSaving || !isValid" @click="saveTelegramSettings">
-                    {{ isSaving ? 'Saving...' : 'Save' }}
+                    {{ isSaving ? t.saving : t.save }}
                 </Button>
             </div>
         </CardContent>

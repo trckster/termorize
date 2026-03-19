@@ -20,6 +20,7 @@ const props = withDefaults(
     defineProps<{
         modelValue?: string
         placeholder?: string
+        allowedValues?: string[]
         disabledValues?: string[]
         disabled?: boolean
         ariaLabel?: string
@@ -27,6 +28,7 @@ const props = withDefaults(
     {
         modelValue: '',
         placeholder: 'Select language',
+        allowedValues: () => [],
         disabledValues: () => [],
         disabled: false,
         ariaLabel: undefined,
@@ -55,11 +57,13 @@ const selectedLabel = computed(() => {
 const getSelectedLabel = () => selectedLabel.value
 
 const options = computed(() =>
-    settingsStore.languageOptions.map((option) => ({
-        value: option.code,
-        label: `${option.emoji} ${option.name}`,
-        disabled: props.disabledValues.includes(option.code),
-    }))
+    settingsStore.languageOptions
+        .filter((option) => props.allowedValues.length === 0 || props.allowedValues.includes(option.code))
+        .map((option) => ({
+            value: option.code,
+            label: `${option.emoji} ${option.name}`,
+            disabled: props.disabledValues.includes(option.code),
+        }))
 )
 
 const focusInput = async () => {

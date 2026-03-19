@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Send } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
+import { useI18n } from '@/composables/useI18n'
 
 defineProps<{
     loading?: boolean
@@ -10,6 +11,8 @@ defineProps<{
 const emit = defineEmits<{
     (e: 'start'): void
 }>()
+
+const { t } = useI18n()
 </script>
 
 <template>
@@ -21,6 +24,6 @@ const emit = defineEmits<{
         @click="emit('start')"
     >
         <Send class="size-4" />
-        {{ loading ? (insideTelegram ? 'Authorizing in Telegram...' : 'Redirecting to Telegram...') : (insideTelegram ? 'Continue in Telegram' : 'Continue via Telegram') }}
+        {{ loading ? (insideTelegram ? t.telegramLoginButtonLoading : t.telegramLoginButtonRedirecting) : (insideTelegram ? t.telegramLoginButtonInsideTelegram : t.telegramLoginButtonVia) }}
     </Button>
 </template>

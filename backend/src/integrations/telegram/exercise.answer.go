@@ -23,13 +23,15 @@ func handleExerciseAnswer(message *message) (bool, error) {
 		return false, nil
 	}
 
+	t := getBotTextsForTelegramID(telegramID)
+
 	switch exercise.Status {
 	case enums.ExerciseStatusIgnored:
-		return true, SendMessage(message.Chat.ID, telegramTextExerciseOutdated)
+		return true, SendMessage(message.Chat.ID, t.ExerciseOutdated)
 	case enums.ExerciseStatusCompleted:
-		return true, SendMessage(message.Chat.ID, telegramTextExerciseCompleted)
+		return true, SendMessage(message.Chat.ID, t.ExerciseCompleted)
 	case enums.ExerciseStatusFailed:
-		return true, SendMessage(message.Chat.ID, telegramTextExerciseFailed)
+		return true, SendMessage(message.Chat.ID, t.ExerciseFailed)
 	case enums.ExerciseStatusPending, enums.ExerciseStatusInProgress:
 	default:
 		return true, nil
@@ -49,7 +51,7 @@ func handleExerciseAnswer(message *message) (bool, error) {
 			return true, nil
 		}
 
-		answerText := buildExerciseSuccessResultText(translationKnowledge)
+		answerText := buildExerciseSuccessResultText(translationKnowledge, t)
 		return true, SendMessageMarkdown(message.Chat.ID, answerText)
 	}
 
@@ -68,27 +70,28 @@ func handleExerciseAnswer(message *message) (bool, error) {
 		exercise.OriginalLanguage,
 		exercise.TranslationLanguage,
 		translationKnowledge,
+		t,
 	)
 	return true, SendMessageMarkdown(message.Chat.ID, answerText)
 }
 
-func buildExerciseSuccessResultText(translationKnowledge int) string {
-	return telegramTextExerciseSuccess + "\n\n" + fmt.Sprintf(telegramTextExerciseTranslationKnowledgeUpFormat, translationKnowledge)
+func buildExerciseSuccessResultText(translationKnowledge int, t BotTexts) string {
+	return t.ExerciseSuccess + "\n\n" + fmt.Sprintf(t.ExerciseTranslationKnowledgeUpFormat, translationKnowledge)
 }
 
-func buildExerciseInvalidResultText(originalWord string, translationWord string, originalLanguage enums.Language, translationLanguage enums.Language, translationKnowledge int) string {
-	answerPair := buildExerciseAnswerPairText(originalWord, translationWord, originalLanguage, translationLanguage)
-	return telegramTextExerciseInvalid + "\n\n" + answerPair + "\n\n" + fmt.Sprintf(telegramTextExerciseTranslationKnowledgeDownFormat, translationKnowledge)
+func buildExerciseInvalidResultText(originalWord string, translationWord string, originalLanguage enums.Language, translationLanguage enums.Language, translationKnowledge int, t BotTexts) string {
+	answerPair := buildExerciseAnswerPairText(originalWord, translationWord, originalLanguage, translationLanguage, t)
+	return t.ExerciseInvalid + "\n\n" + answerPair + "\n\n" + fmt.Sprintf(t.ExerciseTranslationKnowledgeDownFormat, translationKnowledge)
 }
 
-func buildExerciseIDKResultText(originalWord string, translationWord string, originalLanguage enums.Language, translationLanguage enums.Language, translationKnowledge int) string {
-	answerPair := buildExerciseAnswerPairText(originalWord, translationWord, originalLanguage, translationLanguage)
-	return telegramTextExerciseIDK + "\n\n" + answerPair + "\n\n" + fmt.Sprintf(telegramTextExerciseTranslationKnowledgeDownFormat, translationKnowledge)
+func buildExerciseIDKResultText(originalWord string, translationWord string, originalLanguage enums.Language, translationLanguage enums.Language, translationKnowledge int, t BotTexts) string {
+	answerPair := buildExerciseAnswerPairText(originalWord, translationWord, originalLanguage, translationLanguage, t)
+	return t.ExerciseIDK + "\n\n" + answerPair + "\n\n" + fmt.Sprintf(t.ExerciseTranslationKnowledgeDownFormat, translationKnowledge)
 }
 
-func buildExerciseAnswerPairText(originalWord string, translationWord string, originalLanguage enums.Language, translationLanguage enums.Language) string {
+func buildExerciseAnswerPairText(originalWord string, translationWord string, originalLanguage enums.Language, translationLanguage enums.Language, t BotTexts) string {
 	return fmt.Sprintf(
-		telegramTextExerciseAnswerPairFormat,
+		t.ExerciseAnswerPairFormat,
 		originalLanguage.Flag(),
 		originalWord,
 		translationWord,

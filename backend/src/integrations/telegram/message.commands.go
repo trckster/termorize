@@ -34,13 +34,15 @@ func parseMessageCommand(text string) (string, bool) {
 }
 
 func routeMessageCommand(message *message, command string) error {
+	t := getBotTextsForTelegramID(message.Chat.ID)
+
 	switch command {
 	case "ping":
-		return SendMessage(message.Chat.ID, telegramTextPong)
+		return SendMessage(message.Chat.ID, t.Pong)
 	case "help", "start":
-		return SendMessage(message.Chat.ID, telegramTextHelp)
+		return SendMessage(message.Chat.ID, t.Help)
 	case "menu":
-		return SendMessageWithInlineKeyboardMarkdown(message.Chat.ID, telegramTextMenu, menuKeyboard)
+		return SendMessageWithInlineKeyboardMarkdown(message.Chat.ID, t.Menu, getMenuKeyboard(t))
 	case "cancel":
 		telegramID, _, _, _ := extractMessageUser(message)
 		updated, err := services.UpdateUserTelegramState(telegramID, enums.TelegramStateNone)
@@ -49,11 +51,11 @@ func routeMessageCommand(message *message, command string) error {
 		}
 
 		if !updated {
-			return SendMessage(message.Chat.ID, telegramTextCancelNothing)
+			return SendMessage(message.Chat.ID, t.CancelNothing)
 		}
 
-		return SendMessage(message.Chat.ID, telegramTextCancelDone)
+		return SendMessage(message.Chat.ID, t.CancelDone)
 	default:
-		return SendMessage(message.Chat.ID, telegramTextUnknownCommand)
+		return SendMessage(message.Chat.ID, t.UnknownCommand)
 	}
 }

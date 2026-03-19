@@ -1,0 +1,348 @@
+import { computed } from 'vue'
+import { useAuthStore } from '@/stores/auth'
+
+const en = {
+    // Navigation
+    navHome: 'Home',
+    navVocabulary: 'Vocabulary',
+    navExercises: 'Exercises',
+
+    // Header
+    headerChangeTheme: 'Change theme',
+    headerSettings: 'Settings',
+    headerLogout: 'Logout',
+    headerRelogin: 'Relogin',
+
+    // Login page
+    loginTitle: 'Login with Telegram',
+    loginDescription: 'Login in Termorize to translate, check vocabulary, exercises, statistics and app settings.',
+
+    // TelegramLogin button
+    telegramLoginButtonLoading: 'Authorizing in Telegram...',
+    telegramLoginButtonRedirecting: 'Redirecting to Telegram...',
+    telegramLoginButtonInsideTelegram: 'Continue in Telegram',
+    telegramLoginButtonVia: 'Continue via Telegram',
+
+    // Settings page
+    settingsTitle: 'Settings',
+    settingsDescription: 'Review your account, language, and Telegram preferences.',
+
+    // Settings - Common section
+    settingsCommonTitle: 'Common',
+    settingsCommonDescription: 'Basic account information from your profile.',
+    settingsCommonFieldId: 'ID',
+    settingsCommonFieldIdExplanation: 'Unique account identifier in Termorize.',
+    settingsCommonFieldCreatedAt: 'Creation Date',
+    settingsCommonFieldCreatedAtExplanation: 'Date and time when your Termorize account was created.',
+    settingsCommonFieldName: 'Name',
+    settingsCommonFieldNameExplanation: 'Your Telegram name.',
+    settingsCommonFieldUsername: 'Username',
+    settingsCommonFieldUsernameExplanation: 'Your Telegram username.',
+    settingsCommonFieldTimezone: 'Timezone',
+    settingsCommonFieldTimezoneExplanation: 'Your preferred timezone used for daily schedule and time-based features.',
+    settingsCommonTimezonePlaceholder: 'Select timezone',
+    settingsCommonTimezoneSearchPlaceholder: 'Search timezone...',
+    settingsCommonTimezoneNotFound: 'No timezone found.',
+    settingsCommonFieldNotAvailable: 'Not available',
+
+    // Settings - Languages section
+    settingsLanguagesTitle: 'Languages',
+    settingsLanguagesDescription: 'Language preferences used in translation and learning.',
+    settingsSystemLanguageTitle: 'System Language',
+    settingsSystemLanguagePlaceholder: 'Select system language',
+    settingsSystemLanguageNote: 'Language of the bot and website interface.',
+    settingsMainLearningLanguageTitle: 'Main Learning Language',
+    settingsMainLearningLanguagePlaceholder: 'Select learning language',
+    settingsMainLearningLanguageNote: 'This is the language you are focusing on in your daily learning flow.',
+
+    // Settings - Telegram section
+    settingsTelegramTitle: 'Telegram',
+    settingsTelegramDescription: 'Bot and notification controls for your Telegram account.',
+    settingsTelegramEnableBotNote: 'To enable Telegram bot, send him any message:',
+    settingsTelegramSendDailyTitle: 'Send Daily Exercises?',
+    settingsTelegramSendDailyLabel: 'Send daily exercises',
+    settingsTelegramSendDailyNote: 'Controls if the bot sends you daily vocabulary exercises.',
+    settingsTelegramDailyCountTitle: 'Daily Questions Count',
+    settingsTelegramDailyCountNote: 'How many exercises per day are you ready to complete?',
+    settingsTelegramDailyCountMustBe: 'Must be from 1 to 100.',
+    settingsTelegramScheduleTitle: 'Questions Schedule',
+    settingsTelegramScheduleTimezonePrefix: 'Timezone:',
+    settingsTelegramScheduleFrom: 'From',
+    settingsTelegramScheduleTo: 'to',
+    settingsTelegramScheduleDelete: 'Delete',
+    settingsTelegramScheduleAddInterval: '+ Interval',
+    settingsTelegramScheduleNote: 'Set one or more time intervals in HH:mm format.\nThis time is used to determine, when bot can send exercises to you in Telegram.',
+    settingsTelegramCountValidationInteger: 'Daily questions count must be an integer.',
+    settingsTelegramCountValidationRange: 'Daily questions count must be between 1 and 100.',
+    settingsTelegramScheduleValidationFormat: 'All times must use HH:mm format and stay in range 00:00 to 23:59.',
+    settingsTelegramScheduleValidationOrder: 'Each schedule interval must have "from" earlier than "to".',
+    settingsTelegramScheduleValidationOverlap: 'Schedule intervals cannot overlap.',
+
+    // Common actions
+    save: 'Save',
+    saving: 'Saving...',
+    cancel: 'Cancel',
+    delete: 'Delete',
+    deleting: 'Deleting...',
+    adding: 'Adding...',
+
+    // Common toasts
+    toastSavedTitle: 'Saved',
+    toastSavedDescription: 'Settings were saved successfully.',
+    toastErrorTitle: 'Error',
+    toastSaveErrorDescription: 'Failed to save settings. Please try again.',
+
+    // Exercises page
+    exercisesLabel: 'Exercises',
+    exercisesHeading: 'Your exercise overview',
+    exercisesDescription: 'Track how your practice is going across all generated exercises.',
+    exercisesTracked: 'Tracked exercises',
+    exercisesWarning: 'Exercises created before 15th of March are lost due to migration to a newer version of application.',
+    exercisesErrorMessage: 'Failed to load exercise statistics. Please try again.',
+    exerciseStatInProgress: 'In Progress',
+    exerciseStatInProgressDesc: 'Active exercises waiting for completion.',
+    exerciseStatDone: 'Done',
+    exerciseStatDoneDesc: 'Exercises answered successfully.',
+    exerciseStatFailed: 'Failed',
+    exerciseStatFailedDesc: 'Exercises answered incorrectly.',
+    exerciseStatIgnored: 'Ignored',
+    exerciseStatIgnoredDesc: 'Exercises that expired without an answer.',
+
+    // Vocabulary page
+    vocabularyTitle: 'Saved Words',
+    vocabularyAddButton: 'Add Translation',
+    vocabularyDialogTitle: 'Add Your Own Translation',
+    vocabularyDialogDescription: 'Enter two words/texts and their languages to add a new translation.',
+    vocabularyLanguage1: 'Language 1',
+    vocabularyLanguage2: 'Language 2',
+    vocabularyWord1: 'Word 1',
+    vocabularyWord2: 'Word 2',
+    vocabularyWord1Placeholder: 'Enter word',
+    vocabularyWord2Placeholder: 'Enter translation',
+    vocabularySelectLanguagePlaceholder: 'Select language',
+    vocabularyNoProgress: 'No progress recorded',
+    vocabularyCreatedAt: 'Created:',
+    vocabularyMasteredAt: 'Mastered:',
+    vocabularyDeleteDialogTitle: 'Delete Vocabulary Item',
+    vocabularyDeleteConfirmPrefix: 'Are you sure you want to delete "',
+    vocabularyDeleteConfirmSuffix: '"? This action cannot be undone.',
+    vocabularyEmptyTitle: 'Your vocabulary is empty',
+    vocabularyEmptyDescription: 'Save your first word pair here. Start with a translation and add it to vocabulary.',
+    vocabularyToastSuccessTitle: 'Success!',
+    vocabularyToastSuccessDescription: 'Translation added successfully.',
+    vocabularyToastAlreadyExistsTitle: 'Warning',
+    vocabularyToastAlreadyExistsDescription: 'This vocabulary already exists.',
+    vocabularyToastErrorTitle: 'Error',
+    vocabularyToastErrorDescription: 'Failed to add translation. Please try again.',
+
+    // Translation page
+    translationFrom: 'From',
+    translationTo: 'To',
+    translationFromPlaceholder: 'Enter text to translate...',
+    translationToPlaceholder: 'Translation will appear here...',
+    translationTranslating: 'Translating...',
+    translationSourcePrefix: 'Source:',
+    translationSourceUser: 'User',
+    translationSourceDictionary: 'Dictionary',
+    translationSourceGoogle: 'Google',
+    translationSaving: 'Saving...',
+    translationSaveToVocabulary: 'Save to vocabulary',
+    translationShortcutSave: 'Save to vocabulary',
+    translationShortcutSwap: 'Swap languages',
+    translationShortcutFocusFirst: 'Focus first language',
+    translationShortcutFocusSecond: 'Focus second language',
+    translationCharacters: 'characters',
+    translationToastNoTranslationTitle: 'Warning',
+    translationToastNoTranslationDescription: 'No translation is available yet. Translate text first.',
+    translationToastVocabSuccessTitle: 'Success!',
+    translationToastVocabSuccessDescription: 'Translation added to vocabulary.',
+    translationToastAlreadyExistsTitle: 'Warning',
+    translationToastAlreadyExistsDescription: 'This vocabulary already exists.',
+    translationToastVocabErrorTitle: 'Error',
+    translationToastVocabErrorDescription: 'Failed to add translation to vocabulary. Please try again.',
+    translationToastLangErrorTitle: 'Error',
+    translationToastLangErrorDescription: 'Failed to save translation languages. Please try again.',
+
+    // Language selector
+    languageSelectorNoResults: 'No languages found.',
+}
+
+const ru: typeof en = {
+    // Navigation
+    navHome: 'Главная',
+    navVocabulary: 'Словарь',
+    navExercises: 'Упражнения',
+
+    // Header
+    headerChangeTheme: 'Сменить тему',
+    headerSettings: 'Настройки',
+    headerLogout: 'Выйти',
+    headerRelogin: 'Перезайти',
+
+    // Login page
+    loginTitle: 'Войти через Telegram',
+    loginDescription: 'Войдите в Termorize для перевода, просмотра словаря, упражнений, статистики и настроек.',
+
+    // TelegramLogin button
+    telegramLoginButtonLoading: 'Авторизация в Telegram...',
+    telegramLoginButtonRedirecting: 'Переход в Telegram...',
+    telegramLoginButtonInsideTelegram: 'Продолжить в Telegram',
+    telegramLoginButtonVia: 'Продолжить через Telegram',
+
+    // Settings page
+    settingsTitle: 'Настройки',
+    settingsDescription: 'Просмотрите настройки аккаунта, языка и Telegram.',
+
+    // Settings - Common section
+    settingsCommonTitle: 'Основные',
+    settingsCommonDescription: 'Основная информация аккаунта из вашего профиля.',
+    settingsCommonFieldId: 'ID',
+    settingsCommonFieldIdExplanation: 'Уникальный идентификатор аккаунта в Termorize.',
+    settingsCommonFieldCreatedAt: 'Дата создания',
+    settingsCommonFieldCreatedAtExplanation: 'Дата и время создания вашего аккаунта в Termorize.',
+    settingsCommonFieldName: 'Имя',
+    settingsCommonFieldNameExplanation: 'Ваше имя в Telegram.',
+    settingsCommonFieldUsername: 'Имя пользователя',
+    settingsCommonFieldUsernameExplanation: 'Ваш username в Telegram.',
+    settingsCommonFieldTimezone: 'Часовой пояс',
+    settingsCommonFieldTimezoneExplanation: 'Предпочтительный часовой пояс для ежедневного расписания и функций на основе времени.',
+    settingsCommonTimezonePlaceholder: 'Выберите часовой пояс',
+    settingsCommonTimezoneSearchPlaceholder: 'Поиск часового пояса...',
+    settingsCommonTimezoneNotFound: 'Часовой пояс не найден.',
+    settingsCommonFieldNotAvailable: 'Недоступно',
+
+    // Settings - Languages section
+    settingsLanguagesTitle: 'Языки',
+    settingsLanguagesDescription: 'Языковые настройки для перевода и обучения.',
+    settingsSystemLanguageTitle: 'Язык интерфейса',
+    settingsSystemLanguagePlaceholder: 'Выберите язык интерфейса',
+    settingsSystemLanguageNote: 'Язык интерфейса бота и сайта.',
+    settingsMainLearningLanguageTitle: 'Основной изучаемый язык',
+    settingsMainLearningLanguagePlaceholder: 'Выберите изучаемый язык',
+    settingsMainLearningLanguageNote: 'Это язык, на котором ты сосредоточен в ежедневном обучении.',
+
+    // Settings - Telegram section
+    settingsTelegramTitle: 'Telegram',
+    settingsTelegramDescription: 'Управление ботом и уведомлениями для вашего Telegram аккаунта.',
+    settingsTelegramEnableBotNote: 'Чтобы включить Telegram бота, отправьте ему любое сообщение:',
+    settingsTelegramSendDailyTitle: 'Отправлять ежедневные упражнения?',
+    settingsTelegramSendDailyLabel: 'Отправлять ежедневные упражнения',
+    settingsTelegramSendDailyNote: 'Управляет тем, отправляет ли бот ежедневные упражнения по словарю.',
+    settingsTelegramDailyCountTitle: 'Количество ежедневных вопросов',
+    settingsTelegramDailyCountNote: 'Сколько упражнений в день вы готовы выполнять?',
+    settingsTelegramDailyCountMustBe: 'Должно быть от 1 до 100.',
+    settingsTelegramScheduleTitle: 'Расписание вопросов',
+    settingsTelegramScheduleTimezonePrefix: 'Часовой пояс:',
+    settingsTelegramScheduleFrom: 'С',
+    settingsTelegramScheduleTo: 'по',
+    settingsTelegramScheduleDelete: 'Удалить',
+    settingsTelegramScheduleAddInterval: '+ Интервал',
+    settingsTelegramScheduleNote: 'Укажите один или несколько временных интервалов в формате ЧЧ:мм.\nЭто время определяет, когда бот может отправлять упражнения в Telegram.',
+    settingsTelegramCountValidationInteger: 'Количество вопросов должно быть целым числом.',
+    settingsTelegramCountValidationRange: 'Количество вопросов должно быть от 1 до 100.',
+    settingsTelegramScheduleValidationFormat: 'Все времена должны быть в формате ЧЧ:мм и в диапазоне 00:00 до 23:59.',
+    settingsTelegramScheduleValidationOrder: 'Каждый интервал расписания должен иметь "с" раньше, чем "по".',
+    settingsTelegramScheduleValidationOverlap: 'Интервалы расписания не должны пересекаться.',
+
+    // Common actions
+    save: 'Сохранить',
+    saving: 'Сохранение...',
+    cancel: 'Отмена',
+    delete: 'Удалить',
+    deleting: 'Удаление...',
+    adding: 'Добавление...',
+
+    // Common toasts
+    toastSavedTitle: 'Сохранено',
+    toastSavedDescription: 'Настройки успешно сохранены.',
+    toastErrorTitle: 'Ошибка',
+    toastSaveErrorDescription: 'Не удалось сохранить настройки. Попробуйте ещё раз.',
+
+    // Exercises page
+    exercisesLabel: 'Упражнения',
+    exercisesHeading: 'Ваши упражнения',
+    exercisesDescription: 'Отслеживайте свой прогресс по всем сгенерированным упражнениям.',
+    exercisesTracked: 'Отслеженных упражнений',
+    exercisesWarning: 'Упражнения, созданные до 15 марта, утеряны в связи с миграцией на новую версию приложения.',
+    exercisesErrorMessage: 'Не удалось загрузить статистику упражнений. Попробуйте ещё раз.',
+    exerciseStatInProgress: 'В процессе',
+    exerciseStatInProgressDesc: 'Активные упражнения, ожидающие завершения.',
+    exerciseStatDone: 'Выполнено',
+    exerciseStatDoneDesc: 'Упражнения, выполненные успешно.',
+    exerciseStatFailed: 'Ошибка',
+    exerciseStatFailedDesc: 'Упражнения, выполненные с ошибкой.',
+    exerciseStatIgnored: 'Пропущено',
+    exerciseStatIgnoredDesc: 'Упражнения, истёкшие без ответа.',
+
+    // Vocabulary page
+    vocabularyTitle: 'Сохранённые слова',
+    vocabularyAddButton: 'Добавить перевод',
+    vocabularyDialogTitle: 'Добавить свой перевод',
+    vocabularyDialogDescription: 'Введите два слова/текста и их языки для добавления нового перевода.',
+    vocabularyLanguage1: 'Язык 1',
+    vocabularyLanguage2: 'Язык 2',
+    vocabularyWord1: 'Слово 1',
+    vocabularyWord2: 'Слово 2',
+    vocabularyWord1Placeholder: 'Введите слово',
+    vocabularyWord2Placeholder: 'Введите перевод',
+    vocabularySelectLanguagePlaceholder: 'Выберите язык',
+    vocabularyNoProgress: 'Прогресс не записан',
+    vocabularyCreatedAt: 'Создано:',
+    vocabularyMasteredAt: 'Освоено:',
+    vocabularyDeleteDialogTitle: 'Удалить элемент словаря',
+    vocabularyDeleteConfirmPrefix: 'Вы уверены, что хотите удалить "',
+    vocabularyDeleteConfirmSuffix: '"? Это действие нельзя отменить.',
+    vocabularyEmptyTitle: 'Ваш словарь пуст',
+    vocabularyEmptyDescription: 'Сохраните первую пару слов. Начните с перевода и добавьте его в словарь.',
+    vocabularyToastSuccessTitle: 'Успешно!',
+    vocabularyToastSuccessDescription: 'Перевод успешно добавлен.',
+    vocabularyToastAlreadyExistsTitle: 'Предупреждение',
+    vocabularyToastAlreadyExistsDescription: 'Такой перевод уже существует.',
+    vocabularyToastErrorTitle: 'Ошибка',
+    vocabularyToastErrorDescription: 'Не удалось добавить перевод. Попробуйте ещё раз.',
+
+    // Translation page
+    translationFrom: 'С',
+    translationTo: 'На',
+    translationFromPlaceholder: 'Введите текст для перевода...',
+    translationToPlaceholder: 'Перевод появится здесь...',
+    translationTranslating: 'Перевод...',
+    translationSourcePrefix: 'Источник:',
+    translationSourceUser: 'Пользователь',
+    translationSourceDictionary: 'Словарь',
+    translationSourceGoogle: 'Google',
+    translationSaving: 'Сохранение...',
+    translationSaveToVocabulary: 'Сохранить в словарь',
+    translationShortcutSave: 'Сохранить в словарь',
+    translationShortcutSwap: 'Поменять языки',
+    translationShortcutFocusFirst: 'Фокус на первый язык',
+    translationShortcutFocusSecond: 'Фокус на второй язык',
+    translationCharacters: 'символов',
+    translationToastNoTranslationTitle: 'Предупреждение',
+    translationToastNoTranslationDescription: 'Перевод ещё недоступен. Сначала переведите текст.',
+    translationToastVocabSuccessTitle: 'Успешно!',
+    translationToastVocabSuccessDescription: 'Перевод добавлен в словарь.',
+    translationToastAlreadyExistsTitle: 'Предупреждение',
+    translationToastAlreadyExistsDescription: 'Такой перевод уже существует.',
+    translationToastVocabErrorTitle: 'Ошибка',
+    translationToastVocabErrorDescription: 'Не удалось добавить перевод в словарь. Попробуйте ещё раз.',
+    translationToastLangErrorTitle: 'Ошибка',
+    translationToastLangErrorDescription: 'Не удалось сохранить языки перевода. Попробуйте ещё раз.',
+
+    // Language selector
+    languageSelectorNoResults: 'Языки не найдены.',
+}
+
+const translations = { en, ru }
+
+type Locale = keyof typeof translations
+type Translations = typeof en
+
+export const getSupportedLocale = (language?: string): Locale => (language === 'ru' ? 'ru' : 'en')
+
+export function useI18n() {
+    const authStore = useAuthStore()
+    const locale = computed<Locale>(() => getSupportedLocale(authStore.user?.settings.system_language))
+    const t = computed<Translations>(() => translations[locale.value])
+    return { t, locale }
+}

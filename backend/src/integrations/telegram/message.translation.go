@@ -20,6 +20,8 @@ func handlePlainTranslationMessage(message *message) (bool, error) {
 		return false, nil
 	}
 
+	t := GetBotTexts(user.Settings.SystemLanguage)
+
 	word := strings.TrimSpace(message.Text)
 	if word == "" {
 		return true, nil
@@ -39,7 +41,7 @@ func handlePlainTranslationMessage(message *message) (bool, error) {
 	if len(strings.Fields(word)) < 5 {
 		vocabulary, createErr := services.CreateVocabularyByTranslation(user.ID, translationResult.TranslationID)
 		if createErr == nil {
-			return true, SendMessageWithInlineKeyboard(message.Chat.ID, baseText+telegramTextVocabularyAutoAddedSuffix, buildVocabularyDeleteKeyboard(vocabulary.ID.String()))
+			return true, SendMessageWithInlineKeyboard(message.Chat.ID, baseText+t.VocabularyAutoAddedSuffix, buildVocabularyDeleteKeyboard(vocabulary.ID.String(), t))
 		}
 
 		if services.VocabularyAlreadyExistsError(createErr) {
@@ -49,7 +51,7 @@ func handlePlainTranslationMessage(message *message) (bool, error) {
 		return true, createErr
 	}
 
-	return true, SendMessageWithInlineKeyboard(message.Chat.ID, baseText, buildVocabularyAddKeyboard(translationResult.TranslationID.String()))
+	return true, SendMessageWithInlineKeyboard(message.Chat.ID, baseText, buildVocabularyAddKeyboard(translationResult.TranslationID.String(), t))
 }
 
 func detectMessageTranslationLanguages(user *models.User, text string) (enums.Language, enums.Language, error) {

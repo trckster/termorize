@@ -26,41 +26,48 @@ const (
 	vocabularyActionDelete = "delete"
 )
 
-var menuKeyboard = [][]inlineKeyboardButton{
-	{{Text: telegramButtonMenuOpenApp, URL: telegramMiniAppURL}},
-	{{Text: telegramButtonMenuAddTranslation, CallbackData: callbackTypeMenu + ":" + menuActionAddTranslation}, {Text: telegramButtonMenuDeleteWord, CallbackData: callbackTypeMenu + ":" + menuActionDeleteTranslation}},
-	{{Text: telegramButtonMenuVocabulary, CallbackData: callbackTypeMenu + ":" + menuActionVocabulary}, {Text: telegramButtonMenuStatistics, CallbackData: callbackTypeMenu + ":" + menuActionStatistics}},
-	{{Text: telegramButtonMenuSettings, CallbackData: callbackTypeMenu + ":" + menuActionSettings}, {Text: telegramButtonMenuWhatsGoingOn, CallbackData: callbackTypeMenu + ":" + menuActionWhatsGoingOn}},
+func getMenuKeyboard(t BotTexts) [][]inlineKeyboardButton {
+	return [][]inlineKeyboardButton{
+		{{Text: t.ButtonOpenApp, URL: telegramMiniAppURL}},
+		{{Text: t.ButtonAddTranslation, CallbackData: callbackTypeMenu + ":" + menuActionAddTranslation}, {Text: t.ButtonDeleteWord, CallbackData: callbackTypeMenu + ":" + menuActionDeleteTranslation}},
+		{{Text: t.ButtonVocabulary, CallbackData: callbackTypeMenu + ":" + menuActionVocabulary}, {Text: t.ButtonStatistics, CallbackData: callbackTypeMenu + ":" + menuActionStatistics}},
+		{{Text: t.ButtonSettings, CallbackData: callbackTypeMenu + ":" + menuActionSettings}, {Text: t.ButtonWhatsGoingOn, CallbackData: callbackTypeMenu + ":" + menuActionWhatsGoingOn}},
+	}
 }
 
-var menuBackKeyboard = [][]inlineKeyboardButton{{{Text: telegramButtonMenuBack, CallbackData: callbackTypeMenu + ":" + menuActionBack}}}
-var menuCancelKeyboard = [][]inlineKeyboardButton{{{Text: telegramButtonMenuCancel, CallbackData: callbackTypeMenu + ":" + menuActionCancel}}}
+func getMenuBackKeyboard(t BotTexts) [][]inlineKeyboardButton {
+	return [][]inlineKeyboardButton{{{Text: t.ButtonBack, CallbackData: callbackTypeMenu + ":" + menuActionBack}}}
+}
 
-func buildVocabularyAddKeyboard(translationID string) [][]inlineKeyboardButton {
+func getMenuCancelKeyboard(t BotTexts) [][]inlineKeyboardButton {
+	return [][]inlineKeyboardButton{{{Text: t.ButtonCancel, CallbackData: callbackTypeMenu + ":" + menuActionCancel}}}
+}
+
+func buildVocabularyAddKeyboard(translationID string, t BotTexts) [][]inlineKeyboardButton {
 	return [][]inlineKeyboardButton{{{
-		Text:         telegramButtonVocabularyAdd,
+		Text:         t.ButtonVocabularyAdd,
 		CallbackData: callbackTypeVocabulary + ":" + vocabularyActionAdd + ":" + translationID,
 	}}}
 }
 
-func buildVocabularyDeleteKeyboard(vocabularyID string) [][]inlineKeyboardButton {
+func buildVocabularyDeleteKeyboard(vocabularyID string, t BotTexts) [][]inlineKeyboardButton {
 	return [][]inlineKeyboardButton{{{
-		Text:         telegramButtonVocabularyDelete,
+		Text:         t.ButtonVocabularyDelete,
 		CallbackData: callbackTypeVocabulary + ":" + vocabularyActionDelete + ":" + vocabularyID,
 	}}}
 }
 
-func buildAddTranslationKeyboard(sourceLang, targetLang enums.Language) [][]inlineKeyboardButton {
+func buildAddTranslationKeyboard(sourceLang, targetLang enums.Language, t BotTexts) [][]inlineKeyboardButton {
 	return [][]inlineKeyboardButton{
 		{
-			{Text: "Change " + sourceLang.Flag(), CallbackData: callbackTypeMenu + ":" + menuActionChangeSourceLang},
-			{Text: "Change " + targetLang.Flag(), CallbackData: callbackTypeMenu + ":" + menuActionChangeTargetLang},
+			{Text: t.ButtonChangeLanguagePrefix + sourceLang.Flag(), CallbackData: callbackTypeMenu + ":" + menuActionChangeSourceLang},
+			{Text: t.ButtonChangeLanguagePrefix + targetLang.Flag(), CallbackData: callbackTypeMenu + ":" + menuActionChangeTargetLang},
 		},
-		{{Text: telegramButtonMenuCancel, CallbackData: callbackTypeMenu + ":" + menuActionCancel}},
+		{{Text: t.ButtonCancel, CallbackData: callbackTypeMenu + ":" + menuActionCancel}},
 	}
 }
 
-func buildLanguageSelectionKeyboard(excludeLang1, excludeLang2 enums.Language, isSource bool) [][]inlineKeyboardButton {
+func buildLanguageSelectionKeyboard(excludeLang1, excludeLang2 enums.Language, isSource bool, t BotTexts) [][]inlineKeyboardButton {
 	action := menuActionSetTargetLang
 	if isSource {
 		action = menuActionSetSourceLang
@@ -79,23 +86,23 @@ func buildLanguageSelectionKeyboard(excludeLang1, excludeLang2 enums.Language, i
 	}
 
 	rows = append(rows, []inlineKeyboardButton{{
-		Text:         telegramButtonMenuCancel,
+		Text:         t.ButtonCancel,
 		CallbackData: callbackTypeMenu + ":" + menuActionAddTranslation,
 	}})
 
 	return rows
 }
 
-func menuActionToText(action string) (string, bool) {
+func menuActionToText(action string, t BotTexts) (string, bool) {
 	switch action {
 	case menuActionVocabulary:
-		return telegramTextMenuVocabulary, true
+		return t.MenuVocabulary, true
 	case menuActionStatistics:
-		return telegramTextMenuStatistics, true
+		return t.MenuStatistics, true
 	case menuActionSettings:
-		return telegramTextMenuSettings, true
+		return t.MenuSettings, true
 	case menuActionWhatsGoingOn:
-		return telegramTextMenuWhatsGoingOn, true
+		return t.MenuWhatsGoingOn, true
 	default:
 		return "", false
 	}

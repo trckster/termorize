@@ -29,6 +29,7 @@ type PendingExercise struct {
 	OriginalLanguage    enums.Language     `gorm:"column:original_language"`
 	TranslationWord     string             `gorm:"column:translation_word"`
 	TranslationLanguage enums.Language     `gorm:"column:translation_language"`
+	SystemLanguage      enums.Language     `gorm:"column:system_language"`
 }
 
 type ExerciseWords struct {
@@ -40,9 +41,10 @@ type ExerciseWords struct {
 }
 
 type PendingExerciseReminder struct {
-	ExerciseID        uuid.UUID `gorm:"column:exercise_id"`
-	TelegramID        int64     `gorm:"column:telegram_id"`
-	TelegramMessageID int64     `gorm:"column:telegram_message_id"`
+	ExerciseID        uuid.UUID      `gorm:"column:exercise_id"`
+	TelegramID        int64          `gorm:"column:telegram_id"`
+	TelegramMessageID int64          `gorm:"column:telegram_message_id"`
+	SystemLanguage    enums.Language `gorm:"column:system_language"`
 }
 
 type TelegramMessageExercise struct {
@@ -192,7 +194,8 @@ func GetDuePendingExercises(now time.Time) ([]PendingExercise, error) {
 			original.word AS original_word,
 			original.language AS original_language,
 			translation.word AS translation_word,
-			translation.language AS translation_language
+			translation.language AS translation_language,
+			u.settings->>'system_language' AS system_language
 		FROM exercises AS e
 		JOIN users AS u ON u.id = e.user_id
 		JOIN vocabulary_exercises AS ve ON ve.exercise_id = e.id
@@ -272,7 +275,8 @@ func GetDueExerciseReminders(now time.Time) ([]PendingExerciseReminder, error) {
 		SELECT
 			e.id AS exercise_id,
 			u.telegram_id AS telegram_id,
-			e.telegram_message_id AS telegram_message_id
+			e.telegram_message_id AS telegram_message_id,
+			u.settings->>'system_language' AS system_language
 		FROM exercises AS e
 		JOIN users AS u ON u.id = e.user_id
 		WHERE e.status = ?

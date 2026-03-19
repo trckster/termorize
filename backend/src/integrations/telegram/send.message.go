@@ -98,13 +98,13 @@ func SendMessageWithInlineKeyboardMarkdown(chatID int64, text string, keyboard [
 	return err
 }
 
-func SendExerciseMessage(chatID int64, text string, exerciseID uuid.UUID) (*int64, error) {
+func SendExerciseMessage(chatID int64, text string, exerciseID uuid.UUID, texts BotTexts) (*int64, error) {
 	messageRequest := sendMessageRequest{
 		ChatID:    chatID,
 		Text:      text,
 		ParseMode: telegramParseModeMarkdown,
 		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: [][]inlineKeyboardButton{{
-			{Text: telegramButtonExerciseIDK, CallbackData: callbackTypeExercise + ":" + exerciseActionIDK + ":" + exerciseID.String()},
+			{Text: texts.ButtonExerciseIDK, CallbackData: callbackTypeExercise + ":" + exerciseActionIDK + ":" + exerciseID.String()},
 		}}},
 	}
 

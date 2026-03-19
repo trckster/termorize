@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/composables/useToast.ts'
 import { usePhoneViewport } from '@/composables/usePhoneViewport.ts'
 import { useAuthStore } from '@/stores/auth.ts'
+import { useI18n } from '@/composables/useI18n'
 
 type LanguageSelectorInstance = {
     focusInput: () => Promise<void>
@@ -15,6 +16,7 @@ type LanguageSelectorInstance = {
 
 const authStore = useAuthStore()
 const { isPhoneViewport } = usePhoneViewport()
+const { t } = useI18n()
 
 const getDistinctTargetLanguage = (sourceLanguage: string, targetLanguage: string) => {
     if (sourceLanguage !== targetLanguage) {
@@ -59,9 +61,9 @@ const isLoadingSource = ref(false)
 const isLoadingTarget = ref(false)
 const translationSource = ref('')
 const translationSourceLabel = computed(() => {
-    if (translationSource.value === 'user') return 'User'
-    if (translationSource.value === 'dictionary') return 'Dictionary'
-    if (translationSource.value === 'google') return 'Google'
+    if (translationSource.value === 'user') return t.value.translationSourceUser
+    if (translationSource.value === 'dictionary') return t.value.translationSourceDictionary
+    if (translationSource.value === 'google') return t.value.translationSourceGoogle
     return translationSource.value
 })
 
@@ -94,8 +96,8 @@ const persistTranslationLanguages = async () => {
     } catch (error) {
         console.error('Failed to save translation languages:', error)
         addToast({
-            title: 'Error',
-            description: 'Failed to save translation languages. Please try again.',
+            title: t.value.translationToastLangErrorTitle,
+            description: t.value.translationToastLangErrorDescription,
             variant: 'destructive',
             duration: 5000,
         })
@@ -256,8 +258,8 @@ const handleSwapLanguages = () => {
 const saveTranslationToVocabulary = async () => {
     if (!translationId.value) {
         addToast({
-            title: 'Warning',
-            description: 'No translation is available yet. Translate text first.',
+            title: t.value.translationToastNoTranslationTitle,
+            description: t.value.translationToastNoTranslationDescription,
             duration: 3000,
         })
         return
@@ -271,8 +273,8 @@ const saveTranslationToVocabulary = async () => {
     try {
         await translationApi.addVocabularyByTranslation(translationId.value)
         addToast({
-            title: 'Success!',
-            description: 'Translation added to vocabulary.',
+            title: t.value.translationToastVocabSuccessTitle,
+            description: t.value.translationToastVocabSuccessDescription,
             variant: 'success',
             duration: 3000,
         })
@@ -280,16 +282,16 @@ const saveTranslationToVocabulary = async () => {
         const apiError = error as { status?: number }
         if (apiError.status === 409) {
             addToast({
-                title: 'Warning',
-                description: 'This vocabulary already exists.',
+                title: t.value.translationToastAlreadyExistsTitle,
+                description: t.value.translationToastAlreadyExistsDescription,
                 duration: 3000,
             })
             return
         }
 
         addToast({
-            title: 'Error',
-            description: 'Failed to add translation to vocabulary. Please try again.',
+            title: t.value.translationToastVocabErrorTitle,
+            description: t.value.translationToastVocabErrorDescription,
             variant: 'destructive',
             duration: 5000,
         })
@@ -380,12 +382,12 @@ onBeforeUnmount(() => {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="space-y-3">
                     <div class="flex items-center justify-between">
-                        <label for="source-text" class="text-sm font-medium text-foreground">From</label>
+                        <label for="source-text" class="text-sm font-medium text-foreground">{{ t.translationFrom }}</label>
                         <div class="w-52">
                             <LanguageSelector
                                 ref="sourceLanguageSelectorRef"
                                 v-model="sourceLang"
-                                placeholder="From language"
+                                :placeholder="t.translationFrom"
                                 :disabled-values="[targetLang]"
                                 aria-label="Source language"
                             />
@@ -397,29 +399,29 @@ onBeforeUnmount(() => {
                             ref="sourceTextareaRef"
                             v-model="sourceText"
                             @focus="activeField = 'source'"
-                            placeholder="Enter text to translate..."
+                            :placeholder="t.translationFromPlaceholder"
                             class="w-full h-40 md:h-64 p-4 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                         />
                         <div
                             v-if="isLoadingSource"
                             role="status"
-                            aria-label="Translating..."
+                            :aria-label="t.translationTranslating"
                             class="absolute inset-0 flex items-center justify-center bg-background/50 rounded-lg"
                         >
                             <div class="motion-safe:animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                         </div>
                     </div>
-                    <p class="text-xs text-muted-foreground text-right">{{ sourceText.length }} characters</p>
+                    <p class="text-xs text-muted-foreground text-right">{{ sourceText.length }} {{ t.translationCharacters }}</p>
                 </div>
 
                 <div class="space-y-3">
                     <div class="flex items-center justify-between">
-                        <label for="target-text" class="text-sm font-medium text-foreground">To</label>
+                        <label for="target-text" class="text-sm font-medium text-foreground">{{ t.translationTo }}</label>
                         <div class="w-52">
                             <LanguageSelector
                                 ref="targetLanguageSelectorRef"
                                 v-model="targetLang"
-                                placeholder="To language"
+                                :placeholder="t.translationTo"
                                 :disabled-values="[sourceLang]"
                                 aria-label="Target language"
                             />
@@ -431,40 +433,40 @@ onBeforeUnmount(() => {
                             ref="targetTextareaRef"
                             v-model="translatedText"
                             @focus="activeField = 'target'"
-                            placeholder="Translation will appear here..."
+                            :placeholder="t.translationToPlaceholder"
                             class="w-full h-40 md:h-64 p-4 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                         />
                         <div
                             v-if="isLoadingTarget"
                             role="status"
-                            aria-label="Translating..."
+                            :aria-label="t.translationTranslating"
                             class="absolute inset-0 flex items-center justify-center bg-background/50 rounded-lg"
                         >
                             <div class="motion-safe:animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                         </div>
                     </div>
-                    <p class="text-xs text-muted-foreground text-right">{{ translatedText.length }} characters</p>
+                    <p class="text-xs text-muted-foreground text-right">{{ translatedText.length }} {{ t.translationCharacters }}</p>
                 </div>
             </div>
 
             <p v-if="translationSource" class="mt-3 text-center text-xs text-muted-foreground">
-                Source: {{ translationSourceLabel }}
+                {{ t.translationSourcePrefix }} {{ translationSourceLabel }}
             </p>
             <div v-if="isPhoneViewport" class="mt-4 flex justify-center">
                 <Button @click="saveTranslationToVocabulary" :disabled="isSavingVocabulary || !translationId">
-                    {{ isSavingVocabulary ? 'Saving...' : 'Save to vocabulary' }}
+                    {{ isSavingVocabulary ? t.translationSaving : t.translationSaveToVocabulary }}
                 </Button>
             </div>
             <div
                 class="mt-4 hidden w-fit mx-auto grid-cols-[max-content_max-content] items-center gap-x-3 gap-y-2 text-xs text-muted-foreground md:grid"
             >
-                <span class="justify-self-end text-right">Save to vocabulary</span>
+                <span class="justify-self-end text-right">{{ t.translationShortcutSave }}</span>
                 <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + S</Kbd>
-                <span class="justify-self-end text-right">Swap languages</span>
+                <span class="justify-self-end text-right">{{ t.translationShortcutSwap }}</span>
                 <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + Shift + S</Kbd>
-                <span class="justify-self-end text-right">Focus first language</span>
+                <span class="justify-self-end text-right">{{ t.translationShortcutFocusFirst }}</span>
                 <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + L</Kbd>
-                <span class="justify-self-end text-right">Focus second language</span>
+                <span class="justify-self-end text-right">{{ t.translationShortcutFocusSecond }}</span>
                 <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + Shift + L</Kbd>
             </div>
         </div>

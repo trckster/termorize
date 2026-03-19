@@ -77,6 +77,8 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 		return nil
 	}
 
+	t := getBotTextsForTelegramID(callback.From.ID)
+
 	exercise, err := services.GetExerciseByTelegramMessage(callback.Message.MessageID, callback.From.ID)
 	if err != nil {
 		return err
@@ -88,11 +90,11 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 
 	switch exercise.Status {
 	case enums.ExerciseStatusIgnored:
-		return SendMessage(callback.From.ID, telegramTextExerciseOutdated)
+		return SendMessage(callback.From.ID, t.ExerciseOutdated)
 	case enums.ExerciseStatusCompleted:
-		return SendMessage(callback.From.ID, telegramTextExerciseCompleted)
+		return SendMessage(callback.From.ID, t.ExerciseCompleted)
 	case enums.ExerciseStatusFailed:
-		return SendMessage(callback.From.ID, telegramTextExerciseFailed)
+		return SendMessage(callback.From.ID, t.ExerciseFailed)
 	}
 
 	if err := removeMessageInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID); err != nil {
@@ -123,6 +125,7 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 		words.OriginalLanguage,
 		words.TranslationLanguage,
 		translationKnowledge,
+		t,
 	)
 	return SendMessageMarkdown(callback.From.ID, answerText)
 }
@@ -136,6 +139,7 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 		return nil
 	}
 
+	t := getBotTextsForTelegramID(callback.From.ID)
 	action := payload[0]
 
 	if action == menuActionBack || action == menuActionCancel {
@@ -143,7 +147,7 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 			return err
 		}
 
-		return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, telegramTextMenu, menuKeyboard)
+		return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, t.Menu, getMenuKeyboard(t))
 	}
 
 	if action == menuActionDeleteTranslation {
@@ -151,7 +155,7 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 			return err
 		}
 
-		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, telegramTextMenuDeleteWord, menuCancelKeyboard)
+		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, t.MenuDeleteWord, getMenuCancelKeyboard(t))
 	}
 
 	if action == menuActionAddTranslation {
@@ -171,8 +175,9 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 		messageText := buildAddVocabularyFirstText(
 			user.Settings.TranslationSourceLanguage.DisplayNameWithFlag(),
 			user.Settings.TranslationTargetLanguage.DisplayNameWithFlag(),
+			t,
 		)
-		keyboard := buildAddTranslationKeyboard(user.Settings.TranslationSourceLanguage, user.Settings.TranslationTargetLanguage)
+		keyboard := buildAddTranslationKeyboard(user.Settings.TranslationSourceLanguage, user.Settings.TranslationTargetLanguage, t)
 		return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, messageText, keyboard)
 	}
 
@@ -187,8 +192,8 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 		}
 
 		isSource := action == menuActionChangeSourceLang
-		keyboard := buildLanguageSelectionKeyboard(user.Settings.TranslationSourceLanguage, user.Settings.TranslationTargetLanguage, isSource)
-		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, telegramTextChooseLanguage, keyboard)
+		keyboard := buildLanguageSelectionKeyboard(user.Settings.TranslationSourceLanguage, user.Settings.TranslationTargetLanguage, isSource, t)
+		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, t.ChooseLanguage, keyboard)
 	}
 
 	if action == menuActionSetSourceLang || action == menuActionSetTargetLang {
@@ -211,15 +216,16 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 		messageText := buildAddVocabularyFirstText(
 			user.Settings.TranslationSourceLanguage.DisplayNameWithFlag(),
 			user.Settings.TranslationTargetLanguage.DisplayNameWithFlag(),
+			t,
 		)
-		keyboard := buildAddTranslationKeyboard(user.Settings.TranslationSourceLanguage, user.Settings.TranslationTargetLanguage)
+		keyboard := buildAddTranslationKeyboard(user.Settings.TranslationSourceLanguage, user.Settings.TranslationTargetLanguage, t)
 		return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, messageText, keyboard)
 	}
 
-	selectionText, ok := menuActionToText(action)
+	selectionText, ok := menuActionToText(action, t)
 	if !ok {
 		return nil
 	}
 
-	return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, selectionText, menuBackKeyboard)
+	return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, selectionText, getMenuBackKeyboard(t))
 }

@@ -11,7 +11,7 @@
                         route.path === '/' ? 'text-foreground' : 'text-muted-foreground',
                     ]"
                 >
-                    Home
+                    {{ t.navHome }}
                 </router-link>
                 <router-link
                     to="/vocabulary"
@@ -21,7 +21,7 @@
                         route.path === '/vocabulary' ? 'text-foreground' : 'text-muted-foreground',
                     ]"
                 >
-                    Vocabulary
+                    {{ t.navVocabulary }}
                 </router-link>
                 <router-link
                     to="/exercises"
@@ -31,7 +31,7 @@
                         route.path === '/exercises' ? 'text-foreground' : 'text-muted-foreground',
                     ]"
                 >
-                    Exercises
+                    {{ t.navExercises }}
                 </router-link>
             </nav>
 
@@ -63,7 +63,7 @@
                             <div class="flex items-center gap-2 text-sm font-medium">
                                 <Sun v-if="isDark" class="h-4 w-4" />
                                 <Moon v-else class="h-4 w-4" />
-                                <span>Change theme</span>
+                                <span>{{ t.headerChangeTheme }}</span>
                             </div>
                             <ToggleSwitch :model-value="isDark" @update:model-value="setTheme" @click.stop />
                         </div>
@@ -74,7 +74,7 @@
                             role="menuitem"
                         >
                             <Settings class="h-4 w-4" />
-                            <span>Settings</span>
+                            <span>{{ t.headerSettings }}</span>
                         </button>
 
                         <div class="my-1 border-t border-border"></div>
@@ -86,7 +86,7 @@
                             role="menuitem"
                         >
                             <LogOut class="h-4 w-4" />
-                            <span>Logout</span>
+                            <span>{{ t.headerLogout }}</span>
                         </button>
 
                         <button
@@ -96,7 +96,7 @@
                             role="menuitem"
                         >
                             <LogOut class="h-4 w-4" />
-                            <span>Relogin</span>
+                            <span>{{ t.headerRelogin }}</span>
                         </button>
                     </div>
                 </div>
@@ -112,10 +112,12 @@ import { useAuthStore } from '@/stores/auth'
 import { Sun, Moon, ChevronDown, Settings, LogOut } from 'lucide-vue-next'
 import { ToggleSwitch } from '@/components/ui/toggle-switch'
 import { isTelegramWebApp } from '@/lib/telegram.ts'
+import { useI18n } from '@/composables/useI18n'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const { t } = useI18n()
 
 const user = computed(() => authStore.user)
 const isMiniApp = isTelegramWebApp()

@@ -50,15 +50,17 @@ func processDueExercises() {
 			continue
 		}
 
+		texts := telegram.GetBotTexts(exercise.SystemLanguage)
 		questionText := telegram.BuildBasicExerciseQuestion(
 			exercise.OriginalWord,
 			exercise.TranslationWord,
 			exercise.OriginalLanguage,
 			exercise.TranslationLanguage,
 			exercise.ExerciseType,
+			texts,
 		)
 
-		messageID, err := telegram.SendExerciseMessage(exercise.TelegramID, questionText, exercise.ExerciseID)
+		messageID, err := telegram.SendExerciseMessage(exercise.TelegramID, questionText, exercise.ExerciseID, texts)
 		if err != nil {
 			logger.L().Warnw("failed to send scheduled exercise", "error", err, "exercise_id", exercise.ExerciseID, "telegram_id", exercise.TelegramID)
 			continue
@@ -83,9 +85,10 @@ func processDueExerciseReminders(now time.Time) error {
 	}
 
 	for _, reminder := range reminders {
+		texts := telegram.GetBotTexts(reminder.SystemLanguage)
 		if err := telegram.SendReplyMessage(
 			reminder.TelegramID,
-			telegram.BuildExerciseReminderText(),
+			telegram.BuildExerciseReminderText(texts),
 			reminder.TelegramMessageID,
 		); err != nil {
 			logger.L().Warnw("failed to send exercise reminder", "error", err, "exercise_id", reminder.ExerciseID, "telegram_id", reminder.TelegramID)

@@ -5,9 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import TelegramLogin from '@/components/TelegramLogin.vue'
 import { getTelegramWebAppInitData, isTelegramWebApp } from '@/lib/telegram'
 import { useAuthStore } from '@/stores/auth'
+import { useI18n } from '@/composables/useI18n'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { t } = useI18n()
 const error = ref<string | null>(null)
 const isLoading = ref(false)
 const isInsideTelegram = isTelegramWebApp()
@@ -60,9 +62,9 @@ function getErrorMessage(err: unknown, fallback: string): string {
     <div class="flex min-h-screen items-center justify-center px-4 py-10">
         <Card class="w-full max-w-md border-border/70 bg-card/95 shadow-xl backdrop-blur-sm">
             <CardHeader class="space-y-2 text-center">
-                <CardTitle class="text-2xl font-bold text-foreground">Login with Telegram</CardTitle>
+                <CardTitle class="text-2xl font-bold text-foreground">{{ t.loginTitle }}</CardTitle>
                 <CardDescription class="text-muted-foreground">
-                    Login in Termorize to translate, check vocabulary, exercises, statistics and app settings.
+                    {{ t.loginDescription }}
                 </CardDescription>
             </CardHeader>
             <CardContent class="flex flex-col items-center gap-4 pt-2">

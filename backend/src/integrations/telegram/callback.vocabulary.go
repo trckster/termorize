@@ -46,12 +46,14 @@ func handleVocabularyAddCallback(callback *callbackQuery, payload []string) erro
 		return nil
 	}
 
+	t := GetBotTexts(user.Settings.SystemLanguage)
+
 	_, err = services.CreateVocabularyByTranslation(user.ID, translationID)
 	if err != nil && !services.VocabularyAlreadyExistsError(err) {
 		return err
 	}
 
-	updatedText := callback.Message.Text + telegramTextVocabularyManualAddedSuffix
+	updatedText := callback.Message.Text + t.VocabularyManualAddedSuffix
 	return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, updatedText, [][]inlineKeyboardButton{})
 }
 
@@ -79,6 +81,11 @@ func handleVocabularyDeleteCallback(callback *callbackQuery, payload []string) e
 		return err
 	}
 
-	updatedText := strings.TrimSuffix(callback.Message.Text, telegramTextVocabularyAutoAddedSuffix)
+	// Try trimming both EN and RU suffixes since user may have changed language since word was added
+	updatedText := strings.TrimSuffix(callback.Message.Text, botTextsEn.VocabularyAutoAddedSuffix)
+	if updatedText == callback.Message.Text {
+		updatedText = strings.TrimSuffix(callback.Message.Text, botTextsRu.VocabularyAutoAddedSuffix)
+	}
+
 	return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, updatedText, [][]inlineKeyboardButton{})
 }

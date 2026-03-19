@@ -12,7 +12,9 @@ func handleMessage(message *message) error {
 	}
 
 	if message.Chat.Type != Private {
-		return SendMessage(message.Chat.ID, telegramTextNonPrivateChat)
+		telegramID, _, _, _ := extractMessageUser(message)
+		t := getBotTextsForTelegramID(telegramID)
+		return SendMessage(message.Chat.ID, t.NonPrivateChat)
 	}
 
 	handledExerciseAnswer, err := handleExerciseAnswer(message)
