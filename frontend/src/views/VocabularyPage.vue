@@ -118,7 +118,7 @@
                                 <div v-for="(prog, idx) in item.progress" :key="idx" class="w-full">
                                     <Progress :model-value="prog.knowledge" class="h-2" />
                                     <div class="flex justify-between items-center mt-1">
-                                        <span class="text-xs text-muted-foreground capitalize">{{ prog.type }}</span>
+                                        <span class="text-xs text-muted-foreground capitalize">{{ getProgressTypeLabel(prog.type) }}</span>
                                         <span class="text-xs font-medium">{{ Math.round(prog.knowledge) }}%</span>
                                     </div>
                                 </div>
@@ -291,6 +291,15 @@ const settingsStore = useSettingsStore()
 
 const getLanguageName = (code: string) =>
     settingsStore.languageOptions.find((l) => l.code === code)?.name || code.toUpperCase()
+
+const getProgressTypeLabel = (type: VocabularyItem['progress'][number]['type']) => {
+    switch (type) {
+        case 'translation':
+            return t.value.vocabularyProgressTranslation
+        default:
+            return type
+    }
+}
 
 type NewTranslationForm = {
     word1: string
