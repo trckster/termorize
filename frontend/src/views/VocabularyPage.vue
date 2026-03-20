@@ -71,6 +71,21 @@
                 </Dialog>
             </div>
 
+            <div class="relative mb-6 max-w-md">
+                <input
+                    v-model="searchInput"
+                    type="text"
+                    :placeholder="t.vocabularySearchPlaceholder"
+                    class="w-full px-3 py-2 pr-9 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <span
+                    v-if="isLoadingVocabulary"
+                    class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                >
+                    <Loader2 class="h-4 w-4 animate-spin" />
+                </span>
+            </div>
+
             <div v-if="vocabulary.length > 0" class="space-y-2 mb-8">
                 <div
                     v-for="item in vocabulary"
@@ -184,45 +199,52 @@
                 v-else-if="!isLoadingVocabulary"
                 class="mb-8 flex min-h-72 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 px-6 text-center"
             >
-                <h2 class="text-xl font-semibold text-foreground">{{ t.vocabularyEmptyTitle }}</h2>
+                <h2 class="text-xl font-semibold text-foreground">
+                    {{ search ? t.vocabularyNoResultsTitle : t.vocabularyEmptyTitle }}
+                </h2>
                 <p class="mt-2 max-w-md text-sm text-muted-foreground">
-                    {{ t.vocabularyEmptyDescription }}
+                    {{ search ? t.vocabularyNoResultsDescription : t.vocabularyEmptyDescription }}
                 </p>
-                <Button class="mt-5" @click="isAddDialogOpen = true">
+                <Button v-if="!search" class="mt-5" @click="isAddDialogOpen = true">
                     <Plus class="mr-2 h-4 w-4" />
                     {{ t.vocabularyAddButton }}
                 </Button>
             </div>
 
-            <Pagination
-                v-if="paginationData.total > 0"
-                v-slot="{ page }"
-                :total="paginationData.total"
-                :items-per-page="paginationData.page_size"
-                :sibling-count="1"
-                show-edges
-                :default-page="1"
-                :page="currentPage"
-                @update:page="handlePageChange"
-            >
-                <PaginationContent v-slot="{ items }" class="flex justify-center gap-1">
-                    <template v-for="(item, index) in items">
-                        <PaginationItem v-if="item.type === 'page'" :key="index" :value="item.value" as-child>
-                            <Button class="h-11 w-11 p-0" :variant="item.value === page ? 'default' : 'outline'">
-                                {{ item.value }}
-                            </Button>
-                        </PaginationItem>
-                        <PaginationEllipsis v-else :key="item.type + index" :index="index" />
-                    </template>
-                </PaginationContent>
-            </Pagination>
+            <div v-if="paginationData.total > 0" class="space-y-3">
+                <p class="text-center text-sm text-muted-foreground">
+                    {{ t.vocabularyTotalCount }}: {{ paginationData.total }}
+                </p>
+
+                <Pagination
+                    v-slot="{ page }"
+                    :total="paginationData.total"
+                    :items-per-page="paginationData.page_size"
+                    :sibling-count="1"
+                    show-edges
+                    :default-page="1"
+                    :page="currentPage"
+                    @update:page="handlePageChange"
+                >
+                    <PaginationContent v-slot="{ items }" class="flex justify-center gap-1">
+                        <template v-for="(item, index) in items">
+                            <PaginationItem v-if="item.type === 'page'" :key="index" :value="item.value" as-child>
+                                <Button class="h-11 w-11 p-0" :variant="item.value === page ? 'default' : 'outline'">
+                                    {{ item.value }}
+                                </Button>
+                            </PaginationItem>
+                            <PaginationEllipsis v-else :key="item.type + index" :index="index" />
+                        </template>
+                    </PaginationContent>
+                </Pagination>
+            </div>
         </div>
     </main>
 </template>
 
 <script setup lang="ts">
 import { vocabularyApi, type VocabularyItem } from '@/api/vocabulary.ts'
-import { onMounted, ref, computed, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, computed, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth.ts'
 import { useSettingsStore } from '@/stores/settings.ts'
 import { useI18n } from '@/composables/useI18n'
@@ -260,6 +282,9 @@ const deletingId = ref<string | null>(null)
 const isAddDialogOpen = ref(false)
 const isAdding = ref(false)
 const isLoadingVocabulary = ref(false)
+const searchInput = ref('')
+const search = ref('')
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
 const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
@@ -300,6 +325,25 @@ watch(isAddDialogOpen, (isOpen) => {
     if (isOpen) {
         resetForm()
     }
+})
+
+watch(searchInput, (value) => {
+    if (searchDebounceTimer) {
+        clearTimeout(searchDebounceTimer)
+    }
+
+    searchDebounceTimer = setTimeout(() => {
+        const nextSearch = value.trim()
+        if (nextSearch === search.value) {
+            return
+        }
+
+        search.value = nextSearch
+    }, 350)
+})
+
+watch(search, async () => {
+    await fetchVocabulary(1)
 })
 
 const { addToast } = useToast()
@@ -350,7 +394,7 @@ const fetchVocabulary = async (page: number) => {
     isLoadingVocabulary.value = true
     currentPage.value = page
     try {
-        const response = await vocabularyApi.getVocabulary(page, paginationData.value.page_size)
+        const response = await vocabularyApi.getVocabulary(page, paginationData.value.page_size, search.value || undefined)
         vocabulary.value = response.data
         paginationData.value = response.pagination
     } finally {
@@ -376,5 +420,11 @@ const handleDelete = async (id: string) => {
 
 onMounted(async () => {
     await fetchVocabulary(1)
+})
+
+onBeforeUnmount(() => {
+    if (searchDebounceTimer) {
+        clearTimeout(searchDebounceTimer)
+    }
 })
 </script>

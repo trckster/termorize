@@ -61,6 +61,7 @@ func CreateVocabularyByTranslation(c *gin.Context) {
 
 func GetVocabulary(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
+	search := c.Query("search")
 
 	page := 1
 	pageSize := 50
@@ -77,7 +78,7 @@ func GetVocabulary(c *gin.Context) {
 		}
 	}
 
-	response, err := services.GetVocabulary(userID, page, pageSize)
+	response, err := services.GetVocabulary(userID, page, pageSize, search)
 	if err != nil {
 		if services.InvalidPaginationError(err) {
 			c.JSON(nethttp.StatusBadRequest, gin.H{"error": err.Error()})

@@ -35,10 +35,11 @@ export type VocabularyItem = {
 }
 
 export const vocabularyApi = {
-    async getVocabulary(page: number = 1, pageSize: number = 100): Promise<Paginated<VocabularyItem>> {
+    async getVocabulary(page: number = 1, pageSize: number = 100, search?: string): Promise<Paginated<VocabularyItem>> {
         return apiCall<Paginated<VocabularyItem>>('/vocabulary', 'GET', {
             page,
             page_size: pageSize,
+            search,
         }).then(unwrapBody)
     },
 

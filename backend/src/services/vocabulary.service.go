@@ -207,7 +207,7 @@ func CreateVocabularyByTranslation(userID uint, translationID uuid.UUID) (*model
 	return &vocabulary, nil
 }
 
-func GetVocabulary(userID uint, page, pageSize int) (*VocabularyListResponse, error) {
+func GetVocabulary(userID uint, page, pageSize int, search string) (*VocabularyListResponse, error) {
 	if page <= 0 {
 		return nil, ErrInvalidPage
 	}
@@ -216,20 +216,42 @@ func GetVocabulary(userID uint, page, pageSize int) (*VocabularyListResponse, er
 		return nil, ErrInvalidPageSize
 	}
 
+	normalizedSearch := strings.TrimSpace(search)
+	searchPattern := "%" + normalizedSearch + "%"
+
+	totalQuery := db.DB.Model(&models.Vocabulary{}).
+		Joins("JOIN translations ON translations.id = vocabulary.translation_id").
+		Joins("JOIN words AS original_words ON original_words.id = translations.original_id").
+		Joins("JOIN words AS translation_words ON translation_words.id = translations.translation_id").
+		Where("vocabulary.user_id = ?", userID)
+
+	if normalizedSearch != "" {
+		totalQuery = totalQuery.Where("original_words.word ILIKE ? OR translation_words.word ILIKE ?", searchPattern, searchPattern)
+	}
+
 	var total int64
-	if err := db.DB.Model(&models.Vocabulary{}).Where("user_id = ?", userID).Count(&total).Error; err != nil {
+	if err := totalQuery.Count(&total).Error; err != nil {
 		return nil, err
 	}
 
 	var vocabularyItems []models.Vocabulary
 	offset := (page - 1) * pageSize
 
-	if err := db.DB.
-		Where("user_id = ?", userID).
+	vocabularyQuery := db.DB.Model(&models.Vocabulary{}).
+		Joins("JOIN translations ON translations.id = vocabulary.translation_id").
+		Joins("JOIN words AS original_words ON original_words.id = translations.original_id").
+		Joins("JOIN words AS translation_words ON translation_words.id = translations.translation_id").
+		Where("vocabulary.user_id = ?", userID)
+
+	if normalizedSearch != "" {
+		vocabularyQuery = vocabularyQuery.Where("original_words.word ILIKE ? OR translation_words.word ILIKE ?", searchPattern, searchPattern)
+	}
+
+	if err := vocabularyQuery.
 		Preload("Translation").
 		Preload("Translation.Original").
 		Preload("Translation.Translation").
-		Order("created_at DESC, id DESC").
+		Order("vocabulary.created_at DESC, vocabulary.id DESC").
 		Offset(offset).
 		Limit(pageSize).
 		Find(&vocabularyItems).Error; err != nil {
