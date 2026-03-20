@@ -229,7 +229,7 @@ func GetVocabulary(userID uint, page, pageSize int) (*VocabularyListResponse, er
 		Preload("Translation").
 		Preload("Translation.Original").
 		Preload("Translation.Translation").
-		Order("created_at DESC").
+		Order("created_at DESC, id DESC").
 		Offset(offset).
 		Limit(pageSize).
 		Find(&vocabularyItems).Error; err != nil {
