@@ -6,6 +6,7 @@ import (
 	"termorize/src/enums"
 	"termorize/src/logger"
 	"termorize/src/services"
+	"termorize/src/utils"
 )
 
 var russianYoReplacer = strings.NewReplacer("ё", "е", "Ё", "Е")
@@ -43,7 +44,11 @@ func handleExerciseAnswer(message *message) (bool, error) {
 		logger.L().Warnw("failed to remove inline keyboard", "error", err, "chat_id", message.Chat.ID, "message_id", message.ReplyToMessage.MessageID)
 	}
 
-	if isCorrectExerciseAnswer(message.Text, exercise.ExerciseType, exercise.OriginalWord, exercise.TranslationWord) {
+	answerDistance := getExerciseAnswerDistance(message.Text, exercise.ExerciseType, exercise.OriginalWord, exercise.TranslationWord)
+	almostCorrectDistance := getAlmostCorrectDistanceThreshold(exercise.ExerciseType, exercise.OriginalWord, exercise.TranslationWord)
+
+	switch answerDistance {
+	case 0:
 		updated, translationKnowledge, err := services.CompleteExercise(exercise.ExerciseID)
 		if err != nil {
 			return false, err
@@ -54,6 +59,25 @@ func handleExerciseAnswer(message *message) (bool, error) {
 		}
 
 		answerText := buildExerciseSuccessResultText(translationKnowledge, t)
+		return true, SendMessageMarkdown(message.Chat.ID, answerText)
+	case almostCorrectDistance:
+		updated, translationKnowledge, err := services.CompleteExerciseWithProgress(exercise.ExerciseID, services.ExerciseAlmostCorrectProgressDelta)
+		if err != nil {
+			return false, err
+		}
+
+		if !updated {
+			return true, nil
+		}
+
+		answerText := buildExerciseAlmostResultText(
+			exercise.OriginalWord,
+			exercise.TranslationWord,
+			exercise.OriginalLanguage,
+			exercise.TranslationLanguage,
+			translationKnowledge,
+			t,
+		)
 		return true, SendMessageMarkdown(message.Chat.ID, answerText)
 	}
 
@@ -81,6 +105,11 @@ func buildExerciseSuccessResultText(translationKnowledge int, t BotTexts) string
 	return t.ExerciseSuccess + "\n\n" + fmt.Sprintf(t.ExerciseTranslationKnowledgeUpFormat, translationKnowledge)
 }
 
+func buildExerciseAlmostResultText(originalWord string, translationWord string, originalLanguage enums.Language, translationLanguage enums.Language, translationKnowledge int, t BotTexts) string {
+	answerPair := buildExerciseAnswerPairText(originalWord, translationWord, originalLanguage, translationLanguage, t)
+	return t.ExerciseAlmost + "\n\n" + answerPair + "\n\n" + fmt.Sprintf(t.ExerciseTranslationKnowledgeUpFormat, translationKnowledge)
+}
+
 func buildExerciseInvalidResultText(originalWord string, translationWord string, originalLanguage enums.Language, translationLanguage enums.Language, translationKnowledge int, t BotTexts) string {
 	answerPair := buildExerciseAnswerPairText(originalWord, translationWord, originalLanguage, translationLanguage, t)
 	return t.ExerciseInvalid + "\n\n" + answerPair + "\n\n" + fmt.Sprintf(t.ExerciseTranslationKnowledgeDownFormat, translationKnowledge)
@@ -101,19 +130,35 @@ func buildExerciseAnswerPairText(originalWord string, translationWord string, or
 	)
 }
 
-func isCorrectExerciseAnswer(answer string, exerciseType enums.ExerciseType, originalWord string, translationWord string) bool {
-	normalizedAnswer := normalizeExerciseAnswer(answer)
-
-	switch exerciseType {
-	case enums.ExerciseTypeBasicDirect:
-		return strings.EqualFold(normalizedAnswer, normalizeExerciseAnswer(translationWord))
-	case enums.ExerciseTypeBasicReversed:
-		return strings.EqualFold(normalizedAnswer, normalizeExerciseAnswer(originalWord))
-	default:
-		return false
+func getExerciseAnswerDistance(answer string, exerciseType enums.ExerciseType, originalWord string, translationWord string) int {
+	expectedAnswer := getExpectedExerciseAnswer(exerciseType, originalWord, translationWord)
+	if expectedAnswer == "" {
+		return 2
 	}
+
+	return utils.LevenshteinDistance(normalizeExerciseAnswer(answer), expectedAnswer)
 }
 
 func normalizeExerciseAnswer(value string) string {
-	return russianYoReplacer.Replace(strings.TrimSpace(value))
+	return strings.ToLower(russianYoReplacer.Replace(strings.TrimSpace(value)))
+}
+
+func getExpectedExerciseAnswer(exerciseType enums.ExerciseType, originalWord string, translationWord string) string {
+	switch exerciseType {
+	case enums.ExerciseTypeBasicDirect:
+		return normalizeExerciseAnswer(translationWord)
+	case enums.ExerciseTypeBasicReversed:
+		return normalizeExerciseAnswer(originalWord)
+	default:
+		return ""
+	}
+}
+
+func getAlmostCorrectDistanceThreshold(exerciseType enums.ExerciseType, originalWord string, translationWord string) int {
+	expectedAnswer := getExpectedExerciseAnswer(exerciseType, originalWord, translationWord)
+	if len([]rune(expectedAnswer)) > 10 {
+		return 2
+	}
+
+	return 1
 }

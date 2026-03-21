@@ -23,6 +23,7 @@ type BotTexts struct {
 	ExerciseCompleted                      string
 	ExerciseFailed                         string
 	ExerciseSuccess                        string
+	ExerciseAlmost                         string
 	ExerciseInvalid                        string
 	ExerciseIDK                            string
 	ExerciseAnswerPairFormat               string
@@ -85,6 +86,7 @@ var botTextsEn = BotTexts{
 	ExerciseCompleted:                      "This exercise is already successfully completed 🗸",
 	ExerciseFailed:                         "This exercise was already attempted and failed 😔",
 	ExerciseSuccess:                        "That's right! ✅",
+	ExerciseAlmost:                         "Almost! The correct answer is:",
 	ExerciseInvalid:                        "Not quite... ❌",
 	ExerciseIDK:                            "Alright, answer is:",
 	ExerciseAnswerPairFormat:               "%s %s — %s %s",
@@ -167,6 +169,7 @@ var botTextsRu = BotTexts{
 	ExerciseCompleted:                      "Это упражнение уже успешно выполнено 🗸",
 	ExerciseFailed:                         "Это упражнение уже было выполнено с ошибкой 😔",
 	ExerciseSuccess:                        "Правильно! ✅",
+	ExerciseAlmost:                         "Почти! Правильный ответ:",
 	ExerciseInvalid:                        "Не совсем... ❌",
 	ExerciseIDK:                            "Хорошо, ответ:",
 	ExerciseAnswerPairFormat:               "%s %s — %s %s",

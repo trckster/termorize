@@ -14,9 +14,11 @@ import (
 )
 
 const (
-	exerciseProgressStep     = 20
-	exerciseReminderPeriod   = 24 * time.Hour
-	exerciseExpirationPeriod = 7 * 24 * time.Hour
+	ExerciseCompleteProgressDelta      = 20
+	ExerciseAlmostCorrectProgressDelta = 5
+	ExerciseFailProgressDelta          = -20
+	exerciseReminderPeriod             = 24 * time.Hour
+	exerciseExpirationPeriod           = 7 * 24 * time.Hour
 )
 
 type PendingExercise struct {
@@ -322,6 +324,10 @@ func ExpireStaleInProgressExercises(now time.Time) error {
 }
 
 func CompleteExercise(exerciseID uuid.UUID) (bool, int, error) {
+	return CompleteExerciseWithProgress(exerciseID, ExerciseCompleteProgressDelta)
+}
+
+func CompleteExerciseWithProgress(exerciseID uuid.UUID, progressDelta int) (bool, int, error) {
 	updated := false
 	translationKnowledge := 0
 
@@ -344,7 +350,7 @@ func CompleteExercise(exerciseID uuid.UUID) (bool, int, error) {
 		updated = true
 
 		var updateErr error
-		translationKnowledge, updateErr = updateVocabularyProgressByExercise(tx, exerciseID, exerciseProgressStep)
+		translationKnowledge, updateErr = updateVocabularyProgressByExercise(tx, exerciseID, progressDelta)
 		return updateErr
 	})
 
@@ -378,7 +384,7 @@ func FailExercise(exerciseID uuid.UUID) (bool, int, error) {
 		updated = true
 
 		var updateErr error
-		translationKnowledge, updateErr = updateVocabularyProgressByExercise(tx, exerciseID, -exerciseProgressStep)
+		translationKnowledge, updateErr = updateVocabularyProgressByExercise(tx, exerciseID, ExerciseFailProgressDelta)
 		return updateErr
 	})
 
