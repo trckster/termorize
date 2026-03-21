@@ -8,6 +8,8 @@ import (
 	"termorize/src/services"
 )
 
+var russianYoReplacer = strings.NewReplacer("ё", "е", "Ё", "Е")
+
 func handleExerciseAnswer(message *message) (bool, error) {
 	if message.ReplyToMessage == nil {
 		return false, nil
@@ -100,14 +102,18 @@ func buildExerciseAnswerPairText(originalWord string, translationWord string, or
 }
 
 func isCorrectExerciseAnswer(answer string, exerciseType enums.ExerciseType, originalWord string, translationWord string) bool {
-	normalizedAnswer := strings.TrimSpace(answer)
+	normalizedAnswer := normalizeExerciseAnswer(answer)
 
 	switch exerciseType {
 	case enums.ExerciseTypeBasicDirect:
-		return strings.EqualFold(normalizedAnswer, strings.TrimSpace(translationWord))
+		return strings.EqualFold(normalizedAnswer, normalizeExerciseAnswer(translationWord))
 	case enums.ExerciseTypeBasicReversed:
-		return strings.EqualFold(normalizedAnswer, strings.TrimSpace(originalWord))
+		return strings.EqualFold(normalizedAnswer, normalizeExerciseAnswer(originalWord))
 	default:
 		return false
 	}
+}
+
+func normalizeExerciseAnswer(value string) string {
+	return russianYoReplacer.Replace(strings.TrimSpace(value))
 }
