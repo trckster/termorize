@@ -67,6 +67,21 @@ const translationSourceLabel = computed(() => {
     return translationSource.value
 })
 
+const focusTextarea = async (field: 'source' | 'target') => {
+    await nextTick()
+
+    window.setTimeout(() => {
+        if (field === 'source') {
+            sourceTextareaRef.value?.focus()
+            activeField.value = 'source'
+            return
+        }
+
+        targetTextareaRef.value?.focus()
+        activeField.value = 'target'
+    }, 0)
+}
+
 const persistTranslationLanguages = async () => {
     const user = authStore.user
     if (!user) {
@@ -235,6 +250,7 @@ watch(
 watch(
     sourceLang,
     () => {
+        void focusTextarea('source')
         triggerActiveFieldTranslation(true)
         queuePersistTranslationLanguages()
     },
@@ -244,6 +260,7 @@ watch(
 watch(
     targetLang,
     () => {
+        void focusTextarea('target')
         triggerActiveFieldTranslation(true)
         queuePersistTranslationLanguages()
     },
