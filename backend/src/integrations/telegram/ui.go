@@ -42,6 +42,12 @@ func getMenuBackKeyboard(t BotTexts) [][]inlineKeyboardButton {
 	return [][]inlineKeyboardButton{{{Text: t.ButtonBack, CallbackData: callbackTypeMenu + ":" + menuActionBack}}}
 }
 
+func buildVocabularyOverviewKeyboard(t BotTexts) [][]inlineKeyboardButton {
+	return [][]inlineKeyboardButton{
+		{{Text: t.ButtonBack, CallbackData: callbackTypeMenu + ":" + menuActionBack}},
+	}
+}
+
 func buildSettingsKeyboard(systemLang enums.Language, dailyExercisesEnabled bool, t BotTexts) [][]inlineKeyboardButton {
 	dailyExercisesText := t.ButtonEnableDailyExercises
 	if dailyExercisesEnabled {
@@ -133,8 +139,6 @@ func getSupportedSystemLanguages() []enums.Language {
 
 func menuActionToText(action string, t BotTexts) (string, bool) {
 	switch action {
-	case menuActionVocabulary:
-		return t.MenuVocabulary, true
 	case menuActionStatistics:
 		return t.MenuStatistics, true
 	case menuActionWhatsGoingOn:

@@ -181,6 +181,24 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 		return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, messageText, keyboard)
 	}
 
+	if action == menuActionVocabulary {
+		user, err := services.GetUserByTelegramID(callback.From.ID)
+		if err != nil {
+			return err
+		}
+
+		if user == nil {
+			return nil
+		}
+
+		messageText, err := buildVocabularyMenuText(user.ID, t)
+		if err != nil {
+			return err
+		}
+
+		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, messageText, buildVocabularyOverviewKeyboard(t))
+	}
+
 	if action == menuActionChangeSourceLang || action == menuActionChangeTargetLang {
 		user, err := services.GetUserByTelegramID(callback.From.ID)
 		if err != nil {

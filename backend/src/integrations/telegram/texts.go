@@ -33,7 +33,9 @@ type BotTexts struct {
 	QuestionTranslateFormat string
 
 	MenuDeleteWord              string
-	MenuVocabulary              string
+	MenuVocabularyEmpty         string
+	MenuVocabularyLatestFormat  string
+	MenuVocabularyMoreFormat    string
 	MenuStatistics              string
 	MenuSettingsTitle           string
 	MenuSettingsSystemLanguage  string
@@ -103,14 +105,16 @@ var botTextsEn = BotTexts{
 	QuestionTranslateFormat: "Translate word *%s* to %s\n\n(answer with reply)",
 
 	MenuDeleteWord:              "Send the word you want to delete from vocabulary 🗑️",
-	MenuVocabulary:              "⚒️ Work in progress here! ⚒️",
+	MenuVocabularyEmpty:         "Your vocabulary is empty for now. Add some translations!",
+	MenuVocabularyLatestFormat:  "Latest translations (%d):",
+	MenuVocabularyMoreFormat:    "And %d more translations are in your vocabulary.\nFull vocabulary is available on the website.",
 	MenuStatistics:              "⚒️ Work in progress here! ⚒️",
 	MenuSettingsTitle:           "⚙️ *Settings*",
 	MenuSettingsSystemLanguage:  "System Language",
 	MenuSettingsDailyExercises:  "Daily Exercises",
 	MenuSettingsEnabled:         "Enabled",
 	MenuSettingsDisabled:        "Disabled",
-	MenuSettingsFullVersionNote: "Full version of settings is available in mini-app or website!",
+	MenuSettingsFullVersionNote: "All settings are available on the website!",
 	MenuWhatsGoingOn: "Hello! 👋\n\n" +
 		"This is the new version of the bot. 🤖\n\n" +
 		"Bad news: 😕\n" +
@@ -165,6 +169,7 @@ var botTextsEn = BotTexts{
 		"You forgot something!",
 		"Don't ruin your stats, answer this!",
 		"⌛",
+		"I've had a call from heaven, they're missing their most diligent angel... Wanna finish the task?",
 	},
 }
 
@@ -193,14 +198,16 @@ var botTextsRu = BotTexts{
 	QuestionTranslateFormat: "Переведи слово *%s* на %s\n\n(ответь реплаем)",
 
 	MenuDeleteWord:              "Отправь слово, которое хочешь удалить из словаря 🗑️",
-	MenuVocabulary:              "⚒️ В процессе разработки! ⚒️",
+	MenuVocabularyEmpty:         "Твой словарь пока пуст. Добавь несколько переводов!",
+	MenuVocabularyLatestFormat:  "Последние переводы (%d):",
+	MenuVocabularyMoreFormat:    "И еще %d переводов есть в словаре.\nПолный список доступен на сайте.",
 	MenuStatistics:              "⚒️ В процессе разработки! ⚒️",
 	MenuSettingsTitle:           "⚙️ *Настройки*",
 	MenuSettingsSystemLanguage:  "Язык Системы",
 	MenuSettingsDailyExercises:  "Ежедневные Упражнения",
 	MenuSettingsEnabled:         "Включены",
 	MenuSettingsDisabled:        "Выключены",
-	MenuSettingsFullVersionNote: "Полная версия настроек доступна в mini-app или на сайте!",
+	MenuSettingsFullVersionNote: "Полная версия настроек доступна на сайте.",
 	MenuWhatsGoingOn: "Привет! 👋\n\n" +
 		"Это новая версия бота. 🤖\n\n" +
 		"Плохие новости: 😕\n" +
@@ -257,6 +264,7 @@ var botTextsRu = BotTexts{
 		"Я понимаю, у тебя были дела. Теперь надо ответить",
 		"Не порти статистику, доделай упражнение",
 		"⌛",
+		"Звонили из рая, передали, что от них сбежал самый прилежный ангел... Закончишь задачку?",
 	},
 }
 
