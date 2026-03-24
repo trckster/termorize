@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"math/rand"
 	"termorize/src/data/db"
 	"termorize/src/enums"
@@ -64,6 +65,29 @@ type ExerciseStatistics struct {
 	Done       int64 `json:"done" gorm:"column:done"`
 	Failed     int64 `json:"failed" gorm:"column:failed"`
 	Ignored    int64 `json:"ignored" gorm:"column:ignored"`
+}
+
+type ExerciseListExercise struct {
+	ID                uuid.UUID            `json:"id"`
+	Type              enums.ExerciseType   `json:"type"`
+	Status            enums.ExerciseStatus `json:"status"`
+	StartedAt         *time.Time           `json:"starts_at"`
+	FinishedAt        *time.Time           `json:"finishes_at"`
+	TelegramMessageID *int64               `json:"telegram_message_id"`
+}
+
+type exerciseListRow struct {
+	ID                uuid.UUID            `gorm:"column:id"`
+	Type              enums.ExerciseType   `gorm:"column:type"`
+	Status            enums.ExerciseStatus `gorm:"column:status"`
+	StartedAt         *time.Time           `gorm:"column:started_at"`
+	FinishedAt        *time.Time           `gorm:"column:finished_at"`
+	TelegramMessageID *int64               `gorm:"column:telegram_message_id"`
+}
+
+type ExerciseListResponse struct {
+	Data       []ExerciseListExercise `json:"data"`
+	Pagination Pagination             `json:"pagination"`
 }
 
 func GenerateDailyExercises() error {
@@ -195,8 +219,8 @@ func GetDuePendingExercises(now time.Time) ([]PendingExercise, error) {
 			u.telegram_id AS telegram_id,
 			original.word AS original_word,
 			original.language AS original_language,
-			translation.word AS translation_word,
-			translation.language AS translation_language,
+			translated.word AS translation_word,
+			translated.language AS translation_language,
 			u.settings->>'system_language' AS system_language
 		FROM exercises AS e
 		JOIN users AS u ON u.id = e.user_id
@@ -204,7 +228,7 @@ func GetDuePendingExercises(now time.Time) ([]PendingExercise, error) {
 		JOIN vocabulary AS v ON v.id = ve.vocabulary_id
 		JOIN translations AS t ON t.id = v.translation_id
 		JOIN words AS original ON original.id = t.original_id
-		JOIN words AS translation ON translation.id = t.translation_id
+		JOIN words AS translated ON translated.id = t.translation_id
 		WHERE e.status = ?
 			AND e.type IN (?, ?)
 			AND e.scheduled_for <= ?
@@ -229,15 +253,15 @@ func GetExerciseByTelegramMessage(telegramMessageID int64, telegramID int64) (*T
 			e.status AS status,
 			original.word AS original_word,
 			original.language AS original_language,
-			translation.word AS translation_word,
-			translation.language AS translation_language
+			translated.word AS translation_word,
+			translated.language AS translation_language
 		FROM exercises AS e
 		JOIN users AS u ON u.id = e.user_id
 		JOIN vocabulary_exercises AS ve ON ve.exercise_id = e.id
 		JOIN vocabulary AS v ON v.id = ve.vocabulary_id
 		JOIN translations AS t ON t.id = v.translation_id
 		JOIN words AS original ON original.id = t.original_id
-		JOIN words AS translation ON translation.id = t.translation_id
+		JOIN words AS translated ON translated.id = t.translation_id
 		WHERE e.telegram_message_id = ?
 			AND u.telegram_id = ?
 		LIMIT 1
@@ -404,6 +428,10 @@ func updateVocabularyProgressByExercise(tx *gorm.DB, exerciseID uuid.UUID, delta
 		Select("vocabulary_id").
 		Where("exercise_id = ?", exerciseID).
 		Take(&exerciseLink).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, nil
+		}
+
 		return 0, err
 	}
 
@@ -411,6 +439,10 @@ func updateVocabularyProgressByExercise(tx *gorm.DB, exerciseID uuid.UUID, delta
 	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where("id = ?", exerciseLink.VocabularyID).
 		Take(&vocabulary).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, nil
+		}
+
 		return 0, err
 	}
 
@@ -478,15 +510,15 @@ func GetExerciseWordsByTelegram(exerciseID uuid.UUID, telegramID int64) (*Exerci
 			e.type AS exercise_type,
 			original.word AS original_word,
 			original.language AS original_language,
-			translation.word AS translation_word,
-			translation.language AS translation_language
+			translated.word AS translation_word,
+			translated.language AS translation_language
 		FROM exercises AS e
 		JOIN users AS u ON u.id = e.user_id
 		JOIN vocabulary_exercises AS ve ON ve.exercise_id = e.id
 		JOIN vocabulary AS v ON v.id = ve.vocabulary_id
 		JOIN translations AS t ON t.id = v.translation_id
 		JOIN words AS original ON original.id = t.original_id
-		JOIN words AS translation ON translation.id = t.translation_id
+		JOIN words AS translated ON translated.id = t.translation_id
 		WHERE e.id = ?
 			AND u.telegram_id = ?
 		LIMIT 1
@@ -520,4 +552,66 @@ func GetExerciseStatistics(userID uint) (*ExerciseStatistics, error) {
 	}
 
 	return &statistics, nil
+}
+
+func GetExercises(userID uint, page, pageSize int) (*ExerciseListResponse, error) {
+	if page <= 0 {
+		return nil, ErrInvalidPage
+	}
+
+	if pageSize < 1 || pageSize > 1000 {
+		return nil, ErrInvalidPageSize
+	}
+
+	totalQuery := db.DB.Model(&models.Exercise{}).
+		Where("user_id = ?", userID).
+		Where("started_at IS NOT NULL")
+
+	var total int64
+	if err := totalQuery.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	offset := (page - 1) * pageSize
+	rows := make([]exerciseListRow, 0, pageSize)
+
+	if err := db.DB.
+		Model(&models.Exercise{}).
+		Where("user_id = ?", userID).
+		Where("started_at IS NOT NULL").
+		Order("started_at DESC, id DESC").
+		Limit(pageSize).
+		Offset(offset).
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
+
+	data := make([]ExerciseListExercise, 0, len(rows))
+	for _, row := range rows {
+		exercise := ExerciseListExercise{
+			ID:                row.ID,
+			Type:              row.Type,
+			Status:            row.Status,
+			StartedAt:         row.StartedAt,
+			FinishedAt:        row.FinishedAt,
+			TelegramMessageID: row.TelegramMessageID,
+		}
+
+		data = append(data, exercise)
+	}
+
+	totalPages := 0
+	if total > 0 {
+		totalPages = int((total + int64(pageSize) - 1) / int64(pageSize))
+	}
+
+	return &ExerciseListResponse{
+		Data: data,
+		Pagination: Pagination{
+			Page:       page,
+			PageSize:   pageSize,
+			Total:      total,
+			TotalPages: totalPages,
+		},
+	}, nil
 }

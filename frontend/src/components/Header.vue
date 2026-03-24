@@ -33,6 +33,16 @@
                 >
                     {{ t.navExercises }}
                 </router-link>
+                <router-link
+                    to="/statistics"
+                    :aria-current="route.path === '/statistics' ? 'page' : undefined"
+                    :class="[
+                        'text-sm font-medium transition-colors hover:text-foreground',
+                        route.path === '/statistics' ? 'text-foreground' : 'text-muted-foreground',
+                    ]"
+                >
+                    {{ t.navStatistics }}
+                </router-link>
             </nav>
 
             <div class="flex items-center gap-4">
