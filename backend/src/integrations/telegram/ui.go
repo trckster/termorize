@@ -7,20 +7,21 @@ const (
 	callbackTypeExercise   = "exercise"
 	callbackTypeVocabulary = "vocabulary"
 
-	menuActionBack              = "back"
-	menuActionCancel            = "cancel"
-	menuActionDeleteTranslation = "delete_translation"
-	menuActionAddTranslation    = "add_translation"
-	menuActionVocabulary        = "your_vocabulary"
-	menuActionStatistics        = "statistics"
-	menuActionSettings          = "settings"
-	menuActionWhatsGoingOn      = "whats_going_on"
-	menuActionChangeSourceLang  = "change_source_lang"
-	menuActionChangeTargetLang  = "change_target_lang"
-	menuActionChangeSystemLang  = "change_system_lang"
-	menuActionSetSourceLang     = "set_source_lang"
-	menuActionSetTargetLang     = "set_target_lang"
-	menuActionSetSystemLang     = "set_system_lang"
+	menuActionBack                 = "back"
+	menuActionCancel               = "cancel"
+	menuActionDeleteTranslation    = "delete_translation"
+	menuActionAddTranslation       = "add_translation"
+	menuActionVocabulary           = "your_vocabulary"
+	menuActionStatistics           = "statistics"
+	menuActionSettings             = "settings"
+	menuActionWhatsGoingOn         = "whats_going_on"
+	menuActionChangeSourceLang     = "change_source_lang"
+	menuActionChangeTargetLang     = "change_target_lang"
+	menuActionChangeSystemLang     = "change_system_lang"
+	menuActionToggleDailyExercises = "toggle_daily_exercises"
+	menuActionSetSourceLang        = "set_source_lang"
+	menuActionSetTargetLang        = "set_target_lang"
+	menuActionSetSystemLang        = "set_system_lang"
 
 	exerciseActionIDK = "idk"
 
@@ -41,9 +42,15 @@ func getMenuBackKeyboard(t BotTexts) [][]inlineKeyboardButton {
 	return [][]inlineKeyboardButton{{{Text: t.ButtonBack, CallbackData: callbackTypeMenu + ":" + menuActionBack}}}
 }
 
-func buildSettingsKeyboard(systemLang enums.Language, t BotTexts) [][]inlineKeyboardButton {
+func buildSettingsKeyboard(systemLang enums.Language, dailyExercisesEnabled bool, t BotTexts) [][]inlineKeyboardButton {
+	dailyExercisesText := t.ButtonEnableDailyExercises
+	if dailyExercisesEnabled {
+		dailyExercisesText = t.ButtonDisableDailyExercises
+	}
+
 	return [][]inlineKeyboardButton{
-		{{Text: t.ButtonSystemLanguage + " " + systemLang.Flag(), CallbackData: callbackTypeMenu + ":" + menuActionChangeSystemLang}},
+		{{Text: t.ButtonChangeSystemLanguage, CallbackData: callbackTypeMenu + ":" + menuActionChangeSystemLang}},
+		{{Text: dailyExercisesText, CallbackData: callbackTypeMenu + ":" + menuActionToggleDailyExercises}},
 		{{Text: t.ButtonBack, CallbackData: callbackTypeMenu + ":" + menuActionBack}},
 	}
 }
@@ -130,8 +137,6 @@ func menuActionToText(action string, t BotTexts) (string, bool) {
 		return t.MenuVocabulary, true
 	case menuActionStatistics:
 		return t.MenuStatistics, true
-	case menuActionSettings:
-		return t.MenuSettings, true
 	case menuActionWhatsGoingOn:
 		return t.MenuWhatsGoingOn, true
 	default:

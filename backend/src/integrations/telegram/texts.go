@@ -32,11 +32,16 @@ type BotTexts struct {
 
 	QuestionTranslateFormat string
 
-	MenuDeleteWord   string
-	MenuVocabulary   string
-	MenuStatistics   string
-	MenuSettings     string
-	MenuWhatsGoingOn string
+	MenuDeleteWord              string
+	MenuVocabulary              string
+	MenuStatistics              string
+	MenuSettingsTitle           string
+	MenuSettingsSystemLanguage  string
+	MenuSettingsDailyExercises  string
+	MenuSettingsEnabled         string
+	MenuSettingsDisabled        string
+	MenuSettingsFullVersionNote string
+	MenuWhatsGoingOn            string
 
 	ChooseLanguage string
 
@@ -52,19 +57,21 @@ type BotTexts struct {
 	VocabularyAutoAddedSuffix   string
 	VocabularyManualAddedSuffix string
 
-	ButtonOpenApp          string
-	ButtonAddTranslation   string
-	ButtonDeleteWord       string
-	ButtonVocabulary       string
-	ButtonStatistics       string
-	ButtonSettings         string
-	ButtonSystemLanguage   string
-	ButtonWhatsGoingOn     string
-	ButtonBack             string
-	ButtonCancel           string
-	ButtonExerciseIDK      string
-	ButtonVocabularyAdd    string
-	ButtonVocabularyDelete string
+	ButtonOpenApp               string
+	ButtonAddTranslation        string
+	ButtonDeleteWord            string
+	ButtonVocabulary            string
+	ButtonStatistics            string
+	ButtonSettings              string
+	ButtonChangeSystemLanguage  string
+	ButtonEnableDailyExercises  string
+	ButtonDisableDailyExercises string
+	ButtonWhatsGoingOn          string
+	ButtonBack                  string
+	ButtonCancel                string
+	ButtonExerciseIDK           string
+	ButtonVocabularyAdd         string
+	ButtonVocabularyDelete      string
 
 	ButtonChangeLanguagePrefix string
 
@@ -95,10 +102,15 @@ var botTextsEn = BotTexts{
 
 	QuestionTranslateFormat: "Translate word *%s* to %s\n\n(answer with reply)",
 
-	MenuDeleteWord: "Send the word you want to delete from vocabulary 🗑️",
-	MenuVocabulary: "⚒️ Work in progress here! ⚒️",
-	MenuStatistics: "⚒️ Work in progress here! ⚒️",
-	MenuSettings:   "Yet you can only change the system language here.\n\n⚒️ Work in progress here! ⚒️",
+	MenuDeleteWord:              "Send the word you want to delete from vocabulary 🗑️",
+	MenuVocabulary:              "⚒️ Work in progress here! ⚒️",
+	MenuStatistics:              "⚒️ Work in progress here! ⚒️",
+	MenuSettingsTitle:           "⚙️ *Settings*",
+	MenuSettingsSystemLanguage:  "System Language",
+	MenuSettingsDailyExercises:  "Daily Exercises",
+	MenuSettingsEnabled:         "Enabled",
+	MenuSettingsDisabled:        "Disabled",
+	MenuSettingsFullVersionNote: "Full version of settings is available in mini-app or website!",
 	MenuWhatsGoingOn: "Hello! 👋\n\n" +
 		"This is the new version of the bot. 🤖\n\n" +
 		"Bad news: 😕\n" +
@@ -123,19 +135,21 @@ var botTextsEn = BotTexts{
 	VocabularyAutoAddedSuffix:   "\n\nIt was added to your vocabulary",
 	VocabularyManualAddedSuffix: "\n\nSuccessfully added to your vocabulary",
 
-	ButtonOpenApp:          "Open App 🌐",
-	ButtonAddTranslation:   "Add Translation",
-	ButtonDeleteWord:       "Delete Translation",
-	ButtonVocabulary:       "Your Vocabulary",
-	ButtonStatistics:       "Statistics",
-	ButtonSettings:         "Settings",
-	ButtonSystemLanguage:   "System Language",
-	ButtonWhatsGoingOn:     "What's happening?",
-	ButtonBack:             "Back",
-	ButtonCancel:           "Cancel",
-	ButtonExerciseIDK:      "Don't know",
-	ButtonVocabularyAdd:    "Add to vocabulary",
-	ButtonVocabularyDelete: "Delete from vocabulary",
+	ButtonOpenApp:               "Open App 🌐",
+	ButtonAddTranslation:        "Add Translation",
+	ButtonDeleteWord:            "Delete Translation",
+	ButtonVocabulary:            "Your Vocabulary",
+	ButtonStatistics:            "Statistics",
+	ButtonSettings:              "Settings",
+	ButtonChangeSystemLanguage:  "Change System Language",
+	ButtonEnableDailyExercises:  "Enable Daily Exercises",
+	ButtonDisableDailyExercises: "Disable Daily Exercises",
+	ButtonWhatsGoingOn:          "What's happening?",
+	ButtonBack:                  "Back",
+	ButtonCancel:                "Cancel",
+	ButtonExerciseIDK:           "Don't know",
+	ButtonVocabularyAdd:         "Add to vocabulary",
+	ButtonVocabularyDelete:      "Delete from vocabulary",
 
 	ButtonChangeLanguagePrefix: "Change ",
 
@@ -178,10 +192,15 @@ var botTextsRu = BotTexts{
 
 	QuestionTranslateFormat: "Переведи слово *%s* на %s\n\n(ответь реплаем)",
 
-	MenuDeleteWord: "Отправь слово, которое хочешь удалить из словаря 🗑️",
-	MenuVocabulary: "⚒️ В процессе разработки! ⚒️",
-	MenuStatistics: "⚒️ В процессе разработки! ⚒️",
-	MenuSettings:   "Здесь можно пока что только поменять язык системы.\n\n⚒️ В процессе разработки! ⚒️",
+	MenuDeleteWord:              "Отправь слово, которое хочешь удалить из словаря 🗑️",
+	MenuVocabulary:              "⚒️ В процессе разработки! ⚒️",
+	MenuStatistics:              "⚒️ В процессе разработки! ⚒️",
+	MenuSettingsTitle:           "⚙️ *Настройки*",
+	MenuSettingsSystemLanguage:  "Язык Системы",
+	MenuSettingsDailyExercises:  "Ежедневные Упражнения",
+	MenuSettingsEnabled:         "Включены",
+	MenuSettingsDisabled:        "Выключены",
+	MenuSettingsFullVersionNote: "Полная версия настроек доступна в mini-app или на сайте!",
 	MenuWhatsGoingOn: "Привет! 👋\n\n" +
 		"Это новая версия бота. 🤖\n\n" +
 		"Плохие новости: 😕\n" +
@@ -207,19 +226,21 @@ var botTextsRu = BotTexts{
 	VocabularyAutoAddedSuffix:   "\n\nДобавлено в твой словарь",
 	VocabularyManualAddedSuffix: "\n\nУспешно добавлено в словарь",
 
-	ButtonOpenApp:          "Открыть приложение 🌐",
-	ButtonAddTranslation:   "Добавить перевод",
-	ButtonDeleteWord:       "Удалить перевод",
-	ButtonVocabulary:       "Мой словарь",
-	ButtonStatistics:       "Статистика",
-	ButtonSettings:         "Настройки",
-	ButtonSystemLanguage:   "Язык системы",
-	ButtonWhatsGoingOn:     "Что происходит?",
-	ButtonBack:             "Назад",
-	ButtonCancel:           "Отмена",
-	ButtonExerciseIDK:      "Не знаю",
-	ButtonVocabularyAdd:    "Добавить в словарь",
-	ButtonVocabularyDelete: "Удалить из словаря",
+	ButtonOpenApp:               "Открыть приложение 🌐",
+	ButtonAddTranslation:        "Добавить перевод",
+	ButtonDeleteWord:            "Удалить перевод",
+	ButtonVocabulary:            "Мой словарь",
+	ButtonStatistics:            "Статистика",
+	ButtonSettings:              "Настройки",
+	ButtonChangeSystemLanguage:  "Изменить Язык Системы",
+	ButtonEnableDailyExercises:  "Включить Ежедневные Упражнения",
+	ButtonDisableDailyExercises: "Выключить Ежедневные Упражнения",
+	ButtonWhatsGoingOn:          "Что происходит?",
+	ButtonBack:                  "Назад",
+	ButtonCancel:                "Отмена",
+	ButtonExerciseIDK:           "Не знаю",
+	ButtonVocabularyAdd:         "Добавить в словарь",
+	ButtonVocabularyDelete:      "Удалить из словаря",
 
 	ButtonChangeLanguagePrefix: "Изменить ",
 
@@ -267,6 +288,23 @@ func buildTranslateQuestionText(word string, language string, texts BotTexts) st
 
 func buildAddVocabularyFirstText(systemLanguage string, mainLearningLanguage string, texts BotTexts) string {
 	return fmt.Sprintf(texts.AddVocabularyFirstFormat, systemLanguage, mainLearningLanguage)
+}
+
+func BuildSettingsText(systemLanguage enums.Language, dailyExercisesEnabled bool, texts BotTexts) string {
+	dailyExercisesStatus := texts.MenuSettingsDisabled
+	if dailyExercisesEnabled {
+		dailyExercisesStatus = texts.MenuSettingsEnabled
+	}
+
+	return fmt.Sprintf(
+		"%s\n\n%s: %s\n\n%s: %s\n\n%s",
+		texts.MenuSettingsTitle,
+		texts.MenuSettingsSystemLanguage,
+		systemLanguage.DisplayNameWithFlag(),
+		texts.MenuSettingsDailyExercises,
+		dailyExercisesStatus,
+		texts.MenuSettingsFullVersionNote,
+	)
 }
 
 func BuildExerciseReminderText(texts BotTexts) string {

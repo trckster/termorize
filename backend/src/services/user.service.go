@@ -120,6 +120,54 @@ func UpdateUserTelegramBotEnabled(telegramID int64, botEnabled bool) error {
 	})
 }
 
+func UpdateUserTelegramDailyQuestionsEnabled(telegramID int64, toggle bool) (*models.User, error) {
+	var user models.User
+
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("telegram_id = ?", telegramID).First(&user).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil
+			}
+
+			return err
+		}
+
+		settings := user.Settings
+		nextValue := settings.Telegram.DailyQuestionsEnabled
+		if toggle {
+			nextValue = !nextValue
+		}
+
+		if settings.Telegram.DailyQuestionsEnabled == nextValue {
+			return nil
+		}
+
+		settings.Telegram.DailyQuestionsEnabled = nextValue
+		user.Settings = settings
+
+		if err := tx.Model(&user).Update("settings", settings).Error; err != nil {
+			return err
+		}
+
+		if !nextValue {
+			if err := DeletePendingExercisesByUserID(tx, user.ID); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if user.ID == 0 {
+		return nil, nil
+	}
+
+	return &user, nil
+}
+
 func UpdateUserTelegramState(telegramID int64, state enums.TelegramState) (bool, error) {
 	updated := false
 

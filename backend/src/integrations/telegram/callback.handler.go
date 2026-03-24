@@ -254,8 +254,25 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 		}
 
 		updatedTexts := GetBotTexts(user.Settings.SystemLanguage)
-		keyboard := buildSettingsKeyboard(user.Settings.SystemLanguage, updatedTexts)
-		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, updatedTexts.MenuSettings, keyboard)
+		keyboard := buildSettingsKeyboard(user.Settings.SystemLanguage, user.Settings.Telegram.DailyQuestionsEnabled, updatedTexts)
+		messageText := BuildSettingsText(user.Settings.SystemLanguage, user.Settings.Telegram.DailyQuestionsEnabled, updatedTexts)
+		return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, messageText, keyboard)
+	}
+
+	if action == menuActionToggleDailyExercises {
+		user, err := services.UpdateUserTelegramDailyQuestionsEnabled(callback.From.ID, true)
+		if err != nil {
+			return err
+		}
+
+		if user == nil {
+			return nil
+		}
+
+		updatedTexts := GetBotTexts(user.Settings.SystemLanguage)
+		keyboard := buildSettingsKeyboard(user.Settings.SystemLanguage, user.Settings.Telegram.DailyQuestionsEnabled, updatedTexts)
+		messageText := BuildSettingsText(user.Settings.SystemLanguage, user.Settings.Telegram.DailyQuestionsEnabled, updatedTexts)
+		return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, messageText, keyboard)
 	}
 
 	if action == menuActionSettings {
@@ -268,8 +285,9 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 			return nil
 		}
 
-		keyboard := buildSettingsKeyboard(user.Settings.SystemLanguage, t)
-		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, t.MenuSettings, keyboard)
+		keyboard := buildSettingsKeyboard(user.Settings.SystemLanguage, user.Settings.Telegram.DailyQuestionsEnabled, t)
+		messageText := BuildSettingsText(user.Settings.SystemLanguage, user.Settings.Telegram.DailyQuestionsEnabled, t)
+		return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, messageText, keyboard)
 	}
 
 	selectionText, ok := menuActionToText(action, t)
