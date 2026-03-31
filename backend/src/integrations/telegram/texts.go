@@ -32,18 +32,27 @@ type BotTexts struct {
 
 	QuestionTranslateFormat string
 
-	MenuDeleteWord              string
-	MenuVocabularyEmpty         string
-	MenuVocabularyLatestFormat  string
-	MenuVocabularyMoreFormat    string
-	MenuStatistics              string
-	MenuSettingsTitle           string
-	MenuSettingsSystemLanguage  string
-	MenuSettingsDailyExercises  string
-	MenuSettingsEnabled         string
-	MenuSettingsDisabled        string
-	MenuSettingsFullVersionNote string
-	MenuWhatsGoingOn            string
+	MenuDeleteWord                   string
+	MenuVocabularyEmpty              string
+	MenuVocabularyLatestFormat       string
+	MenuVocabularyMoreFormat         string
+	MenuStatistics                   string
+	MenuStatisticsTitle              string
+	MenuStatisticsVocabulary         string
+	MenuStatisticsExercises          string
+	MenuStatisticsTotalFormat        string
+	MenuStatisticsMasteredFormat     string
+	MenuStatisticsInProgressFormat   string
+	MenuStatisticsPendingFormat      string
+	MenuStatisticsSuccessfulFormat   string
+	MenuStatisticsUnsuccessfulFormat string
+	MenuSettingsTitle                string
+	MenuSettingsSystemLanguage       string
+	MenuSettingsDailyExercises       string
+	MenuSettingsEnabled              string
+	MenuSettingsDisabled             string
+	MenuSettingsFullVersionNote      string
+	MenuWhatsGoingOn                 string
 
 	ChooseLanguage string
 
@@ -104,26 +113,35 @@ var botTextsEn = BotTexts{
 
 	QuestionTranslateFormat: "Translate word *%s* to %s\n\n(answer with reply)",
 
-	MenuDeleteWord:              "Send the word you want to delete from vocabulary 🗑️",
-	MenuVocabularyEmpty:         "Your vocabulary is empty for now. Add some translations!",
-	MenuVocabularyLatestFormat:  "Latest translations (%d):",
-	MenuVocabularyMoreFormat:    "And %d more translations are in your vocabulary.\nFull vocabulary is available on the website.",
-	MenuStatistics:              "⚒️ Work in progress here! ⚒️",
-	MenuSettingsTitle:           "⚙️ *Settings*",
-	MenuSettingsSystemLanguage:  "System Language",
-	MenuSettingsDailyExercises:  "Daily Exercises",
-	MenuSettingsEnabled:         "Enabled",
-	MenuSettingsDisabled:        "Disabled",
-	MenuSettingsFullVersionNote: "All settings are available on the website!",
+	MenuDeleteWord:                   "Send the word you want to delete from vocabulary 🗑️",
+	MenuVocabularyEmpty:              "Your vocabulary is empty for now. Add some translations!",
+	MenuVocabularyLatestFormat:       "Latest translations (%d):",
+	MenuVocabularyMoreFormat:         "And %d more translations are in your vocabulary.\nFull vocabulary is available on the website.",
+	MenuStatistics:                   "📊 *Statistics*",
+	MenuStatisticsTitle:              "📊 *Statistics*",
+	MenuStatisticsVocabulary:         "📚 *Vocabulary*",
+	MenuStatisticsExercises:          "📝 *Exercises*",
+	MenuStatisticsTotalFormat:        "🧠 Total: *%d*",
+	MenuStatisticsMasteredFormat:     "🏆 Mastered: *%d*",
+	MenuStatisticsInProgressFormat:   "🌱 In Progress: *%d*",
+	MenuStatisticsPendingFormat:      "⏳ Pending: *%d*",
+	MenuStatisticsSuccessfulFormat:   "✅ Successful: *%d*",
+	MenuStatisticsUnsuccessfulFormat: "❌ Unsuccessful: *%d*",
+	MenuSettingsTitle:                "⚙️ *Settings*",
+	MenuSettingsSystemLanguage:       "System Language",
+	MenuSettingsDailyExercises:       "Daily Exercises",
+	MenuSettingsEnabled:              "Enabled",
+	MenuSettingsDisabled:             "Disabled",
+	MenuSettingsFullVersionNote:      "All settings are available on the website!",
 	MenuWhatsGoingOn: "Hello! 👋\n\n" +
 		"This is the new version of the bot. 🤖\n\n" +
 		"Bad news: 😕\n" +
-		"- question answer history was lost\n" +
-		"- some previously available functionality is currently not working\n\n" +
+		"- question answer history was lost (everything from before March 15)\n\n" +
 		"Good news: ✨\n" +
-		"- the bot now has a website. It's a bit empty for now, but in the future the site will allow doing things that can't be done in the bot\n" +
-		"- all the placeholder sections will be restored 🚀\n\n" +
-		"For any questions write: @trckster",
+		"- the bot now has a website. In the future, the site will make it possible to do things that can't be done in the bot\n" +
+		"- the interface now supports both Russian and English (you can change it in the website settings)\n" +
+		"- more features are coming 🚀\n\n" +
+		"For any questions or suggestions, write to: @trckster",
 
 	ChooseLanguage: "Choose language:",
 
@@ -185,7 +203,7 @@ var botTextsRu = BotTexts{
 	NonPrivateChat: "Нет... Не хочу отвечать здесь",
 
 	ExerciseOutdated:                       "Это упражнение устарело 🕰️",
-	ExerciseCompleted:                      "Это упражнение уже успешно выполнено 🗸",
+	ExerciseCompleted:                      "Это упражнение уже успешно выполнено ✅",
 	ExerciseFailed:                         "Это упражнение уже было выполнено с ошибкой 😔",
 	ExerciseSuccess:                        "Правильно! ✅",
 	ExerciseAlmost:                         "Почти! Правильный ответ:",
@@ -197,27 +215,35 @@ var botTextsRu = BotTexts{
 
 	QuestionTranslateFormat: "Переведи слово *%s* на %s\n\n(ответь реплаем)",
 
-	MenuDeleteWord:              "Отправь слово, которое хочешь удалить из словаря 🗑️",
-	MenuVocabularyEmpty:         "Твой словарь пока пуст. Добавь несколько переводов!",
-	MenuVocabularyLatestFormat:  "Последние переводы (%d):",
-	MenuVocabularyMoreFormat:    "И еще %d переводов есть в словаре.\nПолный список доступен на сайте.",
-	MenuStatistics:              "⚒️ В процессе разработки! ⚒️",
-	MenuSettingsTitle:           "⚙️ *Настройки*",
-	MenuSettingsSystemLanguage:  "Язык Системы",
-	MenuSettingsDailyExercises:  "Ежедневные Упражнения",
-	MenuSettingsEnabled:         "Включены",
-	MenuSettingsDisabled:        "Выключены",
-	MenuSettingsFullVersionNote: "Полная версия настроек доступна на сайте.",
+	MenuDeleteWord:                   "Отправь слово, которое хочешь удалить из словаря 🗑️",
+	MenuVocabularyEmpty:              "Твой словарь пока пуст. Добавь несколько переводов!",
+	MenuVocabularyLatestFormat:       "Последние переводы (%d):",
+	MenuVocabularyMoreFormat:         "И еще %d переводов есть в словаре.\nПолный список доступен на сайте.",
+	MenuStatistics:                   "📊 *Статистика*",
+	MenuStatisticsTitle:              "📊 *Статистика*",
+	MenuStatisticsVocabulary:         "📚 *Словарь*",
+	MenuStatisticsExercises:          "📝 *Упражнения*",
+	MenuStatisticsTotalFormat:        "🧠 Всего: *%d*",
+	MenuStatisticsMasteredFormat:     "🏆 Освоено: *%d*",
+	MenuStatisticsInProgressFormat:   "🌱 В процессе: *%d*",
+	MenuStatisticsPendingFormat:      "⏳ В ожидании: *%d*",
+	MenuStatisticsSuccessfulFormat:   "✅ Успешно: *%d*",
+	MenuStatisticsUnsuccessfulFormat: "❌ Неуспешно: *%d*",
+	MenuSettingsTitle:                "⚙️ *Настройки*",
+	MenuSettingsSystemLanguage:       "Язык Системы",
+	MenuSettingsDailyExercises:       "Ежедневные Упражнения",
+	MenuSettingsEnabled:              "Включены",
+	MenuSettingsDisabled:             "Выключены",
+	MenuSettingsFullVersionNote:      "Полная версия настроек доступна на сайте.",
 	MenuWhatsGoingOn: "Привет! 👋\n\n" +
 		"Это новая версия бота. 🤖\n\n" +
 		"Плохие новости: 😕\n" +
-		"- история ответов на вопросы утеряна\n" +
-		"- часть ранее доступного функционала сейчас не работает\n\n" +
+		"- история ответов на вопросы утеряна (всё что было до 15 март)\n\n" +
 		"Хорошие новости: ✨\n" +
-		"- теперь у бота есть сайт. Пока что там пустовато, но в перспективе сайт позволит сделать то, что нельзя делать в боте\n" +
+		"- теперь у бота есть сайт. В перспективе сайт позволит сделать то, что нельзя делать в боте\n" +
 		"- появилась поддержка русского и английского в интерфейсе (поменять можно в настройках на сайте)\n" +
-		"- все места, где сейчас заглушки, будут восстановлены 🚀\n\n" +
-		"По любым вопросам пишите: @trckster",
+		"- впереди разные фичи 🚀\n\n" +
+		"По любым вопросам и предложениям пишите: @trckster",
 
 	ChooseLanguage: "Выбери язык:",
 

@@ -199,6 +199,24 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, messageText, buildVocabularyOverviewKeyboard(t))
 	}
 
+	if action == menuActionStatistics {
+		user, err := services.GetUserByTelegramID(callback.From.ID)
+		if err != nil {
+			return err
+		}
+
+		if user == nil {
+			return nil
+		}
+
+		messageText, err := buildStatisticsMenuText(user.ID, t)
+		if err != nil {
+			return err
+		}
+
+		return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, messageText, getMenuBackKeyboard(t))
+	}
+
 	if action == menuActionChangeSourceLang || action == menuActionChangeTargetLang {
 		user, err := services.GetUserByTelegramID(callback.From.ID)
 		if err != nil {

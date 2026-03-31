@@ -34,6 +34,13 @@ type VocabularyListResponse struct {
 	Pagination Pagination          `json:"pagination"`
 }
 
+type VocabularyStatistics struct {
+	Total      int64 `json:"total" gorm:"column:total"`
+	Mastered   int64 `json:"mastered" gorm:"column:mastered"`
+	InProgress int64 `json:"in_progress" gorm:"column:in_progress"`
+	Pending    int64 `json:"pending" gorm:"column:pending"`
+}
+
 const vocabularyAlreadyExistsError = "vocabulary already exists"
 const translationNotFoundError = "translation not found"
 const vocabularyNotFoundError = "vocabulary item not found"
@@ -272,6 +279,31 @@ func GetVocabulary(userID uint, page, pageSize int, search string) (*VocabularyL
 			TotalPages: totalPages,
 		},
 	}, nil
+}
+
+func GetVocabularyStatistics(userID uint) (*VocabularyStatistics, error) {
+	var statistics VocabularyStatistics
+
+	err := db.DB.Raw(`
+		SELECT
+			COUNT(*) AS total,
+			COUNT(*) FILTER (WHERE COALESCE(progress.translation_knowledge, 0) >= 100) AS mastered,
+			COUNT(*) FILTER (WHERE COALESCE(progress.translation_knowledge, 0) > 0 AND COALESCE(progress.translation_knowledge, 0) < 100) AS in_progress,
+			COUNT(*) FILTER (WHERE COALESCE(progress.translation_knowledge, 0) = 0) AS pending
+		FROM vocabulary AS v
+		LEFT JOIN LATERAL (
+			SELECT (entry->>'knowledge')::int AS translation_knowledge
+			FROM jsonb_array_elements(v.progress::jsonb) AS entry
+			WHERE entry->>'type' = ?
+			LIMIT 1
+		) AS progress ON TRUE
+		WHERE v.user_id = ?
+	`, enums.KnowledgeTypeTranslation, userID).Scan(&statistics).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &statistics, nil
 }
 
 func DeleteVocabulary(userID uint, vocabID uuid.UUID) error {

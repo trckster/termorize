@@ -47,8 +47,7 @@ func handleExerciseAnswer(message *message) (bool, error) {
 
 	answerDistance, almostCorrectDistance := getExerciseAnswerMetrics(message.Text, exercise.ExerciseType, exercise.Vocabulary)
 
-	switch answerDistance {
-	case 0:
+	if answerDistance == 0 {
 		updated, translationKnowledge, err := services.CompleteExercise(exercise.ExerciseID)
 		if err != nil {
 			return false, err
@@ -60,7 +59,9 @@ func handleExerciseAnswer(message *message) (bool, error) {
 
 		answerText := buildExerciseSuccessResultText(translationKnowledge, t)
 		return true, SendMessageMarkdown(message.Chat.ID, answerText)
-	case almostCorrectDistance:
+	}
+
+	if answerDistance <= almostCorrectDistance {
 		updated, translationKnowledge, err := services.CompleteExerciseWithProgress(exercise.ExerciseID, services.ExerciseAlmostCorrectProgressDelta)
 		if err != nil {
 			return false, err
