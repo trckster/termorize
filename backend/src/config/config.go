@@ -78,7 +78,7 @@ func LoadEnv() {
 
 		GoogleApiKey: getRequiredEnv("GOOGLE_API_KEY"),
 
-		JWTExpirationTime: 12 * time.Hour,
+		JWTExpirationTime: 7 * 24 * time.Hour,
 	}
 }
 
