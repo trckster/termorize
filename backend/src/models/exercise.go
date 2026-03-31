@@ -21,5 +21,6 @@ type Exercise struct {
 	CreatedAt      time.Time  `json:"-"`
 	UpdatedAt      time.Time  `json:"-"`
 
-	User *User `json:"-"`
+	User       *User        `json:"-"`
+	Vocabulary []Vocabulary `json:"vocabularies,omitempty" gorm:"many2many:vocabulary_exercises;"`
 }

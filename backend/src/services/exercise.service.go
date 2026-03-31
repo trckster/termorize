@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	ExerciseCompleteProgressDelta      = 20
+	ExerciseCompleteProgressDelta      = 15
 	ExerciseAlmostCorrectProgressDelta = 5
 	ExerciseFailProgressDelta          = -20
 	exerciseReminderPeriod             = 24 * time.Hour
@@ -58,6 +58,7 @@ type TelegramMessageExercise struct {
 	OriginalLanguage    enums.Language       `gorm:"column:original_language"`
 	TranslationWord     string               `gorm:"column:translation_word"`
 	TranslationLanguage enums.Language       `gorm:"column:translation_language"`
+	Vocabulary          []models.Vocabulary
 }
 
 type ExerciseStatistics struct {
@@ -74,15 +75,7 @@ type ExerciseListExercise struct {
 	StartedAt         *time.Time           `json:"starts_at"`
 	FinishedAt        *time.Time           `json:"finishes_at"`
 	TelegramMessageID *int64               `json:"telegram_message_id"`
-}
-
-type exerciseListRow struct {
-	ID                uuid.UUID            `gorm:"column:id"`
-	Type              enums.ExerciseType   `gorm:"column:type"`
-	Status            enums.ExerciseStatus `gorm:"column:status"`
-	StartedAt         *time.Time           `gorm:"column:started_at"`
-	FinishedAt        *time.Time           `gorm:"column:finished_at"`
-	TelegramMessageID *int64               `gorm:"column:telegram_message_id"`
+	Vocabulary        []models.Vocabulary  `json:"vocabularies"`
 }
 
 type ExerciseListResponse struct {
@@ -244,38 +237,48 @@ func GetDuePendingExercises(now time.Time) ([]PendingExercise, error) {
 }
 
 func GetExerciseByTelegramMessage(telegramMessageID int64, telegramID int64) (*TelegramMessageExercise, error) {
-	var exercise TelegramMessageExercise
+	var exercise models.Exercise
 
-	err := db.DB.Raw(`
-		SELECT
-			e.id AS exercise_id,
-			e.type AS exercise_type,
-			e.status AS status,
-			original.word AS original_word,
-			original.language AS original_language,
-			translated.word AS translation_word,
-			translated.language AS translation_language
-		FROM exercises AS e
-		JOIN users AS u ON u.id = e.user_id
-		JOIN vocabulary_exercises AS ve ON ve.exercise_id = e.id
-		JOIN vocabulary AS v ON v.id = ve.vocabulary_id
-		JOIN translations AS t ON t.id = v.translation_id
-		JOIN words AS original ON original.id = t.original_id
-		JOIN words AS translated ON translated.id = t.translation_id
-		WHERE e.telegram_message_id = ?
-			AND u.telegram_id = ?
-		LIMIT 1
-	`, telegramMessageID, telegramID).Scan(&exercise).Error
-
+	err := db.DB.
+		Model(&models.Exercise{}).
+		Joins("JOIN users AS u ON u.id = exercises.user_id").
+		Where("exercises.telegram_message_id = ?", telegramMessageID).
+		Where("u.telegram_id = ?", telegramID).
+		Preload("Vocabulary", func(db *gorm.DB) *gorm.DB {
+			return db.Order("vocabulary.created_at ASC, vocabulary.id ASC")
+		}).
+		Preload("Vocabulary.Translation").
+		Preload("Vocabulary.Translation.Original").
+		Preload("Vocabulary.Translation.Translation").
+		First(&exercise).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+
 		return nil, err
 	}
 
-	if exercise.ExerciseID == uuid.Nil {
-		return nil, nil
+	telegramExercise := TelegramMessageExercise{
+		ExerciseID:   exercise.ID,
+		ExerciseType: exercise.Type,
+		Status:       exercise.Status,
+		Vocabulary:   exercise.Vocabulary,
 	}
 
-	return &exercise, nil
+	if len(exercise.Vocabulary) > 0 && exercise.Vocabulary[0].Translation != nil {
+		translation := exercise.Vocabulary[0].Translation
+		if translation.Original != nil {
+			telegramExercise.OriginalWord = translation.Original.Word
+			telegramExercise.OriginalLanguage = translation.Original.Language
+		}
+		if translation.Translation != nil {
+			telegramExercise.TranslationWord = translation.Translation.Word
+			telegramExercise.TranslationLanguage = translation.Translation.Language
+		}
+	}
+
+	return &telegramExercise, nil
 }
 
 func StartTelegramExercise(exerciseID uuid.UUID, telegramMessageID int64) error {
@@ -573,28 +576,35 @@ func GetExercises(userID uint, page, pageSize int) (*ExerciseListResponse, error
 	}
 
 	offset := (page - 1) * pageSize
-	rows := make([]exerciseListRow, 0, pageSize)
+	exercises := make([]models.Exercise, 0, pageSize)
 
 	if err := db.DB.
 		Model(&models.Exercise{}).
 		Where("user_id = ?", userID).
 		Where("started_at IS NOT NULL").
+		Preload("Vocabulary", func(db *gorm.DB) *gorm.DB {
+			return db.Order("vocabulary.created_at DESC, vocabulary.id DESC")
+		}).
+		Preload("Vocabulary.Translation").
+		Preload("Vocabulary.Translation.Original").
+		Preload("Vocabulary.Translation.Translation").
 		Order("started_at DESC, id DESC").
 		Limit(pageSize).
 		Offset(offset).
-		Find(&rows).Error; err != nil {
+		Find(&exercises).Error; err != nil {
 		return nil, err
 	}
 
-	data := make([]ExerciseListExercise, 0, len(rows))
-	for _, row := range rows {
+	data := make([]ExerciseListExercise, 0, len(exercises))
+	for _, exerciseModel := range exercises {
 		exercise := ExerciseListExercise{
-			ID:                row.ID,
-			Type:              row.Type,
-			Status:            row.Status,
-			StartedAt:         row.StartedAt,
-			FinishedAt:        row.FinishedAt,
-			TelegramMessageID: row.TelegramMessageID,
+			ID:                exerciseModel.ID,
+			Type:              exerciseModel.Type,
+			Status:            exerciseModel.Status,
+			StartedAt:         exerciseModel.StartedAt,
+			FinishedAt:        exerciseModel.FinishedAt,
+			TelegramMessageID: exerciseModel.TelegramMessageID,
+			Vocabulary:        exerciseModel.Vocabulary,
 		}
 
 		data = append(data, exercise)

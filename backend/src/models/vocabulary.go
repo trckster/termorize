@@ -37,6 +37,7 @@ type Vocabulary struct {
 	MasteredAt    *time.Time      `json:"mastered_at"`
 	Translation   *Translation    `json:"translation"`
 	User          *User           `json:"-"`
+	Exercises     []Exercise      `json:"-" gorm:"many2many:vocabulary_exercises;"`
 }
 
 func (v *Vocabulary) TableName() string {

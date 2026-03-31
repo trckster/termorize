@@ -5,6 +5,7 @@ import (
 	"strings"
 	"termorize/src/enums"
 	"termorize/src/logger"
+	"termorize/src/models"
 	"termorize/src/services"
 	"termorize/src/utils"
 )
@@ -44,8 +45,7 @@ func handleExerciseAnswer(message *message) (bool, error) {
 		logger.L().Warnw("failed to remove inline keyboard", "error", err, "chat_id", message.Chat.ID, "message_id", message.ReplyToMessage.MessageID)
 	}
 
-	answerDistance := getExerciseAnswerDistance(message.Text, exercise.ExerciseType, exercise.OriginalWord, exercise.TranslationWord)
-	almostCorrectDistance := getAlmostCorrectDistanceThreshold(exercise.ExerciseType, exercise.OriginalWord, exercise.TranslationWord)
+	answerDistance, almostCorrectDistance := getExerciseAnswerMetrics(message.Text, exercise.ExerciseType, exercise.Vocabulary)
 
 	switch answerDistance {
 	case 0:
@@ -130,32 +130,44 @@ func buildExerciseAnswerPairText(originalWord string, translationWord string, or
 	)
 }
 
-func getExerciseAnswerDistance(answer string, exerciseType enums.ExerciseType, originalWord string, translationWord string) int {
-	expectedAnswer := getExpectedExerciseAnswer(exerciseType, originalWord, translationWord)
+func getExerciseAnswerMetrics(answer string, exerciseType enums.ExerciseType, vocabulary []models.Vocabulary) (int, int) {
+	expectedAnswer := getExpectedExerciseAnswer(exerciseType, vocabulary)
 	if expectedAnswer == "" {
-		return 2
+		return 2, 1
 	}
 
-	return utils.LevenshteinDistance(normalizeExerciseAnswer(answer), expectedAnswer)
+	distance := utils.LevenshteinDistance(normalizeExerciseAnswer(answer), expectedAnswer)
+	return distance, getAlmostCorrectDistanceThreshold(expectedAnswer)
 }
 
 func normalizeExerciseAnswer(value string) string {
 	return strings.ToLower(russianYoReplacer.Replace(strings.TrimSpace(value)))
 }
 
-func getExpectedExerciseAnswer(exerciseType enums.ExerciseType, originalWord string, translationWord string) string {
+func getExpectedExerciseAnswer(exerciseType enums.ExerciseType, vocabulary []models.Vocabulary) string {
+	if len(vocabulary) == 0 || vocabulary[0].Translation == nil {
+		return ""
+	}
+
+	vocabularyItem := vocabulary[0]
+
 	switch exerciseType {
 	case enums.ExerciseTypeBasicDirect:
-		return normalizeExerciseAnswer(translationWord)
+		if vocabularyItem.Translation.Translation == nil {
+			return ""
+		}
+		return normalizeExerciseAnswer(vocabularyItem.Translation.Translation.Word)
 	case enums.ExerciseTypeBasicReversed:
-		return normalizeExerciseAnswer(originalWord)
+		if vocabularyItem.Translation.Original == nil {
+			return ""
+		}
+		return normalizeExerciseAnswer(vocabularyItem.Translation.Original.Word)
 	default:
 		return ""
 	}
 }
 
-func getAlmostCorrectDistanceThreshold(exerciseType enums.ExerciseType, originalWord string, translationWord string) int {
-	expectedAnswer := getExpectedExerciseAnswer(exerciseType, originalWord, translationWord)
+func getAlmostCorrectDistanceThreshold(expectedAnswer string) int {
 	if len([]rune(expectedAnswer)) > 10 {
 		return 2
 	}
