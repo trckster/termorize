@@ -3,12 +3,16 @@ import { onMounted, ref } from 'vue'
 import { exercisesApi, type Exercise } from '@/api/exercises.ts'
 import type { PaginationData } from '@/api/pagination.ts'
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem } from '@/components/ui/pagination'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import ExerciseMigrationNotice from '@/components/ExerciseMigrationNotice.vue'
 import { useI18n } from '@/composables/useI18n'
+import { useSettingsStore } from '@/stores/settings.ts'
 import { formatDate } from '@/lib/utils.ts'
 
 const { t } = useI18n()
+const settingsStore = useSettingsStore()
+const maxVisibleWordLength = 15
 
 const exercises = ref<Exercise[]>([])
 const currentPage = ref(1)
@@ -86,21 +90,44 @@ const getWhereLabel = (exercise: Exercise) => {
     return t.value.exercisesWhereWebsite
 }
 
-const getTranslationLabel = (exercise: Exercise) => {
-    const original = exercise.vocabulary?.translation?.original ?? {
+const getExerciseTranslation = (exercise: Exercise) => {
+    const translation = exercise.vocabularies?.[0]?.translation ?? exercise.vocabulary?.translation ?? null
+
+    const original = translation?.original ?? {
         word: exercise.original_word ?? '',
         language: exercise.original_language ?? '',
     }
-    const translated = exercise.vocabulary?.translation?.translation ?? {
+    const translated = translation?.translation ?? {
         word: exercise.translation_word ?? '',
         language: exercise.translation_language ?? '',
     }
 
     if (!original || !translated || !original.word || !translated.word) {
-        return t.value.exercisesTranslationUnavailable
+        return null
     }
 
-    return `${original.word} (${original.language}) -> ${translated.word} (${translated.language})`
+    return {
+        original,
+        translated,
+    }
+}
+
+const getLanguageBadge = (language: string) => {
+    if (!language) {
+        return ''
+    }
+
+    return `${settingsStore.getFlag(language)} ${language.toUpperCase()}`
+}
+
+const isWordShortened = (word: string) => word.length > maxVisibleWordLength
+
+const formatExerciseWord = (word: string) => {
+    if (!isWordShortened(word)) {
+        return word
+    }
+
+    return `${word.slice(0, maxVisibleWordLength)}...`
 }
 
 const fetchExercises = async (page: number) => {
@@ -187,7 +214,63 @@ onMounted(() => {
                                         {{ getTypeLabel(exercise.type) }}
                                     </span>
                                 </td>
-                                <td class="px-4 py-3 text-center text-muted-foreground">{{ getTranslationLabel(exercise) }}</td>
+                                <td class="px-4 py-3 text-center text-muted-foreground">
+                                    <div
+                                        v-if="getExerciseTranslation(exercise)"
+                                        class="inline-flex max-w-[320px] items-center gap-2 rounded-full border border-border/70 bg-muted/30 px-3 py-1.5 text-left"
+                                    >
+                                        <Tooltip v-if="isWordShortened(getExerciseTranslation(exercise)?.original.word ?? '')">
+                                            <TooltipTrigger as-child>
+                                                <span
+                                                    class="inline-flex min-w-0 max-w-[7rem] rounded-full bg-background px-2.5 py-1 text-xs font-medium text-foreground"
+                                                >
+                                                    <span class="block truncate">
+                                                        {{ formatExerciseWord(getExerciseTranslation(exercise)?.original.word ?? '') }}
+                                                    </span>
+                                                </span>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>{{ getExerciseTranslation(exercise)?.original.word }}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                        <span
+                                            v-else
+                                            class="inline-flex min-w-0 max-w-[7rem] rounded-full bg-background px-2.5 py-1 text-xs font-medium text-foreground"
+                                        >
+                                            <span class="block">{{ getExerciseTranslation(exercise)?.original.word }}</span>
+                                        </span>
+                                        <span class="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                            {{ getLanguageBadge(getExerciseTranslation(exercise)?.original.language ?? '') }}
+                                        </span>
+                                        <span class="shrink-0 text-muted-foreground">→</span>
+                                        <Tooltip v-if="isWordShortened(getExerciseTranslation(exercise)?.translated.word ?? '')">
+                                            <TooltipTrigger as-child>
+                                                <span
+                                                    class="inline-flex min-w-0 max-w-[7rem] rounded-full bg-background px-2.5 py-1 text-xs font-medium text-foreground"
+                                                >
+                                                    <span class="block truncate">
+                                                        {{ formatExerciseWord(getExerciseTranslation(exercise)?.translated.word ?? '') }}
+                                                    </span>
+                                                </span>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>{{ getExerciseTranslation(exercise)?.translated.word }}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                        <span
+                                            v-else
+                                            class="inline-flex min-w-0 max-w-[7rem] rounded-full bg-background px-2.5 py-1 text-xs font-medium text-foreground"
+                                        >
+                                            <span class="block">{{ getExerciseTranslation(exercise)?.translated.word }}</span>
+                                        </span>
+                                        <span class="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                            {{ getLanguageBadge(getExerciseTranslation(exercise)?.translated.language ?? '') }}
+                                        </span>
+                                    </div>
+                                    <span v-else>
+                                        {{ t.exercisesTranslationUnavailable }}
+                                    </span>
+                                </td>
                             </tr>
                         </tbody>
                     </table>

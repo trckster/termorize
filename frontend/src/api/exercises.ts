@@ -8,6 +8,21 @@ export type ExerciseStatistics = {
     ignored: number
 }
 
+type ExerciseWord = {
+    word: string
+    language: string
+}
+
+type ExerciseTranslation = {
+    original?: ExerciseWord | null
+    translation?: ExerciseWord | null
+}
+
+type ExerciseVocabulary = {
+    id: string
+    translation?: ExerciseTranslation | null
+}
+
 export type Exercise = {
     id: string
     type: string
@@ -22,17 +37,9 @@ export type Exercise = {
     translation_word?: string | null
     translation_language?: string | null
     vocabulary?: {
-        translation?: {
-            original?: {
-                word: string
-                language: string
-            } | null
-            translation?: {
-                word: string
-                language: string
-            } | null
-        } | null
+        translation?: ExerciseTranslation | null
     } | null
+    vocabularies?: ExerciseVocabulary[]
 }
 
 export const exercisesApi = {
