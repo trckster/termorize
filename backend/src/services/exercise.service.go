@@ -155,6 +155,7 @@ func getEligibleVocabularyIDs(userID uint, limit uint) ([]uuid.UUID, error) {
 		Select("id").
 		Where("user_id = ?", userID).
 		Where("mastered_at IS NULL").
+		Where("deleted_at IS NULL").
 		Where(`EXISTS (
 			SELECT 1
 			FROM jsonb_array_elements(progress) AS p

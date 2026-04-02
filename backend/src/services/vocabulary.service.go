@@ -6,6 +6,7 @@ import (
 	"termorize/src/data/db"
 	"termorize/src/enums"
 	"termorize/src/models"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -138,6 +139,7 @@ func CreateVocabulary(userID uint, req CreateVocabularyRequest) (*models.Vocabul
 		tx.Model(&models.Vocabulary{}).
 			Where("user_id = ?", userID).
 			Where("translation_id = ?", translation.ID).
+			Where("deleted_at IS NULL").
 			Count(&count)
 
 		if count > 0 {
@@ -185,6 +187,7 @@ func CreateVocabularyByTranslation(userID uint, translationID uuid.UUID) (*model
 			Model(&models.Vocabulary{}).
 			Joins("JOIN translations ON translations.id = vocabulary.translation_id").
 			Where("vocabulary.user_id = ?", userID).
+			Where("vocabulary.deleted_at IS NULL").
 			Where("(translations.original_id = ? AND translations.translation_id = ?) OR (translations.original_id = ? AND translations.translation_id = ?)", translation.OriginalID, translation.TranslationID, translation.TranslationID, translation.OriginalID).
 			Count(&count).Error; err != nil {
 			return err
@@ -230,7 +233,8 @@ func GetVocabulary(userID uint, page, pageSize int, search string) (*VocabularyL
 		Joins("JOIN translations ON translations.id = vocabulary.translation_id").
 		Joins("JOIN words AS original_words ON original_words.id = translations.original_id").
 		Joins("JOIN words AS translation_words ON translation_words.id = translations.translation_id").
-		Where("vocabulary.user_id = ?", userID)
+		Where("vocabulary.user_id = ?", userID).
+		Where("vocabulary.deleted_at IS NULL")
 
 	if normalizedSearch != "" {
 		totalQuery = totalQuery.Where("original_words.word ILIKE ? OR translation_words.word ILIKE ?", searchPattern, searchPattern)
@@ -248,7 +252,8 @@ func GetVocabulary(userID uint, page, pageSize int, search string) (*VocabularyL
 		Joins("JOIN translations ON translations.id = vocabulary.translation_id").
 		Joins("JOIN words AS original_words ON original_words.id = translations.original_id").
 		Joins("JOIN words AS translation_words ON translation_words.id = translations.translation_id").
-		Where("vocabulary.user_id = ?", userID)
+		Where("vocabulary.user_id = ?", userID).
+		Where("vocabulary.deleted_at IS NULL")
 
 	if normalizedSearch != "" {
 		vocabularyQuery = vocabularyQuery.Where("original_words.word ILIKE ? OR translation_words.word ILIKE ?", searchPattern, searchPattern)
@@ -298,6 +303,7 @@ func GetVocabularyStatistics(userID uint) (*VocabularyStatistics, error) {
 			LIMIT 1
 		) AS progress ON TRUE
 		WHERE v.user_id = ?
+			AND v.deleted_at IS NULL
 	`, enums.KnowledgeTypeTranslation, userID).Scan(&statistics).Error
 	if err != nil {
 		return nil, err
@@ -309,48 +315,15 @@ func GetVocabularyStatistics(userID uint) (*VocabularyStatistics, error) {
 func DeleteVocabulary(userID uint, vocabID uuid.UUID) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		var vocabulary models.Vocabulary
-		if err := tx.Where("id = ? AND user_id = ?", vocabID, userID).First(&vocabulary).Error; err != nil {
+		if err := tx.Where("id = ? AND user_id = ? AND deleted_at IS NULL", vocabID, userID).First(&vocabulary).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrVocabularyNotFound
 			}
 			return err
 		}
 
-		if err := tx.Delete(&vocabulary).Error; err != nil {
-			return err
-		}
-
-		var translation models.Translation
-		if err := tx.Where("id = ? AND source = ? AND user_id = ?", vocabulary.TranslationID, enums.TranslationSourceUser, userID).
-			First(&translation).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil
-			}
-			return err
-		}
-
-		if err := tx.Delete(&translation).Error; err != nil {
-			return err
-		}
-
-		wordIDs := []uuid.UUID{translation.OriginalID, translation.TranslationID}
-
-		for _, wordID := range wordIDs {
-			var wordUsageCount int64
-			if err := tx.Model(&models.Translation{}).
-				Where("original_id = ? OR translation_id = ?", wordID, wordID).
-				Count(&wordUsageCount).Error; err != nil {
-				return err
-			}
-
-			if wordUsageCount == 0 {
-				if err := tx.Where("id = ?", wordID).Delete(&models.Word{}).Error; err != nil {
-					return err
-				}
-			}
-		}
-
-		return nil
+		now := time.Now().UTC()
+		return tx.Model(&vocabulary).Update("deleted_at", now).Error
 	})
 }
 

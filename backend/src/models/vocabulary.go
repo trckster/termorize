@@ -35,6 +35,7 @@ type Vocabulary struct {
 	Progress      ProgressEntries `json:"progress" gorm:"default:'[]'"`
 	CreatedAt     time.Time       `json:"created_at"`
 	MasteredAt    *time.Time      `json:"mastered_at"`
+	DeletedAt     *time.Time      `json:"deleted_at"`
 	Translation   *Translation    `json:"translation"`
 	User          *User           `json:"-"`
 	Exercises     []Exercise      `json:"-" gorm:"many2many:vocabulary_exercises;"`
