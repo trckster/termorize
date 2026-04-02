@@ -17,6 +17,12 @@ const router = createRouter({
             meta: { guest: true },
         },
         {
+            path: '/quiz',
+            name: 'quiz',
+            component: () => import('@/views/QuizPage.vue'),
+            meta: { requiresAuth: true },
+        },
+        {
             path: '/',
             component: () => import('@/layouts/MainLayout.vue'),
             meta: { requiresAuth: true },

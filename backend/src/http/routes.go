@@ -19,7 +19,10 @@ func defineProtectedRoutes(group *gin.RouterGroup) {
 	group.POST("/vocabulary/translation", controllers.CreateVocabularyByTranslation)
 	group.DELETE("/vocabulary/:id", controllers.DeleteVocabulary)
 	group.GET("/exercises", controllers.GetExercises)
+	group.GET("/exercises/by-ids", controllers.GetExercisesByIDs)
 	group.GET("/exercises/statistics", controllers.GetExerciseStatistics)
+	group.POST("/exercises/random", controllers.RandomExercise)
+	group.POST("/exercises/:id/verify", controllers.VerifyExercise)
 
 	group.POST("/translate", controllers.Translate)
 }

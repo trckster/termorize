@@ -42,6 +42,20 @@ export type Exercise = {
     vocabularies?: ExerciseVocabulary[]
 }
 
+export type RandomExercise = {
+    exercise_id: string
+    type: 'basic/direct' | 'basic/reversed'
+    question_word: string
+    language: string
+    answer_language: string
+}
+
+export type VerifyResult = {
+    result: 'correct' | 'almost' | 'wrong'
+    correct_answer: string
+    knowledge: number
+}
+
 export const exercisesApi = {
     async getStatistics(): Promise<ExerciseStatistics> {
         return apiCall<ExerciseStatistics>('/exercises/statistics', 'GET').then(unwrapBody)
@@ -52,5 +66,17 @@ export const exercisesApi = {
             page,
             page_size: pageSize,
         }).then(unwrapBody)
+    },
+
+    async getExercisesByIds(ids: string[]): Promise<Exercise[]> {
+        return apiCall<Exercise[]>('/exercises/by-ids', 'GET', { ids: ids.join(',') }).then(unwrapBody)
+    },
+
+    async getRandomExercise(): Promise<RandomExercise> {
+        return apiCall<RandomExercise>('/exercises/random', 'POST').then(unwrapBody)
+    },
+
+    async verifyExercise(exerciseId: string, answer: string): Promise<VerifyResult> {
+        return apiCall<VerifyResult>(`/exercises/${exerciseId}/verify`, 'POST', { answer }).then(unwrapBody)
     },
 }

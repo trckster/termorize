@@ -201,6 +201,32 @@ const en = {
 
     // Language selector
     languageSelectorNoResults: 'No languages found.',
+
+    // Quiz
+    quizCardTitle: 'Practice your vocabulary',
+    quizCardDescription: '10 questions, one word at a time. Termorize tracks your progress automatically.',
+    quizRun: 'Run',
+    quizTitle: 'Quiz',
+    quizLoading: 'Loading question...',
+    quizLoadError: 'Failed to load question. Please try again.',
+    quizVerifyError: 'Failed to check answer. Please try again.',
+    quizNoVocabulary: 'No vocabulary available for quiz. Add some words first.',
+    quizRetry: 'Retry',
+    quizAnswerPlaceholder: 'Type your answer...',
+    quizSubmit: 'Submit',
+    quizChecking: 'Checking...',
+    quizTypeDirectHint: 'Translate to target language',
+    quizTypeReversedHint: 'Translate to source language',
+    quizResultCorrect: 'Correct!',
+    quizResultAlmost: 'Almost!',
+    quizResultWrong: 'Wrong',
+    quizCorrectAnswer: 'Correct answer:',
+    quizKnowledge: 'Knowledge',
+    quizResultsTitle: 'Results',
+    quizCorrect: 'Correct',
+    quizWrong: 'Wrong',
+    quizMore: 'More!',
+    quizEnough: 'Enough',
 }
 
 const ru: typeof en = {
@@ -404,6 +430,32 @@ const ru: typeof en = {
 
     // Language selector
     languageSelectorNoResults: 'Языки не найдены.',
+
+    // Quiz
+    quizCardTitle: 'Практикуйте словарь',
+    quizCardDescription: '10 вопросов, по одному слову за раз. Termorize отслеживает прогресс автоматически.',
+    quizRun: 'Запустить',
+    quizTitle: 'Тест',
+    quizLoading: 'Загрузка вопроса...',
+    quizLoadError: 'Не удалось загрузить вопрос. Попробуйте ещё раз.',
+    quizVerifyError: 'Не удалось проверить ответ. Попробуйте ещё раз.',
+    quizNoVocabulary: 'Нет слов для теста. Сначала добавьте слова.',
+    quizRetry: 'Повторить',
+    quizAnswerPlaceholder: 'Введите ответ...',
+    quizSubmit: 'Ответить',
+    quizChecking: 'Проверка...',
+    quizTypeDirectHint: 'Переведите на целевой язык',
+    quizTypeReversedHint: 'Переведите на исходный язык',
+    quizResultCorrect: 'Правильно!',
+    quizResultAlmost: 'Почти!',
+    quizResultWrong: 'Неверно',
+    quizCorrectAnswer: 'Правильный ответ:',
+    quizKnowledge: 'Знание',
+    quizResultsTitle: 'Результаты',
+    quizCorrect: 'Правильно',
+    quizWrong: 'Неверно',
+    quizMore: 'Ещё!',
+    quizEnough: 'Хватит',
 }
 
 const translations = { en, ru }

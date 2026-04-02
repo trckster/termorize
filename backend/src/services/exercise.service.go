@@ -3,10 +3,12 @@ package services
 import (
 	"errors"
 	"math/rand"
+	"strings"
 	"termorize/src/data/db"
 	"termorize/src/enums"
 	"termorize/src/logger"
 	"termorize/src/models"
+	"termorize/src/utils"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,12 +16,32 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+var (
+	ErrNoEligibleVocabulary  = errors.New("no eligible vocabulary found")
+	ErrExerciseNotFound      = errors.New("exercise not found")
+	ErrExerciseNotInProgress = errors.New("exercise is not in progress")
+)
+
+var webRussianYoReplacer = strings.NewReplacer("ё", "е", "Ё", "Е")
+
+func normalizeAnswer(value string) string {
+	return strings.ToLower(webRussianYoReplacer.Replace(strings.TrimSpace(value)))
+}
+
+func almostCorrectThreshold(expected string) int {
+	if len([]rune(expected)) > 10 {
+		return 2
+	}
+	return 1
+}
+
 const (
 	ExerciseCompleteProgressDelta      = 15
 	ExerciseAlmostCorrectProgressDelta = 5
 	ExerciseFailProgressDelta          = -20
 	exerciseReminderPeriod             = 24 * time.Hour
-	exerciseExpirationPeriod           = 7 * 24 * time.Hour
+	telegramExerciseExpirationPeriod   = 7 * 24 * time.Hour
+	websiteExerciseExpirationPeriod    = time.Hour
 )
 
 type PendingExercise struct {
@@ -339,12 +361,26 @@ func MarkExerciseReminderSent(exerciseID uuid.UUID, reminderSentAt time.Time) (b
 }
 
 func ExpireStaleInProgressExercises(now time.Time) error {
-	expiresBefore := now.Add(-exerciseExpirationPeriod)
+	telegramExpiresBefore := now.Add(-telegramExerciseExpirationPeriod)
+	websiteExpiresBefore := now.Add(-websiteExerciseExpirationPeriod)
+
+	if err := db.DB.Model(&models.Exercise{}).
+		Where("status = ?", enums.ExerciseStatusInProgress).
+		Where("started_at IS NOT NULL").
+		Where("telegram_message_id IS NOT NULL").
+		Where("started_at <= ?", telegramExpiresBefore).
+		Updates(map[string]any{
+			"status":      enums.ExerciseStatusIgnored,
+			"finished_at": now,
+		}).Error; err != nil {
+		return err
+	}
 
 	return db.DB.Model(&models.Exercise{}).
 		Where("status = ?", enums.ExerciseStatusInProgress).
 		Where("started_at IS NOT NULL").
-		Where("started_at <= ?", expiresBefore).
+		Where("telegram_message_id IS NULL").
+		Where("started_at <= ?", websiteExpiresBefore).
 		Updates(map[string]any{
 			"status":      enums.ExerciseStatusIgnored,
 			"finished_at": now,
@@ -625,4 +661,217 @@ func GetExercises(userID uint, page, pageSize int) (*ExerciseListResponse, error
 			TotalPages: totalPages,
 		},
 	}, nil
+}
+
+type RandomExerciseResult struct {
+	ExerciseID     uuid.UUID
+	Type           enums.ExerciseType
+	QuestionWord   string
+	Language       enums.Language
+	AnswerLanguage enums.Language
+}
+
+func CreateRandomExercise(userID uint) (*RandomExerciseResult, error) {
+	ids, err := getEligibleVocabularyIDs(userID, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(ids) == 0 {
+		return nil, ErrNoEligibleVocabulary
+	}
+
+	vocabularyID := ids[0]
+
+	exerciseType := enums.ExerciseTypeBasicDirect
+	if rand.Intn(2) == 0 {
+		exerciseType = enums.ExerciseTypeBasicReversed
+	}
+
+	now := time.Now().UTC()
+	exercise := models.Exercise{
+		Type:      exerciseType,
+		Status:    enums.ExerciseStatusInProgress,
+		UserID:    userID,
+		StartedAt: &now,
+	}
+
+	err = db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&exercise).Error; err != nil {
+			return err
+		}
+
+		return tx.Table("vocabulary_exercises").Create(map[string]any{
+			"exercise_id":   exercise.ID,
+			"vocabulary_id": vocabularyID,
+		}).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var vocab models.Vocabulary
+	if err := db.DB.
+		Where("id = ?", vocabularyID).
+		Preload("Translation").
+		Preload("Translation.Original").
+		Preload("Translation.Translation").
+		Take(&vocab).Error; err != nil {
+		return nil, err
+	}
+
+	if vocab.Translation == nil {
+		return nil, errors.New("vocabulary has no translation")
+	}
+
+	var questionWord string
+	var language, answerLanguage enums.Language
+
+	switch exerciseType {
+	case enums.ExerciseTypeBasicDirect:
+		if vocab.Translation.Original == nil {
+			return nil, errors.New("vocabulary has no original word")
+		}
+		questionWord = vocab.Translation.Original.Word
+		language = vocab.Translation.Original.Language
+		if vocab.Translation.Translation != nil {
+			answerLanguage = vocab.Translation.Translation.Language
+		}
+	case enums.ExerciseTypeBasicReversed:
+		if vocab.Translation.Translation == nil {
+			return nil, errors.New("vocabulary has no translation word")
+		}
+		questionWord = vocab.Translation.Translation.Word
+		language = vocab.Translation.Translation.Language
+		if vocab.Translation.Original != nil {
+			answerLanguage = vocab.Translation.Original.Language
+		}
+	}
+
+	return &RandomExerciseResult{
+		ExerciseID:     exercise.ID,
+		Type:           exerciseType,
+		QuestionWord:   questionWord,
+		Language:       language,
+		AnswerLanguage: answerLanguage,
+	}, nil
+}
+
+type VerifyAnswerResult struct {
+	Result        string
+	CorrectAnswer string
+	Knowledge     int
+}
+
+func VerifyExerciseAnswer(exerciseID uuid.UUID, userID uint, answer string) (*VerifyAnswerResult, error) {
+	var exercise models.Exercise
+
+	err := db.DB.
+		Where("id = ? AND user_id = ?", exerciseID, userID).
+		Preload("Vocabulary").
+		Preload("Vocabulary.Translation").
+		Preload("Vocabulary.Translation.Original").
+		Preload("Vocabulary.Translation.Translation").
+		Take(&exercise).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrExerciseNotFound
+		}
+
+		return nil, err
+	}
+
+	if exercise.Status != enums.ExerciseStatusInProgress {
+		return nil, ErrExerciseNotInProgress
+	}
+
+	if len(exercise.Vocabulary) == 0 || exercise.Vocabulary[0].Translation == nil {
+		return nil, errors.New("exercise has no vocabulary")
+	}
+
+	translation := exercise.Vocabulary[0].Translation
+
+	var expectedAnswer, correctAnswer string
+	switch exercise.Type {
+	case enums.ExerciseTypeBasicDirect:
+		if translation.Translation == nil {
+			return nil, errors.New("no translation word")
+		}
+		expectedAnswer = normalizeAnswer(translation.Translation.Word)
+		correctAnswer = translation.Translation.Word
+	case enums.ExerciseTypeBasicReversed:
+		if translation.Original == nil {
+			return nil, errors.New("no original word")
+		}
+		expectedAnswer = normalizeAnswer(translation.Original.Word)
+		correctAnswer = translation.Original.Word
+	}
+
+	normalizedAnswer := normalizeAnswer(answer)
+	distance := utils.LevenshteinDistance(normalizedAnswer, expectedAnswer)
+	threshold := almostCorrectThreshold(expectedAnswer)
+
+	var updated bool
+	var knowledge int
+	var resultType string
+
+	if distance == 0 {
+		updated, knowledge, err = CompleteExercise(exerciseID)
+		resultType = "correct"
+	} else if distance <= threshold {
+		updated, knowledge, err = CompleteExerciseWithProgress(exerciseID, ExerciseAlmostCorrectProgressDelta)
+		resultType = "almost"
+	} else {
+		updated, knowledge, err = FailExercise(exerciseID)
+		resultType = "wrong"
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !updated {
+		return nil, ErrExerciseNotInProgress
+	}
+
+	return &VerifyAnswerResult{
+		Result:        resultType,
+		CorrectAnswer: correctAnswer,
+		Knowledge:     knowledge,
+	}, nil
+}
+
+func GetExercisesByIDs(userID uint, ids []uuid.UUID) ([]ExerciseListExercise, error) {
+	if len(ids) == 0 {
+		return []ExerciseListExercise{}, nil
+	}
+
+	exercises := make([]models.Exercise, 0, len(ids))
+
+	if err := db.DB.
+		Where("user_id = ? AND id IN ?", userID, ids).
+		Preload("Vocabulary", func(db *gorm.DB) *gorm.DB {
+			return db.Order("vocabulary.created_at ASC, vocabulary.id ASC")
+		}).
+		Preload("Vocabulary.Translation").
+		Preload("Vocabulary.Translation.Original").
+		Preload("Vocabulary.Translation.Translation").
+		Find(&exercises).Error; err != nil {
+		return nil, err
+	}
+
+	data := make([]ExerciseListExercise, 0, len(exercises))
+	for _, e := range exercises {
+		data = append(data, ExerciseListExercise{
+			ID:                e.ID,
+			Type:              e.Type,
+			Status:            e.Status,
+			StartedAt:         e.StartedAt,
+			FinishedAt:        e.FinishedAt,
+			TelegramMessageID: e.TelegramMessageID,
+			Vocabulary:        e.Vocabulary,
+		})
+	}
+
+	return data, nil
 }

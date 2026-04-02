@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { Play } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
 import { settingsApi } from '@/api/settings.ts'
 import { translationApi } from '@/api/translation.ts'
 import LanguageSelector from '@/components/LanguageSelector.vue'
@@ -15,6 +17,7 @@ type LanguageSelectorInstance = {
 }
 
 const authStore = useAuthStore()
+const router = useRouter()
 const { isPhoneViewport } = usePhoneViewport()
 const { t } = useI18n()
 
@@ -486,6 +489,27 @@ onBeforeUnmount(() => {
                 <span class="justify-self-end text-right">{{ t.translationShortcutFocusSecond }}</span>
                 <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + Shift + L</Kbd>
             </div>
+
+            <Card class="mt-8 border-primary/20 bg-gradient-to-r from-primary/8 via-background to-background">
+                <CardContent class="p-3 sm:p-4">
+                    <div
+                        class="flex min-h-[220px] w-full max-w-[300px] flex-col items-center justify-center rounded-2xl border border-primary/20 bg-background/90 px-5 py-6 text-center shadow-sm backdrop-blur-sm sm:min-h-[260px] sm:max-w-[320px]"
+                    >
+                        <div class="space-y-2">
+                            <p class="text-lg font-semibold tracking-tight text-foreground sm:text-xl">{{ t.quizCardTitle }}</p>
+                            <p class="mx-auto max-w-[24ch] text-sm leading-6 text-muted-foreground">{{ t.quizCardDescription }}</p>
+                        </div>
+                        <Button
+                            size="lg"
+                            class="mt-7 h-12 rounded-full border border-primary/20 bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-[0_10px_30px_-12px_hsl(var(--primary)/0.8)] transition-transform duration-200 hover:-translate-y-0.5 hover:bg-primary/90"
+                            @click="router.push({ name: 'quiz' })"
+                        >
+                            <Play class="size-4 fill-current" />
+                            {{ t.quizRun }}
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     </main>
 </template>
