@@ -97,11 +97,15 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 		return SendMessage(callback.From.ID, t.ExerciseFailed)
 	}
 
+	if len(exercise.Vocabulary) == 0 || exercise.Vocabulary[0].Translation == nil {
+		return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
+	}
+
 	if err := removeMessageInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID); err != nil {
 		logger.L().Warnw("failed to remove inline keyboard", "error", err, "chat_id", callback.Message.Chat.ID, "message_id", callback.Message.MessageID)
 	}
 
-	updated, translationKnowledge, err := services.FailExercise(exerciseID)
+	updated, translationKnowledge, err := services.FinishExercise(exerciseID, enums.ExerciseStatusFailed, services.ExerciseFailProgressDelta)
 	if err != nil {
 		return err
 	}

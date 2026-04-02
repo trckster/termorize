@@ -22,6 +22,7 @@ type BotTexts struct {
 	ExerciseOutdated                       string
 	ExerciseCompleted                      string
 	ExerciseFailed                         string
+	ExerciseVocabularyDeleted              string
 	ExerciseSuccess                        string
 	ExerciseAlmost                         string
 	ExerciseInvalid                        string
@@ -103,6 +104,7 @@ var botTextsEn = BotTexts{
 	ExerciseOutdated:                       "This exercise is outdated 🕰️",
 	ExerciseCompleted:                      "This exercise is already successfully completed 🗸",
 	ExerciseFailed:                         "This exercise was already attempted and failed 😔",
+	ExerciseVocabularyDeleted:              "This vocabulary was previously deleted 🗑️",
 	ExerciseSuccess:                        "That's right! ✅",
 	ExerciseAlmost:                         "Almost! The correct answer is:",
 	ExerciseInvalid:                        "Not quite... ❌",
@@ -205,6 +207,7 @@ var botTextsRu = BotTexts{
 	ExerciseOutdated:                       "Это упражнение устарело 🕰️",
 	ExerciseCompleted:                      "Это упражнение уже успешно выполнено ✅",
 	ExerciseFailed:                         "Это упражнение уже было выполнено с ошибкой 😔",
+	ExerciseVocabularyDeleted:              "Это слово было когда-то удалено из словаря 🗑️",
 	ExerciseSuccess:                        "Правильно! ✅",
 	ExerciseAlmost:                         "Почти! Правильный ответ:",
 	ExerciseInvalid:                        "Не совсем... ❌",

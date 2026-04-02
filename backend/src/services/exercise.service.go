@@ -17,9 +17,10 @@ import (
 )
 
 var (
-	ErrNoEligibleVocabulary  = errors.New("no eligible vocabulary found")
-	ErrExerciseNotFound      = errors.New("exercise not found")
-	ErrExerciseNotInProgress = errors.New("exercise is not in progress")
+	ErrNoEligibleVocabulary      = errors.New("no eligible vocabulary found")
+	ErrExerciseNotFound          = errors.New("exercise not found")
+	ErrExerciseNotInProgress     = errors.New("exercise is not in progress")
+	ErrExerciseVocabularyDeleted = errors.New("exercise vocabulary was deleted")
 )
 
 var webRussianYoReplacer = strings.NewReplacer("ё", "е", "Ё", "Е")
@@ -76,6 +77,7 @@ type TelegramMessageExercise struct {
 	ExerciseID          uuid.UUID            `gorm:"column:exercise_id"`
 	ExerciseType        enums.ExerciseType   `gorm:"column:exercise_type"`
 	Status              enums.ExerciseStatus `gorm:"column:status"`
+	UserID              uint                 `gorm:"column:user_id"`
 	OriginalWord        string               `gorm:"column:original_word"`
 	OriginalLanguage    enums.Language       `gorm:"column:original_language"`
 	TranslationWord     string               `gorm:"column:translation_word"`
@@ -286,6 +288,7 @@ func GetExerciseByTelegramMessage(telegramMessageID int64, telegramID int64) (*T
 		ExerciseID:   exercise.ID,
 		ExerciseType: exercise.Type,
 		Status:       exercise.Status,
+		UserID:       exercise.UserID,
 		Vocabulary:   exercise.Vocabulary,
 	}
 
@@ -388,10 +391,10 @@ func ExpireStaleInProgressExercises(now time.Time) error {
 }
 
 func CompleteExercise(exerciseID uuid.UUID) (bool, int, error) {
-	return CompleteExerciseWithProgress(exerciseID, ExerciseCompleteProgressDelta)
+	return FinishExercise(exerciseID, enums.ExerciseStatusCompleted, ExerciseCompleteProgressDelta)
 }
 
-func CompleteExerciseWithProgress(exerciseID uuid.UUID, progressDelta int) (bool, int, error) {
+func FinishExercise(exerciseID uuid.UUID, status enums.ExerciseStatus, progressDelta int) (bool, int, error) {
 	updated := false
 	translationKnowledge := 0
 
@@ -399,7 +402,7 @@ func CompleteExerciseWithProgress(exerciseID uuid.UUID, progressDelta int) (bool
 		result := tx.Model(&models.Exercise{}).
 			Where("id = ? AND status = ?", exerciseID, enums.ExerciseStatusInProgress).
 			Updates(map[string]any{
-				"status":      enums.ExerciseStatusCompleted,
+				"status":      status,
 				"finished_at": time.Now().UTC(),
 			})
 
@@ -415,40 +418,6 @@ func CompleteExerciseWithProgress(exerciseID uuid.UUID, progressDelta int) (bool
 
 		var updateErr error
 		translationKnowledge, updateErr = updateVocabularyProgressByExercise(tx, exerciseID, progressDelta)
-		return updateErr
-	})
-
-	if err != nil {
-		return false, 0, err
-	}
-
-	return updated, translationKnowledge, nil
-}
-
-func FailExercise(exerciseID uuid.UUID) (bool, int, error) {
-	updated := false
-	translationKnowledge := 0
-
-	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		result := tx.Model(&models.Exercise{}).
-			Where("id = ? AND status = ?", exerciseID, enums.ExerciseStatusInProgress).
-			Updates(map[string]any{
-				"status":      enums.ExerciseStatusFailed,
-				"finished_at": time.Now().UTC(),
-			})
-
-		if result.Error != nil {
-			return result.Error
-		}
-
-		if result.RowsAffected == 0 {
-			return nil
-		}
-
-		updated = true
-
-		var updateErr error
-		translationKnowledge, updateErr = updateVocabularyProgressByExercise(tx, exerciseID, ExerciseFailProgressDelta)
 		return updateErr
 	})
 
@@ -786,7 +755,7 @@ func VerifyExerciseAnswer(exerciseID uuid.UUID, userID uint, answer string) (*Ve
 	}
 
 	if len(exercise.Vocabulary) == 0 || exercise.Vocabulary[0].Translation == nil {
-		return nil, errors.New("exercise has no vocabulary")
+		return nil, ErrExerciseVocabularyDeleted
 	}
 
 	translation := exercise.Vocabulary[0].Translation
@@ -819,10 +788,10 @@ func VerifyExerciseAnswer(exerciseID uuid.UUID, userID uint, answer string) (*Ve
 		updated, knowledge, err = CompleteExercise(exerciseID)
 		resultType = "correct"
 	} else if distance <= threshold {
-		updated, knowledge, err = CompleteExerciseWithProgress(exerciseID, ExerciseAlmostCorrectProgressDelta)
+		updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusCompleted, ExerciseAlmostCorrectProgressDelta)
 		resultType = "almost"
 	} else {
-		updated, knowledge, err = FailExercise(exerciseID)
+		updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusFailed, ExerciseFailProgressDelta)
 		resultType = "wrong"
 	}
 
