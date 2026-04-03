@@ -14,6 +14,7 @@ import {
     ComboboxViewport,
 } from 'reka-ui'
 import { useSettingsStore } from '@/stores/settings.ts'
+import { useI18n } from '@/composables/useI18n'
 import { cn } from '@/lib/utils.ts'
 
 const props = withDefaults(
@@ -24,6 +25,7 @@ const props = withDefaults(
         disabledValues?: string[]
         disabled?: boolean
         ariaLabel?: string
+        emptyText?: string
     }>(),
     {
         modelValue: '',
@@ -32,6 +34,7 @@ const props = withDefaults(
         disabledValues: () => [],
         disabled: false,
         ariaLabel: undefined,
+        emptyText: undefined,
     }
 )
 
@@ -40,6 +43,7 @@ const emit = defineEmits<{
 }>()
 
 const settingsStore = useSettingsStore()
+const { t } = useI18n()
 const isOpen = ref(false)
 const rootRef = ref<HTMLElement | null>(null)
 
@@ -118,10 +122,11 @@ defineExpose({
                     :placeholder="placeholder"
                     :disabled="disabled"
                     :aria-label="ariaLabel"
-                    class="w-full rounded-md border border-input bg-background px-3 py-2 pr-10 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    class="min-h-11 w-full rounded-md border border-input bg-background px-3 py-2 pr-10 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 />
                 <ComboboxTrigger
                     :disabled="disabled"
+                    :aria-label="ariaLabel || placeholder"
                     class="absolute right-0 top-0 flex h-full px-3 items-center text-muted-foreground transition-colors hover:text-foreground"
                 >
                     <ChevronsUpDown class="h-4 w-4" />
@@ -141,7 +146,7 @@ defineExpose({
                 >
                     <ComboboxViewport class="p-1">
                         <ComboboxEmpty class="py-6 text-center text-sm text-muted-foreground">
-                            No languages found.
+                            {{ emptyText || t.languageSelectorNoResults }}
                         </ComboboxEmpty>
                         <ComboboxItem
                             v-for="option in options"

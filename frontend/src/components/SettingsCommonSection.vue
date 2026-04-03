@@ -137,6 +137,7 @@ const fields = computed(() => [
                         :placeholder="t.settingsCommonTimezonePlaceholder"
                         :search-placeholder="t.settingsCommonTimezoneSearchPlaceholder"
                         :empty-text="t.settingsCommonTimezoneNotFound"
+                        :aria-label="t.settingsCommonFieldTimezone"
                     />
                     <p class="text-xs text-muted-foreground">
                         {{ t.settingsCommonFieldTimezoneExplanation }}

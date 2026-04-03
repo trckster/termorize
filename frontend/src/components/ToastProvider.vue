@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ToastProvider, ToastRoot, ToastTitle, ToastDescription, ToastViewport } from 'reka-ui'
+import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast.ts'
 import { X } from 'lucide-vue-next'
 
 const { toasts, removeToast } = useToast()
+const { t } = useI18n()
 </script>
 
 <template>
@@ -32,7 +34,8 @@ const { toasts, removeToast } = useToast()
                 </ToastDescription>
             </div>
             <button
-                class="absolute right-2 top-2 rounded-md p-1 text-foreground/50 opacity-60 transition-opacity hover:opacity-100 hover:text-foreground focus:opacity-100 focus:outline-none focus:ring-2 group-hover:opacity-100"
+                :aria-label="t.close"
+                class="absolute right-1 top-1 inline-flex h-11 w-11 items-center justify-center rounded-md text-foreground/50 opacity-60 transition-opacity hover:opacity-100 hover:text-foreground focus:opacity-100 focus:outline-none focus:ring-2 group-hover:opacity-100"
                 @click="removeToast(toast.id)"
             >
                 <X class="h-4 w-4" />

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import ExerciseMigrationNotice from '@/components/ExerciseMigrationNotice.vue'
 import { useI18n } from '@/composables/useI18n'
 import { useSettingsStore } from '@/stores/settings.ts'
-import { formatDate } from '@/lib/utils.ts'
+import { formatDate, formatNumber } from '@/lib/utils.ts'
 
 const { t } = useI18n()
 const settingsStore = useSettingsStore()
@@ -156,16 +156,117 @@ onMounted(() => {
 </script>
 
 <template>
-    <main class="px-6 py-8">
+    <main class="px-4 py-4 sm:px-6 sm:py-8">
         <div class="mx-auto max-w-6xl space-y-6">
+            <h1 class="sr-only">{{ t.exercisesHeading }}</h1>
             <ExerciseMigrationNotice />
 
-            <div v-if="errorMessage" class="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            <div
+                v-if="errorMessage"
+                class="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+            >
                 {{ errorMessage }}
             </div>
 
             <section class="overflow-hidden rounded-2xl border border-border bg-card">
-                <div class="overflow-x-auto">
+                <div class="space-y-3 p-3 lg:hidden">
+                    <div
+                        v-if="isLoading"
+                        class="rounded-xl border border-border/70 bg-background px-4 py-8 text-center text-sm text-muted-foreground"
+                    >
+                        {{ t.exercisesLoading }}
+                    </div>
+                    <div
+                        v-else-if="exercises.length === 0"
+                        class="rounded-xl border border-border/70 bg-background px-4 py-8 text-center text-sm text-muted-foreground"
+                    >
+                        {{ t.exercisesEmpty }}
+                    </div>
+                    <template v-else>
+                        <article
+                            v-for="exercise in exercises"
+                            :key="exercise.id"
+                            class="space-y-4 rounded-xl border border-border/70 bg-background px-4 py-4"
+                        >
+                            <div class="flex flex-wrap items-start justify-between gap-2">
+                                <span
+                                    class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold"
+                                    :class="getStatusBadgeClass(exercise.status)"
+                                >
+                                    {{ getStatusLabel(exercise.status) }}
+                                </span>
+                                <span
+                                    class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold"
+                                    :class="getTypeBadgeClass(exercise.type)"
+                                >
+                                    {{ getTypeLabel(exercise.type) }}
+                                </span>
+                            </div>
+
+                            <div v-if="getExerciseTranslation(exercise)" class="space-y-2">
+                                <div class="flex flex-wrap items-center gap-2 text-sm text-foreground">
+                                    <span
+                                        class="inline-flex min-w-0 max-w-full rounded-full bg-muted/50 px-3 py-1.5 font-medium"
+                                    >
+                                        <span class="truncate">{{
+                                            getExerciseTranslation(exercise)?.original.word
+                                        }}</span>
+                                    </span>
+                                    <span class="text-muted-foreground">→</span>
+                                    <span
+                                        class="inline-flex min-w-0 max-w-full rounded-full bg-muted/50 px-3 py-1.5 font-medium"
+                                    >
+                                        <span class="truncate">{{
+                                            getExerciseTranslation(exercise)?.translated.word
+                                        }}</span>
+                                    </span>
+                                </div>
+                                <div
+                                    class="flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                                >
+                                    <span>{{
+                                        getLanguageBadge(getExerciseTranslation(exercise)?.original.language ?? '')
+                                    }}</span>
+                                    <span>{{
+                                        getLanguageBadge(getExerciseTranslation(exercise)?.translated.language ?? '')
+                                    }}</span>
+                                </div>
+                            </div>
+                            <p v-else class="text-sm text-muted-foreground">
+                                {{ t.exercisesTranslationUnavailable }}
+                            </p>
+
+                            <dl class="grid grid-cols-1 gap-3 text-sm text-muted-foreground">
+                                <div class="flex items-start justify-between gap-3">
+                                    <dt>{{ t.exercisesColumnStartedAt }}</dt>
+                                    <dd class="text-right text-foreground">
+                                        {{
+                                            getStartedAt(exercise)
+                                                ? formatDate(getStartedAt(exercise) as string)
+                                                : t.exercisesNotStarted
+                                        }}
+                                    </dd>
+                                </div>
+                                <div class="flex items-start justify-between gap-3">
+                                    <dt>{{ t.exercisesColumnFinishedAt }}</dt>
+                                    <dd class="text-right text-foreground">
+                                        {{
+                                            getFinishedAt(exercise)
+                                                ? formatDate(getFinishedAt(exercise) as string)
+                                                : t.exercisesNotFinished
+                                        }}
+                                    </dd>
+                                </div>
+                                <div class="flex items-start justify-between gap-3">
+                                    <dt>{{ t.exercisesColumnWhere }}</dt>
+                                    <dd class="text-right text-foreground">{{ getWhereLabel(exercise) }}</dd>
+                                </div>
+                            </dl>
+                        </article>
+                    </template>
+                </div>
+
+                <div class="hidden overflow-x-auto lg:block">
                     <table class="w-full min-w-[1120px]">
                         <thead class="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                             <tr>
@@ -188,7 +289,11 @@ onMounted(() => {
                                     {{ t.exercisesEmpty }}
                                 </td>
                             </tr>
-                            <tr v-for="exercise in exercises" :key="exercise.id" class="border-t border-border/70 text-sm">
+                            <tr
+                                v-for="exercise in exercises"
+                                :key="exercise.id"
+                                class="border-t border-border/70 text-sm"
+                            >
                                 <td class="px-4 py-3 text-center text-foreground">
                                     <span
                                         class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold"
@@ -198,10 +303,18 @@ onMounted(() => {
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-center text-muted-foreground">
-                                    {{ getStartedAt(exercise) ? formatDate(getStartedAt(exercise) as string) : t.exercisesNotStarted }}
+                                    {{
+                                        getStartedAt(exercise)
+                                            ? formatDate(getStartedAt(exercise) as string)
+                                            : t.exercisesNotStarted
+                                    }}
                                 </td>
                                 <td class="px-4 py-3 text-center text-muted-foreground">
-                                    {{ getFinishedAt(exercise) ? formatDate(getFinishedAt(exercise) as string) : t.exercisesNotFinished }}
+                                    {{
+                                        getFinishedAt(exercise)
+                                            ? formatDate(getFinishedAt(exercise) as string)
+                                            : t.exercisesNotFinished
+                                    }}
                                 </td>
                                 <td class="px-4 py-3 text-center text-muted-foreground">
                                     {{ getWhereLabel(exercise) }}
@@ -219,13 +332,21 @@ onMounted(() => {
                                         v-if="getExerciseTranslation(exercise)"
                                         class="inline-flex max-w-[320px] items-center gap-2 rounded-full border border-border/70 bg-muted/30 px-3 py-1.5 text-left"
                                     >
-                                        <Tooltip v-if="isWordShortened(getExerciseTranslation(exercise)?.original.word ?? '')">
+                                        <Tooltip
+                                            v-if="
+                                                isWordShortened(getExerciseTranslation(exercise)?.original.word ?? '')
+                                            "
+                                        >
                                             <TooltipTrigger as-child>
                                                 <span
                                                     class="inline-flex min-w-0 max-w-[7rem] rounded-full bg-background px-2.5 py-1 text-xs font-medium text-foreground"
                                                 >
                                                     <span class="block truncate">
-                                                        {{ formatExerciseWord(getExerciseTranslation(exercise)?.original.word ?? '') }}
+                                                        {{
+                                                            formatExerciseWord(
+                                                                getExerciseTranslation(exercise)?.original.word ?? ''
+                                                            )
+                                                        }}
                                                     </span>
                                                 </span>
                                             </TooltipTrigger>
@@ -237,19 +358,35 @@ onMounted(() => {
                                             v-else
                                             class="inline-flex min-w-0 max-w-[7rem] rounded-full bg-background px-2.5 py-1 text-xs font-medium text-foreground"
                                         >
-                                            <span class="block">{{ getExerciseTranslation(exercise)?.original.word }}</span>
+                                            <span class="block">{{
+                                                getExerciseTranslation(exercise)?.original.word
+                                            }}</span>
                                         </span>
-                                        <span class="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                            {{ getLanguageBadge(getExerciseTranslation(exercise)?.original.language ?? '') }}
+                                        <span
+                                            class="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                                        >
+                                            {{
+                                                getLanguageBadge(
+                                                    getExerciseTranslation(exercise)?.original.language ?? ''
+                                                )
+                                            }}
                                         </span>
                                         <span class="shrink-0 text-muted-foreground">→</span>
-                                        <Tooltip v-if="isWordShortened(getExerciseTranslation(exercise)?.translated.word ?? '')">
+                                        <Tooltip
+                                            v-if="
+                                                isWordShortened(getExerciseTranslation(exercise)?.translated.word ?? '')
+                                            "
+                                        >
                                             <TooltipTrigger as-child>
                                                 <span
                                                     class="inline-flex min-w-0 max-w-[7rem] rounded-full bg-background px-2.5 py-1 text-xs font-medium text-foreground"
                                                 >
                                                     <span class="block truncate">
-                                                        {{ formatExerciseWord(getExerciseTranslation(exercise)?.translated.word ?? '') }}
+                                                        {{
+                                                            formatExerciseWord(
+                                                                getExerciseTranslation(exercise)?.translated.word ?? ''
+                                                            )
+                                                        }}
                                                     </span>
                                                 </span>
                                             </TooltipTrigger>
@@ -261,10 +398,18 @@ onMounted(() => {
                                             v-else
                                             class="inline-flex min-w-0 max-w-[7rem] rounded-full bg-background px-2.5 py-1 text-xs font-medium text-foreground"
                                         >
-                                            <span class="block">{{ getExerciseTranslation(exercise)?.translated.word }}</span>
+                                            <span class="block">{{
+                                                getExerciseTranslation(exercise)?.translated.word
+                                            }}</span>
                                         </span>
-                                        <span class="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                            {{ getLanguageBadge(getExerciseTranslation(exercise)?.translated.language ?? '') }}
+                                        <span
+                                            class="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                                        >
+                                            {{
+                                                getLanguageBadge(
+                                                    getExerciseTranslation(exercise)?.translated.language ?? ''
+                                                )
+                                            }}
                                         </span>
                                     </div>
                                     <span v-else>
@@ -279,7 +424,7 @@ onMounted(() => {
 
             <div v-if="paginationData.total > 0" class="space-y-3">
                 <p class="text-center text-sm text-muted-foreground">
-                    {{ t.exercisesTotalCount }}: {{ paginationData.total }}
+                    {{ t.exercisesTotalCount }}: {{ formatNumber(paginationData.total) }}
                 </p>
 
                 <Pagination

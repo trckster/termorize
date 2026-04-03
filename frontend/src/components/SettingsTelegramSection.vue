@@ -207,11 +207,15 @@ watch(
                 </Card>
             </template>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 p-4">
+            <div class="grid grid-cols-1 gap-4 p-4 md:grid-cols-2">
                 <div class="space-y-2">
                     <p class="text-sm font-semibold text-foreground">{{ t.settingsTelegramSendDailyTitle }}</p>
-                    <div class="h-10 flex items-center">
-                        <ToggleSwitch v-model="dailyQuestionsEnabled" :disabled="isSaving" :label="t.settingsTelegramSendDailyLabel" />
+                    <div class="min-h-11 flex items-center">
+                        <ToggleSwitch
+                            v-model="dailyQuestionsEnabled"
+                            :disabled="isSaving"
+                            :label="t.settingsTelegramSendDailyLabel"
+                        />
                     </div>
                     <p class="text-xs text-muted-foreground">
                         {{ t.settingsTelegramSendDailyNote }}
@@ -219,14 +223,29 @@ watch(
                 </div>
                 <div class="space-y-2" :class="dailyQuestionsEnabled ? '' : 'opacity-60'">
                     <p class="text-sm font-semibold text-foreground">{{ t.settingsTelegramDailyCountTitle }}</p>
-                    <div class="h-10 flex items-center">
-                        <InputNumber v-model="dailyQuestionsCount" min="1" max="100" step="1" :disabled="isSaving || !dailyQuestionsEnabled" />
+                    <div class="min-h-11 flex items-center">
+                        <InputNumber
+                            v-model="dailyQuestionsCount"
+                            min="1"
+                            max="100"
+                            step="1"
+                            inputmode="numeric"
+                            :aria-invalid="countValidationError ? 'true' : 'false'"
+                            :aria-describedby="
+                                countValidationError
+                                    ? 'telegram-count-note telegram-count-error'
+                                    : 'telegram-count-note'
+                            "
+                            :disabled="isSaving || !dailyQuestionsEnabled"
+                        />
                     </div>
-                    <p class="text-xs text-muted-foreground">
+                    <p id="telegram-count-note" class="text-xs text-muted-foreground">
                         {{ t.settingsTelegramDailyCountNote }} <br />
                         {{ t.settingsTelegramDailyCountMustBe }}
                     </p>
-                    <p v-if="countValidationError" class="text-xs text-destructive">{{ countValidationError }}</p>
+                    <p v-if="countValidationError" id="telegram-count-error" class="text-xs text-destructive">
+                        {{ countValidationError }}
+                    </p>
                 </div>
             </div>
 
@@ -234,49 +253,83 @@ watch(
                 <div class="space-y-2">
                     <div class="flex items-center justify-between gap-4">
                         <p class="text-sm font-semibold text-foreground">{{ t.settingsTelegramScheduleTitle }}</p>
-                        <p class="text-xs text-muted-foreground">{{ t.settingsTelegramScheduleTimezonePrefix }} {{ timezoneLabel }}</p>
+                        <p class="text-xs text-muted-foreground">
+                            {{ t.settingsTelegramScheduleTimezonePrefix }} {{ timezoneLabel }}
+                        </p>
                     </div>
 
                     <div class="space-y-2">
                         <div
                             v-for="(item, index) in dailyQuestionsSchedule"
                             :key="index"
-                            class="flex items-center gap-2"
+                            class="flex flex-col gap-2 sm:flex-row sm:items-center"
                         >
-                            <label :for="`schedule-from-${index}`" class="text-muted-foreground">{{ t.settingsTelegramScheduleFrom }}</label>
+                            <label :for="`schedule-from-${index}`" class="text-muted-foreground">{{
+                                t.settingsTelegramScheduleFrom
+                            }}</label>
                             <input
                                 :id="`schedule-from-${index}`"
                                 :value="item.from"
                                 type="text"
                                 inputmode="numeric"
                                 placeholder="HH:mm"
+                                maxlength="5"
+                                :aria-describedby="
+                                    scheduleValidationError
+                                        ? 'telegram-schedule-note telegram-schedule-error'
+                                        : 'telegram-schedule-note'
+                                "
+                                :aria-invalid="scheduleValidationError ? 'true' : 'false'"
                                 :disabled="isSaving || !dailyQuestionsEnabled"
                                 class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                                 @input="setScheduleTime(index, 'from', ($event.target as HTMLInputElement).value)"
                             />
-                            <label :for="`schedule-to-${index}`" class="text-muted-foreground">{{ t.settingsTelegramScheduleTo }}</label>
+                            <label :for="`schedule-to-${index}`" class="text-muted-foreground">{{
+                                t.settingsTelegramScheduleTo
+                            }}</label>
                             <input
                                 :id="`schedule-to-${index}`"
                                 :value="item.to"
                                 type="text"
                                 inputmode="numeric"
                                 placeholder="HH:mm"
+                                maxlength="5"
+                                :aria-describedby="
+                                    scheduleValidationError
+                                        ? 'telegram-schedule-note telegram-schedule-error'
+                                        : 'telegram-schedule-note'
+                                "
+                                :aria-invalid="scheduleValidationError ? 'true' : 'false'"
                                 :disabled="isSaving || !dailyQuestionsEnabled"
                                 class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                                 @input="setScheduleTime(index, 'to', ($event.target as HTMLInputElement).value)"
                             />
-                            <Button variant="outline" size="sm" :disabled="isSaving || !dailyQuestionsEnabled" @click="removeScheduleItem(index)">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                :disabled="isSaving || !dailyQuestionsEnabled"
+                                @click="removeScheduleItem(index)"
+                            >
                                 {{ t.settingsTelegramScheduleDelete }}
                             </Button>
                         </div>
                     </div>
 
-                    <Button variant="outline" size="sm" :disabled="isSaving || !dailyQuestionsEnabled" @click="addScheduleItem">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        :disabled="isSaving || !dailyQuestionsEnabled"
+                        @click="addScheduleItem"
+                    >
                         {{ t.settingsTelegramScheduleAddInterval }}
                     </Button>
 
-                    <p class="text-xs text-muted-foreground" style="white-space: pre-line">{{ t.settingsTelegramScheduleNote }}</p>
-                    <p v-if="scheduleValidationError" class="text-xs text-destructive">{{ scheduleValidationError }}</p>
+                    <p id="telegram-schedule-note" class="text-xs whitespace-pre-line text-muted-foreground">
+                        {{ t.settingsTelegramScheduleNote }}
+                    </p>
+                    <p v-if="scheduleValidationError" id="telegram-schedule-error" class="text-xs text-destructive">
+                        {{ scheduleValidationError }}
+                    </p>
                 </div>
             </div>
 

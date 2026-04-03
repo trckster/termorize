@@ -13,10 +13,12 @@ const en = {
     headerSettings: 'Settings',
     headerLogout: 'Logout',
     headerRelogin: 'Relogin',
+    headerOpenProfileMenu: 'Open profile menu',
 
     // Login page
     loginTitle: 'Login with Telegram',
     loginDescription: 'Login in Termorize to translate, check vocabulary, exercises, statistics and app settings.',
+    loginStartError: 'Unable to start Telegram login. Please try again.',
 
     // TelegramLogin button
     telegramLoginButtonLoading: 'Authorizing in Telegram...',
@@ -83,7 +85,9 @@ const en = {
     // Common actions
     save: 'Save',
     saving: 'Saving...',
+    commonRetry: 'Retry',
     cancel: 'Cancel',
+    close: 'Close',
     delete: 'Delete',
     deleting: 'Deleting...',
     adding: 'Adding...',
@@ -170,6 +174,7 @@ const en = {
     vocabularyToastAlreadyExistsDescription: 'This vocabulary already exists.',
     vocabularyToastErrorTitle: 'Error',
     vocabularyToastErrorDescription: 'Failed to add translation. Please try again.',
+    vocabularyDeleteErrorDescription: 'Failed to delete translation. Please try again.',
 
     // Translation page
     translationFrom: 'From',
@@ -198,6 +203,7 @@ const en = {
     translationToastVocabErrorDescription: 'Failed to add translation to vocabulary. Please try again.',
     translationToastLangErrorTitle: 'Error',
     translationToastLangErrorDescription: 'Failed to save translation languages. Please try again.',
+    translationTranslateErrorDescription: 'Failed to translate text. Check your connection and try again.',
 
     // Language selector
     languageSelectorNoResults: 'No languages found.',
@@ -241,10 +247,12 @@ const ru: typeof en = {
     headerSettings: 'Настройки',
     headerLogout: 'Выйти',
     headerRelogin: 'Перезайти',
+    headerOpenProfileMenu: 'Открыть меню профиля',
 
     // Login page
     loginTitle: 'Войти через Telegram',
     loginDescription: 'Войдите в Termorize для перевода, просмотра словаря, упражнений, статистики и настроек.',
+    loginStartError: 'Не удалось начать вход через Telegram. Попробуйте ещё раз.',
 
     // TelegramLogin button
     telegramLoginButtonLoading: 'Авторизация в Telegram...',
@@ -312,7 +320,9 @@ const ru: typeof en = {
     // Common actions
     save: 'Сохранить',
     saving: 'Сохранение...',
+    commonRetry: 'Повторить',
     cancel: 'Отмена',
+    close: 'Закрыть',
     delete: 'Удалить',
     deleting: 'Удаление...',
     adding: 'Добавление...',
@@ -399,6 +409,7 @@ const ru: typeof en = {
     vocabularyToastAlreadyExistsDescription: 'Такой перевод уже существует.',
     vocabularyToastErrorTitle: 'Ошибка',
     vocabularyToastErrorDescription: 'Не удалось добавить перевод. Попробуйте ещё раз.',
+    vocabularyDeleteErrorDescription: 'Не удалось удалить перевод. Попробуйте ещё раз.',
 
     // Translation page
     translationFrom: 'С',
@@ -427,6 +438,7 @@ const ru: typeof en = {
     translationToastVocabErrorDescription: 'Не удалось добавить перевод в словарь. Попробуйте ещё раз.',
     translationToastLangErrorTitle: 'Ошибка',
     translationToastLangErrorDescription: 'Не удалось сохранить языки перевода. Попробуйте ещё раз.',
+    translationTranslateErrorDescription: 'Не удалось выполнить перевод. Проверьте соединение и попробуйте ещё раз.',
 
     // Language selector
     languageSelectorNoResults: 'Языки не найдены.',
@@ -464,6 +476,14 @@ type Locale = keyof typeof translations
 type Translations = typeof en
 
 export const getSupportedLocale = (language?: string): Locale => (language === 'ru' ? 'ru' : 'en')
+
+export const getLocaleDirection = (language?: string): 'ltr' | 'rtl' => {
+    const locale = (language || '').toLowerCase()
+
+    return locale.startsWith('ar') || locale.startsWith('he') || locale.startsWith('fa') || locale.startsWith('ur')
+        ? 'rtl'
+        : 'ltr'
+}
 
 export function useI18n() {
     const authStore = useAuthStore()

@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount } from 'vue'
+import { onMounted, onBeforeUnmount, watch } from 'vue'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import ToastProvider from '@/components/ToastProvider.vue'
+import { getLocaleDirection, useI18n } from '@/composables/useI18n'
+
+const { locale } = useI18n()
 
 const applyTheme = () => {
     const theme = localStorage.getItem('theme')
@@ -25,6 +28,15 @@ onMounted(() => {
     systemThemeQuery.addEventListener('change', handleSystemThemeChange)
 })
 
+watch(
+    locale,
+    (nextLocale) => {
+        document.documentElement.lang = nextLocale
+        document.documentElement.dir = getLocaleDirection(nextLocale)
+    },
+    { immediate: true }
+)
+
 onBeforeUnmount(() => {
     systemThemeQuery.removeEventListener('change', handleSystemThemeChange)
 })
@@ -40,6 +52,4 @@ onBeforeUnmount(() => {
     </ToastProvider>
 </template>
 
-<style>
-/* Remove default vite styles if any or just keep it clean */
-</style>
+<style></style>

@@ -89,6 +89,7 @@ watch(
                         v-model="systemLanguage"
                         :allowed-values="supportedSystemLanguages"
                         :placeholder="t.settingsSystemLanguagePlaceholder"
+                        :aria-label="t.settingsSystemLanguageTitle"
                     />
                     <p class="text-xs text-muted-foreground">
                         {{ t.settingsSystemLanguageNote }}
@@ -97,7 +98,11 @@ watch(
 
                 <div class="space-y-2 rounded-lg p-4">
                     <p class="text-sm font-semibold text-foreground">{{ t.settingsMainLearningLanguageTitle }}</p>
-                    <LanguageSelector v-model="mainLearningLanguage" :placeholder="t.settingsMainLearningLanguagePlaceholder" />
+                    <LanguageSelector
+                        v-model="mainLearningLanguage"
+                        :placeholder="t.settingsMainLearningLanguagePlaceholder"
+                        :aria-label="t.settingsMainLearningLanguageTitle"
+                    />
                     <p class="text-xs text-muted-foreground">
                         {{ t.settingsMainLearningLanguageNote }}
                     </p>

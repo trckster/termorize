@@ -1,11 +1,11 @@
 <template>
-    <main class="px-6 py-8">
+    <main class="px-4 py-4 sm:px-6 sm:py-8">
         <div class="max-w-6xl mx-auto">
-            <div class="flex justify-between items-center mb-8">
+            <div class="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
                 <h1 class="text-3xl font-bold text-foreground">{{ t.vocabularyTitle }}</h1>
                 <Dialog v-model:open="isAddDialogOpen">
                     <DialogTrigger as-child>
-                        <Button>
+                        <Button class="min-h-11 w-full sm:w-auto">
                             <Plus class="h-4 w-4 mr-2" />
                             {{ t.vocabularyAddButton }}
                         </Button>
@@ -18,14 +18,15 @@
                             </DialogDescription>
                         </DialogHeader>
                         <form @submit.prevent="handleAdd" class="space-y-4 py-4">
-                            <div class="grid grid-cols-2 gap-4">
+                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div class="space-y-2">
                                     <label class="text-sm font-medium">{{ t.vocabularyLanguage1 }}</label>
                                     <LanguageSelector
                                         v-model="newTranslation.language1"
                                         :placeholder="t.vocabularySelectLanguagePlaceholder"
                                         :disabled-values="[newTranslation.language2]"
-                                        aria-label="Language 1"
+                                        :aria-label="t.vocabularyLanguage1"
+                                        :empty-text="t.languageSelectorNoResults"
                                     />
                                 </div>
                                 <div class="space-y-2">
@@ -35,18 +36,20 @@
                                         v-model="newTranslation.word1"
                                         type="text"
                                         :placeholder="t.vocabularyWord1Placeholder"
+                                        maxlength="500"
                                         class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                                     />
                                 </div>
                             </div>
-                            <div class="grid grid-cols-2 gap-4">
+                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div class="space-y-2">
                                     <label class="text-sm font-medium">{{ t.vocabularyLanguage2 }}</label>
                                     <LanguageSelector
                                         v-model="newTranslation.language2"
                                         :placeholder="t.vocabularySelectLanguagePlaceholder"
                                         :disabled-values="[newTranslation.language1]"
-                                        aria-label="Language 2"
+                                        :aria-label="t.vocabularyLanguage2"
+                                        :empty-text="t.languageSelectorNoResults"
                                     />
                                 </div>
                                 <div class="space-y-2">
@@ -56,6 +59,7 @@
                                         v-model="newTranslation.word2"
                                         type="text"
                                         :placeholder="t.vocabularyWord2Placeholder"
+                                        maxlength="500"
                                         class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                                     />
                                 </div>
@@ -76,7 +80,8 @@
                     v-model="searchInput"
                     type="text"
                     :placeholder="t.vocabularySearchPlaceholder"
-                    class="w-full px-3 py-2 pr-9 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    :aria-label="t.vocabularySearchPlaceholder"
+                    class="w-full rounded-md border border-border bg-background px-3 py-2 pr-9 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm"
                 />
                 <span
                     v-if="isLoadingVocabulary"
@@ -86,39 +91,55 @@
                 </span>
             </div>
 
+            <div
+                v-if="vocabularyErrorMessage"
+                class="mb-6 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+            >
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <span>{{ vocabularyErrorMessage }}</span>
+                    <Button variant="outline" size="sm" @click="fetchVocabulary(currentPage)">{{
+                        t.commonRetry
+                    }}</Button>
+                </div>
+            </div>
+
             <div v-if="vocabulary.length > 0" class="space-y-2 mb-8">
                 <div
                     v-for="item in vocabulary"
                     :key="item.id"
-                    class="p-4 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors cursor-pointer group"
+                    class="group rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent/50"
                 >
-                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                    <div class="grid min-w-0 grid-cols-1 gap-4 items-center md:grid-cols-12">
                         <!-- Part 1: Words -->
-                        <div class="md:col-span-4">
-                            <h3 class="font-semibold text-foreground flex items-center gap-2">
+                        <div class="min-w-0 md:col-span-4">
+                            <h3 class="flex min-w-0 items-center gap-2 font-semibold text-foreground">
                                 <span
                                     class="text-xl"
                                     role="img"
                                     :aria-label="getLanguageName(item.translation.original.language)"
-                                >{{ settingsStore.getFlag(item.translation.original.language) }}</span>
-                                <span class="text-lg">{{ item.translation.original.word }}</span>
+                                    >{{ settingsStore.getFlag(item.translation.original.language) }}</span
+                                >
+                                <span class="min-w-0 break-words text-lg">{{ item.translation.original.word }}</span>
                                 <span class="text-muted-foreground">-</span>
-                                <span class="text-lg">{{ item.translation.translation.word }}</span>
+                                <span class="min-w-0 break-words text-lg">{{ item.translation.translation.word }}</span>
                                 <span
                                     class="text-xl"
                                     role="img"
                                     :aria-label="getLanguageName(item.translation.translation.language)"
-                                >{{ settingsStore.getFlag(item.translation.translation.language) }}</span>
+                                    >{{ settingsStore.getFlag(item.translation.translation.language) }}</span
+                                >
                             </h3>
                         </div>
 
                         <!-- Part 2: Progress -->
-                        <div class="md:col-span-5 flex flex-col gap-3">
+                        <div class="min-w-0 md:col-span-5 flex flex-col gap-3">
                             <div v-if="item.progress && item.progress.length > 0">
                                 <div v-for="(prog, idx) in item.progress" :key="idx" class="w-full">
                                     <Progress :model-value="prog.knowledge" class="h-2" />
                                     <div class="flex justify-between items-center mt-1">
-                                        <span class="text-xs text-muted-foreground capitalize">{{ getProgressTypeLabel(prog.type) }}</span>
+                                        <span class="text-xs text-muted-foreground capitalize">{{
+                                            getProgressTypeLabel(prog.type)
+                                        }}</span>
                                         <span class="text-xs font-medium">{{ Math.round(prog.knowledge) }}%</span>
                                     </div>
                                 </div>
@@ -129,7 +150,7 @@
                         </div>
 
                         <!-- Part 3: Date and Delete -->
-                        <div class="md:col-span-3 flex justify-end items-center gap-2">
+                        <div class="min-w-0 md:col-span-3 flex flex-wrap items-center justify-end gap-2">
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <span
@@ -140,7 +161,9 @@
                                 </TooltipTrigger>
                                 <TooltipContent>
                                     <p>{{ t.vocabularyCreatedAt }} {{ formatDate(item.created_at) }}</p>
-                                    <p v-if="item.mastered_at">{{ t.vocabularyMasteredAt }} {{ formatDate(item.mastered_at) }}</p>
+                                    <p v-if="item.mastered_at">
+                                        {{ t.vocabularyMasteredAt }} {{ formatDate(item.mastered_at) }}
+                                    </p>
                                 </TooltipContent>
                             </Tooltip>
                             <Dialog>
@@ -159,14 +182,15 @@
                                     <DialogHeader>
                                         <DialogTitle>{{ t.vocabularyDeleteDialogTitle }}</DialogTitle>
                                         <DialogDescription>
-                                            {{ t.vocabularyDeleteConfirmPrefix }}<span
-                                                class="font-medium text-foreground"
-                                                >{{ item.translation.original.word }}</span
-                                            >
+                                            {{ t.vocabularyDeleteConfirmPrefix
+                                            }}<span class="font-medium text-foreground">{{
+                                                item.translation.original.word
+                                            }}</span>
                                             -
                                             <span class="font-medium text-foreground">{{
                                                 item.translation.translation.word
-                                            }}</span>{{ t.vocabularyDeleteConfirmSuffix }}
+                                            }}</span
+                                            >{{ t.vocabularyDeleteConfirmSuffix }}
                                         </DialogDescription>
                                     </DialogHeader>
                                     <DialogFooter class="flex gap-2 sm:justify-end">
@@ -196,7 +220,7 @@
             </div>
 
             <div
-                v-else-if="!isLoadingVocabulary"
+                v-else-if="!isLoadingVocabulary && !vocabularyErrorMessage"
                 class="mb-8 flex min-h-72 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 px-6 text-center"
             >
                 <h2 class="text-xl font-semibold text-foreground">
@@ -213,7 +237,7 @@
 
             <div v-if="paginationData.total > 0" class="space-y-3">
                 <p class="text-center text-sm text-muted-foreground">
-                    {{ t.vocabularyTotalCount }}: {{ paginationData.total }}
+                    {{ t.vocabularyTotalCount }}: {{ formatNumber(paginationData.total) }}
                 </p>
 
                 <Pagination
@@ -263,7 +287,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog'
 import type { PaginationData } from '@/api/pagination.ts'
-import { formatRelativeTime, formatDate } from '@/lib/utils.ts'
+import { formatRelativeTime, formatDate, formatNumber } from '@/lib/utils.ts'
 import { Progress } from '@/components/ui/progress'
 import { Trash2, Loader2, Plus } from 'lucide-vue-next'
 import { useToast } from '@/composables/useToast.ts'
@@ -282,6 +306,7 @@ const deletingId = ref<string | null>(null)
 const isAddDialogOpen = ref(false)
 const isAdding = ref(false)
 const isLoadingVocabulary = ref(false)
+const vocabularyErrorMessage = ref('')
 const searchInput = ref('')
 const search = ref('')
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -402,10 +427,19 @@ const handleAdd = async () => {
 const fetchVocabulary = async (page: number) => {
     isLoadingVocabulary.value = true
     currentPage.value = page
+    vocabularyErrorMessage.value = ''
+
     try {
-        const response = await vocabularyApi.getVocabulary(page, paginationData.value.page_size, search.value || undefined)
+        const response = await vocabularyApi.getVocabulary(
+            page,
+            paginationData.value.page_size,
+            search.value || undefined
+        )
         vocabulary.value = response.data
         paginationData.value = response.pagination
+    } catch {
+        vocabulary.value = []
+        vocabularyErrorMessage.value = t.value.vocabularyToastErrorDescription
     } finally {
         isLoadingVocabulary.value = false
     }
@@ -422,6 +456,12 @@ const handleDelete = async (id: string) => {
         await fetchVocabulary(currentPage.value)
     } catch (error) {
         console.error('Failed to delete vocabulary item:', error)
+        addToast({
+            title: t.value.toastErrorTitle,
+            description: t.value.vocabularyDeleteErrorDescription,
+            variant: 'destructive',
+            duration: 5000,
+        })
     } finally {
         deletingId.value = null
     }

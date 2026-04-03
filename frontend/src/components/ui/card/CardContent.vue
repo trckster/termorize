@@ -14,7 +14,11 @@ const props = defineProps<{
             <slot name="disable-reason" />
         </div>
 
-        <div :class="{ 'disabled-area': disabled }">
+        <div
+            :inert="disabled || undefined"
+            :aria-hidden="disabled ? 'true' : undefined"
+            :class="{ 'disabled-area': disabled }"
+        >
             <slot />
         </div>
     </div>

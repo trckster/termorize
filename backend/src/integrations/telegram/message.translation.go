@@ -38,7 +38,12 @@ func handlePlainTranslationMessage(message *message) (bool, error) {
 	}
 
 	baseText := buildVocabularyTranslationText(sourceLanguage, translationResult.SourceWord, translationResult.TranslatedWord, targetLanguage)
-	if len(strings.Fields(word)) < 5 {
+	translationMatchesSource := strings.EqualFold(
+		strings.TrimSpace(translationResult.SourceWord),
+		strings.TrimSpace(translationResult.TranslatedWord),
+	)
+
+	if len(strings.Fields(word)) < 5 && !translationMatchesSource {
 		vocabulary, createErr := services.CreateVocabularyByTranslation(user.ID, translationResult.TranslationID)
 		if createErr == nil {
 			return true, SendMessageWithInlineKeyboard(message.Chat.ID, baseText+t.VocabularyAutoAddedSuffix, buildVocabularyDeleteKeyboard(vocabulary.ID.String(), t))
@@ -49,6 +54,10 @@ func handlePlainTranslationMessage(message *message) (bool, error) {
 		}
 
 		return true, createErr
+	}
+
+	if translationMatchesSource {
+		return true, SendMessage(message.Chat.ID, baseText)
 	}
 
 	return true, SendMessageWithInlineKeyboard(message.Chat.ID, baseText, buildVocabularyAddKeyboard(translationResult.TranslationID.String(), t))

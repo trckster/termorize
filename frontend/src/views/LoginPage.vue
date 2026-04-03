@@ -39,7 +39,7 @@ const startTelegramLogin = async () => {
         const authUrl = await authStore.startTelegramLogin()
         window.location.assign(authUrl)
     } catch (err) {
-        error.value = getErrorMessage(err, 'Unable to start Telegram login')
+        error.value = getErrorMessage(err, t.value.loginStartError)
         isLoading.value = false
     }
 }

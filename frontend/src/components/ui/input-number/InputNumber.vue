@@ -18,7 +18,7 @@ const handleInput = (event: Event) => {
     <input
         type="number"
         :value="modelValue"
-        class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+        class="min-h-11 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
         v-bind="$attrs"
         @input="handleInput"
     />

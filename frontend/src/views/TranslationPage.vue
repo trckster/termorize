@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Play } from 'lucide-vue-next'
+import { ArrowUpDown, Play } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { settingsApi } from '@/api/settings.ts'
 import { translationApi } from '@/api/translation.ts'
@@ -63,6 +63,8 @@ const activeField = ref<'source' | 'target' | null>(null)
 const isLoadingSource = ref(false)
 const isLoadingTarget = ref(false)
 const translationSource = ref('')
+const translationErrorMessage = ref('')
+let latestTranslationRequestId = 0
 const translationSourceLabel = computed(() => {
     if (translationSource.value === 'user') return t.value.translationSourceUser
     if (translationSource.value === 'dictionary') return t.value.translationSourceDictionary
@@ -143,25 +145,41 @@ const performTranslation = async (
         updateTarget('')
         translationSource.value = ''
         translationId.value = null
+        translationErrorMessage.value = ''
         return
     }
 
+    const requestId = ++latestTranslationRequestId
     setLoading(true)
+    translationErrorMessage.value = ''
+
     try {
         const result = await translationApi.translate({
             from_word: fromText,
             from_language: fromLang,
             to_language: toLang,
         })
+
+        if (requestId !== latestTranslationRequestId) {
+            return
+        }
+
         updateTarget(result.translation)
         translationSource.value = result.source
         translationId.value = result.id
     } catch (error) {
+        if (requestId !== latestTranslationRequestId) {
+            return
+        }
+
         console.error('Translation error:', error)
         translationSource.value = ''
         translationId.value = null
+        translationErrorMessage.value = t.value.translationTranslateErrorDescription
     } finally {
-        setLoading(false)
+        if (requestId === latestTranslationRequestId) {
+            setLoading(false)
+        }
     }
 }
 
@@ -235,6 +253,7 @@ watch(
     (newValue) => {
         if (activeField.value !== 'source') return
         translationId.value = null
+        translationErrorMessage.value = ''
         queueSourceToTargetTranslation(newValue)
     },
     { immediate: false }
@@ -245,6 +264,7 @@ watch(
     (newValue) => {
         if (activeField.value !== 'target') return
         translationId.value = null
+        translationErrorMessage.value = ''
         queueTargetToSourceTranslation(newValue)
     },
     { immediate: false }
@@ -271,6 +291,10 @@ watch(
 )
 
 const handleSwapLanguages = () => {
+    latestTranslationRequestId += 1
+    translationErrorMessage.value = ''
+    isLoadingSource.value = false
+    isLoadingTarget.value = false
     ;[sourceLang.value, targetLang.value] = [targetLang.value, sourceLang.value]
     ;[sourceText.value, translatedText.value] = [translatedText.value, sourceText.value]
 }
@@ -333,36 +357,6 @@ const handleShortcut = (event: KeyboardEvent) => {
         return
     }
 
-    if (event.key === 'Tab' && !event.ctrlKey && !event.metaKey && !event.altKey) {
-        event.preventDefault()
-
-        const sourceElement = sourceTextareaRef.value
-        const targetElement = targetTextareaRef.value
-        const activeElement = document.activeElement
-
-        if (event.shiftKey) {
-            if (activeElement === targetElement) {
-                sourceElement?.focus()
-                activeField.value = 'source'
-                return
-            }
-
-            targetElement?.focus()
-            activeField.value = 'target'
-            return
-        }
-
-        if (activeElement === sourceElement) {
-            targetElement?.focus()
-            activeField.value = 'target'
-            return
-        }
-
-        sourceElement?.focus()
-        activeField.value = 'source'
-        return
-    }
-
     if (!event.ctrlKey || event.code !== 'KeyS') {
         return
     }
@@ -397,30 +391,35 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <main class="px-6 py-8">
-        <div class="max-w-5xl mx-auto">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <main class="px-4 py-4 sm:px-6 sm:py-8">
+        <div class="mx-auto max-w-6xl">
+            <h1 class="sr-only">{{ t.navHome }}</h1>
+            <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-5 xl:gap-6">
                 <div class="space-y-3">
-                    <div class="flex items-center justify-between">
-                        <label for="source-text" class="text-sm font-medium text-foreground">{{ t.translationFrom }}</label>
-                        <div class="w-52">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <label for="source-text" class="text-sm font-medium text-foreground">{{
+                            t.translationFrom
+                        }}</label>
+                        <div class="w-full sm:w-52">
                             <LanguageSelector
                                 ref="sourceLanguageSelectorRef"
                                 v-model="sourceLang"
                                 :placeholder="t.translationFrom"
                                 :disabled-values="[targetLang]"
                                 aria-label="Source language"
+                                :empty-text="t.languageSelectorNoResults"
                             />
                         </div>
                     </div>
-                    <div class="relative">
+                    <div class="relative min-w-0">
                         <textarea
                             id="source-text"
                             ref="sourceTextareaRef"
                             v-model="sourceText"
                             @focus="activeField = 'source'"
                             :placeholder="t.translationFromPlaceholder"
-                            class="w-full h-40 md:h-64 p-4 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                            maxlength="5000"
+                            class="h-40 w-full resize-none rounded-lg border border-border bg-background p-4 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm lg:h-72"
                         />
                         <div
                             v-if="isLoadingSource"
@@ -431,30 +430,48 @@ onBeforeUnmount(() => {
                             <div class="motion-safe:animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                         </div>
                     </div>
-                    <p class="text-xs text-muted-foreground text-right">{{ sourceText.length }} {{ t.translationCharacters }}</p>
+                    <p class="text-xs text-muted-foreground text-right">
+                        {{ sourceText.length }} {{ t.translationCharacters }}
+                    </p>
+                </div>
+
+                <div class="flex items-center justify-center lg:pt-14">
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        class="h-11 w-11 rounded-full"
+                        :aria-label="t.translationShortcutSwap"
+                        @click="handleSwapLanguages"
+                    >
+                        <ArrowUpDown class="h-4 w-4" />
+                    </Button>
                 </div>
 
                 <div class="space-y-3">
-                    <div class="flex items-center justify-between">
-                        <label for="target-text" class="text-sm font-medium text-foreground">{{ t.translationTo }}</label>
-                        <div class="w-52">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <label for="target-text" class="text-sm font-medium text-foreground">{{
+                            t.translationTo
+                        }}</label>
+                        <div class="w-full sm:w-52">
                             <LanguageSelector
                                 ref="targetLanguageSelectorRef"
                                 v-model="targetLang"
                                 :placeholder="t.translationTo"
                                 :disabled-values="[sourceLang]"
                                 aria-label="Target language"
+                                :empty-text="t.languageSelectorNoResults"
                             />
                         </div>
                     </div>
-                    <div class="relative">
+                    <div class="relative min-w-0">
                         <textarea
                             id="target-text"
                             ref="targetTextareaRef"
                             v-model="translatedText"
                             @focus="activeField = 'target'"
                             :placeholder="t.translationToPlaceholder"
-                            class="w-full h-40 md:h-64 p-4 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                            maxlength="5000"
+                            class="h-40 w-full resize-none rounded-lg border border-border bg-background p-4 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm lg:h-72"
                         />
                         <div
                             v-if="isLoadingTarget"
@@ -465,39 +482,64 @@ onBeforeUnmount(() => {
                             <div class="motion-safe:animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                         </div>
                     </div>
-                    <p class="text-xs text-muted-foreground text-right">{{ translatedText.length }} {{ t.translationCharacters }}</p>
+                    <p class="text-xs text-muted-foreground text-right">
+                        {{ translatedText.length }} {{ t.translationCharacters }}
+                    </p>
                 </div>
+            </div>
+
+            <div
+                v-if="translationErrorMessage"
+                class="mt-3 flex flex-col items-center justify-center gap-3 text-center sm:flex-row"
+            >
+                <p class="max-w-2xl text-sm text-destructive">{{ translationErrorMessage }}</p>
+                <Button variant="outline" size="sm" @click="triggerActiveFieldTranslation(true)">{{
+                    t.commonRetry
+                }}</Button>
             </div>
 
             <p v-if="translationSource" class="mt-3 text-center text-xs text-muted-foreground">
                 {{ t.translationSourcePrefix }} {{ translationSourceLabel }}
             </p>
             <div v-if="isPhoneViewport" class="mt-4 flex justify-center">
-                <Button @click="saveTranslationToVocabulary" :disabled="isSavingVocabulary || !translationId">
+                <Button
+                    class="min-h-11 w-full sm:w-auto"
+                    @click="saveTranslationToVocabulary"
+                    :disabled="isSavingVocabulary || !translationId"
+                >
                     {{ isSavingVocabulary ? t.translationSaving : t.translationSaveToVocabulary }}
                 </Button>
             </div>
-            <div
-                class="mt-4 hidden w-fit mx-auto grid-cols-[max-content_max-content] items-center gap-x-3 gap-y-2 text-xs text-muted-foreground md:grid"
-            >
-                <span class="justify-self-end text-right">{{ t.translationShortcutSave }}</span>
-                <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + S</Kbd>
-                <span class="justify-self-end text-right">{{ t.translationShortcutSwap }}</span>
-                <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + Shift + S</Kbd>
-                <span class="justify-self-end text-right">{{ t.translationShortcutFocusFirst }}</span>
-                <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + L</Kbd>
-                <span class="justify-self-end text-right">{{ t.translationShortcutFocusSecond }}</span>
-                <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + Shift + L</Kbd>
+            <div v-else class="mt-4 flex flex-col items-center gap-4 lg:flex-row lg:justify-center lg:gap-6">
+                <Button @click="saveTranslationToVocabulary" :disabled="isSavingVocabulary || !translationId">
+                    {{ isSavingVocabulary ? t.translationSaving : t.translationSaveToVocabulary }}
+                </Button>
+                <div
+                    class="hidden w-fit grid-cols-[max-content_max-content] items-center gap-x-3 gap-y-2 text-xs text-muted-foreground md:grid"
+                >
+                    <span class="justify-self-end text-right">{{ t.translationShortcutSave }}</span>
+                    <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + S</Kbd>
+                    <span class="justify-self-end text-right">{{ t.translationShortcutSwap }}</span>
+                    <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + Shift + S</Kbd>
+                    <span class="justify-self-end text-right">{{ t.translationShortcutFocusFirst }}</span>
+                    <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + L</Kbd>
+                    <span class="justify-self-end text-right">{{ t.translationShortcutFocusSecond }}</span>
+                    <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + Shift + L</Kbd>
+                </div>
             </div>
 
-            <Card class="mt-8 border-primary/20 bg-gradient-to-r from-primary/8 via-background to-background">
+            <Card class="mt-6 border-primary/20 bg-gradient-to-r from-primary/8 via-background to-background sm:mt-8">
                 <CardContent class="p-3 sm:p-4">
                     <div
-                        class="flex min-h-[220px] w-full max-w-[300px] flex-col items-center justify-center rounded-2xl border border-primary/20 bg-background/90 px-5 py-6 text-center shadow-sm backdrop-blur-sm sm:min-h-[260px] sm:max-w-[320px]"
+                        class="flex min-h-[220px] w-full max-w-full flex-col items-center justify-center rounded-2xl border border-primary/20 bg-background/90 px-5 py-6 text-center shadow-sm backdrop-blur-sm sm:min-h-[260px] lg:ml-auto lg:max-w-[320px]"
                     >
                         <div class="space-y-2">
-                            <p class="text-lg font-semibold tracking-tight text-foreground sm:text-xl">{{ t.quizCardTitle }}</p>
-                            <p class="mx-auto max-w-[24ch] text-sm leading-6 text-muted-foreground">{{ t.quizCardDescription }}</p>
+                            <p class="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                                {{ t.quizCardTitle }}
+                            </p>
+                            <p class="mx-auto max-w-[24ch] text-sm leading-6 text-muted-foreground">
+                                {{ t.quizCardDescription }}
+                            </p>
                         </div>
                         <Button
                             size="lg"

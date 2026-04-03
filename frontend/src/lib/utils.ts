@@ -5,15 +5,32 @@ export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs))
 }
 
+function getPreferredLocale() {
+    if (typeof document !== 'undefined' && document.documentElement.lang) {
+        return document.documentElement.lang
+    }
+
+    if (typeof navigator !== 'undefined' && navigator.language) {
+        return navigator.language
+    }
+
+    return 'en'
+}
+
 export function formatRelativeTime(dateString: string) {
     const date = new Date(dateString)
+
+    if (Number.isNaN(date.getTime())) {
+        return dateString
+    }
+
     const now = new Date()
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
 
-    const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' })
+    const rtf = new Intl.RelativeTimeFormat(getPreferredLocale(), { numeric: 'auto' })
 
     if (diffInSeconds < 60) {
-        return 'just now'
+        return rtf.format(0, 'second')
     }
 
     const diffInMinutes = Math.floor(diffInSeconds / 60)
@@ -42,12 +59,25 @@ export function formatRelativeTime(dateString: string) {
 
 export function formatDate(dateString: string) {
     const date = new Date(dateString)
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    const seconds = String(date.getSeconds()).padStart(2, '0')
 
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+    if (Number.isNaN(date.getTime())) {
+        return dateString
+    }
+
+    return new Intl.DateTimeFormat(getPreferredLocale(), {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+    }).format(date)
+}
+
+export function formatNumber(value: number) {
+    if (!Number.isFinite(value)) {
+        return String(value)
+    }
+
+    return new Intl.NumberFormat(getPreferredLocale()).format(value)
 }

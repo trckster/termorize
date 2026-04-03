@@ -6,6 +6,7 @@ import { exercisesApi, type Exercise, type RandomExercise, type VerifyResult } f
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/composables/useI18n'
 import { useSettingsStore } from '@/stores/settings.ts'
+import { formatNumber } from '@/lib/utils.ts'
 
 const QUIZ_SIZE = 10
 
@@ -28,10 +29,7 @@ const answerInputRef = ref<HTMLInputElement | null>(null)
 const feedbackTimeoutId = ref<number | null>(null)
 
 const questionNumber = computed(() =>
-    Math.min(
-        exerciseIds.value.length + (state.value === 'question' || state.value === 'feedback' ? 1 : 0),
-        QUIZ_SIZE
-    )
+    Math.min(exerciseIds.value.length + (state.value === 'question' || state.value === 'feedback' ? 1 : 0), QUIZ_SIZE)
 )
 
 async function startQuiz() {
@@ -150,8 +148,8 @@ function closeQuiz() {
     void router.push({ name: 'translation' })
 }
 
-const correctResults = computed(() => results.value.filter(e => e.status === 'completed'))
-const wrongResults = computed(() => results.value.filter(e => e.status === 'failed'))
+const correctResults = computed(() => results.value.filter((e) => e.status === 'completed'))
+const wrongResults = computed(() => results.value.filter((e) => e.status === 'failed'))
 const score = computed(() => correctResults.value.length)
 
 function getFlag(lang?: string | null): string {
@@ -197,14 +195,18 @@ onBeforeUnmount(() => {
 
 <template>
     <main class="min-h-full bg-background">
+        <h1 class="sr-only">{{ t.quizTitle }}</h1>
         <div class="flex items-center justify-between border-b border-border px-4 py-4 sm:px-6">
             <span class="text-sm font-medium text-muted-foreground">{{ t.quizTitle }}</span>
-            <span v-if="state === 'question' || state === 'feedback'" class="text-sm tabular-nums text-muted-foreground">
+            <span
+                v-if="state === 'question' || state === 'feedback'"
+                class="text-sm tabular-nums text-muted-foreground"
+            >
                 {{ questionNumber }} / {{ QUIZ_SIZE }}
             </span>
             <button
                 :aria-label="t.cancel"
-                class="rounded-sm p-1 opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring"
+                class="inline-flex h-11 w-11 items-center justify-center rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring"
                 @click="closeQuiz"
             >
                 <X class="h-5 w-5" />
@@ -244,13 +246,20 @@ onBeforeUnmount(() => {
                                 v-model="currentAnswer"
                                 :disabled="isSubmitting"
                                 :placeholder="t.quizAnswerPlaceholder"
+                                :aria-label="t.quizAnswerPlaceholder"
+                                maxlength="500"
                                 autocomplete="off"
                                 autocapitalize="none"
                                 autocorrect="off"
                                 spellcheck="false"
                                 class="w-full rounded-lg border border-border bg-background px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
                             />
-                            <Button class="w-full" size="lg" :disabled="!currentAnswer.trim() || isSubmitting" @click="submitAnswer">
+                            <Button
+                                class="w-full"
+                                size="lg"
+                                :disabled="!currentAnswer.trim() || isSubmitting"
+                                @click="submitAnswer"
+                            >
                                 {{ isSubmitting ? t.quizChecking : t.quizSubmit }}
                             </Button>
                             <p v-if="error" class="text-center text-sm text-destructive">{{ error }}</p>
@@ -265,7 +274,9 @@ onBeforeUnmount(() => {
                             <p class="text-sm text-muted-foreground">{{ t.quizCorrectAnswer }}</p>
                             <p class="text-xl font-medium">{{ verifyResult?.correct_answer }}</p>
                         </div>
-                        <p class="text-sm text-muted-foreground">{{ t.quizKnowledge }}: {{ verifyResult?.knowledge }}%</p>
+                        <p class="text-sm text-muted-foreground">
+                            {{ t.quizKnowledge }}: {{ verifyResult?.knowledge }}%
+                        </p>
                     </div>
                 </template>
 
@@ -275,32 +286,58 @@ onBeforeUnmount(() => {
                     </div>
 
                     <div v-else class="space-y-6">
-                        <p class="text-center text-4xl font-bold">{{ score }} / {{ QUIZ_SIZE }}</p>
+                        <p class="text-center text-4xl font-bold">
+                            {{ formatNumber(score) }} / {{ formatNumber(QUIZ_SIZE) }}
+                        </p>
 
                         <div class="grid gap-8 sm:grid-cols-2">
                             <div class="space-y-2">
-                                <p class="text-base font-medium text-green-600 dark:text-green-400 sm:text-lg">✓ {{ t.quizCorrect }}</p>
+                                <p class="text-base font-medium text-green-600 dark:text-green-400 sm:text-lg">
+                                    ✓ {{ t.quizCorrect }}
+                                </p>
                                 <ul class="space-y-1">
-                                    <li v-for="exercise in correctResults" :key="exercise.id" class="text-base text-foreground sm:text-lg">
+                                    <li
+                                        v-for="exercise in correctResults"
+                                        :key="exercise.id"
+                                        class="text-base text-foreground sm:text-lg"
+                                    >
                                         {{ getVocabularyLabel(exercise) }}
                                     </li>
-                                    <li v-if="correctResults.length === 0" class="text-base italic text-muted-foreground sm:text-lg">—</li>
+                                    <li
+                                        v-if="correctResults.length === 0"
+                                        class="text-base italic text-muted-foreground sm:text-lg"
+                                    >
+                                        —
+                                    </li>
                                 </ul>
                             </div>
                             <div class="space-y-2">
-                                <p class="text-base font-medium text-red-600 dark:text-red-400 sm:text-lg">✗ {{ t.quizWrong }}</p>
+                                <p class="text-base font-medium text-red-600 dark:text-red-400 sm:text-lg">
+                                    ✗ {{ t.quizWrong }}
+                                </p>
                                 <ul class="space-y-1">
-                                    <li v-for="exercise in wrongResults" :key="exercise.id" class="text-base text-foreground sm:text-lg">
+                                    <li
+                                        v-for="exercise in wrongResults"
+                                        :key="exercise.id"
+                                        class="text-base text-foreground sm:text-lg"
+                                    >
                                         {{ getVocabularyLabel(exercise) }}
                                     </li>
-                                    <li v-if="wrongResults.length === 0" class="text-base italic text-muted-foreground sm:text-lg">—</li>
+                                    <li
+                                        v-if="wrongResults.length === 0"
+                                        class="text-base italic text-muted-foreground sm:text-lg"
+                                    >
+                                        —
+                                    </li>
                                 </ul>
                             </div>
                         </div>
 
                         <div class="flex flex-col gap-3 pt-2 sm:flex-row">
                             <Button class="w-full sm:flex-1" size="lg" @click="startQuiz">{{ t.quizMore }}</Button>
-                            <Button class="w-full sm:flex-1" size="lg" variant="outline" @click="closeQuiz">{{ t.quizEnough }}</Button>
+                            <Button class="w-full sm:flex-1" size="lg" variant="outline" @click="closeQuiz">{{
+                                t.quizEnough
+                            }}</Button>
                         </div>
                     </div>
                 </template>

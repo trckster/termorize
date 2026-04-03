@@ -28,6 +28,7 @@ const props = withDefaults(
         placeholder?: string
         searchPlaceholder?: string
         emptyText?: string
+        ariaLabel?: string
         class?: HTMLAttributes['class']
     }>(),
     {
@@ -56,9 +57,11 @@ const getLabel = (value: string) => props.options.find((option) => option.value 
             <ComboboxInput
                 :display-value="(value) => getLabel(value as string)"
                 :placeholder="selectedValue ? searchPlaceholder : placeholder"
-                class="w-full px-3 py-2 pr-10 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                :aria-label="ariaLabel"
+                class="min-h-11 w-full rounded-md border border-border bg-background px-3 py-2 pr-10 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
             <ComboboxTrigger
+                :aria-label="ariaLabel || placeholder"
                 class="absolute right-0 top-0 h-full px-3 text-muted-foreground transition-colors hover:text-foreground"
             >
                 <ChevronsUpDown class="h-4 w-4" />

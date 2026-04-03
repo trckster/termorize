@@ -42,26 +42,40 @@ export default async function apiCall<T>(
             )
     }
 
-    const response = await fetch(fullUrl, payload)
-    const json = await response.json().catch(() => '')
+    let response: Response
+
+    try {
+        response = await fetch(fullUrl, payload)
+    } catch (error) {
+        return Promise.reject({
+            status: 0,
+            body: {
+                message: error instanceof Error ? error.message : 'Network request failed',
+            },
+        })
+    }
+
+    const contentType = response.headers.get('content-type') || ''
+    const hasJsonBody = contentType.includes('application/json')
+    const json = hasJsonBody ? await response.json().catch(() => null) : null
 
     if (response.status >= 500) {
         return Promise.reject({
             status: response.status,
-            body: { message: 'Internal Server Error' },
+            body: json || { message: 'Internal Server Error' },
         })
     }
 
     if (response.status >= 300) {
         return Promise.reject({
             status: response.status,
-            body: json,
+            body: json || { message: response.statusText || 'Request failed' },
         })
     }
 
     return {
         status: response.status,
-        body: json,
+        body: (json ?? null) as T,
     }
 }
 

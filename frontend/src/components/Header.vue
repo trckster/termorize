@@ -45,18 +45,20 @@
                 </router-link>
             </nav>
 
-            <div class="flex items-center gap-4">
+            <div class="flex min-w-0 items-center gap-4">
                 <div ref="profileMenuRef" class="relative">
                     <button
+                        ref="profileMenuButtonRef"
                         @click.stop="toggleProfileMenu"
-                        class="inline-flex items-center gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-accent"
+                        class="inline-flex min-w-0 items-center gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary"
                         aria-haspopup="menu"
-                        aria-label="Open profile menu"
+                        :aria-label="t.headerOpenProfileMenu"
                         :aria-expanded="isProfileMenuOpen"
+                        :aria-controls="profileMenuId"
                     >
-                        <div class="text-right">
-                            <p class="text-sm font-medium text-foreground">{{ user?.name }}</p>
-                            <p class="text-xs text-muted-foreground">@{{ user?.username }}</p>
+                        <div class="min-w-0 text-right">
+                            <p class="truncate text-sm font-medium text-foreground">{{ user?.name }}</p>
+                            <p class="truncate text-xs text-muted-foreground">@{{ user?.username }}</p>
                         </div>
                         <ChevronDown
                             class="h-4 w-4 text-muted-foreground transition-transform"
@@ -66,22 +68,31 @@
 
                     <div
                         v-if="isProfileMenuOpen"
+                        :id="profileMenuId"
                         class="absolute right-0 top-full z-50 mt-2 w-60 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-md"
                         role="menu"
+                        :aria-label="t.headerOpenProfileMenu"
+                        @keydown.esc.prevent="closeProfileMenu(true)"
                     >
                         <div class="flex items-center justify-between rounded-sm px-2 py-2">
-                            <div class="flex items-center gap-2 text-sm font-medium">
+                            <div :id="themeSwitchLabelId" class="flex items-center gap-2 text-sm font-medium">
                                 <Sun v-if="isDark" class="h-4 w-4" />
                                 <Moon v-else class="h-4 w-4" />
                                 <span>{{ t.headerChangeTheme }}</span>
                             </div>
-                            <ToggleSwitch :model-value="isDark" @update:model-value="setTheme" @click.stop />
+                            <ToggleSwitch
+                                :model-value="isDark"
+                                :labelledby="themeSwitchLabelId"
+                                @update:model-value="setTheme"
+                                @click.stop
+                            />
                         </div>
 
                         <button
+                            ref="firstMenuActionRef"
                             @click="goToSettings"
-                            class="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium transition-colors hover:bg-accent"
                             role="menuitem"
+                            class="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary"
                         >
                             <Settings class="h-4 w-4" />
                             <span>{{ t.headerSettings }}</span>
@@ -92,8 +103,8 @@
                         <button
                             v-if="!isMiniApp"
                             @click="handleLogout"
-                            class="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive hover:text-primary-foreground"
                             role="menuitem"
+                            class="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive hover:text-primary-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                         >
                             <LogOut class="h-4 w-4" />
                             <span>{{ t.headerLogout }}</span>
@@ -102,8 +113,8 @@
                         <button
                             v-if="isMiniApp"
                             @click="handleLogout"
-                            class="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive hover:text-primary-foreground"
                             role="menuitem"
+                            class="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive hover:text-primary-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                         >
                             <LogOut class="h-4 w-4" />
                             <span>{{ t.headerRelogin }}</span>
@@ -116,7 +127,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+import { computed, nextTick, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { Sun, Moon, ChevronDown, Settings, LogOut } from 'lucide-vue-next'
@@ -134,9 +145,17 @@ const isMiniApp = isTelegramWebApp()
 const isDark = ref(false)
 const isProfileMenuOpen = ref(false)
 const profileMenuRef = ref<HTMLElement | null>(null)
+const profileMenuButtonRef = ref<HTMLButtonElement | null>(null)
+const firstMenuActionRef = ref<HTMLButtonElement | null>(null)
+const profileMenuId = 'profile-menu'
+const themeSwitchLabelId = 'profile-theme-switch-label'
 
-const closeProfileMenu = () => {
+const closeProfileMenu = (restoreFocus: boolean = false) => {
     isProfileMenuOpen.value = false
+
+    if (restoreFocus) {
+        profileMenuButtonRef.value?.focus()
+    }
 }
 
 const toggleProfileMenu = () => {
@@ -149,6 +168,15 @@ const handleClickOutside = (event: MouseEvent) => {
         closeProfileMenu()
     }
 }
+
+watch(isProfileMenuOpen, async (open) => {
+    if (!open) {
+        return
+    }
+
+    await nextTick()
+    firstMenuActionRef.value?.focus()
+})
 
 onMounted(() => {
     isDark.value = document.documentElement.classList.contains('dark')
