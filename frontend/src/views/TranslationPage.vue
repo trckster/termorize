@@ -59,6 +59,7 @@ const { addToast } = useToast()
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let settingsSaveTimer: ReturnType<typeof setTimeout> | null = null
+let isSwappingLanguages = false
 const activeField = ref<'source' | 'target' | null>(null)
 const isLoadingSource = ref(false)
 const isLoadingTarget = ref(false)
@@ -273,7 +274,9 @@ watch(
 watch(
     sourceLang,
     () => {
-        void focusTextarea('source')
+        if (!isSwappingLanguages) {
+            void focusTextarea('source')
+        }
         triggerActiveFieldTranslation(true)
         queuePersistTranslationLanguages()
     },
@@ -283,7 +286,9 @@ watch(
 watch(
     targetLang,
     () => {
-        void focusTextarea('target')
+        if (!isSwappingLanguages) {
+            void focusTextarea('target')
+        }
         triggerActiveFieldTranslation(true)
         queuePersistTranslationLanguages()
     },
@@ -291,12 +296,28 @@ watch(
 )
 
 const handleSwapLanguages = () => {
+    const fieldToRefocus = activeField.value
+
+    isSwappingLanguages = true
     latestTranslationRequestId += 1
     translationErrorMessage.value = ''
     isLoadingSource.value = false
     isLoadingTarget.value = false
     ;[sourceLang.value, targetLang.value] = [targetLang.value, sourceLang.value]
     ;[sourceText.value, translatedText.value] = [translatedText.value, sourceText.value]
+
+    void nextTick(() => {
+        isSwappingLanguages = false
+
+        if (fieldToRefocus) {
+            void focusTextarea(fieldToRefocus)
+        }
+    })
+}
+
+const handleTextareaTab = (field: 'source' | 'target', event: KeyboardEvent) => {
+    event.preventDefault()
+    void focusTextarea(field === 'source' ? 'target' : 'source')
 }
 
 const saveTranslationToVocabulary = async () => {
@@ -417,6 +438,7 @@ onBeforeUnmount(() => {
                             ref="sourceTextareaRef"
                             v-model="sourceText"
                             @focus="activeField = 'source'"
+                            @keydown.tab="handleTextareaTab('source', $event)"
                             :placeholder="t.translationFromPlaceholder"
                             maxlength="5000"
                             class="h-40 w-full resize-none rounded-lg border border-border bg-background p-4 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm lg:h-72"
@@ -443,7 +465,7 @@ onBeforeUnmount(() => {
                         :aria-label="t.translationShortcutSwap"
                         @click="handleSwapLanguages"
                     >
-                        <ArrowUpDown class="h-4 w-4" />
+                        <ArrowUpDown class="h-4 w-4 lg:rotate-90" />
                     </Button>
                 </div>
 
@@ -469,6 +491,7 @@ onBeforeUnmount(() => {
                             ref="targetTextareaRef"
                             v-model="translatedText"
                             @focus="activeField = 'target'"
+                            @keydown.tab="handleTextareaTab('target', $event)"
                             :placeholder="t.translationToPlaceholder"
                             maxlength="5000"
                             class="h-40 w-full resize-none rounded-lg border border-border bg-background p-4 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm lg:h-72"
@@ -510,10 +533,7 @@ onBeforeUnmount(() => {
                     {{ isSavingVocabulary ? t.translationSaving : t.translationSaveToVocabulary }}
                 </Button>
             </div>
-            <div v-else class="mt-4 flex flex-col items-center gap-4 lg:flex-row lg:justify-center lg:gap-6">
-                <Button @click="saveTranslationToVocabulary" :disabled="isSavingVocabulary || !translationId">
-                    {{ isSavingVocabulary ? t.translationSaving : t.translationSaveToVocabulary }}
-                </Button>
+            <div v-else class="mt-4 flex justify-center">
                 <div
                     class="hidden w-fit grid-cols-[max-content_max-content] items-center gap-x-3 gap-y-2 text-xs text-muted-foreground md:grid"
                 >
