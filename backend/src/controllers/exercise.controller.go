@@ -61,8 +61,13 @@ func RandomExercise(c *gin.Context) {
 
 	result, err := services.CreateRandomExercise(userID)
 	if err != nil {
-		if errors.Is(err, services.ErrNoEligibleVocabulary) {
-			c.JSON(nethttp.StatusUnprocessableEntity, gin.H{"error": "no eligible vocabulary found"})
+		if errors.Is(err, services.ErrNoVocabularyForExercise) {
+			c.JSON(nethttp.StatusUnprocessableEntity, gin.H{"error": services.ErrNoVocabularyForExercise.Error()})
+			return
+		}
+
+		if errors.Is(err, services.ErrAllVocabularyMastered) {
+			c.JSON(nethttp.StatusUnprocessableEntity, gin.H{"error": services.ErrAllVocabularyMastered.Error()})
 			return
 		}
 

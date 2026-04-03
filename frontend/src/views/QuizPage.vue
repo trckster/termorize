@@ -25,6 +25,7 @@ const results = ref<Exercise[]>([])
 const isSubmitting = ref(false)
 const isLoadingResults = ref(false)
 const error = ref<string | null>(null)
+const emptyState = ref<'error' | 'mastered' | null>(null)
 const answerInputRef = ref<HTMLInputElement | null>(null)
 const feedbackTimeoutId = ref<number | null>(null)
 
@@ -35,6 +36,7 @@ const questionNumber = computed(() =>
 async function startQuiz() {
     state.value = 'loading'
     error.value = null
+    emptyState.value = null
     exerciseIds.value = []
     results.value = []
     currentAnswer.value = ''
@@ -45,6 +47,7 @@ async function startQuiz() {
 async function loadNextQuestion() {
     state.value = 'loading'
     error.value = null
+    emptyState.value = null
 
     try {
         currentExercise.value = await exercisesApi.getRandomExercise()
@@ -54,10 +57,13 @@ async function loadNextQuestion() {
         await nextTick()
         answerInputRef.value?.focus()
     } catch (err: unknown) {
-        const apiErr = err as { status?: number }
+        const apiErr = err as { status?: number; body?: { error?: string } }
         if (apiErr?.status === 422) {
-            error.value = t.value.quizNoVocabulary
+            const isMastered = apiErr.body?.error === 'all vocabulary is already mastered'
+            emptyState.value = isMastered ? 'mastered' : 'error'
+            error.value = isMastered ? t.value.quizAllVocabularyMastered : t.value.quizNoVocabulary
         } else {
+            emptyState.value = 'error'
             error.value = t.value.quizLoadError
         }
     }
@@ -217,7 +223,9 @@ onBeforeUnmount(() => {
             <div :class="state === 'results' ? 'w-full max-w-5xl' : 'w-full max-w-sm'">
                 <template v-if="state === 'loading'">
                     <div v-if="error" class="space-y-4 text-center">
-                        <p class="text-destructive">{{ error }}</p>
+                        <p :class="emptyState === 'mastered' ? 'text-green-600 dark:text-green-400' : 'text-destructive'">
+                            {{ error }}
+                        </p>
                         <Button variant="outline" @click="startQuiz">{{ t.quizRetry }}</Button>
                     </div>
                     <div v-else class="flex flex-col items-center gap-3">

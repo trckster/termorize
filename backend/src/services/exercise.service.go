@@ -17,7 +17,8 @@ import (
 )
 
 var (
-	ErrNoEligibleVocabulary      = errors.New("no eligible vocabulary found")
+	ErrNoVocabularyForExercise   = errors.New("no vocabulary found")
+	ErrAllVocabularyMastered     = errors.New("all vocabulary is already mastered")
 	ErrExerciseNotFound          = errors.New("exercise not found")
 	ErrExerciseNotInProgress     = errors.New("exercise is not in progress")
 	ErrExerciseVocabularyDeleted = errors.New("exercise vocabulary was deleted")
@@ -647,7 +648,16 @@ func CreateRandomExercise(userID uint) (*RandomExerciseResult, error) {
 	}
 
 	if len(ids) == 0 {
-		return nil, ErrNoEligibleVocabulary
+		hasVocabulary, err := userHasVocabulary(userID)
+		if err != nil {
+			return nil, err
+		}
+
+		if !hasVocabulary {
+			return nil, ErrNoVocabularyForExercise
+		}
+
+		return nil, ErrAllVocabularyMastered
 	}
 
 	vocabularyID := ids[0]
@@ -724,6 +734,21 @@ func CreateRandomExercise(userID uint) (*RandomExerciseResult, error) {
 		Language:       language,
 		AnswerLanguage: answerLanguage,
 	}, nil
+}
+
+func userHasVocabulary(userID uint) (bool, error) {
+	var count int64
+
+	err := db.DB.
+		Model(&models.Vocabulary{}).
+		Where("user_id = ?", userID).
+		Where("deleted_at IS NULL").
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
 }
 
 type VerifyAnswerResult struct {

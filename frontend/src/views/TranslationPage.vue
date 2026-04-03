@@ -548,10 +548,10 @@ onBeforeUnmount(() => {
                 </div>
             </div>
 
-            <Card class="mt-6 border-primary/20 bg-gradient-to-r from-primary/8 via-background to-background sm:mt-8">
+            <Card class="mt-8 border-primary/20 bg-gradient-to-r from-primary/8 via-background to-background sm:mt-10">
                 <CardContent class="p-3 sm:p-4">
                     <div
-                        class="flex min-h-[220px] w-full max-w-full flex-col items-center justify-center rounded-2xl border border-primary/20 bg-background/90 px-5 py-6 text-center shadow-sm backdrop-blur-sm sm:min-h-[260px] lg:ml-auto lg:max-w-[320px]"
+                        class="flex min-h-[220px] w-full max-w-full flex-col items-center justify-center rounded-2xl border border-primary/20 bg-background/90 px-5 py-6 text-center shadow-sm backdrop-blur-sm sm:min-h-[260px] lg:mx-auto lg:max-w-[320px]"
                     >
                         <div class="space-y-2">
                             <p class="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
