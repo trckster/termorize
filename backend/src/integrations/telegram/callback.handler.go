@@ -335,5 +335,5 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 		return nil
 	}
 
-	return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, selectionText, getMenuBackKeyboard(t))
+	return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, selectionText, getMenuBackKeyboard(t))
 }

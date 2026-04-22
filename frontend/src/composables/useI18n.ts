@@ -16,8 +16,21 @@ const en = {
     headerOpenProfileMenu: 'Open profile menu',
 
     // Login page
+    loginEyebrow: 'Telegram-first vocabulary trainer',
+    loginHeroTitle: 'Learn words faster across Telegram and the web.',
+    loginHeroDescription:
+        'Termorize combines translation, your personal vocabulary, practice, statistics, and Telegram automation in one place.',
     loginTitle: 'Login with Telegram',
     loginDescription: 'Login in Termorize to translate, check vocabulary, exercises, statistics and app settings.',
+    loginFeatureTranslateTitle: 'Translate instantly',
+    loginFeatureTranslateDescription: 'Translate words and short phrases with your selected language pair.',
+    loginFeatureVocabularyTitle: 'Build your vocabulary',
+    loginFeatureVocabularyDescription: 'Save your own word pairs and keep everything in one personal list.',
+    loginFeaturePracticeTitle: 'Practice and track progress',
+    loginFeaturePracticeDescription: 'Use website exercises, quiz mode, and statistics to see how learning is going.',
+    loginFeatureTelegramTitle: 'Automate in Telegram',
+    loginFeatureTelegramDescription: 'Enable daily exercises, control schedule, and keep learning inside Telegram.',
+    loginCardNote: 'Use Telegram to sign in once and keep the same account across the bot and website.',
     loginStartError: 'Unable to start Telegram login. Please try again.',
 
     // TelegramLogin button
@@ -217,7 +230,8 @@ const en = {
     quizLoadError: 'Failed to load question. Please try again.',
     quizVerifyError: 'Failed to check answer. Please try again.',
     quizNoVocabulary: 'No vocabulary available for quiz. Add some words first.',
-    quizAllVocabularyMastered: 'Excellent. You have already mastered all your vocabulary. Add new words to keep practicing.',
+    quizAllVocabularyMastered:
+        'Excellent. You have already mastered all your vocabulary. Add new words to keep practicing.',
     quizRetry: 'Retry',
     quizAnswerPlaceholder: 'Type your answer...',
     quizSubmit: 'Submit',
@@ -251,8 +265,22 @@ const ru: typeof en = {
     headerOpenProfileMenu: 'Открыть меню профиля',
 
     // Login page
+    loginEyebrow: 'Сервис для словаря и практики через Telegram',
+    loginHeroTitle: 'Изучай слова быстрее в Telegram и вебе.',
+    loginHeroDescription:
+        'Termorize объединяет перевод, личный словарь, практику, статистику и Telegram-автоматизацию в одном месте.',
     loginTitle: 'Войти через Telegram',
     loginDescription: 'Войдите в Termorize для перевода, просмотра словаря, упражнений, статистики и настроек.',
+    loginFeatureTranslateTitle: 'Быстрый перевод',
+    loginFeatureTranslateDescription: 'Переводите слова и короткие фразы в выбранной языковой паре.',
+    loginFeatureVocabularyTitle: 'Собственный словарь',
+    loginFeatureVocabularyDescription: 'Сохраняйте свои пары слов и держите их в одном личном списке.',
+    loginFeaturePracticeTitle: 'Практика и прогресс',
+    loginFeaturePracticeDescription: 'Проходите упражнения на сайте, запускайте квиз и следите за статистикой.',
+    loginFeatureTelegramTitle: 'Автоматизация в Telegram',
+    loginFeatureTelegramDescription:
+        'Включайте ежедневные упражнения, настраивайте расписание и учитесь прямо в Telegram.',
+    loginCardNote: 'Вход через Telegram связывает одного и того же пользователя в боте и на сайте.',
     loginStartError: 'Не удалось начать вход через Telegram. Попробуйте ещё раз.',
 
     // TelegramLogin button
@@ -453,7 +481,8 @@ const ru: typeof en = {
     quizLoadError: 'Не удалось загрузить вопрос. Попробуйте ещё раз.',
     quizVerifyError: 'Не удалось проверить ответ. Попробуйте ещё раз.',
     quizNoVocabulary: 'Нет слов для теста. Сначала добавьте слова.',
-    quizAllVocabularyMastered: 'Отлично. Вы уже выучили весь свой словарь. Добавьте новые слова, чтобы продолжить практику.',
+    quizAllVocabularyMastered:
+        'Отлично. Вы уже выучили весь свой словарь. Добавьте новые слова, чтобы продолжить практику.',
     quizRetry: 'Повторить',
     quizAnswerPlaceholder: 'Введите ответ...',
     quizSubmit: 'Ответить',

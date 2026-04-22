@@ -9,6 +9,7 @@ import (
 const telegramMiniAppURL = "https://t.me/termorize_bot/app"
 
 type BotTexts struct {
+	Start          string
 	Help           string
 	Menu           string
 	Pong           string
@@ -91,10 +92,17 @@ type BotTexts struct {
 }
 
 var botTextsEn = BotTexts{
-	Help:           "This bot will help you memorize a whole bunch of words.\nSend /menu to see options!",
+	Start: "Welcome to *Termorize*.\n\n" +
+		"Here you can:\n" +
+		"- translate words and short phrases\n" +
+		"- save custom translations to your vocabulary\n" +
+		"- practice on the website\n" +
+		"- receive automatic exercises in Telegram\n" +
+		"- review statistics and adjust learning settings",
+	Help:           "Use /menu to open the main menu.",
 	Menu:           "📌 *Menu* 📌",
 	Pong:           "pong",
-	UnknownCommand: "Unknown command! /help",
+	UnknownCommand: "Unknown command! Use /menu",
 
 	CancelNothing: "Nothing to cancel!",
 	CancelDone:    "Current action cancelled 👌",
@@ -135,15 +143,15 @@ var botTextsEn = BotTexts{
 	MenuSettingsEnabled:              "Enabled",
 	MenuSettingsDisabled:             "Disabled",
 	MenuSettingsFullVersionNote:      "All settings are available on the website!",
-	MenuWhatsGoingOn: "Hello! 👋\n\n" +
-		"This is the new version of the bot. 🤖\n\n" +
-		"Bad news: 😕\n" +
-		"- question answer history was lost (everything from before March 15)\n\n" +
-		"Good news: ✨\n" +
-		"- the bot now has a website. In the future, the site will make it possible to do things that can't be done in the bot\n" +
-		"- the interface now supports both Russian and English (you can change it in the website settings)\n" +
-		"- more features are coming 🚀\n\n" +
-		"For any questions or suggestions, write to: @trckster",
+	MenuWhatsGoingOn: "*Termorize* is a vocabulary trainer that works in both Telegram and the web app.\n\n" +
+		"You can use it to:\n" +
+		"- translate words and short phrases\n" +
+		"- add your own word pairs to vocabulary\n" +
+		"- review saved vocabulary and learning progress\n" +
+		"- practice with exercises on the website\n" +
+		"- receive automatic Telegram exercises on your schedule\n" +
+		"- change interface language and learning settings\n\n" +
+		"Use *Open App* for the full experience, or stay in the bot for quick actions.",
 
 	ChooseLanguage: "Choose language:",
 
@@ -168,7 +176,7 @@ var botTextsEn = BotTexts{
 	ButtonChangeSystemLanguage:  "Change System Language",
 	ButtonEnableDailyExercises:  "Enable Daily Exercises",
 	ButtonDisableDailyExercises: "Disable Daily Exercises",
-	ButtonWhatsGoingOn:          "What's happening?",
+	ButtonWhatsGoingOn:          "About",
 	ButtonBack:                  "Back",
 	ButtonCancel:                "Cancel",
 	ButtonExerciseIDK:           "Don't know",
@@ -194,10 +202,17 @@ var botTextsEn = BotTexts{
 }
 
 var botTextsRu = BotTexts{
-	Help:           "Этот бот поможет тебе запомнить множество слов.\nОтправь /menu чтобы увидеть опции!",
+	Start: "Добро пожаловать в *Termorize*.\n\n" +
+		"Здесь можно:\n" +
+		"- переводить слова и короткие фразы\n" +
+		"- сохранять свои переводы в словарь\n" +
+		"- практиковаться на сайте\n" +
+		"- получать автоматические упражнения в Telegram\n" +
+		"- смотреть статистику и настраивать обучение",
+	Help:           "Используй /menu, чтобы открыть главное меню.",
 	Menu:           "📌 *Меню* 📌",
 	Pong:           "pong",
-	UnknownCommand: "Неизвестная команда! /help",
+	UnknownCommand: "Неизвестная команда! Используй /menu",
 
 	CancelNothing: "Нечего отменять!",
 	CancelDone:    "Текущее действие отменено 👌",
@@ -238,15 +253,15 @@ var botTextsRu = BotTexts{
 	MenuSettingsEnabled:              "Включены",
 	MenuSettingsDisabled:             "Выключены",
 	MenuSettingsFullVersionNote:      "Полная версия настроек доступна на сайте.",
-	MenuWhatsGoingOn: "Привет! 👋\n\n" +
-		"Это новая версия бота. 🤖\n\n" +
-		"Плохие новости: 😕\n" +
-		"- история ответов на вопросы утеряна (всё что было до 15 март)\n\n" +
-		"Хорошие новости: ✨\n" +
-		"- теперь у бота есть сайт. В перспективе сайт позволит сделать то, что нельзя делать в боте\n" +
-		"- появилась поддержка русского и английского в интерфейсе (поменять можно в настройках на сайте)\n" +
-		"- впереди разные фичи 🚀\n\n" +
-		"По любым вопросам и предложениям пишите: @trckster",
+	MenuWhatsGoingOn: "*Termorize* - это сервис для изучения слов, который работает и в Telegram, и в веб-приложении.\n\n" +
+		"Здесь можно:\n" +
+		"- переводить слова и короткие фразы\n" +
+		"- добавлять свои пары слов в словарь\n" +
+		"- смотреть сохраненный словарь и прогресс обучения\n" +
+		"- практиковаться в упражнениях на сайте\n" +
+		"- получать автоматические упражнения в Telegram по расписанию\n" +
+		"- менять язык интерфейса и настройки обучения\n\n" +
+		"Для полного функционала нажми *Открыть приложение*, а для быстрых действий можно остаться в боте.",
 
 	ChooseLanguage: "Выбери язык:",
 
@@ -271,7 +286,7 @@ var botTextsRu = BotTexts{
 	ButtonChangeSystemLanguage:  "Изменить Язык Системы",
 	ButtonEnableDailyExercises:  "Включить Ежедневные Упражнения",
 	ButtonDisableDailyExercises: "Выключить Ежедневные Упражнения",
-	ButtonWhatsGoingOn:          "Что происходит?",
+	ButtonWhatsGoingOn:          "О проекте",
 	ButtonBack:                  "Назад",
 	ButtonCancel:                "Отмена",
 	ButtonExerciseIDK:           "Не знаю",

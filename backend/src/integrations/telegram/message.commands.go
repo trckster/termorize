@@ -39,8 +39,10 @@ func routeMessageCommand(message *message, command string) error {
 	switch command {
 	case "ping":
 		return SendMessage(message.Chat.ID, t.Pong)
-	case "help", "start":
-		return SendMessage(message.Chat.ID, t.Help)
+	case "help":
+		return SendMessageMarkdown(message.Chat.ID, t.Help)
+	case "start":
+		return SendMessageWithInlineKeyboardMarkdown(message.Chat.ID, t.Start, getMenuKeyboard(t))
 	case "menu":
 		return SendMessageWithInlineKeyboardMarkdown(message.Chat.ID, t.Menu, getMenuKeyboard(t))
 	case "cancel":
