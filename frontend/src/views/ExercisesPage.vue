@@ -63,6 +63,10 @@ const getTypeLabel = (type: string) => {
             return t.value.exerciseTypeBasicDirect
         case 'basic/reversed':
             return t.value.exerciseTypeBasicReversed
+        case 'choice/direct':
+            return t.value.exerciseTypeChoiceDirect
+        case 'choice/reversed':
+            return t.value.exerciseTypeChoiceReversed
         default:
             return type
     }
@@ -74,6 +78,10 @@ const getTypeBadgeClass = (type: string) => {
             return 'border-zinc-300 bg-zinc-100 text-zinc-800 dark:border-zinc-400 dark:bg-zinc-200 dark:text-zinc-900'
         case 'basic/reversed':
             return 'border-zinc-900 bg-zinc-900 text-white dark:border-zinc-700 dark:bg-zinc-900 dark:text-white'
+        case 'choice/direct':
+            return 'border-sky-300 bg-sky-100 text-sky-800 dark:border-sky-400 dark:bg-sky-200 dark:text-sky-950'
+        case 'choice/reversed':
+            return 'border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-400 dark:bg-amber-200 dark:text-amber-950'
         default:
             return 'border-border bg-muted/40 text-foreground'
     }

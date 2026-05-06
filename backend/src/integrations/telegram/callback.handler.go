@@ -1,6 +1,8 @@
 package telegram
 
 import (
+	"encoding/base64"
+	"errors"
 	"strings"
 	"termorize/src/enums"
 	"termorize/src/logger"
@@ -67,17 +69,51 @@ func parseExerciseIDKPayload(payload []string) (uuid.UUID, bool) {
 	return exerciseID, true
 }
 
-func handleExerciseCallback(callback *callbackQuery, payload []string) error {
-	exerciseID, ok := parseExerciseIDKPayload(payload)
-	if !ok {
-		return nil
+func parseExerciseAnswerPayload(payload []string) (uuid.UUID, uuid.UUID, bool) {
+	if len(payload) != 3 || payload[0] != exerciseActionAnswer {
+		return uuid.Nil, uuid.Nil, false
 	}
 
+	exerciseID, err := parseCallbackUUID(payload[1])
+	if err != nil {
+		return uuid.Nil, uuid.Nil, false
+	}
+
+	selectedVocabularyID, err := parseCallbackUUID(payload[2])
+	if err != nil {
+		return uuid.Nil, uuid.Nil, false
+	}
+
+	return exerciseID, selectedVocabularyID, true
+}
+
+func parseCallbackUUID(value string) (uuid.UUID, error) {
+	if id, err := uuid.Parse(value); err == nil {
+		return id, nil
+	}
+
+	bytes, err := base64.RawURLEncoding.DecodeString(value)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	return uuid.FromBytes(bytes)
+}
+
+func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 	if callback.Message == nil {
 		return nil
 	}
 
 	t := getBotTextsForTelegramID(callback.From.ID)
+	exerciseID, selectedVocabularyID, hasAnswer := parseExerciseAnswerPayload(payload)
+	if !hasAnswer {
+		var ok bool
+		exerciseID, ok = parseExerciseIDKPayload(payload)
+		if !ok {
+			return nil
+		}
+	}
 
 	exercise, err := services.GetExerciseByTelegramMessage(callback.Message.MessageID, callback.From.ID)
 	if err != nil {
@@ -98,11 +134,46 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 	}
 
 	if len(exercise.Vocabulary) == 0 || exercise.Vocabulary[0].Translation == nil {
+		_ = services.IgnoreExercise(exercise.ExerciseID)
+		return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
+	}
+
+	if (exercise.ExerciseType == enums.ExerciseTypeChoiceDirect || exercise.ExerciseType == enums.ExerciseTypeChoiceReversed) && len(exercise.Options) != 4 {
+		_ = services.IgnoreExercise(exercise.ExerciseID)
 		return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
 	}
 
 	if err := removeMessageInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID); err != nil {
 		logger.L().Warnw("failed to remove inline keyboard", "error", err, "chat_id", callback.Message.Chat.ID, "message_id", callback.Message.MessageID)
+	}
+
+	if hasAnswer {
+		result, err := services.VerifyExerciseChoice(exerciseID, exercise.UserID, selectedVocabularyID)
+		if err != nil {
+			if errors.Is(err, services.ErrExerciseNotInProgress) {
+				return nil
+			}
+
+			if errors.Is(err, services.ErrExerciseVocabularyDeleted) {
+				return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
+			}
+
+			return err
+		}
+
+		switch result.Result {
+		case "correct":
+			return SendMessageMarkdown(callback.From.ID, buildExerciseSuccessResultText(result.Knowledge, t))
+		default:
+			return SendMessageMarkdown(callback.From.ID, buildExerciseInvalidResultText(
+				exercise.OriginalWord,
+				exercise.TranslationWord,
+				exercise.OriginalLanguage,
+				exercise.TranslationLanguage,
+				result.Knowledge,
+				t,
+			))
+		}
 	}
 
 	updated, translationKnowledge, err := services.FinishExercise(exerciseID, enums.ExerciseStatusFailed, services.ExerciseFailProgressDelta)

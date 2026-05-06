@@ -44,10 +44,11 @@ export type Exercise = {
 
 export type RandomExercise = {
     exercise_id: string
-    type: 'basic/direct' | 'basic/reversed'
+    type: 'basic/direct' | 'basic/reversed' | 'choice/direct' | 'choice/reversed'
     question_word: string
     language: string
     answer_language: string
+    options: string[]
 }
 
 export type VerifyResult = {

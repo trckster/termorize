@@ -141,6 +141,8 @@ const en = {
     exerciseStatusIgnored: 'Ignored',
     exerciseTypeBasicDirect: 'Basic',
     exerciseTypeBasicReversed: 'Reversed',
+    exerciseTypeChoiceDirect: 'Choice of 4',
+    exerciseTypeChoiceReversed: 'Choice of 4 Reversed',
 
     statisticsLabel: 'Statistics',
     statisticsHeading: 'Your exercise overview',
@@ -392,6 +394,8 @@ const ru: typeof en = {
     exerciseStatusIgnored: 'Пропущено',
     exerciseTypeBasicDirect: 'Обычный перевод',
     exerciseTypeBasicReversed: 'Обратный перевод',
+    exerciseTypeChoiceDirect: '4 варианта',
+    exerciseTypeChoiceReversed: '4 варианта наоборот',
 
     statisticsLabel: 'Статистика',
     statisticsHeading: 'Ваши упражнения',

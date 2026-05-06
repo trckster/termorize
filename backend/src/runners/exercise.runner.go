@@ -39,6 +39,10 @@ func processDueExercises() {
 		logger.L().Errorw("failed to process exercise reminders", "error", err)
 	}
 
+	if err := services.IgnoreDuePendingExercisesWithoutActiveVocabulary(now); err != nil {
+		logger.L().Errorw("failed to ignore invalid pending exercises", "error", err)
+	}
+
 	exercises, err := services.GetDuePendingExercises(now)
 	if err != nil {
 		logger.L().Errorw("failed to fetch due pending exercises", "error", err)
@@ -46,7 +50,7 @@ func processDueExercises() {
 	}
 
 	for _, exercise := range exercises {
-		if !isSupportedBasicExerciseType(exercise.ExerciseType) {
+		if !isSupportedExerciseType(exercise.ExerciseType) {
 			continue
 		}
 
@@ -60,7 +64,30 @@ func processDueExercises() {
 			texts,
 		)
 
-		messageID, err := telegram.SendExerciseMessage(exercise.TelegramID, questionText, exercise.ExerciseID, texts)
+		var (
+			messageID *int64
+			err       error
+		)
+
+		if isChoiceExerciseType(exercise.ExerciseType) {
+			options, loadErr := services.GetExerciseAnswerOptions(exercise.ExerciseID, exercise.ExerciseType)
+			if loadErr != nil {
+				logger.L().Warnw("failed to load exercise options", "error", loadErr, "exercise_id", exercise.ExerciseID)
+				continue
+			}
+			if len(options) != 4 {
+				logger.L().Warnw("ignoring choice exercise with incomplete options", "exercise_id", exercise.ExerciseID, "options_count", len(options))
+				if ignoreErr := services.IgnoreExercise(exercise.ExerciseID); ignoreErr != nil {
+					logger.L().Warnw("failed to ignore invalid exercise", "error", ignoreErr, "exercise_id", exercise.ExerciseID)
+				}
+				continue
+			}
+
+			messageID, err = telegram.SendChoiceExerciseMessage(exercise.TelegramID, questionText, exercise.ExerciseID, options, texts)
+		} else {
+			messageID, err = telegram.SendBasicExerciseMessage(exercise.TelegramID, questionText, exercise.ExerciseID, texts)
+		}
+
 		if err != nil {
 			logger.L().Warnw("failed to send scheduled exercise", "error", err, "exercise_id", exercise.ExerciseID, "telegram_id", exercise.TelegramID)
 			continue
@@ -111,9 +138,18 @@ func processDueExerciseReminders(now time.Time) error {
 	return nil
 }
 
-func isSupportedBasicExerciseType(exerciseType enums.ExerciseType) bool {
+func isSupportedExerciseType(exerciseType enums.ExerciseType) bool {
 	switch exerciseType {
-	case enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed:
+	case enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed:
+		return true
+	default:
+		return false
+	}
+}
+
+func isChoiceExerciseType(exerciseType enums.ExerciseType) bool {
+	switch exerciseType {
+	case enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed:
 		return true
 	default:
 		return false

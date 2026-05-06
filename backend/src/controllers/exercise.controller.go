@@ -81,6 +81,7 @@ func RandomExercise(c *gin.Context) {
 		"question_word":   result.QuestionWord,
 		"language":        result.Language,
 		"answer_language": result.AnswerLanguage,
+		"options":         result.Options,
 	})
 }
 
@@ -112,6 +113,11 @@ func VerifyExercise(c *gin.Context) {
 
 		if errors.Is(err, services.ErrExerciseNotInProgress) {
 			c.JSON(nethttp.StatusConflict, gin.H{"error": "exercise is not in progress"})
+			return
+		}
+
+		if errors.Is(err, services.ErrExerciseVocabularyDeleted) {
+			c.JSON(nethttp.StatusConflict, gin.H{"error": services.ErrExerciseVocabularyDeleted.Error()})
 			return
 		}
 

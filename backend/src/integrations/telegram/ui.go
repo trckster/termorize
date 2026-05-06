@@ -1,6 +1,13 @@
 package telegram
 
-import "termorize/src/enums"
+import (
+	"encoding/base64"
+
+	"github.com/google/uuid"
+
+	"termorize/src/enums"
+	"termorize/src/services"
+)
 
 const (
 	callbackTypeMenu       = "menu"
@@ -23,7 +30,8 @@ const (
 	menuActionSetTargetLang        = "set_target_lang"
 	menuActionSetSystemLang        = "set_system_lang"
 
-	exerciseActionIDK = "idk"
+	exerciseActionAnswer = "answer"
+	exerciseActionIDK    = "idk"
 
 	vocabularyActionAdd    = "add"
 	vocabularyActionDelete = "delete"
@@ -131,6 +139,29 @@ func buildSystemLanguageSelectionKeyboard(t BotTexts) [][]inlineKeyboardButton {
 	}})
 
 	return rows
+}
+
+func buildExerciseKeyboard(exerciseID uuid.UUID, options []services.ExerciseOption) [][]inlineKeyboardButton {
+	rows := make([][]inlineKeyboardButton, 0, 2)
+	compactExerciseID := compactCallbackUUID(exerciseID)
+
+	for index, option := range options {
+		rowIndex := index / 2
+		if len(rows) <= rowIndex {
+			rows = append(rows, []inlineKeyboardButton{})
+		}
+
+		rows[rowIndex] = append(rows[rowIndex], inlineKeyboardButton{
+			Text:         option.Label,
+			CallbackData: callbackTypeExercise + ":" + exerciseActionAnswer + ":" + compactExerciseID + ":" + compactCallbackUUID(option.VocabularyID),
+		})
+	}
+
+	return rows
+}
+
+func compactCallbackUUID(id uuid.UUID) string {
+	return base64.RawURLEncoding.EncodeToString(id[:])
 }
 
 func getSupportedSystemLanguages() []enums.Language {

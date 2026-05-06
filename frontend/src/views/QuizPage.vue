@@ -4,6 +4,7 @@ import { X } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { exercisesApi, type Exercise, type RandomExercise, type VerifyResult } from '@/api/exercises.ts'
 import { Button } from '@/components/ui/button'
+import { Progress } from '@/components/ui/progress'
 import { useI18n } from '@/composables/useI18n'
 import { useSettingsStore } from '@/stores/settings.ts'
 import { formatNumber } from '@/lib/utils.ts'
@@ -18,7 +19,6 @@ const settingsStore = useSettingsStore()
 
 const state = ref<QuizState>('loading')
 const currentExercise = ref<RandomExercise | null>(null)
-const currentAnswer = ref('')
 const verifyResult = ref<VerifyResult | null>(null)
 const exerciseIds = ref<string[]>([])
 const results = ref<Exercise[]>([])
@@ -26,12 +26,31 @@ const isSubmitting = ref(false)
 const isLoadingResults = ref(false)
 const error = ref<string | null>(null)
 const emptyState = ref<'error' | 'mastered' | null>(null)
-const answerInputRef = ref<HTMLInputElement | null>(null)
 const feedbackTimeoutId = ref<number | null>(null)
+const choiceSubmitTimeoutId = ref<number | null>(null)
+const answer = ref('')
+const selectedChoiceIndex = ref<number | null>(null)
+const answerInputRef = ref<HTMLInputElement | null>(null)
+const quizRootRef = ref<HTMLElement | null>(null)
+
+const isChoiceQuestion = computed(
+    () => currentExercise.value?.type === 'choice/direct' || currentExercise.value?.type === 'choice/reversed'
+)
+const isChoiceAnswerPending = computed(() => choiceSubmitTimeoutId.value != null || isSubmitting.value)
+
+const questionHint = computed(() => {
+    if (!currentExercise.value) return ''
+    if (currentExercise.value.type === 'basic/reversed' || currentExercise.value.type === 'choice/reversed') {
+        return t.value.quizTypeReversedHint
+    }
+
+    return t.value.quizTypeDirectHint
+})
 
 const questionNumber = computed(() =>
     Math.min(exerciseIds.value.length + (state.value === 'question' || state.value === 'feedback' ? 1 : 0), QUIZ_SIZE)
 )
+const quizProgress = computed(() => (questionNumber.value / QUIZ_SIZE) * 100)
 
 async function startQuiz() {
     state.value = 'loading'
@@ -39,7 +58,6 @@ async function startQuiz() {
     emptyState.value = null
     exerciseIds.value = []
     results.value = []
-    currentAnswer.value = ''
     verifyResult.value = null
     await loadNextQuestion()
 }
@@ -48,14 +66,21 @@ async function loadNextQuestion() {
     state.value = 'loading'
     error.value = null
     emptyState.value = null
+    answer.value = ''
+    clearChoiceSubmit()
+    selectedChoiceIndex.value = null
 
     try {
         currentExercise.value = await exercisesApi.getRandomExercise()
-        currentAnswer.value = ''
         verifyResult.value = null
         state.value = 'question'
         await nextTick()
-        answerInputRef.value?.focus()
+
+        if (isChoiceQuestion.value) {
+            quizRootRef.value?.focus()
+        } else {
+            answerInputRef.value?.focus()
+        }
     } catch (err: unknown) {
         const apiErr = err as { status?: number; body?: { error?: string } }
         if (apiErr?.status === 422) {
@@ -69,21 +94,48 @@ async function loadNextQuestion() {
     }
 }
 
-async function submitAnswer() {
-    if (!currentExercise.value || !currentAnswer.value.trim() || isSubmitting.value) return
+async function submitAnswer(answer: string) {
+    if (!currentExercise.value || !answer.trim() || isSubmitting.value) return
 
     isSubmitting.value = true
     error.value = null
 
     try {
-        verifyResult.value = await exercisesApi.verifyExercise(currentExercise.value.exercise_id, currentAnswer.value)
+        verifyResult.value = await exercisesApi.verifyExercise(currentExercise.value.exercise_id, answer)
         exerciseIds.value = [...exerciseIds.value, currentExercise.value.exercise_id]
         state.value = 'feedback'
+        await nextTick()
+        quizRootRef.value?.focus()
         scheduleFeedbackAdvance()
-    } catch {
+    } catch (err: unknown) {
+        const apiErr = err as { status?: number; body?: { error?: string } }
+        if (apiErr?.status === 409 && apiErr.body?.error === 'exercise vocabulary was deleted') {
+            await loadNextQuestion()
+            return
+        }
+
+        selectedChoiceIndex.value = null
         error.value = t.value.quizVerifyError
     } finally {
         isSubmitting.value = false
+    }
+}
+
+function chooseOption(option: string, index: number) {
+    if (isSubmitting.value || state.value !== 'question' || !isChoiceQuestion.value) return
+
+    selectedChoiceIndex.value = index
+    clearChoiceSubmit()
+    choiceSubmitTimeoutId.value = window.setTimeout(() => {
+        choiceSubmitTimeoutId.value = null
+        void submitAnswer(option)
+    }, 220)
+}
+
+function clearChoiceSubmit() {
+    if (choiceSubmitTimeoutId.value != null) {
+        window.clearTimeout(choiceSubmitTimeoutId.value)
+        choiceSubmitTimeoutId.value = null
     }
 }
 
@@ -120,27 +172,66 @@ async function showResults() {
         results.value = []
     } finally {
         isLoadingResults.value = false
+        await nextTick()
+        quizRootRef.value?.focus()
     }
 }
 
-function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'Enter') {
-        event.preventDefault()
+function getChoiceIndexFromKeyboardEvent(event: KeyboardEvent): number | null {
+    const code = typeof event.code === 'string' ? event.code : ''
+    const key = typeof event.key === 'string' ? event.key : ''
+    const codeMatch = code.match(/^(?:Digit|Numpad)([1-4])$/)
+    if (codeMatch) {
+        return Number(codeMatch[1]) - 1
+    }
 
+    const keyMatch = key.match(/^[1-4]$/)
+    if (keyMatch) {
+        return Number(keyMatch[0]) - 1
+    }
+
+    return null
+}
+
+function handleKeydown(event: KeyboardEvent) {
+    if (event.altKey || event.ctrlKey || event.metaKey) {
+        return
+    }
+
+    if (event.key === 'Enter') {
         if (state.value === 'results') {
+            event.preventDefault()
             void startQuiz()
             return
         }
 
         if (state.value === 'feedback') {
+            event.preventDefault()
             advanceFromFeedback()
             return
         }
 
-        if (state.value === 'question') {
-            void submitAnswer()
+        if (state.value === 'question' && !isChoiceQuestion.value) {
+            event.preventDefault()
+            void submitAnswer(answer.value)
         }
 
+        return
+    }
+
+    if (state.value === 'question' && currentExercise.value && isChoiceQuestion.value) {
+        const optionIndex = getChoiceIndexFromKeyboardEvent(event)
+        if (optionIndex == null || event.repeat || isSubmitting.value) {
+            return
+        }
+
+        const selectedOption = currentExercise.value.options[optionIndex]
+        if (!selectedOption) {
+            return
+        }
+
+        event.preventDefault()
+        chooseOption(selectedOption, optionIndex)
         return
     }
 
@@ -189,41 +280,57 @@ const resultClass = computed(() => {
 })
 
 onMounted(() => {
-    window.addEventListener('keydown', handleKeydown)
     void startQuiz()
 })
 
 onBeforeUnmount(() => {
+    clearChoiceSubmit()
     clearFeedbackAdvance()
-    window.removeEventListener('keydown', handleKeydown)
 })
 </script>
 
 <template>
-    <main class="min-h-full bg-background">
+    <main
+        ref="quizRootRef"
+        class="min-h-full bg-background focus:outline-none"
+        tabindex="-1"
+        @keydown.capture="handleKeydown"
+    >
         <h1 class="sr-only">{{ t.quizTitle }}</h1>
-        <div class="flex items-center justify-between border-b border-border px-4 py-4 sm:px-6">
-            <span class="text-sm font-medium text-muted-foreground">{{ t.quizTitle }}</span>
-            <span
+        <div class="border-b border-border px-4 py-3 sm:px-6">
+            <div class="flex items-center justify-between gap-3">
+                <span class="text-sm font-medium text-muted-foreground">{{ t.quizTitle }}</span>
+                <span
+                    v-if="state === 'question' || state === 'feedback'"
+                    class="text-sm tabular-nums text-muted-foreground"
+                >
+                    {{ questionNumber }} / {{ QUIZ_SIZE }}
+                </span>
+                <span v-else class="h-11 w-11" aria-hidden="true"></span>
+                <button
+                    :aria-label="t.cancel"
+                    class="inline-flex h-11 w-11 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    @click="closeQuiz"
+                >
+                    <X class="h-5 w-5" />
+                </button>
+            </div>
+            <Progress
                 v-if="state === 'question' || state === 'feedback'"
-                class="text-sm tabular-nums text-muted-foreground"
-            >
-                {{ questionNumber }} / {{ QUIZ_SIZE }}
-            </span>
-            <button
-                :aria-label="t.cancel"
-                class="inline-flex h-11 w-11 items-center justify-center rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring"
-                @click="closeQuiz"
-            >
-                <X class="h-5 w-5" />
-            </button>
+                :model-value="quizProgress"
+                class="mt-2 h-1.5 bg-muted/70"
+            />
         </div>
 
-        <div class="flex min-h-[calc(100vh-73px)] flex-col items-center justify-center px-4 py-8 sm:px-6 sm:py-12">
-            <div :class="state === 'results' ? 'w-full max-w-5xl' : 'w-full max-w-sm'">
+        <div class="flex min-h-[calc(100vh-83px)] flex-col items-center justify-center px-4 py-8 sm:px-6 sm:py-12">
+            <div :class="state === 'results' ? 'w-full max-w-5xl' : 'w-full max-w-xl'">
                 <template v-if="state === 'loading'">
                     <div v-if="error" class="space-y-4 text-center">
-                        <p :class="emptyState === 'mastered' ? 'text-green-600 dark:text-green-400' : 'text-destructive'">
+                        <p
+                            :class="
+                                emptyState === 'mastered' ? 'text-green-600 dark:text-green-400' : 'text-destructive'
+                            "
+                        >
                             {{ error }}
                         </p>
                         <Button variant="outline" @click="startQuiz">{{ t.quizRetry }}</Button>
@@ -235,43 +342,82 @@ onBeforeUnmount(() => {
                 </template>
 
                 <template v-else-if="state === 'question'">
-                    <div class="space-y-8">
+                    <div class="space-y-7">
                         <div class="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                             <span class="text-base">{{ getFlag(currentExercise?.language) }}</span>
-                            <span>→</span>
+                            <span aria-hidden="true">→</span>
                             <span class="text-base">{{ getFlag(currentExercise?.answer_language) }}</span>
                         </div>
 
+                        <p class="text-center text-sm text-muted-foreground">
+                            {{ questionHint }}
+                        </p>
+
                         <div class="text-center">
-                            <p class="break-words text-4xl font-semibold tracking-tight">
+                            <p class="break-words text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
                                 {{ currentExercise?.question_word }}
                             </p>
                         </div>
 
-                        <div class="space-y-3">
+                        <div
+                            v-if="isChoiceQuestion"
+                            class="grid gap-2.5 sm:grid-cols-2 sm:gap-3"
+                            role="group"
+                            :aria-label="questionHint"
+                        >
+                            <button
+                                v-for="(option, index) in currentExercise?.options ?? []"
+                                :key="option"
+                                type="button"
+                                :aria-pressed="selectedChoiceIndex === index"
+                                :disabled="isSubmitting"
+                                :class="
+                                    selectedChoiceIndex === index
+                                        ? 'quiz-choice-button--selected'
+                                        : 'quiz-choice-button--idle'
+                                "
+                                class="quiz-choice-button flex min-h-16 w-full items-center gap-3 rounded-lg border px-3.5 py-3 text-left text-primary-foreground transition-[border-color,box-shadow,filter,transform] duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-90 sm:min-h-24 sm:items-center sm:gap-4 sm:px-4 sm:py-4"
+                                @click="chooseOption(option, index)"
+                            >
+                                <span
+                                    class="quiz-choice-index inline-flex h-7 min-w-7 shrink-0 items-center justify-center rounded-md px-2 text-xs font-semibold tabular-nums"
+                                >
+                                    {{ index + 1 }}
+                                </span>
+                                <span class="min-w-0 flex-1 break-words text-base font-semibold leading-snug">
+                                    {{ option }}
+                                </span>
+                                <span
+                                    v-if="isChoiceAnswerPending && selectedChoiceIndex === index"
+                                    class="quiz-inline-spinner ml-auto h-4 w-4 shrink-0 rounded-full border-2 border-primary-foreground/35 border-t-primary-foreground"
+                                    aria-hidden="true"
+                                ></span>
+                            </button>
+                        </div>
+
+                        <form v-else class="space-y-3" @submit.prevent="submitAnswer(answer)">
                             <input
                                 ref="answerInputRef"
-                                v-model="currentAnswer"
-                                :disabled="isSubmitting"
+                                v-model="answer"
                                 :placeholder="t.quizAnswerPlaceholder"
-                                :aria-label="t.quizAnswerPlaceholder"
-                                maxlength="500"
+                                :disabled="isSubmitting"
+                                class="w-full rounded-md border border-input bg-background px-4 py-3 text-base shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                                 autocomplete="off"
-                                autocapitalize="none"
+                                autocapitalize="off"
                                 autocorrect="off"
                                 spellcheck="false"
-                                class="w-full rounded-lg border border-border bg-background px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
                             />
-                            <Button
-                                class="w-full"
-                                size="lg"
-                                :disabled="!currentAnswer.trim() || isSubmitting"
-                                @click="submitAnswer"
-                            >
+                            <Button class="w-full" size="lg" type="submit" :disabled="isSubmitting || !answer.trim()">
+                                <span
+                                    v-if="isSubmitting"
+                                    class="quiz-inline-spinner mr-2 h-4 w-4 rounded-full border-2 border-primary-foreground/35 border-t-primary-foreground"
+                                    aria-hidden="true"
+                                ></span>
                                 {{ isSubmitting ? t.quizChecking : t.quizSubmit }}
                             </Button>
-                            <p v-if="error" class="text-center text-sm text-destructive">{{ error }}</p>
-                        </div>
+                        </form>
+
+                        <p v-if="error" class="text-center text-sm text-destructive">{{ error }}</p>
                     </div>
                 </template>
 
@@ -353,3 +499,69 @@ onBeforeUnmount(() => {
         </div>
     </main>
 </template>
+
+<style scoped>
+.quiz-choice-button {
+    background: var(--primary);
+    border-color: color-mix(in oklab, var(--primary-foreground) 18%, var(--primary));
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklab, var(--primary-foreground) 16%, transparent),
+        0 10px 24px -22px var(--primary);
+}
+
+.quiz-choice-button--idle:hover:not(:disabled) {
+    filter: brightness(1.06) saturate(1.02);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklab, var(--primary-foreground) 18%, transparent),
+        0 16px 30px -22px var(--primary);
+    transform: translateY(-1px);
+}
+
+.quiz-choice-button--selected {
+    filter: brightness(1.03) saturate(1.02);
+    border-color: color-mix(in oklab, var(--primary-foreground) 35%, var(--primary));
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklab, var(--primary-foreground) 18%, transparent),
+        0 0 0 2px color-mix(in oklab, var(--primary-foreground) 18%, transparent),
+        0 14px 28px -22px var(--primary);
+}
+
+.quiz-choice-button:active:not(:disabled) {
+    filter: brightness(0.96) saturate(1.01);
+    transform: translateY(1px);
+    box-shadow:
+        inset 0 2px 3px color-mix(in oklab, var(--primary) 38%, transparent),
+        0 4px 14px -18px var(--primary);
+}
+
+.quiz-choice-index {
+    background: color-mix(in oklab, var(--primary-foreground) 14%, transparent);
+    color: color-mix(in oklab, var(--primary-foreground) 88%, var(--primary));
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary-foreground) 16%, transparent);
+}
+
+.quiz-inline-spinner {
+    animation: quiz-spin 0.7s linear infinite;
+}
+
+@keyframes quiz-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .quiz-choice-button {
+        transition: none;
+    }
+
+    .quiz-inline-spinner {
+        animation: none;
+    }
+
+    .quiz-choice-button--idle:hover:not(:disabled),
+    .quiz-choice-button:active:not(:disabled) {
+        transform: none;
+    }
+}
+</style>
