@@ -323,6 +323,17 @@ func DeletePendingExercisesByUserID(tx *gorm.DB, userID uint) error {
 		Delete(&models.Exercise{}).Error
 }
 
+func DeletePendingExercisesByVocabularyID(tx *gorm.DB, userID uint, vocabularyID uuid.UUID) error {
+	return tx.
+		Where("user_id = ? AND status = ?", userID, enums.ExerciseStatusPending).
+		Where("id IN (?)",
+			tx.Table("vocabulary_exercises").
+				Select("exercise_id").
+				Where("vocabulary_id = ?", vocabularyID),
+		).
+		Delete(&models.Exercise{}).Error
+}
+
 func GetDueExerciseReminders(now time.Time) ([]PendingExerciseReminder, error) {
 	var reminders []PendingExerciseReminder
 	remindBefore := now.Add(-exerciseReminderPeriod)

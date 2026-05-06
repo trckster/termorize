@@ -322,6 +322,10 @@ func DeleteVocabulary(userID uint, vocabID uuid.UUID) error {
 			return err
 		}
 
+		if err := DeletePendingExercisesByVocabularyID(tx, userID, vocabulary.ID); err != nil {
+			return err
+		}
+
 		now := time.Now().UTC()
 		return tx.Model(&vocabulary).Update("deleted_at", now).Error
 	})
