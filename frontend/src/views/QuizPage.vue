@@ -4,13 +4,13 @@ import { X } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { exercisesApi, type Exercise, type RandomExercise, type VerifyResult } from '@/api/exercises.ts'
 import { Button } from '@/components/ui/button'
+import { Kbd } from '@/components/ui/kbd'
 import { Progress } from '@/components/ui/progress'
 import { useI18n } from '@/composables/useI18n'
 import { useSettingsStore } from '@/stores/settings.ts'
 import { formatNumber } from '@/lib/utils.ts'
 
 const QUIZ_SIZE = 10
-
 type QuizState = 'loading' | 'question' | 'feedback' | 'results'
 
 const router = useRouter()
@@ -51,6 +51,29 @@ const questionNumber = computed(() =>
     Math.min(exerciseIds.value.length + (state.value === 'question' || state.value === 'feedback' ? 1 : 0), QUIZ_SIZE)
 )
 const quizProgress = computed(() => (questionNumber.value / QUIZ_SIZE) * 100)
+const quizShortcuts = computed(() => {
+    if (state.value === 'question') {
+        return isChoiceQuestion.value
+            ? [{ label: t.value.quizShortcutChoose, keys: '1 - 4' }]
+            : [
+                  { label: t.value.quizShortcutSubmit, keys: 'Enter' },
+                  { label: t.value.quizShortcutSkip, keys: 'Esc' },
+              ]
+    }
+
+    if (state.value === 'feedback') {
+        return [{ label: t.value.quizShortcutContinue, keys: 'Enter' }]
+    }
+
+    if (state.value === 'results') {
+        return [
+            { label: t.value.quizShortcutMore, keys: 'Enter' },
+            { label: t.value.quizShortcutClose, keys: 'Esc' },
+        ]
+    }
+
+    return []
+})
 
 async function startQuiz() {
     state.value = 'loading'
@@ -116,6 +139,36 @@ async function submitAnswer(answer: string) {
 
         selectedChoiceIndex.value = null
         error.value = t.value.quizVerifyError
+    } finally {
+        isSubmitting.value = false
+    }
+}
+
+function getSkipAnswer(): string {
+    return 'termorize skipped answer intentionally incorrect'
+}
+
+async function skipAnswer() {
+    if (!currentExercise.value || isSubmitting.value || state.value !== 'question' || isChoiceQuestion.value) return
+
+    isSubmitting.value = true
+    error.value = null
+
+    try {
+        verifyResult.value = await exercisesApi.verifyExercise(currentExercise.value.exercise_id, getSkipAnswer())
+        exerciseIds.value = [...exerciseIds.value, currentExercise.value.exercise_id]
+        state.value = 'feedback'
+        await nextTick()
+        quizRootRef.value?.focus()
+        scheduleFeedbackAdvance()
+    } catch (err: unknown) {
+        const apiErr = err as { status?: number; body?: { error?: string } }
+        if (apiErr?.status === 409 && apiErr.body?.error === 'exercise vocabulary was deleted') {
+            await loadNextQuestion()
+            return
+        }
+
+        error.value = t.value.quizSkipError
     } finally {
         isSubmitting.value = false
     }
@@ -216,6 +269,12 @@ function handleKeydown(event: KeyboardEvent) {
             void submitAnswer(answer.value)
         }
 
+        return
+    }
+
+    if (event.key === 'Escape' && state.value === 'question' && !isChoiceQuestion.value) {
+        event.preventDefault()
+        void skipAnswer()
         return
     }
 
@@ -407,14 +466,31 @@ onBeforeUnmount(() => {
                                 autocorrect="off"
                                 spellcheck="false"
                             />
-                            <Button class="w-full" size="lg" type="submit" :disabled="isSubmitting || !answer.trim()">
-                                <span
-                                    v-if="isSubmitting"
-                                    class="quiz-inline-spinner mr-2 h-4 w-4 rounded-full border-2 border-primary-foreground/35 border-t-primary-foreground"
-                                    aria-hidden="true"
-                                ></span>
-                                {{ isSubmitting ? t.quizChecking : t.quizSubmit }}
-                            </Button>
+                            <div class="grid gap-2 sm:grid-cols-[auto_1fr]">
+                                <Button
+                                    class="w-full"
+                                    size="lg"
+                                    type="button"
+                                    variant="outline"
+                                    :disabled="isSubmitting"
+                                    @click="skipAnswer"
+                                >
+                                    {{ t.quizSkip }}
+                                </Button>
+                                <Button
+                                    class="w-full"
+                                    size="lg"
+                                    type="submit"
+                                    :disabled="isSubmitting || !answer.trim()"
+                                >
+                                    <span
+                                        v-if="isSubmitting"
+                                        class="quiz-inline-spinner mr-2 h-4 w-4 rounded-full border-2 border-primary-foreground/35 border-t-primary-foreground"
+                                        aria-hidden="true"
+                                    ></span>
+                                    {{ isSubmitting ? t.quizChecking : t.quizSubmit }}
+                                </Button>
+                            </div>
                         </form>
 
                         <p v-if="error" class="text-center text-sm text-destructive">{{ error }}</p>
@@ -495,6 +571,17 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
                 </template>
+            </div>
+
+            <div v-if="quizShortcuts.length > 0" class="mt-6 flex justify-center">
+                <div
+                    class="hidden w-fit grid-cols-[max-content_max-content] items-center gap-x-3 gap-y-2 text-xs text-muted-foreground md:grid"
+                >
+                    <template v-for="shortcut in quizShortcuts" :key="shortcut.label">
+                        <span class="justify-self-end text-right">{{ shortcut.label }}</span>
+                        <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">{{ shortcut.keys }}</Kbd>
+                    </template>
+                </div>
             </div>
         </div>
     </main>
