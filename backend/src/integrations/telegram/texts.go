@@ -24,6 +24,7 @@ type BotTexts struct {
 	ExerciseCompleted                      string
 	ExerciseFailed                         string
 	ExerciseVocabularyDeleted              string
+	ExerciseUseButtons                     string
 	ExerciseSuccess                        string
 	ExerciseAlmost                         string
 	ExerciseInvalid                        string
@@ -32,7 +33,8 @@ type BotTexts struct {
 	ExerciseTranslationKnowledgeUpFormat   string
 	ExerciseTranslationKnowledgeDownFormat string
 
-	QuestionTranslateFormat string
+	QuestionTranslateReplyFormat  string
+	QuestionTranslateChoiceFormat string
 
 	MenuDeleteWord                   string
 	MenuVocabularyEmpty              string
@@ -113,6 +115,7 @@ var botTextsEn = BotTexts{
 	ExerciseCompleted:                      "This exercise is already successfully completed 🗸",
 	ExerciseFailed:                         "This exercise was already attempted and failed 😔",
 	ExerciseVocabularyDeleted:              "This vocabulary was previously deleted 🗑️",
+	ExerciseUseButtons:                     "Use one of the buttons below.",
 	ExerciseSuccess:                        "That's right! ✅",
 	ExerciseAlmost:                         "Almost! The correct answer is:",
 	ExerciseInvalid:                        "Not quite... ❌",
@@ -121,7 +124,8 @@ var botTextsEn = BotTexts{
 	ExerciseTranslationKnowledgeUpFormat:   "Translation knowledge: *%d%%* 📈",
 	ExerciseTranslationKnowledgeDownFormat: "Translation knowledge: *%d%%* 📉",
 
-	QuestionTranslateFormat: "Translate word *%s* to %s\n\n(answer with reply)",
+	QuestionTranslateReplyFormat:  "Translate word *%s* to %s\n\n(answer with reply)",
+	QuestionTranslateChoiceFormat: "Translate word *%s* to %s\n\nChoose one of the options below.",
 
 	MenuDeleteWord:                   "Send the word you want to delete from vocabulary 🗑️",
 	MenuVocabularyEmpty:              "Your vocabulary is empty for now. Add some translations!",
@@ -223,6 +227,7 @@ var botTextsRu = BotTexts{
 	ExerciseCompleted:                      "Это упражнение уже успешно выполнено ✅",
 	ExerciseFailed:                         "Это упражнение уже было выполнено с ошибкой 😔",
 	ExerciseVocabularyDeleted:              "Это слово было когда-то удалено из словаря 🗑️",
+	ExerciseUseButtons:                     "Используй одну из кнопок ниже.",
 	ExerciseSuccess:                        "Правильно! ✅",
 	ExerciseAlmost:                         "Почти! Правильный ответ:",
 	ExerciseInvalid:                        "Не совсем... ❌",
@@ -231,7 +236,8 @@ var botTextsRu = BotTexts{
 	ExerciseTranslationKnowledgeUpFormat:   "Знание перевода: *%d%%* 📈",
 	ExerciseTranslationKnowledgeDownFormat: "Знание перевода: *%d%%* 📉",
 
-	QuestionTranslateFormat: "Переведи слово *%s* на %s\n\n(ответь реплаем)",
+	QuestionTranslateReplyFormat:  "Переведи слово *%s* на %s\n\n(ответь реплаем)",
+	QuestionTranslateChoiceFormat: "Переведи слово *%s* на %s\n\nВыбери один из вариантов ниже.",
 
 	MenuDeleteWord:                   "Отправь слово, которое хочешь удалить из словаря 🗑️",
 	MenuVocabularyEmpty:              "Твой словарь пока пуст. Добавь несколько переводов!",
@@ -327,15 +333,20 @@ func BuildBasicExerciseQuestion(
 	exerciseType enums.ExerciseType,
 	texts BotTexts,
 ) string {
-	if exerciseType == enums.ExerciseTypeBasicReversed {
-		return buildTranslateQuestionText(translationWord, originalLanguage.DisplayNameWithFlag(), texts)
+	if exerciseType == enums.ExerciseTypeBasicReversed || exerciseType == enums.ExerciseTypeChoiceReversed {
+		return buildTranslateQuestionText(translationWord, originalLanguage.DisplayNameWithFlag(), exerciseType, texts)
 	}
 
-	return buildTranslateQuestionText(originalWord, translationLanguage.DisplayNameWithFlag(), texts)
+	return buildTranslateQuestionText(originalWord, translationLanguage.DisplayNameWithFlag(), exerciseType, texts)
 }
 
-func buildTranslateQuestionText(word string, language string, texts BotTexts) string {
-	return fmt.Sprintf(texts.QuestionTranslateFormat, word, language)
+func buildTranslateQuestionText(word string, language string, exerciseType enums.ExerciseType, texts BotTexts) string {
+	format := texts.QuestionTranslateReplyFormat
+	if exerciseType == enums.ExerciseTypeChoiceDirect || exerciseType == enums.ExerciseTypeChoiceReversed {
+		format = texts.QuestionTranslateChoiceFormat
+	}
+
+	return fmt.Sprintf(format, word, language)
 }
 
 func buildAddVocabularyFirstText(systemLanguage string, mainLearningLanguage string, texts BotTexts) string {

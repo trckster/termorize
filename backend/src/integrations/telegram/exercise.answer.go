@@ -25,6 +25,7 @@ func handleExerciseAnswer(message *message) (bool, error) {
 
 	t := getBotTextsForTelegramID(telegramID)
 	if len(exercise.Vocabulary) == 0 || exercise.Vocabulary[0].Translation == nil {
+		_ = services.IgnoreExercise(exercise.ExerciseID)
 		return true, SendMessage(message.Chat.ID, t.ExerciseVocabularyDeleted)
 	}
 
@@ -38,6 +39,15 @@ func handleExerciseAnswer(message *message) (bool, error) {
 	case enums.ExerciseStatusPending, enums.ExerciseStatusInProgress:
 	default:
 		return true, nil
+	}
+
+	if exercise.ExerciseType == enums.ExerciseTypeChoiceDirect || exercise.ExerciseType == enums.ExerciseTypeChoiceReversed {
+		if len(exercise.Options) != 4 {
+			_ = services.IgnoreExercise(exercise.ExerciseID)
+			return true, SendMessage(message.Chat.ID, t.ExerciseVocabularyDeleted)
+		}
+
+		return true, SendReplyMessage(message.Chat.ID, t.ExerciseUseButtons, message.MessageID)
 	}
 
 	if err := removeMessageInlineKeyboard(message.Chat.ID, message.ReplyToMessage.MessageID); err != nil {

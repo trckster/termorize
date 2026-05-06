@@ -17,8 +17,10 @@ const (
 type ExerciseType string
 
 const (
-	ExerciseTypeBasicDirect   ExerciseType = "basic/direct"
-	ExerciseTypeBasicReversed ExerciseType = "basic/reversed"
+	ExerciseTypeBasicDirect    ExerciseType = "basic/direct"
+	ExerciseTypeBasicReversed  ExerciseType = "basic/reversed"
+	ExerciseTypeChoiceDirect   ExerciseType = "choice/direct"
+	ExerciseTypeChoiceReversed ExerciseType = "choice/reversed"
 )
 
 type ExerciseStatus string

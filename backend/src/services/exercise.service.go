@@ -22,6 +22,7 @@ var (
 	ErrExerciseNotFound          = errors.New("exercise not found")
 	ErrExerciseNotInProgress     = errors.New("exercise is not in progress")
 	ErrExerciseVocabularyDeleted = errors.New("exercise vocabulary was deleted")
+	errNoExerciseTypeAvailable   = errors.New("no exercise type available")
 )
 
 var webRussianYoReplacer = strings.NewReplacer("ё", "е", "Ё", "Е")
@@ -79,11 +80,32 @@ type TelegramMessageExercise struct {
 	ExerciseType        enums.ExerciseType   `gorm:"column:exercise_type"`
 	Status              enums.ExerciseStatus `gorm:"column:status"`
 	UserID              uint                 `gorm:"column:user_id"`
-	OriginalWord        string               `gorm:"column:original_word"`
-	OriginalLanguage    enums.Language       `gorm:"column:original_language"`
-	TranslationWord     string               `gorm:"column:translation_word"`
-	TranslationLanguage enums.Language       `gorm:"column:translation_language"`
+	Options             []ExerciseOption
+	OriginalWord        string         `gorm:"column:original_word"`
+	OriginalLanguage    enums.Language `gorm:"column:original_language"`
+	TranslationWord     string         `gorm:"column:translation_word"`
+	TranslationLanguage enums.Language `gorm:"column:translation_language"`
 	Vocabulary          []models.Vocabulary
+}
+
+type ExerciseOption struct {
+	VocabularyID uuid.UUID `json:"vocabulary_id"`
+	Label        string    `json:"label"`
+}
+
+type exerciseChoiceCandidate struct {
+	VocabularyID uuid.UUID `gorm:"column:vocabulary_id"`
+	AnswerWord   string    `gorm:"column:answer_word"`
+}
+
+type exerciseVocabularyDetails struct {
+	ExerciseID          uuid.UUID      `gorm:"column:exercise_id"`
+	VocabularyID        uuid.UUID      `gorm:"column:vocabulary_id"`
+	IsCorrect           bool           `gorm:"column:is_correct"`
+	OriginalWord        string         `gorm:"column:original_word"`
+	OriginalLanguage    enums.Language `gorm:"column:original_language"`
+	TranslationWord     string         `gorm:"column:translation_word"`
+	TranslationLanguage enums.Language `gorm:"column:translation_language"`
 }
 
 type ExerciseStatistics struct {
@@ -145,7 +167,12 @@ func GenerateExercises(user models.User, targetDate time.Time) int {
 		return 0
 	}
 
-	vocabularyIDs, err := getEligibleVocabularyIDs(user.ID, requestedExercisesCount)
+	candidateLimit := requestedExercisesCount * 10
+	if candidateLimit < requestedExercisesCount {
+		candidateLimit = requestedExercisesCount
+	}
+
+	vocabularyIDs, err := getEligibleVocabularyIDs(user.ID, candidateLimit)
 	if err != nil {
 		logger.L().Errorw("failed to select vocabulary for exercises", "user_id", user.ID, "error", err)
 		return 0
@@ -154,6 +181,10 @@ func GenerateExercises(user models.User, targetDate time.Time) int {
 	generatedCount := 0
 
 	for _, vocabularyID := range vocabularyIDs {
+		if generatedCount >= int(requestedExercisesCount) {
+			break
+		}
+
 		midnightOffset := rand.Intn(totalMinutes)
 
 		realOffsetInMinutes := MapOffsetOnSchedule(user.Settings.Telegram.DailyQuestionsSchedule, midnightOffset)
@@ -161,6 +192,10 @@ func GenerateExercises(user models.User, targetDate time.Time) int {
 		exerciseScheduleTime := targetMidnight.Add(time.Duration(realOffsetInMinutes) * time.Minute).UTC()
 
 		if err := generateExercise(user.ID, vocabularyID, exerciseScheduleTime); err != nil {
+			if errors.Is(err, errNoExerciseTypeAvailable) {
+				continue
+			}
+
 			logger.L().Errorw("failed to generate exercise", "user_id", user.ID, "scheduled_for", exerciseScheduleTime, "error", err)
 			continue
 		}
@@ -198,12 +233,17 @@ func getEligibleVocabularyIDs(userID uint, limit uint) ([]uuid.UUID, error) {
 }
 
 func generateExercise(userID uint, vocabularyID uuid.UUID, when time.Time) error {
-	return db.DB.Transaction(func(tx *gorm.DB) error {
-		exerciseType := enums.ExerciseTypeBasicDirect
-		if rand.Intn(2) == 0 {
-			exerciseType = enums.ExerciseTypeBasicReversed
-		}
+	vocabulary, err := loadExerciseVocabulary(vocabularyID)
+	if err != nil {
+		return err
+	}
 
+	exerciseType, options, err := selectExerciseTypeAndOptions(userID, vocabulary)
+	if err != nil {
+		return err
+	}
+
+	return db.DB.Transaction(func(tx *gorm.DB) error {
 		exercise := models.Exercise{
 			Type:         exerciseType,
 			Status:       enums.ExerciseStatusPending,
@@ -215,14 +255,7 @@ func generateExercise(userID uint, vocabularyID uuid.UUID, when time.Time) error
 			return err
 		}
 
-		if err := tx.Table("vocabulary_exercises").Create(map[string]any{
-			"exercise_id":   exercise.ID,
-			"vocabulary_id": vocabularyID,
-		}).Error; err != nil {
-			return err
-		}
-
-		return nil
+		return createExerciseVocabularyLinks(tx, exercise.ID, vocabularyID, options)
 	})
 }
 
@@ -243,17 +276,17 @@ func GetDuePendingExercises(now time.Time) ([]PendingExercise, error) {
 			u.settings->>'system_language' AS system_language
 		FROM exercises AS e
 		JOIN users AS u ON u.id = e.user_id
-		JOIN vocabulary_exercises AS ve ON ve.exercise_id = e.id
-		JOIN vocabulary AS v ON v.id = ve.vocabulary_id
+		JOIN vocabulary_exercises AS ve ON ve.exercise_id = e.id AND ve.is_correct = true
+		JOIN vocabulary AS v ON v.id = ve.vocabulary_id AND v.deleted_at IS NULL
 		JOIN translations AS t ON t.id = v.translation_id
 		JOIN words AS original ON original.id = t.original_id
 		JOIN words AS translated ON translated.id = t.translation_id
 		WHERE e.status = ?
-			AND e.type IN (?, ?)
+			AND e.type IN (?, ?, ?, ?)
 			AND e.scheduled_for <= ?
 			AND u.settings->'telegram'->'bot_enabled' = ?
 		ORDER BY e.scheduled_for ASC, e.created_at ASC
-	`, enums.ExerciseStatusPending, enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, now, true).Scan(&exercises).Error
+	`, enums.ExerciseStatusPending, enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed, now, true).Scan(&exercises).Error
 
 	if err != nil {
 		return nil, err
@@ -270,12 +303,6 @@ func GetExerciseByTelegramMessage(telegramMessageID int64, telegramID int64) (*T
 		Joins("JOIN users AS u ON u.id = exercises.user_id").
 		Where("exercises.telegram_message_id = ?", telegramMessageID).
 		Where("u.telegram_id = ?", telegramID).
-		Preload("Vocabulary", func(db *gorm.DB) *gorm.DB {
-			return db.Order("vocabulary.created_at ASC, vocabulary.id ASC")
-		}).
-		Preload("Vocabulary.Translation").
-		Preload("Vocabulary.Translation.Original").
-		Preload("Vocabulary.Translation.Translation").
 		First(&exercise).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -285,24 +312,30 @@ func GetExerciseByTelegramMessage(telegramMessageID int64, telegramID int64) (*T
 		return nil, err
 	}
 
+	correctVocabulary, err := getCorrectExerciseVocabularyDetails(exercise.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	options, err := GetExerciseAnswerOptions(exercise.ID, exercise.Type)
+	if err != nil {
+		return nil, err
+	}
+
 	telegramExercise := TelegramMessageExercise{
 		ExerciseID:   exercise.ID,
 		ExerciseType: exercise.Type,
 		Status:       exercise.Status,
 		UserID:       exercise.UserID,
-		Vocabulary:   exercise.Vocabulary,
+		Options:      options,
 	}
 
-	if len(exercise.Vocabulary) > 0 && exercise.Vocabulary[0].Translation != nil {
-		translation := exercise.Vocabulary[0].Translation
-		if translation.Original != nil {
-			telegramExercise.OriginalWord = translation.Original.Word
-			telegramExercise.OriginalLanguage = translation.Original.Language
-		}
-		if translation.Translation != nil {
-			telegramExercise.TranslationWord = translation.Translation.Word
-			telegramExercise.TranslationLanguage = translation.Translation.Language
-		}
+	if correctVocabulary != nil {
+		telegramExercise.OriginalWord = correctVocabulary.OriginalWord
+		telegramExercise.OriginalLanguage = correctVocabulary.OriginalLanguage
+		telegramExercise.TranslationWord = correctVocabulary.TranslationWord
+		telegramExercise.TranslationLanguage = correctVocabulary.TranslationLanguage
+		telegramExercise.Vocabulary = []models.Vocabulary{buildVocabularyFromExerciseDetails(*correctVocabulary)}
 	}
 
 	return &telegramExercise, nil
@@ -321,6 +354,44 @@ func StartTelegramExercise(exerciseID uuid.UUID, telegramMessageID int64) error 
 func DeletePendingExercisesByUserID(tx *gorm.DB, userID uint) error {
 	return tx.Where("user_id = ? AND status = ?", userID, enums.ExerciseStatusPending).
 		Delete(&models.Exercise{}).Error
+}
+
+func DeletePendingExercisesByVocabularyID(tx *gorm.DB, userID uint, vocabularyID uuid.UUID) error {
+	return tx.
+		Where("user_id = ? AND status = ?", userID, enums.ExerciseStatusPending).
+		Where("id IN (?)",
+			tx.Table("vocabulary_exercises").
+				Select("exercise_id").
+				Where("vocabulary_id = ?", vocabularyID),
+		).
+		Delete(&models.Exercise{}).Error
+}
+
+func IgnoreExercise(exerciseID uuid.UUID) error {
+	return db.DB.Model(&models.Exercise{}).
+		Where("id = ?", exerciseID).
+		Where("status IN ?", []enums.ExerciseStatus{enums.ExerciseStatusPending, enums.ExerciseStatusInProgress}).
+		Updates(map[string]any{
+			"status":      enums.ExerciseStatusIgnored,
+			"finished_at": time.Now().UTC(),
+		}).Error
+}
+
+func IgnoreDuePendingExercisesWithoutActiveVocabulary(now time.Time) error {
+	return db.DB.Exec(`
+		UPDATE exercises AS e
+		SET status = ?, finished_at = ?
+		WHERE e.status = ?
+			AND e.type IN (?, ?, ?, ?)
+			AND e.scheduled_for <= ?
+			AND NOT EXISTS (
+				SELECT 1
+				FROM vocabulary_exercises AS ve
+				JOIN vocabulary AS v ON v.id = ve.vocabulary_id AND v.deleted_at IS NULL
+				WHERE ve.exercise_id = e.id
+					AND ve.is_correct = true
+			)
+	`, enums.ExerciseStatusIgnored, now, enums.ExerciseStatusPending, enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed, now).Error
 }
 
 func GetDueExerciseReminders(now time.Time) ([]PendingExerciseReminder, error) {
@@ -437,6 +508,7 @@ func updateVocabularyProgressByExercise(tx *gorm.DB, exerciseID uuid.UUID, delta
 	if err := tx.Table("vocabulary_exercises").
 		Select("vocabulary_id").
 		Where("exercise_id = ?", exerciseID).
+		Where("is_correct = ?", true).
 		Take(&exerciseLink).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return 0, nil
@@ -448,6 +520,7 @@ func updateVocabularyProgressByExercise(tx *gorm.DB, exerciseID uuid.UUID, delta
 	var vocabulary models.Vocabulary
 	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where("id = ?", exerciseLink.VocabularyID).
+		Where("deleted_at IS NULL").
 		Take(&vocabulary).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return 0, nil
@@ -524,8 +597,8 @@ func GetExerciseWordsByTelegram(exerciseID uuid.UUID, telegramID int64) (*Exerci
 			translated.language AS translation_language
 		FROM exercises AS e
 		JOIN users AS u ON u.id = e.user_id
-		JOIN vocabulary_exercises AS ve ON ve.exercise_id = e.id
-		JOIN vocabulary AS v ON v.id = ve.vocabulary_id
+		JOIN vocabulary_exercises AS ve ON ve.exercise_id = e.id AND ve.is_correct = true
+		JOIN vocabulary AS v ON v.id = ve.vocabulary_id AND v.deleted_at IS NULL
 		JOIN translations AS t ON t.id = v.translation_id
 		JOIN words AS original ON original.id = t.original_id
 		JOIN words AS translated ON translated.id = t.translation_id
@@ -589,16 +662,15 @@ func GetExercises(userID uint, page, pageSize int) (*ExerciseListResponse, error
 		Model(&models.Exercise{}).
 		Where("user_id = ?", userID).
 		Where("started_at IS NOT NULL").
-		Preload("Vocabulary", func(db *gorm.DB) *gorm.DB {
-			return db.Order("vocabulary.created_at DESC, vocabulary.id DESC")
-		}).
-		Preload("Vocabulary.Translation").
-		Preload("Vocabulary.Translation.Original").
-		Preload("Vocabulary.Translation.Translation").
 		Order("started_at DESC, id DESC").
 		Limit(pageSize).
 		Offset(offset).
 		Find(&exercises).Error; err != nil {
+		return nil, err
+	}
+
+	correctVocabularyByExerciseID, err := loadCorrectVocabularyByExerciseIDs(collectExerciseIDs(exercises))
+	if err != nil {
 		return nil, err
 	}
 
@@ -611,7 +683,10 @@ func GetExercises(userID uint, page, pageSize int) (*ExerciseListResponse, error
 			StartedAt:         exerciseModel.StartedAt,
 			FinishedAt:        exerciseModel.FinishedAt,
 			TelegramMessageID: exerciseModel.TelegramMessageID,
-			Vocabulary:        exerciseModel.Vocabulary,
+		}
+
+		if vocabulary, ok := correctVocabularyByExerciseID[exerciseModel.ID]; ok {
+			exercise.Vocabulary = []models.Vocabulary{vocabulary}
 		}
 
 		data = append(data, exercise)
@@ -639,10 +714,11 @@ type RandomExerciseResult struct {
 	QuestionWord   string
 	Language       enums.Language
 	AnswerLanguage enums.Language
+	Options        []string
 }
 
 func CreateRandomExercise(userID uint) (*RandomExerciseResult, error) {
-	ids, err := getEligibleVocabularyIDs(userID, 1)
+	ids, err := getEligibleVocabularyIDs(userID, 64)
 	if err != nil {
 		return nil, err
 	}
@@ -660,80 +736,20 @@ func CreateRandomExercise(userID uint) (*RandomExerciseResult, error) {
 		return nil, ErrAllVocabularyMastered
 	}
 
-	vocabularyID := ids[0]
-
-	exerciseType := enums.ExerciseTypeBasicDirect
-	if rand.Intn(2) == 0 {
-		exerciseType = enums.ExerciseTypeBasicReversed
-	}
-
-	now := time.Now().UTC()
-	exercise := models.Exercise{
-		Type:      exerciseType,
-		Status:    enums.ExerciseStatusInProgress,
-		UserID:    userID,
-		StartedAt: &now,
-	}
-
-	err = db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(&exercise).Error; err != nil {
-			return err
+	for _, vocabularyID := range ids {
+		result, createErr := createRandomExerciseForVocabulary(userID, vocabularyID)
+		if errors.Is(createErr, errNoExerciseTypeAvailable) {
+			continue
 		}
 
-		return tx.Table("vocabulary_exercises").Create(map[string]any{
-			"exercise_id":   exercise.ID,
-			"vocabulary_id": vocabularyID,
-		}).Error
-	})
-	if err != nil {
-		return nil, err
+		if createErr != nil {
+			return nil, createErr
+		}
+
+		return result, nil
 	}
 
-	var vocab models.Vocabulary
-	if err := db.DB.
-		Where("id = ?", vocabularyID).
-		Preload("Translation").
-		Preload("Translation.Original").
-		Preload("Translation.Translation").
-		Take(&vocab).Error; err != nil {
-		return nil, err
-	}
-
-	if vocab.Translation == nil {
-		return nil, errors.New("vocabulary has no translation")
-	}
-
-	var questionWord string
-	var language, answerLanguage enums.Language
-
-	switch exerciseType {
-	case enums.ExerciseTypeBasicDirect:
-		if vocab.Translation.Original == nil {
-			return nil, errors.New("vocabulary has no original word")
-		}
-		questionWord = vocab.Translation.Original.Word
-		language = vocab.Translation.Original.Language
-		if vocab.Translation.Translation != nil {
-			answerLanguage = vocab.Translation.Translation.Language
-		}
-	case enums.ExerciseTypeBasicReversed:
-		if vocab.Translation.Translation == nil {
-			return nil, errors.New("vocabulary has no translation word")
-		}
-		questionWord = vocab.Translation.Translation.Word
-		language = vocab.Translation.Translation.Language
-		if vocab.Translation.Original != nil {
-			answerLanguage = vocab.Translation.Original.Language
-		}
-	}
-
-	return &RandomExerciseResult{
-		ExerciseID:     exercise.ID,
-		Type:           exerciseType,
-		QuestionWord:   questionWord,
-		Language:       language,
-		AnswerLanguage: answerLanguage,
-	}, nil
+	return nil, ErrNoVocabularyForExercise
 }
 
 func userHasVocabulary(userID uint) (bool, error) {
@@ -758,20 +774,8 @@ type VerifyAnswerResult struct {
 }
 
 func VerifyExerciseAnswer(exerciseID uuid.UUID, userID uint, answer string) (*VerifyAnswerResult, error) {
-	var exercise models.Exercise
-
-	err := db.DB.
-		Where("id = ? AND user_id = ?", exerciseID, userID).
-		Preload("Vocabulary").
-		Preload("Vocabulary.Translation").
-		Preload("Vocabulary.Translation.Original").
-		Preload("Vocabulary.Translation.Translation").
-		Take(&exercise).Error
+	exercise, correctVocabulary, err := getExerciseWithCorrectVocabulary(exerciseID, userID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrExerciseNotFound
-		}
-
 		return nil, err
 	}
 
@@ -779,42 +783,111 @@ func VerifyExerciseAnswer(exerciseID uuid.UUID, userID uint, answer string) (*Ve
 		return nil, ErrExerciseNotInProgress
 	}
 
-	if len(exercise.Vocabulary) == 0 || exercise.Vocabulary[0].Translation == nil {
+	if correctVocabulary == nil {
+		_ = IgnoreExercise(exercise.ID)
 		return nil, ErrExerciseVocabularyDeleted
 	}
 
-	translation := exercise.Vocabulary[0].Translation
-
-	var expectedAnswer, correctAnswer string
-	switch exercise.Type {
-	case enums.ExerciseTypeBasicDirect:
-		if translation.Translation == nil {
-			return nil, errors.New("no translation word")
-		}
-		expectedAnswer = normalizeAnswer(translation.Translation.Word)
-		correctAnswer = translation.Translation.Word
-	case enums.ExerciseTypeBasicReversed:
-		if translation.Original == nil {
-			return nil, errors.New("no original word")
-		}
-		expectedAnswer = normalizeAnswer(translation.Original.Word)
-		correctAnswer = translation.Original.Word
+	expectedAnswer := correctVocabulary.TranslationWord
+	if isReversedExerciseType(exercise.Type) {
+		expectedAnswer = correctVocabulary.OriginalWord
 	}
 
 	normalizedAnswer := normalizeAnswer(answer)
-	distance := utils.LevenshteinDistance(normalizedAnswer, expectedAnswer)
-	threshold := almostCorrectThreshold(expectedAnswer)
+	normalizedExpectedAnswer := normalizeAnswer(expectedAnswer)
 
 	var updated bool
 	var knowledge int
 	var resultType string
 
-	if distance == 0 {
+	if isChoiceExerciseType(exercise.Type) {
+		options, optionsErr := GetExerciseAnswerOptions(exercise.ID, exercise.Type)
+		if optionsErr != nil {
+			return nil, optionsErr
+		}
+		if len(options) != 4 {
+			_ = IgnoreExercise(exercise.ID)
+			return nil, ErrExerciseVocabularyDeleted
+		}
+
+		if normalizedAnswer == normalizedExpectedAnswer {
+			updated, knowledge, err = CompleteExercise(exerciseID)
+			resultType = "correct"
+		} else if exerciseOptionsContainAnswer(options, normalizedAnswer) {
+			updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusFailed, ExerciseFailProgressDelta)
+			resultType = "wrong"
+		} else {
+			updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusFailed, ExerciseFailProgressDelta)
+			resultType = "wrong"
+		}
+	} else {
+		if normalizedAnswer == normalizedExpectedAnswer {
+			updated, knowledge, err = CompleteExercise(exerciseID)
+			resultType = "correct"
+		} else {
+			distance := utils.LevenshteinDistance(normalizedAnswer, normalizedExpectedAnswer)
+			threshold := almostCorrectThreshold(normalizedExpectedAnswer)
+			if distance <= threshold {
+				updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusCompleted, ExerciseAlmostCorrectProgressDelta)
+				resultType = "almost"
+			} else {
+				updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusFailed, ExerciseFailProgressDelta)
+				resultType = "wrong"
+			}
+		}
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !updated {
+		return nil, ErrExerciseNotInProgress
+	}
+
+	return &VerifyAnswerResult{
+		Result:        resultType,
+		CorrectAnswer: expectedAnswer,
+		Knowledge:     knowledge,
+	}, nil
+}
+
+func VerifyExerciseChoice(exerciseID uuid.UUID, userID uint, selectedVocabularyID uuid.UUID) (*VerifyAnswerResult, error) {
+	exercise, correctVocabulary, err := getExerciseWithCorrectVocabulary(exerciseID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if exercise.Status != enums.ExerciseStatusInProgress {
+		return nil, ErrExerciseNotInProgress
+	}
+
+	if correctVocabulary == nil {
+		_ = IgnoreExercise(exercise.ID)
+		return nil, ErrExerciseVocabularyDeleted
+	}
+
+	options, err := GetExerciseAnswerOptions(exercise.ID, exercise.Type)
+	if err != nil {
+		return nil, err
+	}
+	if len(options) != 4 {
+		_ = IgnoreExercise(exercise.ID)
+		return nil, ErrExerciseVocabularyDeleted
+	}
+
+	correctAnswer := correctVocabulary.TranslationWord
+	if isReversedExerciseType(exercise.Type) {
+		correctAnswer = correctVocabulary.OriginalWord
+	}
+
+	var updated bool
+	var knowledge int
+	var resultType string
+
+	if selectedVocabularyID == correctVocabulary.VocabularyID {
 		updated, knowledge, err = CompleteExercise(exerciseID)
 		resultType = "correct"
-	} else if distance <= threshold {
-		updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusCompleted, ExerciseAlmostCorrectProgressDelta)
-		resultType = "almost"
 	} else {
 		updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusFailed, ExerciseFailProgressDelta)
 		resultType = "wrong"
@@ -835,6 +908,270 @@ func VerifyExerciseAnswer(exerciseID uuid.UUID, userID uint, answer string) (*Ve
 	}, nil
 }
 
+func createRandomExerciseForVocabulary(userID uint, vocabularyID uuid.UUID) (*RandomExerciseResult, error) {
+	vocabulary, err := loadExerciseVocabulary(vocabularyID)
+	if err != nil {
+		return nil, err
+	}
+
+	exerciseType, options, err := selectExerciseTypeAndOptions(userID, vocabulary)
+	if err != nil {
+		return nil, err
+	}
+
+	questionWord, language, answerLanguage, err := buildExerciseQuestionData(vocabulary, exerciseType)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now().UTC()
+	exercise := models.Exercise{
+		Type:      exerciseType,
+		Status:    enums.ExerciseStatusInProgress,
+		UserID:    userID,
+		StartedAt: &now,
+	}
+
+	err = db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&exercise).Error; err != nil {
+			return err
+		}
+
+		return createExerciseVocabularyLinks(tx, exercise.ID, vocabularyID, options)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &RandomExerciseResult{
+		ExerciseID:     exercise.ID,
+		Type:           exerciseType,
+		QuestionWord:   questionWord,
+		Language:       language,
+		AnswerLanguage: answerLanguage,
+		Options:        collectExerciseOptionLabels(options),
+	}, nil
+}
+
+func loadExerciseVocabulary(vocabularyID uuid.UUID) (*models.Vocabulary, error) {
+	var vocabulary models.Vocabulary
+
+	err := db.DB.
+		Where("id = ?", vocabularyID).
+		Where("deleted_at IS NULL").
+		Preload("Translation").
+		Preload("Translation.Original").
+		Preload("Translation.Translation").
+		Take(&vocabulary).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &vocabulary, nil
+}
+
+func selectExerciseTypeAndOptions(userID uint, vocabulary *models.Vocabulary) (enums.ExerciseType, []exerciseChoiceCandidate, error) {
+	availableTypes, err := buildExerciseOptionsByType(userID, vocabulary)
+	if err != nil {
+		return "", nil, err
+	}
+
+	typeOrder := []enums.ExerciseType{
+		enums.ExerciseTypeBasicDirect,
+		enums.ExerciseTypeBasicReversed,
+		enums.ExerciseTypeChoiceDirect,
+		enums.ExerciseTypeChoiceReversed,
+	}
+
+	available := make([]enums.ExerciseType, 0, len(typeOrder))
+	for _, exerciseType := range typeOrder {
+		options := availableTypes[exerciseType]
+		if (isChoiceExerciseType(exerciseType) && len(options) == 4) || (!isChoiceExerciseType(exerciseType) && len(options) > 0) {
+			available = append(available, exerciseType)
+		}
+	}
+
+	if len(available) == 0 {
+		return "", nil, errNoExerciseTypeAvailable
+	}
+
+	exerciseType := available[rand.Intn(len(available))]
+	return exerciseType, append([]exerciseChoiceCandidate(nil), availableTypes[exerciseType]...), nil
+}
+
+func buildExerciseOptionsByType(userID uint, vocabulary *models.Vocabulary) (map[enums.ExerciseType][]exerciseChoiceCandidate, error) {
+	optionsByType := make(map[enums.ExerciseType][]exerciseChoiceCandidate, 4)
+
+	directOptions, err := buildExerciseOptionsForType(userID, vocabulary, enums.ExerciseTypeBasicDirect)
+	if err != nil {
+		return nil, err
+	}
+	if len(directOptions) > 0 {
+		optionsByType[enums.ExerciseTypeBasicDirect] = append([]exerciseChoiceCandidate(nil), directOptions[:1]...)
+	}
+	if len(directOptions) == 4 {
+		optionsByType[enums.ExerciseTypeChoiceDirect] = shuffledExerciseOptions(directOptions)
+	}
+
+	reversedOptions, err := buildExerciseOptionsForType(userID, vocabulary, enums.ExerciseTypeBasicReversed)
+	if err != nil {
+		return nil, err
+	}
+	if len(reversedOptions) > 0 {
+		optionsByType[enums.ExerciseTypeBasicReversed] = append([]exerciseChoiceCandidate(nil), reversedOptions[:1]...)
+	}
+	if len(reversedOptions) == 4 {
+		optionsByType[enums.ExerciseTypeChoiceReversed] = shuffledExerciseOptions(reversedOptions)
+	}
+
+	return optionsByType, nil
+}
+
+func buildExerciseOptionsForType(userID uint, vocabulary *models.Vocabulary, exerciseType enums.ExerciseType) ([]exerciseChoiceCandidate, error) {
+	if vocabulary == nil || vocabulary.Translation == nil {
+		return nil, errors.New("vocabulary has no translation")
+	}
+
+	translation := vocabulary.Translation
+	if translation.Original == nil {
+		return nil, errors.New("vocabulary has no original word")
+	}
+	if translation.Translation == nil {
+		return nil, errors.New("vocabulary has no translation word")
+	}
+
+	answerOption := exerciseChoiceCandidate{
+		VocabularyID: vocabulary.ID,
+		AnswerWord:   translation.Translation.Word,
+	}
+	queryColumn := "translated.word"
+
+	if isReversedExerciseType(exerciseType) {
+		answerOption.AnswerWord = translation.Original.Word
+		queryColumn = "original.word"
+	}
+
+	distractors, err := getExerciseDistractorWords(
+		userID,
+		translation.Original.Language,
+		translation.Translation.Language,
+		queryColumn,
+		vocabulary.ID,
+		answerOption.AnswerWord,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(distractors) < 3 {
+		return []exerciseChoiceCandidate{answerOption}, nil
+	}
+
+	options := []exerciseChoiceCandidate{answerOption, distractors[0], distractors[1], distractors[2]}
+
+	return options, nil
+}
+
+func shuffledExerciseOptions(options []exerciseChoiceCandidate) []exerciseChoiceCandidate {
+	shuffled := append([]exerciseChoiceCandidate(nil), options...)
+	rand.Shuffle(len(shuffled), func(i, j int) {
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+	})
+
+	return shuffled
+}
+
+func getExerciseDistractorWords(
+	userID uint,
+	originalLanguage enums.Language,
+	translationLanguage enums.Language,
+	answerColumn string,
+	correctVocabularyID uuid.UUID,
+	correctAnswer string,
+) ([]exerciseChoiceCandidate, error) {
+	query := `
+		SELECT
+			v.id AS vocabulary_id,
+			` + answerColumn + ` AS answer_word
+		FROM vocabulary AS v
+		JOIN translations AS t ON t.id = v.translation_id
+		JOIN words AS original ON original.id = t.original_id
+		JOIN words AS translated ON translated.id = t.translation_id
+		WHERE v.user_id = ?
+			AND v.deleted_at IS NULL
+			AND original.language = ?
+			AND translated.language = ?
+			AND v.id <> ?
+	`
+
+	var rows []exerciseChoiceCandidate
+	if err := db.DB.Raw(query, userID, originalLanguage, translationLanguage, correctVocabularyID).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+
+	seen := map[string]struct{}{
+		normalizeAnswer(correctAnswer): {},
+	}
+	options := make([]exerciseChoiceCandidate, 0, len(rows))
+	for _, row := range rows {
+		if strings.TrimSpace(row.AnswerWord) == "" {
+			continue
+		}
+
+		normalized := normalizeAnswer(row.AnswerWord)
+		if _, exists := seen[normalized]; exists {
+			continue
+		}
+
+		seen[normalized] = struct{}{}
+		options = append(options, row)
+	}
+
+	rand.Shuffle(len(options), func(i, j int) {
+		options[i], options[j] = options[j], options[i]
+	})
+
+	return options, nil
+}
+
+func buildExerciseQuestionData(vocabulary *models.Vocabulary, exerciseType enums.ExerciseType) (string, enums.Language, enums.Language, error) {
+	if vocabulary == nil || vocabulary.Translation == nil {
+		return "", "", "", errors.New("vocabulary has no translation")
+	}
+
+	translation := vocabulary.Translation
+	if translation.Original == nil {
+		return "", "", "", errors.New("vocabulary has no original word")
+	}
+	if translation.Translation == nil {
+		return "", "", "", errors.New("vocabulary has no translation word")
+	}
+
+	if isReversedExerciseType(exerciseType) {
+		return translation.Translation.Word, translation.Translation.Language, translation.Original.Language, nil
+	}
+
+	return translation.Original.Word, translation.Original.Language, translation.Translation.Language, nil
+}
+
+func isReversedExerciseType(exerciseType enums.ExerciseType) bool {
+	switch exerciseType {
+	case enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceReversed:
+		return true
+	default:
+		return false
+	}
+}
+
+func isChoiceExerciseType(exerciseType enums.ExerciseType) bool {
+	switch exerciseType {
+	case enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed:
+		return true
+	default:
+		return false
+	}
+}
+
 func GetExercisesByIDs(userID uint, ids []uuid.UUID) ([]ExerciseListExercise, error) {
 	if len(ids) == 0 {
 		return []ExerciseListExercise{}, nil
@@ -844,28 +1181,215 @@ func GetExercisesByIDs(userID uint, ids []uuid.UUID) ([]ExerciseListExercise, er
 
 	if err := db.DB.
 		Where("user_id = ? AND id IN ?", userID, ids).
-		Preload("Vocabulary", func(db *gorm.DB) *gorm.DB {
-			return db.Order("vocabulary.created_at ASC, vocabulary.id ASC")
-		}).
-		Preload("Vocabulary.Translation").
-		Preload("Vocabulary.Translation.Original").
-		Preload("Vocabulary.Translation.Translation").
 		Find(&exercises).Error; err != nil {
 		return nil, err
 	}
 
+	correctVocabularyByExerciseID, err := loadCorrectVocabularyByExerciseIDs(collectExerciseIDs(exercises))
+	if err != nil {
+		return nil, err
+	}
+
 	data := make([]ExerciseListExercise, 0, len(exercises))
-	for _, e := range exercises {
-		data = append(data, ExerciseListExercise{
-			ID:                e.ID,
-			Type:              e.Type,
-			Status:            e.Status,
-			StartedAt:         e.StartedAt,
-			FinishedAt:        e.FinishedAt,
-			TelegramMessageID: e.TelegramMessageID,
-			Vocabulary:        e.Vocabulary,
-		})
+	for _, exercise := range exercises {
+		response := ExerciseListExercise{
+			ID:                exercise.ID,
+			Type:              exercise.Type,
+			Status:            exercise.Status,
+			StartedAt:         exercise.StartedAt,
+			FinishedAt:        exercise.FinishedAt,
+			TelegramMessageID: exercise.TelegramMessageID,
+		}
+
+		if vocabulary, ok := correctVocabularyByExerciseID[exercise.ID]; ok {
+			response.Vocabulary = []models.Vocabulary{vocabulary}
+		}
+
+		data = append(data, response)
 	}
 
 	return data, nil
+}
+
+func createExerciseVocabularyLinks(tx *gorm.DB, exerciseID uuid.UUID, correctVocabularyID uuid.UUID, options []exerciseChoiceCandidate) error {
+	links := make([]map[string]any, 0, len(options))
+	for _, option := range options {
+		links = append(links, map[string]any{
+			"exercise_id":   exerciseID,
+			"vocabulary_id": option.VocabularyID,
+			"is_correct":    option.VocabularyID == correctVocabularyID,
+		})
+	}
+
+	return tx.Table("vocabulary_exercises").Create(&links).Error
+}
+
+func GetExerciseAnswerOptions(exerciseID uuid.UUID, exerciseType enums.ExerciseType) ([]ExerciseOption, error) {
+	answerColumn := "translated.word"
+	if isReversedExerciseType(exerciseType) {
+		answerColumn = "original.word"
+	}
+
+	query := `
+		SELECT
+			v.id AS vocabulary_id,
+			` + answerColumn + ` AS answer_word
+		FROM vocabulary_exercises AS ve
+		JOIN vocabulary AS v ON v.id = ve.vocabulary_id AND v.deleted_at IS NULL
+		JOIN translations AS t ON t.id = v.translation_id
+		JOIN words AS original ON original.id = t.original_id
+		JOIN words AS translated ON translated.id = t.translation_id
+		WHERE ve.exercise_id = ?
+	`
+
+	var rows []exerciseChoiceCandidate
+	if err := db.DB.Raw(query, exerciseID).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+
+	options := make([]ExerciseOption, 0, len(rows))
+	for _, row := range rows {
+		if strings.TrimSpace(row.AnswerWord) == "" {
+			continue
+		}
+
+		options = append(options, ExerciseOption{
+			VocabularyID: row.VocabularyID,
+			Label:        row.AnswerWord,
+		})
+	}
+
+	rand.Shuffle(len(options), func(i, j int) {
+		options[i], options[j] = options[j], options[i]
+	})
+
+	return options, nil
+}
+
+func getExerciseWithCorrectVocabulary(exerciseID uuid.UUID, userID uint) (*models.Exercise, *exerciseVocabularyDetails, error) {
+	var exercise models.Exercise
+
+	err := db.DB.
+		Where("id = ? AND user_id = ?", exerciseID, userID).
+		Take(&exercise).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil, ErrExerciseNotFound
+		}
+
+		return nil, nil, err
+	}
+
+	correctVocabulary, err := getCorrectExerciseVocabularyDetails(exercise.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &exercise, correctVocabulary, nil
+}
+
+func getCorrectExerciseVocabularyDetails(exerciseID uuid.UUID) (*exerciseVocabularyDetails, error) {
+	rows, err := getExerciseVocabularyDetails([]uuid.UUID{exerciseID}, true)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, row := range rows {
+		return &row, nil
+	}
+
+	return nil, nil
+}
+
+func loadCorrectVocabularyByExerciseIDs(exerciseIDs []uuid.UUID) (map[uuid.UUID]models.Vocabulary, error) {
+	rows, err := getExerciseVocabularyDetails(exerciseIDs, true)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[uuid.UUID]models.Vocabulary, len(rows))
+	for _, row := range rows {
+		result[row.ExerciseID] = buildVocabularyFromExerciseDetails(row)
+	}
+
+	return result, nil
+}
+
+func getExerciseVocabularyDetails(exerciseIDs []uuid.UUID, onlyCorrect bool) ([]exerciseVocabularyDetails, error) {
+	if len(exerciseIDs) == 0 {
+		return []exerciseVocabularyDetails{}, nil
+	}
+
+	query := `
+		SELECT
+			ve.exercise_id AS exercise_id,
+			ve.vocabulary_id AS vocabulary_id,
+			ve.is_correct AS is_correct,
+			original.word AS original_word,
+			original.language AS original_language,
+			translated.word AS translation_word,
+			translated.language AS translation_language
+		FROM vocabulary_exercises AS ve
+		JOIN vocabulary AS v ON v.id = ve.vocabulary_id AND v.deleted_at IS NULL
+		JOIN translations AS t ON t.id = v.translation_id
+		JOIN words AS original ON original.id = t.original_id
+		JOIN words AS translated ON translated.id = t.translation_id
+		WHERE ve.exercise_id IN ?
+	`
+	args := []any{exerciseIDs}
+	if onlyCorrect {
+		query += ` AND ve.is_correct = ?`
+		args = append(args, true)
+	}
+
+	var rows []exerciseVocabularyDetails
+	if err := db.DB.Raw(query, args...).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+
+	return rows, nil
+}
+
+func buildVocabularyFromExerciseDetails(details exerciseVocabularyDetails) models.Vocabulary {
+	return models.Vocabulary{
+		ID: details.VocabularyID,
+		Translation: &models.Translation{
+			Original: &models.Word{
+				Word:     details.OriginalWord,
+				Language: details.OriginalLanguage,
+			},
+			Translation: &models.Word{
+				Word:     details.TranslationWord,
+				Language: details.TranslationLanguage,
+			},
+		},
+	}
+}
+
+func collectExerciseIDs(exercises []models.Exercise) []uuid.UUID {
+	ids := make([]uuid.UUID, 0, len(exercises))
+	for _, exercise := range exercises {
+		ids = append(ids, exercise.ID)
+	}
+
+	return ids
+}
+
+func collectExerciseOptionLabels(options []exerciseChoiceCandidate) []string {
+	labels := make([]string, 0, len(options))
+	for _, option := range options {
+		labels = append(labels, option.AnswerWord)
+	}
+
+	return labels
+}
+
+func exerciseOptionsContainAnswer(options []ExerciseOption, normalizedAnswer string) bool {
+	for _, option := range options {
+		if normalizeAnswer(option.Label) == normalizedAnswer {
+			return true
+		}
+	}
+
+	return false
 }
