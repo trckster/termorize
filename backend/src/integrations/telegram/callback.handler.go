@@ -143,6 +143,10 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 		return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
 	}
 
+	if !hasAnswer && exercise.ExerciseType != enums.ExerciseTypeBasicDirect && exercise.ExerciseType != enums.ExerciseTypeBasicReversed {
+		return nil
+	}
+
 	if err := removeMessageInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID); err != nil {
 		logger.L().Warnw("failed to remove inline keyboard", "error", err, "chat_id", callback.Message.Chat.ID, "message_id", callback.Message.MessageID)
 	}

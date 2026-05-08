@@ -39,12 +39,14 @@ func almostCorrectThreshold(expected string) int {
 }
 
 const (
-	ExerciseCompleteProgressDelta      = 15
-	ExerciseAlmostCorrectProgressDelta = 5
-	ExerciseFailProgressDelta          = -20
-	exerciseReminderPeriod             = 24 * time.Hour
-	telegramExerciseExpirationPeriod   = 7 * 24 * time.Hour
-	websiteExerciseExpirationPeriod    = time.Hour
+	ExerciseCompleteProgressDelta       = 15
+	ExerciseAlmostCorrectProgressDelta  = 5
+	ExerciseFailProgressDelta           = -20
+	ExerciseChoiceCompleteProgressDelta = 5
+	ExerciseChoiceFailProgressDelta     = -10
+	exerciseReminderPeriod              = 24 * time.Hour
+	telegramExerciseExpirationPeriod    = 7 * 24 * time.Hour
+	websiteExerciseExpirationPeriod     = time.Hour
 )
 
 type PendingExercise struct {
@@ -811,13 +813,13 @@ func VerifyExerciseAnswer(exerciseID uuid.UUID, userID uint, answer string) (*Ve
 		}
 
 		if normalizedAnswer == normalizedExpectedAnswer {
-			updated, knowledge, err = CompleteExercise(exerciseID)
+			updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusCompleted, ExerciseChoiceCompleteProgressDelta)
 			resultType = "correct"
 		} else if exerciseOptionsContainAnswer(options, normalizedAnswer) {
-			updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusFailed, ExerciseFailProgressDelta)
+			updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusFailed, ExerciseChoiceFailProgressDelta)
 			resultType = "wrong"
 		} else {
-			updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusFailed, ExerciseFailProgressDelta)
+			updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusFailed, ExerciseChoiceFailProgressDelta)
 			resultType = "wrong"
 		}
 	} else {
@@ -886,10 +888,10 @@ func VerifyExerciseChoice(exerciseID uuid.UUID, userID uint, selectedVocabularyI
 	var resultType string
 
 	if selectedVocabularyID == correctVocabulary.VocabularyID {
-		updated, knowledge, err = CompleteExercise(exerciseID)
+		updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusCompleted, ExerciseChoiceCompleteProgressDelta)
 		resultType = "correct"
 	} else {
-		updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusFailed, ExerciseFailProgressDelta)
+		updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusFailed, ExerciseChoiceFailProgressDelta)
 		resultType = "wrong"
 	}
 
