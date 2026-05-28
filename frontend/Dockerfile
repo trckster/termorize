@@ -8,6 +8,7 @@ ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
 
 COPY package.json pnpm-lock.yaml ./
+RUN pnpm config set strict-dep-builds false
 RUN pnpm install --frozen-lockfile
 
 COPY . .
