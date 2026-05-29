@@ -76,7 +76,13 @@ func CompleteTelegramLogin(c *gin.Context) {
 			return
 		}
 
-		profile, err = auth.ExchangeTelegramLoginCode(request.Code, session.CodeVerifier, session.RedirectURI, session.Nonce)
+		redirectURI := getTelegramLoginRedirectURL(c)
+		if redirectURI == "" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "telegram login redirect is invalid"})
+			return
+		}
+
+		profile, err = auth.ExchangeTelegramLoginCode(request.Code, session.CodeVerifier, redirectURI)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error":   "telegram login failed",

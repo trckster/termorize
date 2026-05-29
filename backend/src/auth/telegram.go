@@ -34,15 +34,12 @@ const telegramWebAppDataKey = "WebAppData"
 
 type TelegramLoginSession struct {
 	CodeVerifier string
-	Nonce        string
 	RedirectURI  string
 	ExpiresAt    time.Time
 }
 
 type TelegramLoginSessionClaims struct {
-	CodeVerifier string `json:"code_verifier"`
-	Nonce        string `json:"nonce"`
-	RedirectURI  string `json:"redirect_uri"`
+	CodeVerifier string `json:"cv"`
 	jwt.RegisteredClaims
 }
 
@@ -83,7 +80,6 @@ type telegramIDTokenClaims struct {
 	PreferredUsername string                `json:"preferred_username"`
 	Picture           string                `json:"picture"`
 	PhoneNumber       string                `json:"phone_number"`
-	Nonce             string                `json:"nonce"`
 	jwt.RegisteredClaims
 }
 
@@ -127,19 +123,13 @@ func IsTelegramLoginConfigured() bool {
 }
 
 func NewTelegramLoginSession() (*TelegramLoginSession, error) {
-	codeVerifier, err := randomBase64URL(64)
-	if err != nil {
-		return nil, err
-	}
-
-	nonce, err := randomBase64URL(32)
+	codeVerifier, err := randomBase64URL(32)
 	if err != nil {
 		return nil, err
 	}
 
 	return &TelegramLoginSession{
 		CodeVerifier: codeVerifier,
-		Nonce:        nonce,
 		ExpiresAt:    time.Now().Add(telegramLoginSessionTTL),
 	}, nil
 }
@@ -147,11 +137,8 @@ func NewTelegramLoginSession() (*TelegramLoginSession, error) {
 func IssueTelegramLoginSessionToken(session TelegramLoginSession) (string, error) {
 	claims := TelegramLoginSessionClaims{
 		CodeVerifier: session.CodeVerifier,
-		Nonce:        session.Nonce,
-		RedirectURI:  session.RedirectURI,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(session.ExpiresAt),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
 
@@ -172,8 +159,6 @@ func DecodeTelegramLoginSessionToken(tokenString string) (*TelegramLoginSession,
 
 	return &TelegramLoginSession{
 		CodeVerifier: claims.CodeVerifier,
-		Nonce:        claims.Nonce,
-		RedirectURI:  claims.RedirectURI,
 		ExpiresAt:    claims.ExpiresAt.Time,
 	}, nil
 }
@@ -185,14 +170,13 @@ func BuildTelegramLoginURL(session TelegramLoginSession, state string) string {
 	values.Set("response_type", "code")
 	values.Set("scope", telegramLoginScope)
 	values.Set("state", state)
-	values.Set("nonce", session.Nonce)
 	values.Set("code_challenge", buildCodeChallenge(session.CodeVerifier))
 	values.Set("code_challenge_method", "S256")
 
 	return telegramAuthorizationEndpoint + "?" + values.Encode()
 }
 
-func ExchangeTelegramLoginCode(code string, codeVerifier string, redirectURI string, expectedNonce string) (*TelegramUserProfile, error) {
+func ExchangeTelegramLoginCode(code string, codeVerifier string, redirectURI string) (*TelegramUserProfile, error) {
 	form := url.Values{}
 	form.Set("grant_type", "authorization_code")
 	form.Set("code", code)
@@ -232,10 +216,10 @@ func ExchangeTelegramLoginCode(code string, codeVerifier string, redirectURI str
 		return nil, errors.New("telegram token response missing id_token")
 	}
 
-	return ValidateTelegramIDToken(tokenResponse.IDToken, expectedNonce)
+	return ValidateTelegramIDToken(tokenResponse.IDToken)
 }
 
-func ValidateTelegramIDToken(idToken string, expectedNonce string) (*TelegramUserProfile, error) {
+func ValidateTelegramIDToken(idToken string) (*TelegramUserProfile, error) {
 	claims := &telegramIDTokenClaims{}
 
 	_, err := jwt.ParseWithClaims(idToken, claims, func(token *jwt.Token) (interface{}, error) {
@@ -244,10 +228,6 @@ func ValidateTelegramIDToken(idToken string, expectedNonce string) (*TelegramUse
 	}, jwt.WithValidMethods([]string{jwt.SigningMethodRS256.Alg()}), jwt.WithIssuer(telegramIssuer), jwt.WithAudience(config.GetTelegramLoginClientID()))
 	if err != nil {
 		return nil, err
-	}
-
-	if expectedNonce != "" && claims.Nonce != "" && claims.Nonce != expectedNonce {
-		return nil, errors.New("telegram id_token nonce mismatch")
 	}
 
 	telegramID := int64(claims.ID)
