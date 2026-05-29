@@ -39,6 +39,8 @@ func Migrate() error {
 		return fmt.Errorf("failed to load migrations from directory: %w", err)
 	}
 
+	RegisterMigration("0004_normalize_word_casing", backfillWordCasing)
+
 	if err := RunMigrations(); err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
 	}

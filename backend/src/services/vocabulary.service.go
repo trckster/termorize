@@ -6,6 +6,7 @@ import (
 	"termorize/src/data/db"
 	"termorize/src/enums"
 	"termorize/src/models"
+	"termorize/src/utils"
 	"time"
 
 	"github.com/google/uuid"
@@ -73,7 +74,7 @@ func InvalidPaginationError(err error) bool {
 }
 
 func GetOrCreateWord(conn *gorm.DB, word string, language enums.Language) (*models.Word, error) {
-	normalizedWord := strings.TrimSpace(word)
+	normalizedWord := utils.NormalizeWordCasing(word)
 
 	var existingWord models.Word
 	result := conn.Where("LOWER(word) = LOWER(?) AND language = ?", normalizedWord, language).First(&existingWord)
