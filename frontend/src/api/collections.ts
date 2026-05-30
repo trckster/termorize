@@ -21,9 +21,11 @@ export type CollectionSummary = {
     title: string
     is_admin: boolean
     is_owner: boolean
-    published: boolean
+    is_published: boolean
+    owner_username?: string
     languages: string[]
     translation_count: number
+    user_add_count: number
     created_at: string
 }
 
@@ -36,6 +38,7 @@ export type AddCollectionToVocabularyResult = {
     added: number
     skipped: number
     total: number
+    user_add_count: number
 }
 
 export const collectionsApi = {
@@ -98,6 +101,6 @@ export const collectionsApi = {
     },
 
     async setPublished(id: string, published: boolean): Promise<CollectionDetail> {
-        return apiCall<CollectionDetail>(`/collections/${id}/publish`, 'POST', { published }).then(unwrapBody)
+        return apiCall<CollectionDetail>(`/collections/${id}/publish`, 'POST', { is_published: published }).then(unwrapBody)
     },
 }

@@ -47,3 +47,17 @@ CREATE TABLE IF NOT EXISTS "collection_members"
 );
 
 CREATE INDEX IF NOT EXISTS "index_collection_members_user_id" ON "collection_members" ("user_id");
+
+CREATE TABLE IF NOT EXISTS "collection_user_adds"
+(
+    "collection_id" UUID    NOT NULL,
+    "user_id"       INTEGER NOT NULL,
+    "created_at"    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY ("collection_id", "user_id"),
+    CONSTRAINT "fk_collection_user_adds_collection_id" FOREIGN KEY ("collection_id") REFERENCES "collections" ("id") ON DELETE CASCADE,
+    CONSTRAINT "fk_collection_user_adds_user_id" FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS "index_collection_user_adds_collection_id" ON "collection_user_adds" ("collection_id");
+CREATE INDEX IF NOT EXISTS "index_collection_user_adds_user_id" ON "collection_user_adds" ("user_id");

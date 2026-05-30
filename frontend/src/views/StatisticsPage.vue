@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { exercisesApi, type ExerciseStatistics } from '@/api/exercises.ts'
-import ExerciseMigrationNotice from '@/components/ExerciseMigrationNotice.vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Activity, AlertCircle, Ban, CheckCircle2, CircleDashed } from 'lucide-vue-next'
 import { useI18n } from '@/composables/useI18n'
@@ -109,8 +108,6 @@ onMounted(() => {
                     </div>
                 </div>
             </section>
-
-            <ExerciseMigrationNotice />
 
             <div
                 v-if="errorMessage"

@@ -62,3 +62,15 @@ type CollectionMember struct {
 func (CollectionMember) TableName() string {
 	return "collection_members"
 }
+
+// CollectionUserAdd tracks which users have added a collection to their vocabulary.
+// Each user can only count once per collection.
+type CollectionUserAdd struct {
+	CollectionID uuid.UUID `gorm:"primaryKey"`
+	UserID       uint      `gorm:"primaryKey"`
+	CreatedAt    time.Time
+}
+
+func (CollectionUserAdd) TableName() string {
+	return "collection_user_adds"
+}

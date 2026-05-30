@@ -123,14 +123,14 @@
                             <div class="flex items-start justify-between gap-2">
                                 <CardTitle class="min-w-0 break-words text-lg">{{ collection.title }}</CardTitle>
                                 <span
-                                    v-if="collection.is_admin && !collection.published"
+                                    v-if="collection.is_admin && !collection.is_published"
                                     class="shrink-0 rounded bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400"
                                 >
                                     {{ t.collectionsDraftBadge }}
                                 </span>
                                 <span
                                     v-else-if="collection.is_admin"
-                                    class="shrink-0 rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+                                    class="shrink-0 rounded border border-primary/30 bg-primary/30 px-2 py-0.5 text-xs font-medium text-primary"
                                 >
                                     {{ t.collectionsGlobalBadge }}
                                 </span>
@@ -139,6 +139,12 @@
                                     class="shrink-0 rounded bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
                                 >
                                     {{ t.collectionsOwnerBadge }}
+                                </span>
+                                <span
+                                    v-else-if="collection.owner_username"
+                                    class="shrink-0 rounded bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
+                                >
+                                    @{{ collection.owner_username }}
                                 </span>
                             </div>
                         </CardHeader>
@@ -154,6 +160,9 @@
                             </div>
                             <p class="text-sm text-muted-foreground">
                                 {{ formatNumber(collection.translation_count) }} {{ t.collectionsTranslationsLabel }}
+                                <template v-if="collection.user_add_count > 0">
+                                    · {{ formatNumber(collection.user_add_count) }} {{ t.collectionsUserAddsLabel }}
+                                </template>
                             </p>
                         </CardContent>
                     </Card>
@@ -323,7 +332,7 @@ const handlePageChange = async (page: number) => {
 }
 
 const handleCreate = async () => {
-    if (!isFormValid.value) return
+    if (isCreating.value || !isFormValid.value) return
 
     isCreating.value = true
     try {
@@ -351,7 +360,7 @@ const handleCreate = async () => {
 }
 
 const handleGenerate = async () => {
-    if (!isGenerateValid.value) return
+    if (isGenerating.value || !isGenerateValid.value) return
 
     isGenerating.value = true
     try {

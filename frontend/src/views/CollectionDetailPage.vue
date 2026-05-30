@@ -30,14 +30,14 @@
                         <div class="flex flex-wrap items-center gap-2">
                             <h1 class="break-words text-3xl font-bold text-foreground">{{ collection.title }}</h1>
                             <span
-                                v-if="collection.is_admin && !collection.published"
+                                v-if="collection.is_admin && !collection.is_published"
                                 class="rounded bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400"
                             >
                                 {{ t.collectionsDraftBadge }}
                             </span>
                             <span
                                 v-else-if="collection.is_admin"
-                                class="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+                                class="rounded border border-primary/30 bg-primary/30 px-2 py-0.5 text-xs font-medium text-primary"
                             >
                                 {{ t.collectionsGlobalBadge }}
                             </span>
@@ -70,17 +70,17 @@
                     <div class="flex flex-wrap items-center gap-2">
                         <Button
                             v-if="canManage && collection.is_admin"
-                            :variant="collection.published ? 'outline' : 'default'"
+                            :variant="collection.is_published ? 'outline' : 'default'"
                             size="sm"
                             :disabled="isPublishing"
                             @click="handleTogglePublish"
                         >
                             <Loader2 v-if="isPublishing" class="mr-2 h-4 w-4 animate-spin" />
                             <template v-else>
-                                <EyeOff v-if="collection.published" class="mr-2 h-4 w-4" />
+                                <EyeOff v-if="collection.is_published" class="mr-2 h-4 w-4" />
                                 <Globe v-else class="mr-2 h-4 w-4" />
                             </template>
-                            {{ collection.published ? t.collectionUnpublish : t.collectionPublish }}
+                            {{ collection.is_published ? t.collectionUnpublish : t.collectionPublish }}
                         </Button>
                         <Button v-if="inviteLink" variant="outline" size="sm" @click="isShareDialogOpen = true">
                             <Share2 class="mr-2 h-4 w-4" />
@@ -124,7 +124,7 @@
                 </div>
 
                 <div
-                    v-if="collection.is_admin && !collection.published"
+                    v-if="collection.is_admin && !collection.is_published"
                     class="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300"
                 >
                     {{ t.collectionDraftNotice }}
@@ -387,6 +387,9 @@ const handleAddToVocabulary = async () => {
     isAddingToVocabulary.value = true
     try {
         const result = await collectionsApi.addToVocabulary(collection.value.id)
+        if (collection.value) {
+            collection.value.user_add_count = result.user_add_count
+        }
         addToast({
             title: t.value.collectionAddedToVocabularyTitle,
             description: `${result.added} ${t.value.collectionAddedLabel}, ${result.skipped} ${t.value.collectionSkippedLabel}`,
@@ -483,7 +486,7 @@ const handleDelete = async () => {
 const handleTogglePublish = async () => {
     if (!collection.value) return
 
-    const nextPublished = !collection.value.published
+    const nextPublished = !collection.value.is_published
     isPublishing.value = true
     try {
         collection.value = await collectionsApi.setPublished(collection.value.id, nextPublished)

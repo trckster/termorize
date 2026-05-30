@@ -35,9 +35,11 @@ type CollectionSummary struct {
 	Title            string           `json:"title"`
 	IsAdmin          bool             `json:"is_admin"`
 	IsOwner          bool             `json:"is_owner"`
-	IsPublished        bool             `json:"is_published"`
+	IsPublished      bool             `json:"is_published"`
+	OwnerUsername    string           `json:"owner_username,omitempty"`
 	Languages        []enums.Language `json:"languages"`
 	TranslationCount int              `json:"translation_count"`
+	UserAddCount     int              `json:"user_add_count"`
 	CreatedAt        time.Time        `json:"created_at"`
 }
 
@@ -51,9 +53,10 @@ type CollectionDetail struct {
 	Title            string               `json:"title"`
 	IsAdmin          bool                 `json:"is_admin"`
 	IsOwner          bool                 `json:"is_owner"`
-	IsPublished        bool                 `json:"is_published"`
+	IsPublished      bool                 `json:"is_published"`
 	Languages        []enums.Language     `json:"languages"`
 	TranslationCount int                  `json:"translation_count"`
+	UserAddCount     int                  `json:"user_add_count"`
 	CreatedAt        time.Time            `json:"created_at"`
 	InviteToken      string               `json:"invite_token,omitempty"`
 	Translations     []models.Translation `json:"translations"`
@@ -68,9 +71,10 @@ type SetCollectionIsPublishedRequest struct {
 }
 
 type AddCollectionToVocabularyResult struct {
-	Added   int `json:"added"`
-	Skipped int `json:"skipped"`
-	Total   int `json:"total"`
+	Added        int `json:"added"`
+	Skipped      int `json:"skipped"`
+	Total        int `json:"total"`
+	UserAddCount int `json:"user_add_count"`
 }
 
 const collectionNotFoundError = "collection not found"
@@ -174,15 +178,13 @@ func getAccessibleCollection(conn *gorm.DB, userID uint, collectionID uuid.UUID)
 		return &collection, nil
 	}
 
-	// Admins can view any admin collection, including unpublished drafts (admin side).
-	if collection.IsAdmin {
-		isAdmin, err := userIsAdmin(conn, userID)
-		if err != nil {
-			return nil, err
-		}
-		if isAdmin {
-			return &collection, nil
-		}
+	// Admins can view any collection (admin oversight).
+	isAdmin, err := userIsAdmin(conn, userID)
+	if err != nil {
+		return nil, err
+	}
+	if isAdmin {
+		return &collection, nil
 	}
 
 	return nil, ErrCollectionNotFound
@@ -261,6 +263,34 @@ func collectionCounts(conn *gorm.DB, collectionIDs []uuid.UUID) (map[uuid.UUID]i
 	return result, nil
 }
 
+func collectionUserAddCounts(conn *gorm.DB, collectionIDs []uuid.UUID) (map[uuid.UUID]int, error) {
+	result := make(map[uuid.UUID]int)
+	if len(collectionIDs) == 0 {
+		return result, nil
+	}
+
+	type row struct {
+		CollectionID uuid.UUID
+		Count        int
+	}
+
+	var rows []row
+	err := conn.
+		Table("collection_user_adds").
+		Select("collection_id, COUNT(*) AS count").
+		Where("collection_id IN ?", collectionIDs).
+		Group("collection_id").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	for _, r := range rows {
+		result[r.CollectionID] = r.Count
+	}
+	return result, nil
+}
+
 func ListCollections(userID uint, page, pageSize int, search string) (*CollectionListResponse, error) {
 	if page <= 0 {
 		return nil, ErrInvalidPage
@@ -283,18 +313,17 @@ func ListCollections(userID uint, page, pageSize int, search string) (*Collectio
 			Select("collection_id").
 			Where("user_id = ?", userID)
 
+		userAddSubquery := db.DB.Model(&models.CollectionUserAdd{}).
+			Select("collection_id, COUNT(*) AS add_count").
+			Group("collection_id")
+
 		query := db.DB.Model(&models.Collection{}).
+			Joins("LEFT JOIN (?) AS add_counts ON add_counts.collection_id = collections.id", userAddSubquery).
 			Where("collections.deleted_at IS NULL")
 
-		if viewerIsAdmin {
-			// Admins also see admin drafts (unpublished admin collections).
+		if !viewerIsAdmin {
 			query = query.Where(
-				"collections.is_admin = ? OR collections.owner_id = ? OR collections.id IN (?)",
-				true, userID, memberSubquery,
-			)
-		} else {
-			query = query.Where(
-				"(collections.is_admin = ? AND collections.is_published = ?) OR collections.owner_id = ? OR collections.id IN (?)" ,
+				"(collections.is_admin = ? AND collections.is_published = ?) OR collections.owner_id = ? OR collections.id IN (?)",
 				true, true, userID, memberSubquery,
 			)
 		}
@@ -311,10 +340,17 @@ func ListCollections(userID uint, page, pageSize int, search string) (*Collectio
 		return nil, err
 	}
 
-	var collections []models.Collection
+	type collectionWithOwner struct {
+		models.Collection
+		OwnerUsername string `gorm:"column:owner_username"`
+	}
+
+	var collections []collectionWithOwner
 	offset := (page - 1) * pageSize
 	if err := baseQuery().
-		Order("collections.created_at DESC, collections.id DESC").
+		Select("collections.*, users.username as owner_username").
+		Joins("LEFT JOIN users ON users.id = collections.owner_id").
+		Order("COALESCE(add_counts.add_count, 0) DESC, collections.title ASC, collections.id ASC").
 		Offset(offset).
 		Limit(pageSize).
 		Find(&collections).Error; err != nil {
@@ -336,24 +372,34 @@ func ListCollections(userID uint, page, pageSize int, search string) (*Collectio
 		return nil, err
 	}
 
+	userAddCounts, err := collectionUserAddCounts(db.DB, ids)
+	if err != nil {
+		return nil, err
+	}
+
 	summaries := make([]CollectionSummary, 0, len(collections))
 	for i := range collections {
 		collection := collections[i]
-		langs := languages[collection.ID]
+		langs := languages[collection.Collection.ID]
 		if langs == nil {
 			langs = []enums.Language{}
 		}
 
-		summaries = append(summaries, CollectionSummary{
+		summary := CollectionSummary{
 			ID:               collection.ID,
 			Title:            collection.Title,
 			IsAdmin:          collection.IsAdmin,
 			IsOwner:          collection.OwnerID != nil && *collection.OwnerID == userID,
-			IsPublished:        collection.IsPublished,
+			IsPublished:      collection.IsPublished,
 			Languages:        langs,
-			TranslationCount: counts[collection.ID],
+			TranslationCount: counts[collection.Collection.ID],
+			UserAddCount:     userAddCounts[collection.Collection.ID],
 			CreatedAt:        collection.CreatedAt,
-		})
+		}
+		if viewerIsAdmin && !collection.IsAdmin && collection.OwnerUsername != "" {
+			summary.OwnerUsername = collection.OwnerUsername
+		}
+		summaries = append(summaries, summary)
 	}
 
 	totalPages := 0
@@ -406,14 +452,18 @@ func GetCollection(userID uint, collectionID uuid.UUID) (*CollectionDetail, erro
 
 	isOwner := collection.OwnerID != nil && *collection.OwnerID == userID
 
+	var userAddCount int64
+	db.DB.Model(&models.CollectionUserAdd{}).Where("collection_id = ?", collectionID).Count(&userAddCount)
+
 	detail := &CollectionDetail{
 		ID:               collection.ID,
 		Title:            collection.Title,
 		IsAdmin:          collection.IsAdmin,
 		IsOwner:          isOwner,
-		IsPublished:        collection.IsPublished,
+		IsPublished:      collection.IsPublished,
 		Languages:        languages,
 		TranslationCount: len(translations),
+		UserAddCount:     int(userAddCount),
 		CreatedAt:        collection.CreatedAt,
 		Translations:     translations,
 	}
@@ -757,6 +807,16 @@ func AddCollectionToVocabulary(userID uint, collectionID uuid.UUID) (*AddCollect
 		}
 		result.Added++
 	}
+
+	// Record that this user added the collection to their vocabulary (idempotent).
+	userAdd := models.CollectionUserAdd{CollectionID: collectionID, UserID: userID}
+	if err := db.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&userAdd).Error; err != nil {
+		return nil, err
+	}
+
+	var userAddCount int64
+	db.DB.Model(&models.CollectionUserAdd{}).Where("collection_id = ?", collectionID).Count(&userAddCount)
+	result.UserAddCount = int(userAddCount)
 
 	return result, nil
 }

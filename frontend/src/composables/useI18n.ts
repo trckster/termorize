@@ -110,9 +110,6 @@ const en = {
     toastSavedDescription: 'Settings were saved successfully.',
     toastErrorTitle: 'Error',
     toastSaveErrorDescription: 'Failed to save settings. Please try again.',
-    exerciseMigrationNotice:
-        'Exercises created before 15th of March are lost due to migration to a newer version of application.',
-
     // Exercises page
     exercisesLabel: 'Exercises',
     exercisesHeading: 'All exercises',
@@ -273,11 +270,12 @@ const en = {
     collectionsGlobalBadge: 'Global',
     collectionsOwnerBadge: 'Owner',
     collectionsTranslationsLabel: 'translations',
+    collectionsUserAddsLabel: 'added',
     collectionsLanguagesLabel: 'Languages',
     collectionsCreateDialogTitle: 'Create Collection',
     collectionsCreateDialogDescription: 'Give your collection a name. You can add translations afterwards.',
     collectionsTitleLabel: 'Title',
-    collectionsTitlePlaceholder: 'e.g. Travel basics',
+    collectionsTitlePlaceholder: 'e.g. Red Flowers',
     collectionsAdminToggleLabel: 'Global collection (visible to everyone)',
     collectionsCreateSubmit: 'Create',
     collectionsCreateSuccessTitle: 'Created',
@@ -458,9 +456,6 @@ const ru: typeof en = {
     toastSavedDescription: 'Настройки успешно сохранены.',
     toastErrorTitle: 'Ошибка',
     toastSaveErrorDescription: 'Не удалось сохранить настройки. Попробуйте ещё раз.',
-    exerciseMigrationNotice:
-        'Упражнения, созданные до 15 марта, утеряны в связи с миграцией на новую версию приложения.',
-
     // Exercises page
     exercisesLabel: 'Упражнения',
     exercisesHeading: 'Все упражнения',
@@ -621,11 +616,12 @@ const ru: typeof en = {
     collectionsGlobalBadge: 'Глобальная',
     collectionsOwnerBadge: 'Владелец',
     collectionsTranslationsLabel: 'переводов',
+    collectionsUserAddsLabel: 'добавлено',
     collectionsLanguagesLabel: 'Языки',
     collectionsCreateDialogTitle: 'Создать коллекцию',
     collectionsCreateDialogDescription: 'Назовите коллекцию. Переводы можно добавить позже.',
     collectionsTitleLabel: 'Название',
-    collectionsTitlePlaceholder: 'напр. Основы для путешествий',
+    collectionsTitlePlaceholder: 'например, Красные цветы',
     collectionsAdminToggleLabel: 'Глобальная коллекция (видна всем)',
     collectionsCreateSubmit: 'Создать',
     collectionsCreateSuccessTitle: 'Создано',
@@ -676,7 +672,7 @@ const ru: typeof en = {
     collectionsGenerateDialogDescription:
         'Опишите, что вам нужно. Коллекция создаётся как черновик, чтобы вы могли проверить её перед публикацией.',
     collectionsGeneratePromptLabel: 'Запрос',
-    collectionsGeneratePromptPlaceholder: 'напр. Добавь 7 переводов самых популярных деревьев на англо-немецком',
+    collectionsGeneratePromptPlaceholder: 'например, Добавь 7 переводов самых популярных деревьев на англо-немецком',
     collectionsGenerateSubmit: 'Сгенерировать',
     collectionsGenerating: 'Генерация...',
     collectionsGenerateSuccessTitle: 'Черновик создан',
