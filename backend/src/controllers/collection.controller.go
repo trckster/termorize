@@ -203,12 +203,12 @@ func PublishCollection(c *gin.Context) {
 		return
 	}
 
-	var req services.SetCollectionPublishedRequest
+	var req services.SetCollectionIsPublishedRequest
 	if !validators.BindJSONWithErrors(c, &req) {
 		return
 	}
 
-	collection, err := services.SetCollectionPublished(userID, collectionID, req.Published)
+	collection, err := services.SetCollectionIsPublished(userID, collectionID, req.IsPublished)
 	if err != nil {
 		respondCollectionError(c, err)
 		return

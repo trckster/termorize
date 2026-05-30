@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS "collections"
     "title"        VARCHAR(255) NOT NULL,
     "owner_id"     INTEGER,
     "is_admin"     BOOLEAN     NOT NULL DEFAULT false,
-    "published"    BOOLEAN     NOT NULL DEFAULT true,
+    "is_published" BOOLEAN     NOT NULL DEFAULT true,
     "invite_token" VARCHAR(64) UNIQUE,
     "created_at"   TIMESTAMP            DEFAULT CURRENT_TIMESTAMP,
     "updated_at"   TIMESTAMP            DEFAULT CURRENT_TIMESTAMP,
@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS "collections"
 
 CREATE INDEX IF NOT EXISTS "index_collections_owner_id" ON "collections" ("owner_id");
 CREATE INDEX IF NOT EXISTS "index_collections_is_admin" ON "collections" ("is_admin");
-CREATE INDEX IF NOT EXISTS "index_collections_published" ON "collections" ("published");
+CREATE INDEX IF NOT EXISTS "index_collections_is_published" ON "collections" ("is_published");
 CREATE INDEX IF NOT EXISTS "index_collections_deleted_at" ON "collections" ("deleted_at");
 CREATE INDEX IF NOT EXISTS "index_collections_invite_token" ON "collections" ("invite_token");
 

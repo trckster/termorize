@@ -17,7 +17,7 @@ type Collection struct {
 	// No gorm default tag: GORM omits zero-valued fields that carry a `default` tag from
 	// INSERTs, which would make Published:false (drafts) silently become true. Every Create
 	// path sets Published explicitly; the DB column keeps DEFAULT true for the backfill.
-	Published   bool       `json:"published"`
+	IsPublished   bool       `json:"is_published"`
 	InviteToken string     `json:"-"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"-"`

@@ -35,7 +35,7 @@ type CollectionSummary struct {
 	Title            string           `json:"title"`
 	IsAdmin          bool             `json:"is_admin"`
 	IsOwner          bool             `json:"is_owner"`
-	Published        bool             `json:"published"`
+	IsPublished        bool             `json:"is_published"`
 	Languages        []enums.Language `json:"languages"`
 	TranslationCount int              `json:"translation_count"`
 	CreatedAt        time.Time        `json:"created_at"`
@@ -51,7 +51,7 @@ type CollectionDetail struct {
 	Title            string               `json:"title"`
 	IsAdmin          bool                 `json:"is_admin"`
 	IsOwner          bool                 `json:"is_owner"`
-	Published        bool                 `json:"published"`
+	IsPublished        bool                 `json:"is_published"`
 	Languages        []enums.Language     `json:"languages"`
 	TranslationCount int                  `json:"translation_count"`
 	CreatedAt        time.Time            `json:"created_at"`
@@ -63,8 +63,8 @@ type GenerateCollectionRequest struct {
 	Prompt string `json:"prompt" binding:"required"`
 }
 
-type SetCollectionPublishedRequest struct {
-	Published bool `json:"published"`
+type SetCollectionIsPublishedRequest struct {
+	IsPublished bool `json:"is_published"`
 }
 
 type AddCollectionToVocabularyResult struct {
@@ -156,7 +156,7 @@ func getAccessibleCollection(conn *gorm.DB, userID uint, collectionID uuid.UUID)
 		return nil, err
 	}
 
-	if collection.IsAdmin && collection.Published {
+	if collection.IsAdmin && collection.IsPublished {
 		return &collection, nil
 	}
 
@@ -294,7 +294,7 @@ func ListCollections(userID uint, page, pageSize int, search string) (*Collectio
 			)
 		} else {
 			query = query.Where(
-				"(collections.is_admin = ? AND collections.published = ?) OR collections.owner_id = ? OR collections.id IN (?)",
+				"(collections.is_admin = ? AND collections.is_published = ?) OR collections.owner_id = ? OR collections.id IN (?)" ,
 				true, true, userID, memberSubquery,
 			)
 		}
@@ -349,7 +349,7 @@ func ListCollections(userID uint, page, pageSize int, search string) (*Collectio
 			Title:            collection.Title,
 			IsAdmin:          collection.IsAdmin,
 			IsOwner:          collection.OwnerID != nil && *collection.OwnerID == userID,
-			Published:        collection.Published,
+			IsPublished:        collection.IsPublished,
 			Languages:        langs,
 			TranslationCount: counts[collection.ID],
 			CreatedAt:        collection.CreatedAt,
@@ -411,7 +411,7 @@ func GetCollection(userID uint, collectionID uuid.UUID) (*CollectionDetail, erro
 		Title:            collection.Title,
 		IsAdmin:          collection.IsAdmin,
 		IsOwner:          isOwner,
-		Published:        collection.Published,
+		IsPublished:        collection.IsPublished,
 		Languages:        languages,
 		TranslationCount: len(translations),
 		CreatedAt:        collection.CreatedAt,
@@ -456,7 +456,7 @@ func CreateCollection(userID uint, req CreateCollectionRequest) (*CollectionDeta
 		Title:       title,
 		OwnerID:     &owner,
 		IsAdmin:     req.IsAdmin,
-		Published:   true,
+		IsPublished:   true,
 		InviteToken: token,
 	}
 
@@ -661,7 +661,7 @@ func GenerateCollection(userID uint, prompt string) (*CollectionDetail, error) {
 		Title:       title,
 		OwnerID:     &owner,
 		IsAdmin:     true,
-		Published:   false,
+		IsPublished:   false,
 		InviteToken: token,
 	}
 
@@ -685,9 +685,9 @@ func GenerateCollection(userID uint, prompt string) (*CollectionDetail, error) {
 	return GetCollection(userID, collection.ID)
 }
 
-// SetCollectionPublished toggles a collection's published flag. Publishing makes an admin
+// SetCollectionIsPublished toggles a collection's is_published flag. Publishing makes an admin
 // (draft) collection globally visible; unpublishing hides it again on the admin side.
-func SetCollectionPublished(userID uint, collectionID uuid.UUID, published bool) (*CollectionDetail, error) {
+func SetCollectionIsPublished(userID uint, collectionID uuid.UUID, isPublished bool) (*CollectionDetail, error) {
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
 		collection, err := getAccessibleCollection(tx, userID, collectionID)
 		if err != nil {
@@ -702,7 +702,7 @@ func SetCollectionPublished(userID uint, collectionID uuid.UUID, published bool)
 			return ErrCollectionForbidden
 		}
 
-		return tx.Model(collection).Update("published", published).Error
+		return tx.Model(collection).Update("is_published", isPublished).Error
 	})
 	if err != nil {
 		return nil, err
