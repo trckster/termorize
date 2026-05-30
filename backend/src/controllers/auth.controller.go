@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func StartTelegramLogin(c *gin.Context) {
@@ -106,7 +108,14 @@ func Me(c *gin.Context) {
 	userID := c.MustGet("userID")
 
 	var user models.User
-	db.DB.Where("id = ?", userID).First(&user)
+	if err := db.DB.Where("id = ?", userID).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
 
 	c.JSON(http.StatusOK, user)
 }

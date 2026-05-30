@@ -28,7 +28,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Home, BookOpen, Brain, BarChart3 } from 'lucide-vue-next'
+import { Home, BookOpen, Library, Brain, BarChart3 } from 'lucide-vue-next'
 import { useI18n } from '@/composables/useI18n'
 
 const route = useRoute()
@@ -37,9 +37,11 @@ const { t } = useI18n()
 const navItems = computed(() => [
     { to: '/', label: t.value.navHome, icon: Home },
     { to: '/vocabulary', label: t.value.navVocabulary, icon: BookOpen },
+    { to: '/collections', label: t.value.navCollections, icon: Library },
     { to: '/exercises', label: t.value.navExercises, icon: Brain },
     { to: '/statistics', label: t.value.navStatistics, icon: BarChart3 },
 ])
 
-const isActive = (path: string) => route.path === path
+const isActive = (path: string) =>
+    path === '/collections' ? route.path.startsWith('/collections') : route.path === path
 </script>

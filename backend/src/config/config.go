@@ -28,6 +28,9 @@ type Config struct {
 
 	GoogleApiKey string
 
+	OpenRouterApiKey string
+	OpenRouterModel  string
+
 	JWTExpirationTime time.Duration
 }
 
@@ -77,6 +80,9 @@ func LoadEnv() {
 		TelegramLoginClientSecret: getRequiredEnv("TELEGRAM_LOGIN_CLIENT_SECRET"),
 
 		GoogleApiKey: getRequiredEnv("GOOGLE_API_KEY"),
+
+		OpenRouterApiKey: getEnv("OPENROUTER_API_KEY", ""),
+		OpenRouterModel:  getEnv("OPENROUTER_MODEL", "openai/gpt-4o-mini"),
 
 		JWTExpirationTime: 7 * 24 * time.Hour,
 	}
@@ -156,6 +162,14 @@ func GetTelegramLoginRedirectURL() string {
 
 func GetGoogleApiKey() string {
 	return config.GoogleApiKey
+}
+
+func GetOpenRouterApiKey() string {
+	return config.OpenRouterApiKey
+}
+
+func GetOpenRouterModel() string {
+	return config.OpenRouterModel
 }
 
 func GetJWTExpirationTime() time.Duration {

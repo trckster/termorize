@@ -87,7 +87,7 @@ function sanitizeData(data: object): Record<string, unknown> {
             continue
         }
 
-        result[key] = typeof value === 'boolean' ? +value : value
+        result[key] = value
     }
 
     return result

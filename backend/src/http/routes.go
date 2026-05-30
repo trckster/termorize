@@ -24,6 +24,17 @@ func defineProtectedRoutes(group *gin.RouterGroup) {
 	group.POST("/exercises/random", controllers.RandomExercise)
 	group.POST("/exercises/:id/verify", controllers.VerifyExercise)
 
+	group.GET("/collections", controllers.GetCollections)
+	group.POST("/collections", controllers.CreateCollection)
+	group.GET("/collections/:id", controllers.GetCollection)
+	group.DELETE("/collections/:id", controllers.DeleteCollection)
+	group.POST("/collections/:id/translations", controllers.AddCollectionTranslation)
+	group.DELETE("/collections/:id/translations/:translationId", controllers.RemoveCollectionTranslation)
+	group.POST("/collections/:id/add-to-vocabulary", controllers.AddCollectionToVocabulary)
+	group.POST("/collections/:id/publish", controllers.PublishCollection)
+	group.POST("/collection-generate", controllers.GenerateCollection)
+	group.POST("/collection-invites/:token", controllers.JoinCollection)
+
 	group.POST("/translate", controllers.Translate)
 }
 
