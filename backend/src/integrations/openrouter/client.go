@@ -158,6 +158,8 @@ func (c *client) doRequest(payload []byte) (string, error) {
 }
 
 func buildSystemPrompt(allowedLanguages []string) string {
+	langList := strings.Join(allowedLanguages, ", ")
+
 	return "You generate vocabulary for a language-learning app. " +
 		"MANDATORY RULES — never ignore these: " +
 		"1) Every noun in Italian, German, Spanish, or French MUST include its definite article: la gamba, das Bein, la pierna, la jambe. " +
@@ -165,7 +167,11 @@ func buildSystemPrompt(allowedLanguages []string) string {
 		"3) Never add articles to English nouns. " +
 		"4) Output ONLY this JSON shape with no markdown: " +
 		`{"title": string, "translations": [{"original": string, "original_language": string, "translation": string, "translation_language": string}]}. ` +
-		"Languages: " + strings.Join(allowedLanguages, ", ") + ". " +
+		"5) CRITICAL LANGUAGE RULE: First, analyze the user's prompt and determine exactly which languages they want. " +
+		"Use ONLY those languages for EVERY SINGLE translation in the output. " +
+		"original_language and translation_language for every item must both be from the set of languages the user requested. " +
+		"Never introduce a language the user did not ask for. " +
+		"If the user prompt does not mention or imply specific languages, you may use any from this allowed list: " + langList + ". " +
 		"original_language != translation_language per item. " +
 		"Short descriptive title. Honor count, languages, topic. No extra text."
 }
