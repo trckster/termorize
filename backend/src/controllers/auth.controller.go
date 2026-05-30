@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -14,30 +15,31 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func StartTelegramLogin(c *gin.Context) {
 	if !auth.IsTelegramLoginConfigured() {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "telegram login is not configured"})
+		ServerError(c, errors.New("telegram login is not configured"))
 		return
 	}
 
 	redirectURI := getTelegramLoginRedirectURL(c)
 	if redirectURI == "" {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "telegram login redirect is invalid"})
+		ServerError(c, errors.New("telegram login redirect is invalid"))
 		return
 	}
 
 	session, err := auth.NewTelegramLoginSession()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to start telegram login"})
+		ServerError(c, errors.New("failed to start telegram login"))
 		return
 	}
 	session.RedirectURI = redirectURI
 
 	sessionToken, err := auth.IssueTelegramLoginSessionToken(*session)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to start telegram login"})
+		ServerError(c, errors.New("failed to start telegram login"))
 		return
 	}
 
@@ -78,7 +80,7 @@ func CompleteTelegramLogin(c *gin.Context) {
 
 		redirectURI := getTelegramLoginRedirectURL(c)
 		if redirectURI == "" {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "telegram login redirect is invalid"})
+			ServerError(c, errors.New("telegram login redirect is invalid"))
 			return
 		}
 
@@ -94,7 +96,7 @@ func CompleteTelegramLogin(c *gin.Context) {
 
 	user, err := services.CreateOrUpdateUserByTelegramProfile(*profile, getRequestTimeZone(c))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save user"})
+		ServerError(c, errors.New("failed to save user"))
 		return
 	}
 
@@ -106,7 +108,14 @@ func Me(c *gin.Context) {
 	userID := c.MustGet("userID")
 
 	var user models.User
-	db.DB.Where("id = ?", userID).First(&user)
+	if err := db.DB.Where("id = ?", userID).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+		ServerError(c, err)
+		return
+	}
 
 	c.JSON(http.StatusOK, user)
 }

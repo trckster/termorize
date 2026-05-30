@@ -5,7 +5,6 @@ import type { PaginationData } from '@/api/pagination.ts'
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem } from '@/components/ui/pagination'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
-import ExerciseMigrationNotice from '@/components/ExerciseMigrationNotice.vue'
 import { useI18n } from '@/composables/useI18n'
 import { useSettingsStore } from '@/stores/settings.ts'
 import { formatDate, formatNumber } from '@/lib/utils.ts'
@@ -167,8 +166,6 @@ onMounted(() => {
     <main class="px-4 py-4 sm:px-6 sm:py-8">
         <div class="mx-auto max-w-6xl space-y-6">
             <h1 class="sr-only">{{ t.exercisesHeading }}</h1>
-            <ExerciseMigrationNotice />
-
             <div
                 v-if="errorMessage"
                 class="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"

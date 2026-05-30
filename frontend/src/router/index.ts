@@ -38,6 +38,21 @@ const router = createRouter({
                     component: () => import('@/views/VocabularyPage.vue'),
                 },
                 {
+                    path: 'collections',
+                    name: 'collections',
+                    component: () => import('@/views/CollectionsPage.vue'),
+                },
+                {
+                    path: 'collections/join/:token',
+                    name: 'collection-join',
+                    component: () => import('@/views/CollectionJoinPage.vue'),
+                },
+                {
+                    path: 'collections/:id',
+                    name: 'collection-detail',
+                    component: () => import('@/views/CollectionDetailPage.vue'),
+                },
+                {
                     path: 'exercises',
                     name: 'exercises',
                     component: () => import('@/views/ExercisesPage.vue'),

@@ -15,6 +15,7 @@ export interface User {
     username: string
     name: string
     settings: UserSettings
+    is_admin: boolean
     created_at: string
 }
 
@@ -41,7 +42,9 @@ export interface UserTelegramScheduleItem {
 
 export const authApi = {
     async startTelegramLogin(): Promise<string> {
-        return apiCall<TelegramLoginStartResponse>('/telegram/login/start', 'POST').then((response) => response.body.auth_url)
+        return apiCall<TelegramLoginStartResponse>('/telegram/login/start', 'POST').then(
+            (response) => response.body.auth_url
+        )
     },
 
     async completeTelegramLogin(payload: TelegramLoginCallbackPayload): Promise<User | null> {

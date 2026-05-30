@@ -136,15 +136,29 @@ func CreateVocabulary(userID uint, req CreateVocabularyRequest) (*models.Vocabul
 			return result.Error
 		}
 
-		var count int64
-		tx.Model(&models.Vocabulary{}).
-			Where("user_id = ?", userID).
-			Where("translation_id = ?", translation.ID).
-			Where("deleted_at IS NULL").
-			Count(&count)
+		var existingVocab models.Vocabulary
+		result = tx.Where("user_id = ? AND translation_id = ?", userID, translation.ID).First(&existingVocab)
 
-		if count > 0 {
-			return ErrVocabularyAlreadyExists
+		if result.Error == nil {
+			if existingVocab.DeletedAt == nil {
+				return ErrVocabularyAlreadyExists
+			}
+
+			existingVocab.DeletedAt = nil
+			existingVocab.Progress = models.BuildDefaultProgress()
+			existingVocab.MasteredAt = nil
+			existingVocab.CreatedAt = time.Now().UTC()
+			if err := tx.Save(&existingVocab).Error; err != nil {
+				return err
+			}
+
+			vocabulary = existingVocab
+			vocabulary.Translation = &translation
+			vocabulary.Translation.Original = originalWord
+			vocabulary.Translation.Translation = translatedWord
+			return nil
+		} else if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return result.Error
 		}
 
 		vocabulary = models.Vocabulary{
@@ -181,6 +195,29 @@ func CreateVocabularyByTranslation(userID uint, translationID uuid.UUID) (*model
 			Where("id = ?", translationID).
 			First(&translation).Error; err != nil {
 			return err
+		}
+
+		var existingVocab models.Vocabulary
+		result := tx.Where("user_id = ? AND translation_id = ?", userID, translationID).First(&existingVocab)
+
+		if result.Error == nil {
+			if existingVocab.DeletedAt == nil {
+				return ErrVocabularyAlreadyExists
+			}
+
+			existingVocab.DeletedAt = nil
+			existingVocab.Progress = models.BuildDefaultProgress()
+			existingVocab.MasteredAt = nil
+			existingVocab.CreatedAt = time.Now().UTC()
+			if err := tx.Save(&existingVocab).Error; err != nil {
+				return err
+			}
+
+			vocabulary = existingVocab
+			vocabulary.Translation = &translation
+			return nil
+		} else if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return result.Error
 		}
 
 		var count int64

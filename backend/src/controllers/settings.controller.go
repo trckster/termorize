@@ -73,7 +73,7 @@ func UpdateSettings(c *gin.Context) {
 			return
 		}
 
-		c.JSON(nethttp.StatusInternalServerError, gin.H{"error": err.Error()})
+		ServerError(c, err)
 		return
 	}
 

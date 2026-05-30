@@ -24,6 +24,16 @@
                     {{ t.navVocabulary }}
                 </router-link>
                 <router-link
+                    to="/collections"
+                    :aria-current="route.path.startsWith('/collections') ? 'page' : undefined"
+                    :class="[
+                        'text-sm font-medium transition-colors hover:text-foreground',
+                        route.path.startsWith('/collections') ? 'text-foreground' : 'text-muted-foreground',
+                    ]"
+                >
+                    {{ t.navCollections }}
+                </router-link>
+                <router-link
                     to="/exercises"
                     :aria-current="route.path === '/exercises' ? 'page' : undefined"
                     :class="[

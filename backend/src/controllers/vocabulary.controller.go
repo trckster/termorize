@@ -25,7 +25,7 @@ func CreateVocabulary(c *gin.Context) {
 			return
 		}
 
-		c.JSON(nethttp.StatusInternalServerError, gin.H{"error": err.Error()})
+		ServerError(c, err)
 		return
 	}
 
@@ -52,7 +52,7 @@ func CreateVocabularyByTranslation(c *gin.Context) {
 			return
 		}
 
-		c.JSON(nethttp.StatusInternalServerError, gin.H{"error": err.Error()})
+		ServerError(c, err)
 		return
 	}
 
@@ -85,7 +85,7 @@ func GetVocabulary(c *gin.Context) {
 			return
 		}
 
-		c.JSON(nethttp.StatusInternalServerError, gin.H{"error": err.Error()})
+		ServerError(c, err)
 		return
 	}
 
@@ -107,7 +107,7 @@ func DeleteVocabulary(c *gin.Context) {
 			c.JSON(nethttp.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(nethttp.StatusInternalServerError, gin.H{"error": err.Error()})
+		ServerError(c, err)
 		return
 	}
 

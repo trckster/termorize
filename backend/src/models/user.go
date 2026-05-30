@@ -68,6 +68,7 @@ type User struct {
 	TelegramID    int64               `json:"-"`
 	Name          string              `json:"name"`
 	Settings      UserSettings        `json:"settings"`
+	IsAdmin       bool                `json:"is_admin" gorm:"default:false"`
 	TelegramState enums.TelegramState `json:"-" gorm:"default:''"`
 	CreatedAt     time.Time           `json:"created_at"`
 	UpdatedAt     time.Time           `json:"-"`

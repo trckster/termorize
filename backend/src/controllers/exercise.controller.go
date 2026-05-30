@@ -17,7 +17,7 @@ func GetExerciseStatistics(c *gin.Context) {
 
 	statistics, err := services.GetExerciseStatistics(userID)
 	if err != nil {
-		c.JSON(nethttp.StatusInternalServerError, gin.H{"error": err.Error()})
+		ServerError(c, err)
 		return
 	}
 
@@ -49,7 +49,7 @@ func GetExercises(c *gin.Context) {
 			return
 		}
 
-		c.JSON(nethttp.StatusInternalServerError, gin.H{"error": err.Error()})
+		ServerError(c, err)
 		return
 	}
 
@@ -71,7 +71,7 @@ func RandomExercise(c *gin.Context) {
 			return
 		}
 
-		c.JSON(nethttp.StatusInternalServerError, gin.H{"error": err.Error()})
+		ServerError(c, err)
 		return
 	}
 
@@ -121,7 +121,7 @@ func VerifyExercise(c *gin.Context) {
 			return
 		}
 
-		c.JSON(nethttp.StatusInternalServerError, gin.H{"error": err.Error()})
+		ServerError(c, err)
 		return
 	}
 
@@ -156,7 +156,7 @@ func GetExercisesByIDs(c *gin.Context) {
 
 	exercises, err := services.GetExercisesByIDs(userID, ids)
 	if err != nil {
-		c.JSON(nethttp.StatusInternalServerError, gin.H{"error": err.Error()})
+		ServerError(c, err)
 		return
 	}
 
