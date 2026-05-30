@@ -26,7 +26,7 @@ func respondCollectionError(c *gin.Context, err error) {
 	case services.InvalidPaginationError(err):
 		c.JSON(nethttp.StatusBadRequest, gin.H{"error": err.Error()})
 	case services.AIGenerationUnavailableError(err):
-		ServerError(c, err)
+		c.JSON(nethttp.StatusServiceUnavailable, gin.H{"error": err.Error()})
 	case services.AIGenerationFailedError(err):
 		ServerError(c, errors.New("request to OpenRouter failed"))
 	default:

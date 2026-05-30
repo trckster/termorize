@@ -126,6 +126,19 @@ func AIGenerationFailedError(err error) bool {
 	return errors.Is(err, ErrAIGenerationFailed)
 }
 
+// collectionTitleMaxLength matches the collections.title VARCHAR(255) column. Titles are
+// truncated rather than rejected so a too-long title never surfaces as a raw DB error.
+const collectionTitleMaxLength = 255
+
+// truncateTitle trims a title to collectionTitleMaxLength runes (not bytes) so multi-byte
+// characters aren't split mid-sequence.
+func truncateTitle(title string) string {
+	if runes := []rune(title); len(runes) > collectionTitleMaxLength {
+		return string(runes[:collectionTitleMaxLength])
+	}
+	return title
+}
+
 // GenerateInviteToken returns a URL-safe random token used as a collection invite link.
 func GenerateInviteToken() (string, error) {
 	bytes := make([]byte, 16)
@@ -487,7 +500,7 @@ func GetCollection(userID uint, collectionID uuid.UUID) (*CollectionDetail, erro
 }
 
 func CreateCollection(userID uint, req CreateCollectionRequest) (*CollectionDetail, error) {
-	title := strings.TrimSpace(req.Title)
+	title := truncateTitle(strings.TrimSpace(req.Title))
 	if title == "" {
 		return nil, ErrCollectionTitleRequired
 	}
@@ -702,12 +715,9 @@ func GenerateCollection(userID uint, prompt string) (*CollectionDetail, error) {
 		return nil, ErrAIGenerationFailed
 	}
 
-	title := strings.TrimSpace(generated.Title)
+	title := truncateTitle(strings.TrimSpace(generated.Title))
 	if title == "" {
 		title = "AI Collection"
-	}
-	if runes := []rune(title); len(runes) > 255 {
-		title = string(runes[:255])
 	}
 
 	token, err := GenerateInviteToken()
@@ -835,7 +845,7 @@ type UpdateCollectionTitleRequest struct {
 }
 
 func UpdateCollectionTitle(userID uint, collectionID uuid.UUID, req UpdateCollectionTitleRequest) (*CollectionDetail, error) {
-	title := strings.TrimSpace(req.Title)
+	title := truncateTitle(strings.TrimSpace(req.Title))
 	if title == "" {
 		return nil, ErrCollectionTitleRequired
 	}
