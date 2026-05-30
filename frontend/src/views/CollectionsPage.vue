@@ -122,23 +122,25 @@
                         <CardHeader>
                             <div class="flex items-start justify-between gap-2">
                                 <CardTitle class="min-w-0 break-words text-lg">{{ collection.title }}</CardTitle>
-                                <span
-                                    v-if="collection.is_admin && !collection.is_published"
-                                    class="shrink-0 rounded bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400"
-                                >
-                                    {{ t.collectionsDraftBadge }}
-                                </span>
-                                <span
-                                    v-else-if="collection.is_admin"
-                                    class="shrink-0 rounded border border-primary/30 bg-primary/30 px-2 py-0.5 text-xs font-medium text-primary"
-                                >
-                                    {{ t.collectionsGlobalBadge }}
+                                <span v-if="collection.is_admin">
+                                    <span
+                                        v-if="!collection.is_published && isAdmin"
+                                        class="shrink-0 rounded bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400"
+                                    >
+                                        {{ t.collectionsDraftBadge }}
+                                    </span>
+                                    <span
+                                        v-else-if="isAdmin"
+                                        class="shrink-0 rounded border border-primary/30 bg-primary/30 px-2 py-0.5 text-xs font-medium text-primary"
+                                    >
+                                        {{ t.collectionsGlobalBadge }}
+                                    </span>
                                 </span>
                                 <span
                                     v-else-if="collection.is_owner"
                                     class="shrink-0 rounded bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
                                 >
-                                    {{ t.collectionsOwnerBadge }}
+                                    {{ t.collectionsPrivateBadge }}
                                 </span>
                                 <span
                                     v-else-if="collection.owner_username"
@@ -161,7 +163,7 @@
                             <p class="text-sm text-muted-foreground">
                                 {{ formatNumber(collection.translation_count) }} {{ t.collectionsTranslationsLabel }}
                                 <template v-if="collection.user_add_count > 0">
-                                    · {{ formatNumber(collection.user_add_count) }} {{ t.collectionsUserAddsLabel }}
+                                    · <span role="img" aria-label="Saved">🔖</span> {{ formatNumber(collection.user_add_count) }}
                                 </template>
                             </p>
                         </CardContent>

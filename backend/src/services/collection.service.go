@@ -54,6 +54,7 @@ type CollectionDetail struct {
 	IsAdmin          bool                 `json:"is_admin"`
 	IsOwner          bool                 `json:"is_owner"`
 	IsPublished      bool                 `json:"is_published"`
+	OwnerUsername    string               `json:"owner_username,omitempty"`
 	Languages        []enums.Language     `json:"languages"`
 	TranslationCount int                  `json:"translation_count"`
 	UserAddCount     int                  `json:"user_add_count"`
@@ -396,7 +397,7 @@ func ListCollections(userID uint, page, pageSize int, search string) (*Collectio
 			UserAddCount:     userAddCounts[collection.Collection.ID],
 			CreatedAt:        collection.CreatedAt,
 		}
-		if viewerIsAdmin && !collection.IsAdmin && collection.OwnerUsername != "" {
+		if !collection.IsAdmin && collection.OwnerUsername != "" {
 			summary.OwnerUsername = collection.OwnerUsername
 		}
 		summaries = append(summaries, summary)
@@ -466,6 +467,14 @@ func GetCollection(userID uint, collectionID uuid.UUID) (*CollectionDetail, erro
 		UserAddCount:     int(userAddCount),
 		CreatedAt:        collection.CreatedAt,
 		Translations:     translations,
+	}
+
+	// Include owner username for private collections so viewers know who created it.
+	if !collection.IsAdmin && collection.OwnerID != nil {
+		var ownerUsername string
+		if err := db.DB.Model(&models.User{}).Select("username").Where("id = ?", *collection.OwnerID).Scan(&ownerUsername).Error; err == nil && ownerUsername != "" {
+			detail.OwnerUsername = ownerUsername
+		}
 	}
 
 	// Only the owner of a private collection needs the invite link (admin/global

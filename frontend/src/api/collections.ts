@@ -31,6 +31,7 @@ export type CollectionSummary = {
 
 export type CollectionDetail = CollectionSummary & {
     invite_token?: string
+    owner_username?: string
     translations: CollectionTranslation[]
 }
 

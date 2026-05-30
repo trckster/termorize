@@ -29,23 +29,34 @@
                     <div class="min-w-0">
                         <div class="flex flex-wrap items-center gap-2">
                             <h1 class="break-words text-3xl font-bold text-foreground">{{ collection.title }}</h1>
-                            <span
-                                v-if="collection.is_admin && !collection.is_published"
-                                class="rounded bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400"
-                            >
-                                {{ t.collectionsDraftBadge }}
-                            </span>
-                            <span
-                                v-else-if="collection.is_admin"
-                                class="rounded border border-primary/30 bg-primary/30 px-2 py-0.5 text-xs font-medium text-primary"
-                            >
-                                {{ t.collectionsGlobalBadge }}
+                            <span v-if="collection.is_admin">
+                                <span
+                                    v-if="!collection.is_published && isAdmin"
+                                    class="rounded bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400"
+                                >
+                                    {{ t.collectionsDraftBadge }}
+                                </span>
+                                <span
+                                    v-else-if="isAdmin"
+                                    class="rounded border border-primary/30 bg-primary/30 px-2 py-0.5 text-xs font-medium text-primary"
+                                >
+                                    {{ t.collectionsGlobalBadge }}
+                                </span>
                             </span>
                             <span
                                 v-else-if="collection.is_owner"
                                 class="rounded bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
                             >
-                                {{ t.collectionsOwnerBadge }}
+                                {{ t.collectionsPrivateBadge }}
+                            </span>
+                        </div>
+                        <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                            <span>{{ formatNumber(collection.translation_count) }} {{ t.collectionTranslationsLabel }}</span>
+                            <span v-if="collection.user_add_count > 0">
+                                <span role="img" aria-label="Saved">🔖</span> {{ formatNumber(collection.user_add_count) }}
+                            </span>
+                            <span v-if="!collection.is_admin && !collection.is_owner && collection.owner_username">
+                                {{ t.collectionBy }} @{{ collection.owner_username }}
                             </span>
                         </div>
                         <div v-if="collection.languages.length > 0" class="mt-3">
@@ -301,6 +312,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog'
+import { formatNumber } from '@/lib/utils.ts'
 import { ArrowLeft, BookmarkPlus, Check, Copy, EyeOff, Globe, Loader2, Plus, Share2, Trash2 } from 'lucide-vue-next'
 
 const { t } = useI18n()
@@ -350,8 +362,10 @@ const isTranslationFormValid = computed(
     () => newTranslation.value.word1.trim().length > 0 && newTranslation.value.word2.trim().length > 0
 )
 
+const isAdmin = computed(() => !!authStore.user?.is_admin)
+
 const canManage = computed(
-    () => !!collection.value && (collection.value.is_owner || (collection.value.is_admin && !!authStore.user?.is_admin))
+    () => !!collection.value && (collection.value.is_owner || (collection.value.is_admin && isAdmin.value))
 )
 
 const inviteLink = computed(() =>
