@@ -20,26 +20,26 @@ import (
 
 func StartTelegramLogin(c *gin.Context) {
 	if !auth.IsTelegramLoginConfigured() {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "telegram login is not configured"})
+		ServerError(c, errors.New("telegram login is not configured"))
 		return
 	}
 
 	redirectURI := getTelegramLoginRedirectURL(c)
 	if redirectURI == "" {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "telegram login redirect is invalid"})
+		ServerError(c, errors.New("telegram login redirect is invalid"))
 		return
 	}
 
 	session, err := auth.NewTelegramLoginSession()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to start telegram login"})
+		ServerError(c, errors.New("failed to start telegram login"))
 		return
 	}
 	session.RedirectURI = redirectURI
 
 	sessionToken, err := auth.IssueTelegramLoginSessionToken(*session)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to start telegram login"})
+		ServerError(c, errors.New("failed to start telegram login"))
 		return
 	}
 
@@ -80,7 +80,7 @@ func CompleteTelegramLogin(c *gin.Context) {
 
 		redirectURI := getTelegramLoginRedirectURL(c)
 		if redirectURI == "" {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "telegram login redirect is invalid"})
+			ServerError(c, errors.New("telegram login redirect is invalid"))
 			return
 		}
 
@@ -96,7 +96,7 @@ func CompleteTelegramLogin(c *gin.Context) {
 
 	user, err := services.CreateOrUpdateUserByTelegramProfile(*profile, getRequestTimeZone(c))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save user"})
+		ServerError(c, errors.New("failed to save user"))
 		return
 	}
 
@@ -113,7 +113,7 @@ func Me(c *gin.Context) {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
-		c.AbortWithStatus(http.StatusInternalServerError)
+		ServerError(c, err)
 		return
 	}
 

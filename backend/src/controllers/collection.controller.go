@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"errors"
 	nethttp "net/http"
 	"strconv"
 	"termorize/src/http/validators"
@@ -25,9 +26,9 @@ func respondCollectionError(c *gin.Context, err error) {
 	case services.InvalidPaginationError(err):
 		c.JSON(nethttp.StatusBadRequest, gin.H{"error": err.Error()})
 	case services.AIGenerationUnavailableError(err):
-		c.JSON(nethttp.StatusServiceUnavailable, gin.H{"error": err.Error()})
+		ServerError(c, err)
 	case services.AIGenerationFailedError(err):
-		c.JSON(nethttp.StatusBadGateway, gin.H{"error": "request to OpenRouter failed"})
+		ServerError(c, errors.New("request to OpenRouter failed"))
 	default:
 		c.JSON(nethttp.StatusBadRequest, gin.H{"error": err.Error()})
 	}

@@ -30,7 +30,7 @@ func Translate(c *gin.Context) {
 
 	translation, err := services.Translate(req.FromWord, req.FromLanguage, req.ToLanguage)
 	if err != nil {
-		c.JSON(nethttp.StatusInternalServerError, gin.H{"error": err.Error()})
+		ServerError(c, err)
 		return
 	}
 

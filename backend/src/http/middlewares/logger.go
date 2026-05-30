@@ -45,7 +45,7 @@ func RecoveryMiddleware() gin.HandlerFunc {
 					"stack", string(debug.Stack()),
 				)
 
-				c.AbortWithStatus(http.StatusInternalServerError)
+				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 			}
 		}()
 
