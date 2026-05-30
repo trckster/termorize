@@ -27,6 +27,7 @@ func defineProtectedRoutes(group *gin.RouterGroup) {
 	group.GET("/collections", controllers.GetCollections)
 	group.POST("/collections", controllers.CreateCollection)
 	group.GET("/collections/:id", controllers.GetCollection)
+	group.PUT("/collections/:id", controllers.UpdateCollection)
 	group.DELETE("/collections/:id", controllers.DeleteCollection)
 	group.POST("/collections/:id/translations", controllers.AddCollectionTranslation)
 	group.DELETE("/collections/:id/translations/:translationId", controllers.RemoveCollectionTranslation)

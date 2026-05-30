@@ -218,6 +218,29 @@ func PublishCollection(c *gin.Context) {
 	c.JSON(nethttp.StatusOK, collection)
 }
 
+func UpdateCollection(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+
+	collectionID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid collection ID"})
+		return
+	}
+
+	var req services.UpdateCollectionTitleRequest
+	if !validators.BindJSONWithErrors(c, &req) {
+		return
+	}
+
+	collection, err := services.UpdateCollectionTitle(userID, collectionID, req)
+	if err != nil {
+		respondCollectionError(c, err)
+		return
+	}
+
+	c.JSON(nethttp.StatusOK, collection)
+}
+
 func JoinCollection(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 

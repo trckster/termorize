@@ -104,4 +104,8 @@ export const collectionsApi = {
     async setPublished(id: string, published: boolean): Promise<CollectionDetail> {
         return apiCall<CollectionDetail>(`/collections/${id}/publish`, 'POST', { is_published: published }).then(unwrapBody)
     },
+
+    async updateTitle(id: string, title: string): Promise<CollectionDetail> {
+        return apiCall<CollectionDetail>(`/collections/${id}`, 'PUT', { title }).then(unwrapBody)
+    },
 }

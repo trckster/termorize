@@ -29,6 +29,16 @@
                     <div class="min-w-0">
                         <div class="flex flex-wrap items-center gap-2">
                             <h1 class="break-words text-3xl font-bold text-foreground">{{ collection.title }}</h1>
+                            <Button
+                                v-if="canManage"
+                                variant="ghost"
+                                size="icon"
+                                class="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                :aria-label="t.collectionEditTitle"
+                                @click="isEditTitleOpen = true"
+                            >
+                                <Pencil class="h-4 w-4" />
+                            </Button>
                             <span v-if="collection.is_admin">
                                 <span
                                     v-if="!collection.is_published && isAdmin"
@@ -133,6 +143,34 @@
                         </Dialog>
                     </div>
                 </div>
+
+                <Dialog v-if="canManage" v-model:open="isEditTitleOpen">
+                    <DialogContent class="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>{{ t.collectionEditTitleDialogTitle }}</DialogTitle>
+                            <DialogDescription>{{ t.collectionEditTitleDialogDescription }}</DialogDescription>
+                        </DialogHeader>
+                        <form @submit.prevent="handleSaveTitle" class="space-y-4 py-4">
+                            <div class="space-y-2">
+                                <label for="collection-edit-title" class="text-sm font-medium">{{ t.collectionsTitleLabel }}</label>
+                                <input
+                                    id="collection-edit-title"
+                                    v-model="editTitle"
+                                    type="text"
+                                    :placeholder="t.collectionsTitlePlaceholder"
+                                    maxlength="255"
+                                    class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                />
+                            </div>
+                            <DialogFooter class="justify-center sm:justify-center pt-2">
+                                <Button type="submit" :disabled="isSavingTitle || editTitle.trim().length === 0">
+                                    <Loader2 v-if="isSavingTitle" class="mr-2 h-4 w-4 animate-spin" />
+                                    {{ isSavingTitle ? t.saving : t.save }}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
 
                 <div
                     v-if="collection.is_admin && !collection.is_published"
@@ -313,7 +351,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog'
 import { formatNumber } from '@/lib/utils.ts'
-import { ArrowLeft, BookmarkPlus, Check, Copy, EyeOff, Globe, Loader2, Plus, Share2, Trash2 } from 'lucide-vue-next'
+import { ArrowLeft, BookmarkPlus, Check, Copy, EyeOff, Globe, Loader2, Pencil, Plus, Share2, Trash2 } from 'lucide-vue-next'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -335,6 +373,9 @@ let copyTimeoutId: ReturnType<typeof setTimeout> | null = null
 
 const isAddTranslationOpen = ref(false)
 const isAddingTranslation = ref(false)
+const isEditTitleOpen = ref(false)
+const isSavingTitle = ref(false)
+const editTitle = ref('')
 const linkRef = ref<HTMLDivElement | null>(null)
 
 type NewTranslationForm = {
@@ -378,6 +419,12 @@ const getLanguageName = (code: string) =>
 watch(isAddTranslationOpen, (isOpen) => {
     if (isOpen) {
         newTranslation.value = defaultNewTranslation()
+    }
+})
+
+watch(isEditTitleOpen, (isOpen) => {
+    if (isOpen && collection.value) {
+        editTitle.value = collection.value.title
     }
 })
 
@@ -494,6 +541,31 @@ const handleDelete = async () => {
         })
     } finally {
         isDeleting.value = false
+    }
+}
+
+const handleSaveTitle = async () => {
+    if (!collection.value || editTitle.value.trim().length === 0) return
+
+    isSavingTitle.value = true
+    try {
+        collection.value = await collectionsApi.updateTitle(collection.value.id, editTitle.value.trim())
+        isEditTitleOpen.value = false
+        addToast({
+            title: t.value.collectionTitleSavedTitle,
+            description: t.value.collectionTitleSavedDescription,
+            variant: 'success',
+            duration: 3000,
+        })
+    } catch {
+        addToast({
+            title: t.value.toastErrorTitle,
+            description: t.value.collectionTitleSaveErrorDescription,
+            variant: 'destructive',
+            duration: 5000,
+        })
+    } finally {
+        isSavingTitle.value = false
     }
 }
 

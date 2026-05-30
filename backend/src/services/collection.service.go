@@ -830,6 +830,39 @@ func AddCollectionToVocabulary(userID uint, collectionID uuid.UUID) (*AddCollect
 	return result, nil
 }
 
+type UpdateCollectionTitleRequest struct {
+	Title string `json:"title" binding:"required"`
+}
+
+func UpdateCollectionTitle(userID uint, collectionID uuid.UUID, req UpdateCollectionTitleRequest) (*CollectionDetail, error) {
+	title := strings.TrimSpace(req.Title)
+	if title == "" {
+		return nil, ErrCollectionTitleRequired
+	}
+
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		collection, err := getAccessibleCollection(tx, userID, collectionID)
+		if err != nil {
+			return err
+		}
+
+		canEdit, err := canEditCollection(tx, userID, collection)
+		if err != nil {
+			return err
+		}
+		if !canEdit {
+			return ErrCollectionForbidden
+		}
+
+		return tx.Model(collection).Update("title", title).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return GetCollection(userID, collectionID)
+}
+
 func JoinCollectionByToken(userID uint, token string) (*CollectionDetail, error) {
 	token = strings.TrimSpace(token)
 	if token == "" {

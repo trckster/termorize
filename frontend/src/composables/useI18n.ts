@@ -346,6 +346,12 @@ const en = {
     collectionUnpublishedTitle: 'Unpublished',
     collectionUnpublishedDescription: 'This collection is now a draft, visible only on the admin side.',
     collectionPublishErrorDescription: 'Failed to update publish status. Please try again.',
+    collectionEditTitle: 'Edit title',
+    collectionEditTitleDialogTitle: 'Edit Collection Title',
+    collectionEditTitleDialogDescription: 'Update the name of this collection.',
+    collectionTitleSavedTitle: 'Title updated',
+    collectionTitleSavedDescription: 'Collection title was updated successfully.',
+    collectionTitleSaveErrorDescription: 'Failed to update collection title. Please try again.',
 }
 
 const ru: typeof en = {
@@ -695,6 +701,12 @@ const ru: typeof en = {
     collectionUnpublishedTitle: 'Снято с публикации',
     collectionUnpublishedDescription: 'Теперь это черновик, видимый только на стороне администратора.',
     collectionPublishErrorDescription: 'Не удалось изменить статус публикации. Попробуйте ещё раз.',
+    collectionEditTitle: 'Изменить название',
+    collectionEditTitleDialogTitle: 'Изменить название коллекции',
+    collectionEditTitleDialogDescription: 'Обновите название этой коллекции.',
+    collectionTitleSavedTitle: 'Название обновлено',
+    collectionTitleSavedDescription: 'Название коллекции успешно обновлено.',
+    collectionTitleSaveErrorDescription: 'Не удалось обновить название коллекции. Попробуйте ещё раз.',
 }
 
 const translations = { en, ru }
