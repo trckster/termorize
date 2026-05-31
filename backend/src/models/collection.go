@@ -41,10 +41,12 @@ func (c *Collection) BeforeCreate(_ *gorm.DB) error {
 }
 
 // CollectionTranslation is the join row linking a collection to a translation.
+// Position is the manual sort order within the collection (ascending); a newly added
+// translation gets max(position)+1 so it lands at the end of the list.
 type CollectionTranslation struct {
 	CollectionID  uuid.UUID `gorm:"primaryKey"`
 	TranslationID uuid.UUID `gorm:"primaryKey"`
-	CreatedAt     time.Time
+	Position      int
 }
 
 func (CollectionTranslation) TableName() string {

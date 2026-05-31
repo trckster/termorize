@@ -2,6 +2,7 @@ package services
 
 import (
 	"crypto/rand"
+	"database/sql"
 	"encoding/base64"
 	"errors"
 	"strings"
@@ -445,7 +446,7 @@ func GetCollection(userID uint, collectionID uuid.UUID) (*CollectionDetail, erro
 		Where("ct.collection_id = ?", collectionID).
 		Preload("Original").
 		Preload("Translation").
-		Order("ct.created_at DESC, translations.id DESC").
+		Order("ct.position ASC, translations.id ASC").
 		Find(&translations).Error; err != nil {
 		return nil, err
 	}
@@ -603,9 +604,24 @@ func addInlineTranslation(
 		return result.Error
 	}
 
+	// Place the new link at the end of the collection: max(position)+1. MAX returns NULL
+	// for an empty collection, so NullInt64 distinguishes "no rows" from a real position 0.
+	var maxPosition sql.NullInt64
+	if err := tx.Model(&models.CollectionTranslation{}).
+		Where("collection_id = ?", collectionID).
+		Select("MAX(position)").
+		Scan(&maxPosition).Error; err != nil {
+		return err
+	}
+	nextPosition := 0
+	if maxPosition.Valid {
+		nextPosition = int(maxPosition.Int64) + 1
+	}
+
 	link := models.CollectionTranslation{
 		CollectionID:  collectionID,
 		TranslationID: existing.ID,
+		Position:      nextPosition,
 	}
 	return tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&link).Error
 }
@@ -801,6 +817,47 @@ func RemoveTranslationFromCollection(userID uint, collectionID, translationID uu
 	})
 }
 
+type ReorderCollectionTranslationsRequest struct {
+	TranslationIDs []uuid.UUID `json:"translation_ids" binding:"required"`
+}
+
+// ReorderCollectionTranslations sets the manual sort order of a collection's translations
+// to match the order of the provided IDs. Only translations that actually belong to the
+// collection are updated; any IDs not in the collection are ignored, and translations not
+// listed keep their existing position. Editing requires the owner (or an admin for global
+// collections), same as title editing.
+func ReorderCollectionTranslations(userID uint, collectionID uuid.UUID, translationIDs []uuid.UUID) (*CollectionDetail, error) {
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		collection, err := getAccessibleCollection(tx, userID, collectionID)
+		if err != nil {
+			return err
+		}
+
+		canEdit, err := canEditCollection(tx, userID, collection)
+		if err != nil {
+			return err
+		}
+		if !canEdit {
+			return ErrCollectionForbidden
+		}
+
+		for position, translationID := range translationIDs {
+			if err := tx.Model(&models.CollectionTranslation{}).
+				Where("collection_id = ? AND translation_id = ?", collectionID, translationID).
+				Update("position", position).Error; err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return GetCollection(userID, collectionID)
+}
+
 func AddCollectionToVocabulary(userID uint, collectionID uuid.UUID) (*AddCollectionToVocabularyResult, error) {
 	if _, err := getAccessibleCollection(db.DB, userID, collectionID); err != nil {
 		return nil, err
@@ -810,7 +867,7 @@ func AddCollectionToVocabulary(userID uint, collectionID uuid.UUID) (*AddCollect
 	if err := db.DB.
 		Table("collection_translations").
 		Where("collection_id = ?", collectionID).
-		Order("created_at ASC").
+		Order("position ASC, translation_id ASC").
 		Pluck("translation_id", &translationIDs).Error; err != nil {
 		return nil, err
 	}

@@ -31,6 +31,7 @@ func defineProtectedRoutes(group *gin.RouterGroup) {
 	group.DELETE("/collections/:id", controllers.DeleteCollection)
 	group.POST("/collections/:id/translations", controllers.AddCollectionTranslation)
 	group.DELETE("/collections/:id/translations/:translationId", controllers.RemoveCollectionTranslation)
+	group.PUT("/collections/:id/translations/order", controllers.ReorderCollectionTranslations)
 	group.POST("/collections/:id/add-to-vocabulary", controllers.AddCollectionToVocabulary)
 	group.POST("/collections/:id/publish", controllers.PublishCollection)
 	group.POST("/collection-generate", controllers.GenerateCollection)

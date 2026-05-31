@@ -160,6 +160,29 @@ func RemoveCollectionTranslation(c *gin.Context) {
 	c.Status(nethttp.StatusOK)
 }
 
+func ReorderCollectionTranslations(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+
+	collectionID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid collection ID"})
+		return
+	}
+
+	var req services.ReorderCollectionTranslationsRequest
+	if !validators.BindJSONWithErrors(c, &req) {
+		return
+	}
+
+	collection, err := services.ReorderCollectionTranslations(userID, collectionID, req.TranslationIDs)
+	if err != nil {
+		respondCollectionError(c, err)
+		return
+	}
+
+	c.JSON(nethttp.StatusOK, collection)
+}
+
 func AddCollectionToVocabulary(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 

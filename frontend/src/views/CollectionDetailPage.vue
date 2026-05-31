@@ -61,9 +61,13 @@
                             </span>
                         </div>
                         <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                            <span>{{ formatNumber(collection.translation_count) }} {{ t.collectionTranslationsLabel }}</span>
+                            <span
+                                >{{ formatNumber(collection.translation_count) }}
+                                {{ t.collectionTranslationsLabel }}</span
+                            >
                             <span v-if="collection.user_add_count > 0">
-                                <span role="img" aria-label="Saved">🔖</span> {{ formatNumber(collection.user_add_count) }}
+                                <span role="img" aria-label="Saved">🔖</span>
+                                {{ formatNumber(collection.user_add_count) }}
                             </span>
                             <span v-if="!collection.is_admin && !collection.is_owner && collection.owner_username">
                                 {{ t.collectionBy }} @{{ collection.owner_username }}
@@ -152,7 +156,9 @@
                         </DialogHeader>
                         <form @submit.prevent="handleSaveTitle" class="space-y-4 py-4">
                             <div class="space-y-2">
-                                <label for="collection-edit-title" class="text-sm font-medium">{{ t.collectionsTitleLabel }}</label>
+                                <label for="collection-edit-title" class="text-sm font-medium">{{
+                                    t.collectionsTitleLabel
+                                }}</label>
                                 <input
                                     id="collection-edit-title"
                                     v-model="editTitle"
@@ -259,41 +265,66 @@
 
                 <h2 class="mb-3 text-lg font-semibold text-foreground">{{ t.collectionTranslationsTitle }}</h2>
 
-                <div v-if="collection.translations.length > 0" class="space-y-2">
-                    <div
-                        v-for="item in collection.translations"
-                        :key="item.id"
-                        class="group flex items-center justify-between gap-4 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent/50"
+                <div v-if="collection.translations.length > 0">
+                    <VueDraggable
+                        v-model="orderedTranslations"
+                        :disabled="!canManage"
+                        handle=".collection-drag-handle"
+                        :animation="150"
+                        class="space-y-2"
+                        @end="handleReorder"
                     >
-                        <h3 class="flex min-w-0 items-center gap-2 font-semibold text-foreground">
-                            <span class="text-xl" role="img" :aria-label="getLanguageName(item.original.language)">{{
-                                settingsStore.getFlag(item.original.language)
-                            }}</span>
-                            <span class="min-w-0 break-words text-lg">{{ item.original.word }}</span>
-                            <span class="text-muted-foreground">-</span>
-                            <span class="min-w-0 break-words text-lg">{{ item.translation.word }}</span>
-                            <span class="text-xl" role="img" :aria-label="getLanguageName(item.translation.language)">{{
-                                settingsStore.getFlag(item.translation.language)
-                            }}</span>
-                        </h3>
-                        <Button
-                            v-if="canManage"
-                            variant="ghost"
-                            size="icon"
-                            class="shrink-0 text-muted-foreground opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive focus:opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                            :aria-label="t.collectionRemoveTranslationLabel"
-                            :disabled="removingId === item.id"
-                            @click="handleRemoveTranslation(item.id)"
+                        <div
+                            v-for="item in orderedTranslations"
+                            :key="item.id"
+                            class="group flex items-center justify-between gap-4 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent/50"
                         >
-                            <Loader2 v-if="removingId === item.id" class="h-4 w-4 animate-spin" />
-                            <Trash2 v-else class="h-4 w-4" />
-                        </Button>
-                    </div>
+                            <div class="flex min-w-0 items-center gap-2">
+                                <span
+                                    v-if="canManage"
+                                    class="collection-drag-handle shrink-0 cursor-grab touch-none text-muted-foreground transition-colors hover:text-foreground active:cursor-grabbing"
+                                    role="button"
+                                    :aria-label="t.collectionReorderTranslationLabel"
+                                >
+                                    <GripVertical class="h-4 w-4" />
+                                </span>
+                                <h3 class="flex min-w-0 items-center gap-2 font-semibold text-foreground">
+                                    <span
+                                        class="text-xl"
+                                        role="img"
+                                        :aria-label="getLanguageName(item.original.language)"
+                                        >{{ settingsStore.getFlag(item.original.language) }}</span
+                                    >
+                                    <span class="min-w-0 break-words text-lg">{{ item.original.word }}</span>
+                                    <span class="text-muted-foreground">-</span>
+                                    <span class="min-w-0 break-words text-lg">{{ item.translation.word }}</span>
+                                    <span
+                                        class="text-xl"
+                                        role="img"
+                                        :aria-label="getLanguageName(item.translation.language)"
+                                        >{{ settingsStore.getFlag(item.translation.language) }}</span
+                                    >
+                                </h3>
+                            </div>
+                            <Button
+                                v-if="canManage"
+                                variant="ghost"
+                                size="icon"
+                                class="shrink-0 text-muted-foreground opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive focus:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                                :aria-label="t.collectionRemoveTranslationLabel"
+                                :disabled="removingId === item.id"
+                                @click="handleRemoveTranslation(item.id)"
+                            >
+                                <Loader2 v-if="removingId === item.id" class="h-4 w-4 animate-spin" />
+                                <Trash2 v-else class="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </VueDraggable>
 
                     <button
                         v-if="canManage"
                         type="button"
-                        class="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-card/40 p-4 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:bg-accent/50 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                        class="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-card/40 p-4 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:bg-accent/50 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                         @click="isAddTranslationOpen = true"
                     >
                         <Plus class="h-4 w-4" />
@@ -339,7 +370,8 @@
 </template>
 
 <script setup lang="ts">
-import { collectionsApi, type CollectionDetail } from '@/api/collections.ts'
+import { collectionsApi, type CollectionDetail, type CollectionTranslation } from '@/api/collections.ts'
+import { VueDraggable } from 'vue-draggable-plus'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.ts'
@@ -359,7 +391,20 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog'
 import { formatNumber } from '@/lib/utils.ts'
-import { ArrowLeft, BookmarkPlus, Check, Copy, EyeOff, Globe, Loader2, Pencil, Plus, Share2, Trash2 } from 'lucide-vue-next'
+import {
+    ArrowLeft,
+    BookmarkPlus,
+    Check,
+    Copy,
+    EyeOff,
+    Globe,
+    GripVertical,
+    Loader2,
+    Pencil,
+    Plus,
+    Share2,
+    Trash2,
+} from 'lucide-vue-next'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -376,6 +421,7 @@ const isShareDialogOpen = ref(false)
 const isDeleting = ref(false)
 const isPublishing = ref(false)
 const removingId = ref<string | null>(null)
+const orderedTranslations = ref<CollectionTranslation[]>([])
 const justCopied = ref(false)
 let copyTimeoutId: ReturnType<typeof setTimeout> | null = null
 
@@ -435,6 +481,16 @@ watch(isEditTitleOpen, (isOpen) => {
         editTitle.value = collection.value.title
     }
 })
+
+// Keep the draggable list mirroring the server-provided order. Replacing the array (rather
+// than mutating) resets any in-progress drag state when the collection reloads.
+watch(
+    () => collection.value?.translations,
+    (translations) => {
+        orderedTranslations.value = translations ? [...translations] : []
+    },
+    { immediate: true }
+)
 
 const fetchCollection = async (id: string) => {
     isLoading.value = true
@@ -524,6 +580,28 @@ const handleRemoveTranslation = async (translationId: string) => {
         })
     } finally {
         removingId.value = null
+    }
+}
+
+const handleReorder = async () => {
+    if (!collection.value) return
+
+    const newOrder = orderedTranslations.value.map((item) => item.id)
+    const currentOrder = collection.value.translations.map((item) => item.id)
+    // vue-draggable-plus fires @end even when the item is dropped in its original spot.
+    if (newOrder.join(',') === currentOrder.join(',')) return
+
+    try {
+        collection.value = await collectionsApi.reorderTranslations(collection.value.id, newOrder)
+    } catch {
+        // Revert the optimistic reorder to the last known server order.
+        orderedTranslations.value = collection.value ? [...collection.value.translations] : []
+        addToast({
+            title: t.value.toastErrorTitle,
+            description: t.value.collectionTranslationReorderErrorDescription,
+            variant: 'destructive',
+            duration: 5000,
+        })
     }
 }
 
@@ -624,7 +702,8 @@ const copyInviteLink = () => {
     const showError = () => {
         addToast({
             title: t.value.toastErrorTitle,
-            description: t.value.collectionLinkCopiedErrorDescription || 'Unable to copy. Please copy the link manually.',
+            description:
+                t.value.collectionLinkCopiedErrorDescription || 'Unable to copy. Please copy the link manually.',
             variant: 'destructive',
             duration: 5000,
         })

@@ -89,6 +89,12 @@ export const collectionsApi = {
         await apiCall<void>(`/collections/${id}/translations/${translationId}`, 'DELETE')
     },
 
+    async reorderTranslations(id: string, translationIds: string[]): Promise<CollectionDetail> {
+        return apiCall<CollectionDetail>(`/collections/${id}/translations/order`, 'PUT', {
+            translation_ids: translationIds,
+        }).then(unwrapBody)
+    },
+
     async addToVocabulary(id: string): Promise<AddCollectionToVocabularyResult> {
         return apiCall<AddCollectionToVocabularyResult>(`/collections/${id}/add-to-vocabulary`, 'POST').then(unwrapBody)
     },
