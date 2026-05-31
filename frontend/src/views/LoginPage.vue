@@ -59,7 +59,7 @@ const startTelegramLogin = async () => {
         const initData = getTelegramWebAppInitData()
         if (initData) {
             await authStore.completeTelegramLogin({ init_data: initData })
-            await router.replace('/')
+            await router.replace({ name: 'translation' })
             return
         }
 

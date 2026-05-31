@@ -32,7 +32,7 @@ onMounted(async () => {
 
     try {
         await authStore.completeTelegramLogin({ code, state })
-        await router.replace('/')
+        await router.replace({ name: 'translation' })
     } catch (err) {
         error.value = getErrorMessage(err, 'Telegram login failed')
         isLoading.value = false
@@ -66,7 +66,7 @@ function getErrorMessage(err: unknown, fallback: string): string {
 }
 
 const goToLogin = () => {
-    router.replace('/login')
+    router.replace('/')
 }
 </script>
 

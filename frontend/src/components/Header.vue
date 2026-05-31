@@ -4,11 +4,11 @@
             <span class="text-sm font-semibold tracking-tight md:hidden">Termorize</span>
             <nav class="hidden md:flex gap-8">
                 <router-link
-                    to="/"
-                    :aria-current="route.path === '/' ? 'page' : undefined"
+                    to="/translation"
+                    :aria-current="route.path === '/translation' ? 'page' : undefined"
                     :class="[
                         'text-sm font-medium transition-colors hover:text-foreground',
-                        route.path === '/' ? 'text-foreground' : 'text-muted-foreground',
+                        route.path === '/translation' ? 'text-foreground' : 'text-muted-foreground',
                     ]"
                 >
                     {{ t.navHome }}
@@ -216,6 +216,6 @@ const goToSettings = () => {
 const handleLogout = async () => {
     closeProfileMenu()
     await authStore.logout()
-    router.push('/login')
+    router.push('/')
 }
 </script>

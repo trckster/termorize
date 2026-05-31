@@ -35,7 +35,7 @@ const route = useRoute()
 const { t } = useI18n()
 
 const navItems = computed(() => [
-    { to: '/', label: t.value.navHome, icon: Home },
+    { to: '/translation', label: t.value.navHome, icon: Home },
     { to: '/vocabulary', label: t.value.navVocabulary, icon: BookOpen },
     { to: '/collections', label: t.value.navCollections, icon: Library },
     { to: '/exercises', label: t.value.navExercises, icon: Brain },

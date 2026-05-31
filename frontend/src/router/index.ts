@@ -5,6 +5,11 @@ const router = createRouter({
     history: createWebHistory(),
     routes: [
         {
+            path: '/',
+            name: 'root',
+            component: () => import('@/views/RootView.vue'),
+        },
+        {
             path: '/login',
             name: 'login',
             component: () => import('@/views/LoginPage.vue'),
@@ -28,7 +33,7 @@ const router = createRouter({
             meta: { requiresAuth: true },
             children: [
                 {
-                    path: '',
+                    path: 'translation',
                     name: 'translation',
                     component: () => import('@/views/TranslationPage.vue'),
                 },
@@ -80,9 +85,9 @@ router.beforeEach(async (to, _from, next) => {
     }
 
     if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-        next('/login')
-    } else if (to.meta.guest && authStore.isAuthenticated) {
         next('/')
+    } else if (to.meta.guest && authStore.isAuthenticated) {
+        next({ name: 'translation' })
     } else {
         next()
     }

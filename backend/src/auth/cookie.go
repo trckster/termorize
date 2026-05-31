@@ -24,20 +24,28 @@ func DeleteAuthCookie(c *gin.Context) {
 func authCookieSameSite() http.SameSite {
 	sameSite := http.SameSiteStrictMode
 	if config.IsLocal() {
-		sameSite = http.SameSiteNoneMode
+		sameSite = http.SameSiteLaxMode
 	}
 
 	return sameSite
 }
 
 func setCookie(c *gin.Context, name string, token string, time int, sameSite http.SameSite) {
+	secure := true
+	domain := config.GetDomain()
+
+	if config.IsLocal() {
+		secure = false
+		domain = ""
+	}
+
 	cookie := &http.Cookie{
 		Name:     name,
 		Value:    token,
 		Path:     "/",
-		Domain:   config.GetDomain(),
+		Domain:   domain,
 		MaxAge:   time,
-		Secure:   true,
+		Secure:   secure,
 		HttpOnly: true,
 		SameSite: sameSite,
 	}

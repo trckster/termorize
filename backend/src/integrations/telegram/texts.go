@@ -151,6 +151,9 @@ var botTextsEn = BotTexts{
 		"You can use it to:\n" +
 		"- translate words and short phrases\n" +
 		"- add your own word pairs to vocabulary\n" +
+		"- browse and use ready-made collections\n" +
+		"- create your own collections\n" +
+		"- share collections with others via invite links\n" +
 		"- review saved vocabulary and learning progress\n" +
 		"- practice with exercises on the website\n" +
 		"- receive automatic Telegram exercises on your schedule\n" +
@@ -259,10 +262,13 @@ var botTextsRu = BotTexts{
 	MenuSettingsEnabled:              "Включены",
 	MenuSettingsDisabled:             "Выключены",
 	MenuSettingsFullVersionNote:      "Полная версия настроек доступна на сайте.",
-	MenuWhatsGoingOn: "*Termorize* - это сервис для изучения слов, который работает и в Telegram, и в веб-приложении.\n\n" +
+	MenuWhatsGoingOn: "*Termorize* — это сервис для изучения слов, который работает и в Telegram, и в веб-приложении.\n\n" +
 		"Здесь можно:\n" +
 		"- переводить слова и короткие фразы\n" +
 		"- добавлять свои пары слов в словарь\n" +
+		"- просматривать и использовать готовые подборки\n" +
+		"- создавать собственные коллекции\n" +
+		"- делиться коллекциями с другими по ссылке-приглашению\n" +
 		"- смотреть сохраненный словарь и прогресс обучения\n" +
 		"- практиковаться в упражнениях на сайте\n" +
 		"- получать автоматические упражнения в Telegram по расписанию\n" +
