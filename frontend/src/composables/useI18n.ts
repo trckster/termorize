@@ -294,7 +294,7 @@ const en = {
     collectionLoadErrorTitle: 'Collection unavailable',
     collectionLoadErrorDescription: "This collection doesn't exist or you don't have access to it.",
     collectionAddToVocabulary: 'Add All',
-    collectionAddSelectButton: 'Add part',
+    collectionAddSelectButton: 'Add Some',
     collectionAddSelectedLabel: 'Add',
     collectionSelectCancel: 'Cancel',
     collectionSelectTranslationLabel: 'Select translation',

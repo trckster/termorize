@@ -13,6 +13,15 @@ import (
 	"github.com/google/uuid"
 )
 
+func parseUUIDParam(c *gin.Context, name, errMsg string) (uuid.UUID, bool) {
+	id, err := uuid.Parse(c.Param(name))
+	if err != nil {
+		c.JSON(nethttp.StatusBadRequest, gin.H{"error": errMsg})
+		return uuid.Nil, false
+	}
+	return id, true
+}
+
 func respondCollectionError(c *gin.Context, err error) {
 	switch {
 	case services.CollectionNotFoundError(err):
@@ -77,9 +86,8 @@ func GetCollections(c *gin.Context) {
 func GetCollection(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
-	collectionID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid collection ID"})
+	collectionID, ok := parseUUIDParam(c, "id", "invalid collection ID")
+	if !ok {
 		return
 	}
 
@@ -112,9 +120,8 @@ func CreateCollection(c *gin.Context) {
 func DeleteCollection(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
-	collectionID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid collection ID"})
+	collectionID, ok := parseUUIDParam(c, "id", "invalid collection ID")
+	if !ok {
 		return
 	}
 
@@ -129,9 +136,8 @@ func DeleteCollection(c *gin.Context) {
 func AddCollectionTranslation(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
-	collectionID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid collection ID"})
+	collectionID, ok := parseUUIDParam(c, "id", "invalid collection ID")
+	if !ok {
 		return
 	}
 
@@ -152,15 +158,13 @@ func AddCollectionTranslation(c *gin.Context) {
 func RemoveCollectionTranslation(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
-	collectionID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid collection ID"})
+	collectionID, ok := parseUUIDParam(c, "id", "invalid collection ID")
+	if !ok {
 		return
 	}
 
-	translationID, err := uuid.Parse(c.Param("translationId"))
-	if err != nil {
-		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid translation ID"})
+	translationID, ok := parseUUIDParam(c, "translationId", "invalid translation ID")
+	if !ok {
 		return
 	}
 
@@ -175,9 +179,8 @@ func RemoveCollectionTranslation(c *gin.Context) {
 func ReorderCollectionTranslations(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
-	collectionID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid collection ID"})
+	collectionID, ok := parseUUIDParam(c, "id", "invalid collection ID")
+	if !ok {
 		return
 	}
 
@@ -198,14 +201,12 @@ func ReorderCollectionTranslations(c *gin.Context) {
 func AddCollectionToVocabulary(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
-	collectionID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid collection ID"})
+	collectionID, ok := parseUUIDParam(c, "id", "invalid collection ID")
+	if !ok {
 		return
 	}
 
-	// The body is optional: an absent/empty body means "add all", while a list of
-	// translation_ids restricts the operation to those translations.
+	// Optional body: absent means "add all", a translation_ids list restricts to those.
 	var req services.AddCollectionToVocabularyRequest
 	_ = c.ShouldBindJSON(&req)
 
@@ -238,9 +239,8 @@ func GenerateCollection(c *gin.Context) {
 func PublishCollection(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
-	collectionID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid collection ID"})
+	collectionID, ok := parseUUIDParam(c, "id", "invalid collection ID")
+	if !ok {
 		return
 	}
 
@@ -261,9 +261,8 @@ func PublishCollection(c *gin.Context) {
 func UpdateCollection(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
-	collectionID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid collection ID"})
+	collectionID, ok := parseUUIDParam(c, "id", "invalid collection ID")
+	if !ok {
 		return
 	}
 

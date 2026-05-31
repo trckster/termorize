@@ -498,7 +498,6 @@ const allSelected = computed(
 
 const addToVocabularyLabel = computed(() => {
     if (isAddingToVocabulary.value) return t.value.adding
-    // While selecting a subset, reflect the count; an untouched (all-checked) selection still reads "Add All".
     if (isSelecting.value && !allSelected.value) return `${t.value.collectionAddSelectedLabel} ${selectedCount.value}`
     return t.value.collectionAddToVocabulary
 })
@@ -538,8 +537,6 @@ watch(isEditTitleOpen, (isOpen) => {
     }
 })
 
-// Keep the draggable list mirroring the server-provided order. Replacing the array (rather
-// than mutating) resets any in-progress drag state when the collection reloads.
 watch(
     () => collection.value?.translations,
     (translations) => {
@@ -564,7 +561,6 @@ const fetchCollection = async (id: string) => {
 
 const handleAddToVocabulary = async () => {
     if (!collection.value) return
-    // When selecting a subset, send the chosen ids; otherwise omit them to add everything.
     if (isSelecting.value && selectedCount.value === 0) return
     const translationIds = isSelecting.value ? Array.from(selectedIds.value) : undefined
 
@@ -654,7 +650,6 @@ const handleReorder = async () => {
     try {
         collection.value = await collectionsApi.reorderTranslations(collection.value.id, newOrder)
     } catch {
-        // Revert the optimistic reorder to the last known server order.
         orderedTranslations.value = collection.value ? [...collection.value.translations] : []
         addToast({
             title: t.value.toastErrorTitle,

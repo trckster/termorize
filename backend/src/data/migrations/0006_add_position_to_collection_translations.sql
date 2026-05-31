@@ -1,7 +1,6 @@
 ALTER TABLE "collection_translations" ADD COLUMN IF NOT EXISTS "position" INTEGER NOT NULL DEFAULT 0;
 
--- Backfill position from the previous created_at ordering (oldest first), so the existing
--- display order is preserved as the initial manual order.
+-- Backfill position from the old created_at order so the existing display order is preserved.
 WITH ordered AS (
     SELECT "collection_id",
            "translation_id",
