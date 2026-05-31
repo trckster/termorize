@@ -1,5 +1,6 @@
 import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { formatNumber } from '@/lib/utils.ts'
 
 const en = {
     // Navigation
@@ -738,6 +739,23 @@ const translations = { en, ru }
 type Locale = keyof typeof translations
 type Translations = typeof en
 
+// Plural forms for the "saves" label, keyed by the category Intl.PluralRules returns for
+// each locale. English uses one/other; Russian uses one/few/many (e.g. 1 сохранение,
+// 2 сохранения, 5 сохранений).
+const savesForms: Record<Locale, Partial<Record<Intl.LDMLPluralRule, string>>> = {
+    en: { one: 'save', other: 'saves' },
+    ru: { one: 'сохранение', few: 'сохранения', many: 'сохранений' },
+}
+
+// formatSaves renders a localized "N saves" string with the grammatically correct plural
+// form for the given count and locale.
+export function formatSaves(count: number, locale: Locale): string {
+    const forms = savesForms[locale]
+    const category = new Intl.PluralRules(locale).select(count)
+    const word = forms[category] ?? forms.other ?? forms.many ?? forms.one ?? ''
+    return `${formatNumber(count)} ${word}`
+}
+
 export const getSupportedLocale = (language?: string): Locale => (language === 'ru' ? 'ru' : 'en')
 
 export const getLocaleDirection = (language?: string): 'ltr' | 'rtl' => {
@@ -752,5 +770,6 @@ export function useI18n() {
     const authStore = useAuthStore()
     const locale = computed<Locale>(() => getSupportedLocale(authStore.user?.settings.system_language))
     const t = computed<Translations>(() => translations[locale.value])
-    return { t, locale }
+    const saves = (count: number) => formatSaves(count, locale.value)
+    return { t, locale, saves }
 }

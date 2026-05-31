@@ -150,7 +150,7 @@
                             <p class="text-sm text-muted-foreground">
                                 {{ formatNumber(collection.translation_count) }} {{ t.collectionsTranslationsLabel }}
                                 <template v-if="collection.user_add_count > 0">
-                                    · <span role="img" aria-label="Saved">🔖</span> {{ formatNumber(collection.user_add_count) }}
+                                    · {{ saves(collection.user_add_count) }}
                                 </template>
                             </p>
                         </CardContent>
@@ -231,7 +231,7 @@ import {
 } from '@/components/ui/dialog'
 import { Loader2, Plus, Sparkles } from 'lucide-vue-next'
 
-const { t } = useI18n()
+const { t, saves } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 const settingsStore = useSettingsStore()

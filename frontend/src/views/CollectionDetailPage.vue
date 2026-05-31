@@ -65,10 +65,7 @@
                                 >{{ formatNumber(collection.translation_count) }}
                                 {{ t.collectionTranslationsLabel }}</span
                             >
-                            <span v-if="collection.user_add_count > 0">
-                                <span role="img" aria-label="Saved">🔖</span>
-                                {{ formatNumber(collection.user_add_count) }}
-                            </span>
+                            <span v-if="collection.user_add_count > 0">{{ saves(collection.user_add_count) }}</span>
                             <span v-if="!collection.is_admin && !collection.is_owner && collection.owner_username">
                                 {{ t.collectionBy }} @{{ collection.owner_username }}
                             </span>
@@ -430,7 +427,7 @@ import {
     Trash2,
 } from 'lucide-vue-next'
 
-const { t } = useI18n()
+const { t, saves } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
