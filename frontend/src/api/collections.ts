@@ -46,12 +46,14 @@ export const collectionsApi = {
     async getCollections(
         page: number = 1,
         pageSize: number = 50,
-        search?: string
+        search?: string,
+        languages?: string[]
     ): Promise<Paginated<CollectionSummary>> {
         return apiCall<Paginated<CollectionSummary>>('/collections', 'GET', {
             page,
             page_size: pageSize,
             search,
+            languages: languages && languages.length > 0 ? languages.join(',') : undefined,
         }).then(unwrapBody)
     },
 

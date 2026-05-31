@@ -4,6 +4,8 @@ import (
 	"errors"
 	nethttp "net/http"
 	"strconv"
+	"strings"
+	"termorize/src/enums"
 	"termorize/src/http/validators"
 	"termorize/src/services"
 
@@ -53,7 +55,17 @@ func GetCollections(c *gin.Context) {
 		}
 	}
 
-	response, err := services.ListCollections(userID, page, pageSize, search)
+	var languages []enums.Language
+	if langParam := c.Query("languages"); langParam != "" {
+		for _, code := range strings.Split(langParam, ",") {
+			code = strings.TrimSpace(code)
+			if code != "" {
+				languages = append(languages, enums.Language(code))
+			}
+		}
+	}
+
+	response, err := services.ListCollections(userID, page, pageSize, search, languages)
 	if err != nil {
 		respondCollectionError(c, err)
 		return

@@ -310,7 +310,7 @@ func collectionUserAddCounts(conn *gorm.DB, collectionIDs []uuid.UUID) (map[uuid
 	return result, nil
 }
 
-func ListCollections(userID uint, page, pageSize int, search string) (*CollectionListResponse, error) {
+func ListCollections(userID uint, page, pageSize int, search string, languageFilter []enums.Language) (*CollectionListResponse, error) {
 	if page <= 0 {
 		return nil, ErrInvalidPage
 	}
@@ -349,6 +349,17 @@ func ListCollections(userID uint, page, pageSize int, search string) (*Collectio
 
 		if normalizedSearch != "" {
 			query = query.Where("collections.title ILIKE ?", searchPattern)
+		}
+
+		if len(languageFilter) > 0 {
+			languageSubquery := db.DB.
+				Table("collection_translations AS ct").
+				Select("ct.collection_id").
+				Joins("JOIN translations ON translations.id = ct.translation_id").
+				Joins("JOIN words ON words.id = translations.original_id OR words.id = translations.translation_id").
+				Where("words.language IN ?", languageFilter)
+
+			query = query.Where("collections.id IN (?)", languageSubquery)
 		}
 
 		return query

@@ -261,6 +261,8 @@ const en = {
     collectionsTitle: 'Collections',
     collectionsCreateButton: 'New Collection',
     collectionsSearchPlaceholder: 'Search collections...',
+    collectionsFilterByLanguage: 'Filter by language',
+    collectionsAllLanguages: 'All languages',
     collectionsEmptyTitle: 'No collections yet',
     collectionsEmptyDescription: 'Create your first collection or explore shared and global ones.',
     collectionsNoResultsTitle: 'No collections found',
@@ -332,8 +334,7 @@ const en = {
     collectionJoinBack: 'Go to collections',
     collectionsGenerateButton: 'Generate with AI',
     collectionsGenerateDialogTitle: 'Generate Collection with AI',
-    collectionsGenerateDialogDescription:
-        "Describe what you want and we'll generate a collection for you.",
+    collectionsGenerateDialogDescription: "Describe what you want and we'll generate a collection for you.",
     collectionsGenerateDialogDescriptionAdmin:
         'Describe what you want. The collection is created as a draft so you can review it before publishing.',
     collectionsGeneratePromptLabel: 'Request',
@@ -346,6 +347,7 @@ const en = {
     collectionsGenerateSuccessDescriptionAdmin: 'Review it and publish when ready.',
     collectionsGenerateErrorDescription: 'Failed to generate the collection. Please try again.',
     collectionsGenerateUnavailableDescription: 'AI generation is not configured on the server.',
+    collectionsGenerateDisclaimer: 'AI might not be able to fulfill your request correctly, verify the result.',
     collectionsDraftBadge: 'Draft',
     collectionDraftNotice:
         'This is an unpublished draft, visible only to admins. Publish it to make it available to everyone.',
@@ -626,6 +628,8 @@ const ru: typeof en = {
     collectionsTitle: 'Коллекции',
     collectionsCreateButton: 'Новая коллекция',
     collectionsSearchPlaceholder: 'Поиск коллекций...',
+    collectionsFilterByLanguage: 'Фильтр по языку',
+    collectionsAllLanguages: 'Все языки',
     collectionsEmptyTitle: 'Коллекций пока нет',
     collectionsEmptyDescription: 'Создайте свою первую коллекцию или откройте общие и глобальные.',
     collectionsNoResultsTitle: 'Коллекции не найдены',
@@ -697,8 +701,7 @@ const ru: typeof en = {
     collectionJoinBack: 'Перейти к коллекциям',
     collectionsGenerateButton: 'Сгенерировать ИИ',
     collectionsGenerateDialogTitle: 'Сгенерировать коллекцию с помощью ИИ',
-    collectionsGenerateDialogDescription:
-        'Опишите, что вам нужно, и мы сгенерируем коллекцию для вас.',
+    collectionsGenerateDialogDescription: 'Опишите, что вам нужно, и мы сгенерируем коллекцию для вас.',
     collectionsGenerateDialogDescriptionAdmin:
         'Опишите, что вам нужно. Коллекция создаётся как черновик, чтобы вы могли проверить её перед публикацией.',
     collectionsGeneratePromptLabel: 'Запрос',
@@ -711,6 +714,7 @@ const ru: typeof en = {
     collectionsGenerateSuccessDescriptionAdmin: 'Проверьте и опубликуйте, когда будет готово.',
     collectionsGenerateErrorDescription: 'Не удалось сгенерировать коллекцию. Попробуйте ещё раз.',
     collectionsGenerateUnavailableDescription: 'Генерация ИИ не настроена на сервере.',
+    collectionsGenerateDisclaimer: 'ИИ может не справиться с вашим запросом корректно, проверьте результат.',
     collectionsDraftBadge: 'Черновик',
     collectionDraftNotice:
         'Это неопубликованный черновик, видимый только администраторам. Опубликуйте его, чтобы он стал доступен всем.',

@@ -35,6 +35,9 @@
                                         @keydown.enter.prevent="handleGenerate"
                                     ></textarea>
                                 </div>
+                                <p class="text-xs text-muted-foreground">
+                                    {{ t.collectionsGenerateDisclaimer }}
+                                </p>
                                 <DialogFooter class="justify-center sm:justify-center pt-2">
                                     <Button type="submit" :disabled="isGenerating || !isGenerateValid">
                                         <Loader2 v-if="isGenerating" class="mr-2 h-4 w-4 animate-spin" />
@@ -53,20 +56,34 @@
                 </div>
             </div>
 
-            <div class="relative mb-6 max-w-md">
-                <input
-                    v-model="searchInput"
-                    type="text"
-                    :placeholder="t.collectionsSearchPlaceholder"
-                    :aria-label="t.collectionsSearchPlaceholder"
-                    class="w-full rounded-md border border-border bg-background px-3 py-2 pr-9 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm"
-                />
-                <span
-                    v-if="isLoading"
-                    class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                >
-                    <Loader2 class="h-4 w-4 animate-spin" />
-                </span>
+            <div class="mb-6 flex flex-col gap-3">
+                <div class="relative max-w-md">
+                    <input
+                        v-model="searchInput"
+                        type="text"
+                        :placeholder="t.collectionsSearchPlaceholder"
+                        :aria-label="t.collectionsSearchPlaceholder"
+                        class="w-full rounded-md border border-border bg-background px-3 py-2 pr-9 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm"
+                    />
+                    <span
+                        v-if="isLoading"
+                        class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    >
+                        <Loader2 class="h-4 w-4 animate-spin" />
+                    </span>
+                </div>
+
+                <Select v-if="settingsStore.languageOptions.length > 0" v-model="selectedLanguage">
+                    <SelectTrigger class="w-full max-w-xs" :aria-label="t.collectionsFilterByLanguage">
+                        <SelectValue :placeholder="t.collectionsFilterByLanguage" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem :value="ALL_LANGUAGES">{{ t.collectionsAllLanguages }}</SelectItem>
+                        <SelectItem v-for="lang in settingsStore.languageOptions" :key="lang.code" :value="lang.code">
+                            {{ lang.emoji }} {{ lang.name }}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
 
             <div
@@ -146,12 +163,12 @@
                 class="mb-8 flex min-h-72 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 px-6 text-center"
             >
                 <h2 class="text-xl font-semibold text-foreground">
-                    {{ search ? t.collectionsNoResultsTitle : t.collectionsEmptyTitle }}
+                    {{ hasActiveFilters ? t.collectionsNoResultsTitle : t.collectionsEmptyTitle }}
                 </h2>
                 <p class="mt-2 max-w-md text-sm text-muted-foreground">
-                    {{ search ? t.collectionsNoResultsDescription : t.collectionsEmptyDescription }}
+                    {{ hasActiveFilters ? t.collectionsNoResultsDescription : t.collectionsEmptyDescription }}
                 </p>
-                <Button v-if="!search" class="mt-5" :disabled="isCreating" @click="handleCreate">
+                <Button v-if="!hasActiveFilters" class="mt-5" :disabled="isCreating" @click="handleCreate">
                     <Loader2 v-if="isCreating" class="mr-2 h-4 w-4 animate-spin" />
                     <Plus v-else class="mr-2 h-4 w-4" />
                     {{ t.collectionsCreateButton }}
@@ -202,6 +219,7 @@ import { formatNumber } from '@/lib/utils.ts'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Pagination, PaginationContent, PaginationItem, PaginationEllipsis } from '@/components/ui/pagination'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
     Dialog,
     DialogContent,
@@ -224,8 +242,11 @@ const currentPage = ref(1)
 const paginationData = ref<PaginationData>({ page: 1, page_size: 24, total: 0, total_pages: 0 })
 const isLoading = ref(false)
 const errorMessage = ref('')
+const ALL_LANGUAGES = 'all'
+
 const searchInput = ref('')
 const search = ref('')
+const selectedLanguage = ref<string>(ALL_LANGUAGES)
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
 const isCreating = ref(false)
@@ -236,6 +257,7 @@ const generatePrompt = ref('')
 
 const isAdmin = computed(() => !!authStore.user?.is_admin)
 const isGenerateValid = computed(() => generatePrompt.value.trim().length > 0)
+const hasActiveFilters = computed(() => !!search.value || selectedLanguage.value !== ALL_LANGUAGES)
 
 const getLanguageName = (code: string) =>
     settingsStore.languageOptions.find((l) => l.code === code)?.name || code.toUpperCase()
@@ -264,6 +286,10 @@ watch(search, async () => {
     await fetchCollections(1)
 })
 
+watch(selectedLanguage, async () => {
+    await fetchCollections(1)
+})
+
 const fetchCollections = async (page: number) => {
     isLoading.value = true
     currentPage.value = page
@@ -273,7 +299,8 @@ const fetchCollections = async (page: number) => {
         const response = await collectionsApi.getCollections(
             page,
             paginationData.value.page_size,
-            search.value || undefined
+            search.value || undefined,
+            selectedLanguage.value === ALL_LANGUAGES ? undefined : [selectedLanguage.value]
         )
         collections.value = response.data
         paginationData.value = response.pagination
