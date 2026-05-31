@@ -1,5 +1,6 @@
 import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { formatNumber } from '@/lib/utils.ts'
 
 const en = {
     // Navigation
@@ -261,6 +262,8 @@ const en = {
     collectionsTitle: 'Collections',
     collectionsCreateButton: 'New Collection',
     collectionsSearchPlaceholder: 'Search collections...',
+    collectionsFilterByLanguage: 'Filter by language',
+    collectionsAllLanguages: 'All languages',
     collectionsEmptyTitle: 'No collections yet',
     collectionsEmptyDescription: 'Create your first collection or explore shared and global ones.',
     collectionsNoResultsTitle: 'No collections found',
@@ -290,7 +293,11 @@ const en = {
     collectionDetailEmpty: 'This collection has no translations yet.',
     collectionLoadErrorTitle: 'Collection unavailable',
     collectionLoadErrorDescription: "This collection doesn't exist or you don't have access to it.",
-    collectionAddToVocabulary: 'Add all to my vocabulary',
+    collectionAddToVocabulary: 'Add All',
+    collectionAddSelectButton: 'Add Some',
+    collectionAddSelectedLabel: 'Add',
+    collectionSelectCancel: 'Cancel',
+    collectionSelectTranslationLabel: 'Select translation',
     collectionAddedToVocabularyTitle: 'Added to vocabulary',
     collectionAddedLabel: 'added',
     collectionSkippedLabel: 'already saved',
@@ -305,6 +312,8 @@ const en = {
     collectionTranslationAddErrorDescription: 'Failed to add translation. Please try again.',
     collectionRemoveTranslationLabel: 'Remove translation',
     collectionTranslationRemoveErrorDescription: 'Failed to remove translation. Please try again.',
+    collectionReorderTranslationLabel: 'Drag to reorder',
+    collectionTranslationReorderErrorDescription: 'Failed to reorder translations. Please try again.',
     collectionDelete: 'Delete collection',
     collectionDeleteDialogTitle: 'Delete Collection',
     collectionDeleteConfirmPrefix: 'Are you sure you want to delete "',
@@ -326,16 +335,20 @@ const en = {
     collectionJoinBack: 'Go to collections',
     collectionsGenerateButton: 'Generate with AI',
     collectionsGenerateDialogTitle: 'Generate Collection with AI',
-    collectionsGenerateDialogDescription:
+    collectionsGenerateDialogDescription: "Describe what you want and we'll generate a collection for you.",
+    collectionsGenerateDialogDescriptionAdmin:
         'Describe what you want. The collection is created as a draft so you can review it before publishing.',
     collectionsGeneratePromptLabel: 'Request',
     collectionsGeneratePromptPlaceholder: 'e.g. Add 7 translations of the most popular trees in English-German',
     collectionsGenerateSubmit: 'Generate',
     collectionsGenerating: 'Generating...',
-    collectionsGenerateSuccessTitle: 'Draft created',
-    collectionsGenerateSuccessDescription: 'Review it and publish when ready.',
+    collectionsGenerateSuccessTitle: 'Collection created',
+    collectionsGenerateSuccessDescription: 'Your collection is ready.',
+    collectionsGenerateSuccessTitleAdmin: 'Draft created',
+    collectionsGenerateSuccessDescriptionAdmin: 'Review it and publish when ready.',
     collectionsGenerateErrorDescription: 'Failed to generate the collection. Please try again.',
     collectionsGenerateUnavailableDescription: 'AI generation is not configured on the server.',
+    collectionsGenerateDisclaimer: 'AI might not be able to fulfill your request correctly, verify the result.',
     collectionsDraftBadge: 'Draft',
     collectionDraftNotice:
         'This is an unpublished draft, visible only to admins. Publish it to make it available to everyone.',
@@ -616,6 +629,8 @@ const ru: typeof en = {
     collectionsTitle: 'Коллекции',
     collectionsCreateButton: 'Новая коллекция',
     collectionsSearchPlaceholder: 'Поиск коллекций...',
+    collectionsFilterByLanguage: 'Фильтр по языку',
+    collectionsAllLanguages: 'Все языки',
     collectionsEmptyTitle: 'Коллекций пока нет',
     collectionsEmptyDescription: 'Создайте свою первую коллекцию или откройте общие и глобальные.',
     collectionsNoResultsTitle: 'Коллекции не найдены',
@@ -645,7 +660,11 @@ const ru: typeof en = {
     collectionDetailEmpty: 'В этой коллекции пока нет переводов.',
     collectionLoadErrorTitle: 'Коллекция недоступна',
     collectionLoadErrorDescription: 'Эта коллекция не существует или у вас нет к ней доступа.',
-    collectionAddToVocabulary: 'Добавить всё в мой словарь',
+    collectionAddToVocabulary: 'Добавить всё',
+    collectionAddSelectButton: 'Добавить часть',
+    collectionAddSelectedLabel: 'Добавить',
+    collectionSelectCancel: 'Отмена',
+    collectionSelectTranslationLabel: 'Выбрать перевод',
     collectionAddedToVocabularyTitle: 'Добавлено в словарь',
     collectionAddedLabel: 'добавлено',
     collectionSkippedLabel: 'уже было',
@@ -660,6 +679,8 @@ const ru: typeof en = {
     collectionTranslationAddErrorDescription: 'Не удалось добавить перевод. Попробуйте ещё раз.',
     collectionRemoveTranslationLabel: 'Удалить перевод',
     collectionTranslationRemoveErrorDescription: 'Не удалось удалить перевод. Попробуйте ещё раз.',
+    collectionReorderTranslationLabel: 'Перетащите для изменения порядка',
+    collectionTranslationReorderErrorDescription: 'Не удалось изменить порядок переводов. Попробуйте ещё раз.',
     collectionDelete: 'Удалить коллекцию',
     collectionDeleteDialogTitle: 'Удалить коллекцию',
     collectionDeleteConfirmPrefix: 'Вы уверены, что хотите удалить "',
@@ -681,16 +702,20 @@ const ru: typeof en = {
     collectionJoinBack: 'Перейти к коллекциям',
     collectionsGenerateButton: 'Сгенерировать ИИ',
     collectionsGenerateDialogTitle: 'Сгенерировать коллекцию с помощью ИИ',
-    collectionsGenerateDialogDescription:
+    collectionsGenerateDialogDescription: 'Опишите, что вам нужно, и мы сгенерируем коллекцию для вас.',
+    collectionsGenerateDialogDescriptionAdmin:
         'Опишите, что вам нужно. Коллекция создаётся как черновик, чтобы вы могли проверить её перед публикацией.',
     collectionsGeneratePromptLabel: 'Запрос',
     collectionsGeneratePromptPlaceholder: 'например, Добавь 7 переводов самых популярных деревьев на англо-немецком',
     collectionsGenerateSubmit: 'Сгенерировать',
     collectionsGenerating: 'Генерация...',
-    collectionsGenerateSuccessTitle: 'Черновик создан',
-    collectionsGenerateSuccessDescription: 'Проверьте и опубликуйте, когда будет готово.',
+    collectionsGenerateSuccessTitle: 'Коллекция создана',
+    collectionsGenerateSuccessDescription: 'Ваша коллекция готова.',
+    collectionsGenerateSuccessTitleAdmin: 'Черновик создан',
+    collectionsGenerateSuccessDescriptionAdmin: 'Проверьте и опубликуйте, когда будет готово.',
     collectionsGenerateErrorDescription: 'Не удалось сгенерировать коллекцию. Попробуйте ещё раз.',
     collectionsGenerateUnavailableDescription: 'Генерация ИИ не настроена на сервере.',
+    collectionsGenerateDisclaimer: 'ИИ может не справиться с вашим запросом корректно, проверьте результат.',
     collectionsDraftBadge: 'Черновик',
     collectionDraftNotice:
         'Это неопубликованный черновик, видимый только администраторам. Опубликуйте его, чтобы он стал доступен всем.',
@@ -714,6 +739,23 @@ const translations = { en, ru }
 type Locale = keyof typeof translations
 type Translations = typeof en
 
+// Plural forms for the "saves" label, keyed by the category Intl.PluralRules returns for
+// each locale. English uses one/other; Russian uses one/few/many (e.g. 1 сохранение,
+// 2 сохранения, 5 сохранений).
+const savesForms: Record<Locale, Partial<Record<Intl.LDMLPluralRule, string>>> = {
+    en: { one: 'save', other: 'saves' },
+    ru: { one: 'сохранение', few: 'сохранения', many: 'сохранений' },
+}
+
+// formatSaves renders a localized "N saves" string with the grammatically correct plural
+// form for the given count and locale.
+export function formatSaves(count: number, locale: Locale): string {
+    const forms = savesForms[locale]
+    const category = new Intl.PluralRules(locale).select(count)
+    const word = forms[category] ?? forms.other ?? forms.many ?? forms.one ?? ''
+    return `${formatNumber(count)} ${word}`
+}
+
 export const getSupportedLocale = (language?: string): Locale => (language === 'ru' ? 'ru' : 'en')
 
 export const getLocaleDirection = (language?: string): 'ltr' | 'rtl' => {
@@ -728,5 +770,6 @@ export function useI18n() {
     const authStore = useAuthStore()
     const locale = computed<Locale>(() => getSupportedLocale(authStore.user?.settings.system_language))
     const t = computed<Translations>(() => translations[locale.value])
-    return { t, locale }
+    const saves = (count: number) => formatSaves(count, locale.value)
+    return { t, locale, saves }
 }

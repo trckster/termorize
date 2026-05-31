@@ -4,12 +4,23 @@ import (
 	"errors"
 	nethttp "net/http"
 	"strconv"
+	"strings"
+	"termorize/src/enums"
 	"termorize/src/http/validators"
 	"termorize/src/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
+
+func parseUUIDParam(c *gin.Context, name, errMsg string) (uuid.UUID, bool) {
+	id, err := uuid.Parse(c.Param(name))
+	if err != nil {
+		c.JSON(nethttp.StatusBadRequest, gin.H{"error": errMsg})
+		return uuid.Nil, false
+	}
+	return id, true
+}
 
 func respondCollectionError(c *gin.Context, err error) {
 	switch {
@@ -53,7 +64,17 @@ func GetCollections(c *gin.Context) {
 		}
 	}
 
-	response, err := services.ListCollections(userID, page, pageSize, search)
+	var languages []enums.Language
+	if langParam := c.Query("languages"); langParam != "" {
+		for _, code := range strings.Split(langParam, ",") {
+			code = strings.TrimSpace(code)
+			if code != "" {
+				languages = append(languages, enums.Language(code))
+			}
+		}
+	}
+
+	response, err := services.ListCollections(userID, page, pageSize, search, languages)
 	if err != nil {
 		respondCollectionError(c, err)
 		return
@@ -65,9 +86,8 @@ func GetCollections(c *gin.Context) {
 func GetCollection(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
-	collectionID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid collection ID"})
+	collectionID, ok := parseUUIDParam(c, "id", "invalid collection ID")
+	if !ok {
 		return
 	}
 
@@ -100,9 +120,8 @@ func CreateCollection(c *gin.Context) {
 func DeleteCollection(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
-	collectionID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid collection ID"})
+	collectionID, ok := parseUUIDParam(c, "id", "invalid collection ID")
+	if !ok {
 		return
 	}
 
@@ -117,9 +136,8 @@ func DeleteCollection(c *gin.Context) {
 func AddCollectionTranslation(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
-	collectionID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid collection ID"})
+	collectionID, ok := parseUUIDParam(c, "id", "invalid collection ID")
+	if !ok {
 		return
 	}
 
@@ -140,15 +158,13 @@ func AddCollectionTranslation(c *gin.Context) {
 func RemoveCollectionTranslation(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
-	collectionID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid collection ID"})
+	collectionID, ok := parseUUIDParam(c, "id", "invalid collection ID")
+	if !ok {
 		return
 	}
 
-	translationID, err := uuid.Parse(c.Param("translationId"))
-	if err != nil {
-		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid translation ID"})
+	translationID, ok := parseUUIDParam(c, "translationId", "invalid translation ID")
+	if !ok {
 		return
 	}
 
@@ -160,16 +176,41 @@ func RemoveCollectionTranslation(c *gin.Context) {
 	c.Status(nethttp.StatusOK)
 }
 
-func AddCollectionToVocabulary(c *gin.Context) {
+func ReorderCollectionTranslations(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
-	collectionID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid collection ID"})
+	collectionID, ok := parseUUIDParam(c, "id", "invalid collection ID")
+	if !ok {
 		return
 	}
 
-	result, err := services.AddCollectionToVocabulary(userID, collectionID)
+	var req services.ReorderCollectionTranslationsRequest
+	if !validators.BindJSONWithErrors(c, &req) {
+		return
+	}
+
+	collection, err := services.ReorderCollectionTranslations(userID, collectionID, req.TranslationIDs)
+	if err != nil {
+		respondCollectionError(c, err)
+		return
+	}
+
+	c.JSON(nethttp.StatusOK, collection)
+}
+
+func AddCollectionToVocabulary(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+
+	collectionID, ok := parseUUIDParam(c, "id", "invalid collection ID")
+	if !ok {
+		return
+	}
+
+	// Optional body: absent means "add all", a translation_ids list restricts to those.
+	var req services.AddCollectionToVocabularyRequest
+	_ = c.ShouldBindJSON(&req)
+
+	result, err := services.AddCollectionToVocabulary(userID, collectionID, req.TranslationIDs)
 	if err != nil {
 		respondCollectionError(c, err)
 		return
@@ -198,9 +239,8 @@ func GenerateCollection(c *gin.Context) {
 func PublishCollection(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
-	collectionID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid collection ID"})
+	collectionID, ok := parseUUIDParam(c, "id", "invalid collection ID")
+	if !ok {
 		return
 	}
 
@@ -221,9 +261,8 @@ func PublishCollection(c *gin.Context) {
 func UpdateCollection(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
-	collectionID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid collection ID"})
+	collectionID, ok := parseUUIDParam(c, "id", "invalid collection ID")
+	if !ok {
 		return
 	}
 

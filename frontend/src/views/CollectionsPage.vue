@@ -4,7 +4,7 @@
             <div class="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
                 <h1 class="text-3xl font-bold text-foreground">{{ t.collectionsTitle }}</h1>
                 <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <Dialog v-if="isAdmin" v-model:open="isGenerateDialogOpen">
+                    <Dialog v-model:open="isGenerateDialogOpen">
                         <DialogTrigger as-child>
                             <Button variant="outline" class="min-h-11 w-full sm:w-auto">
                                 <Sparkles class="h-4 w-4 mr-2" />
@@ -14,7 +14,11 @@
                         <DialogContent class="sm:max-w-md">
                             <DialogHeader>
                                 <DialogTitle>{{ t.collectionsGenerateDialogTitle }}</DialogTitle>
-                                <DialogDescription>{{ t.collectionsGenerateDialogDescription }}</DialogDescription>
+                                <DialogDescription>{{
+                                    isAdmin
+                                        ? t.collectionsGenerateDialogDescriptionAdmin
+                                        : t.collectionsGenerateDialogDescription
+                                }}</DialogDescription>
                             </DialogHeader>
                             <form @submit.prevent="handleGenerate" class="space-y-4 py-4">
                                 <div class="space-y-2">
@@ -31,6 +35,9 @@
                                         @keydown.enter.prevent="handleGenerate"
                                     ></textarea>
                                 </div>
+                                <p class="text-xs text-muted-foreground">
+                                    {{ t.collectionsGenerateDisclaimer }}
+                                </p>
                                 <DialogFooter class="justify-center sm:justify-center pt-2">
                                     <Button type="submit" :disabled="isGenerating || !isGenerateValid">
                                         <Loader2 v-if="isGenerating" class="mr-2 h-4 w-4 animate-spin" />
@@ -41,62 +48,42 @@
                         </DialogContent>
                     </Dialog>
 
-                    <Dialog v-model:open="isCreateDialogOpen">
-                        <DialogTrigger as-child>
-                            <Button class="min-h-11 w-full sm:w-auto">
-                                <Plus class="h-4 w-4 mr-2" />
-                                {{ t.collectionsCreateButton }}
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent class="sm:max-w-md">
-                            <DialogHeader>
-                                <DialogTitle>{{ t.collectionsCreateDialogTitle }}</DialogTitle>
-                                <DialogDescription>{{ t.collectionsCreateDialogDescription }}</DialogDescription>
-                            </DialogHeader>
-                            <form @submit.prevent="handleCreate" class="space-y-4 py-4">
-                                <div class="space-y-2">
-                                    <label for="collection-title" class="text-sm font-medium">{{
-                                        t.collectionsTitleLabel
-                                    }}</label>
-                                    <input
-                                        id="collection-title"
-                                        v-model="newTitle"
-                                        type="text"
-                                        :placeholder="t.collectionsTitlePlaceholder"
-                                        maxlength="255"
-                                        class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                                    />
-                                </div>
-                                <label v-if="isAdmin" class="flex items-center gap-2 text-sm font-medium">
-                                    <input v-model="newIsAdmin" type="checkbox" class="h-4 w-4 rounded border-border" />
-                                    <span>{{ t.collectionsAdminToggleLabel }}</span>
-                                </label>
-                                <DialogFooter class="justify-center sm:justify-center pt-2">
-                                    <Button type="submit" :disabled="isCreating || !isFormValid">
-                                        <Loader2 v-if="isCreating" class="mr-2 h-4 w-4 animate-spin" />
-                                        {{ isCreating ? t.adding : t.collectionsCreateSubmit }}
-                                    </Button>
-                                </DialogFooter>
-                            </form>
-                        </DialogContent>
-                    </Dialog>
+                    <Button class="min-h-11 w-full sm:w-auto" :disabled="isCreating" @click="handleCreate">
+                        <Loader2 v-if="isCreating" class="mr-2 h-4 w-4 animate-spin" />
+                        <Plus v-else class="h-4 w-4 mr-2" />
+                        {{ t.collectionsCreateButton }}
+                    </Button>
                 </div>
             </div>
 
-            <div class="relative mb-6 max-w-md">
-                <input
-                    v-model="searchInput"
-                    type="text"
-                    :placeholder="t.collectionsSearchPlaceholder"
-                    :aria-label="t.collectionsSearchPlaceholder"
-                    class="w-full rounded-md border border-border bg-background px-3 py-2 pr-9 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm"
-                />
-                <span
-                    v-if="isLoading"
-                    class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                >
-                    <Loader2 class="h-4 w-4 animate-spin" />
-                </span>
+            <div class="mb-6 flex flex-col gap-3">
+                <div class="relative max-w-md">
+                    <input
+                        v-model="searchInput"
+                        type="text"
+                        :placeholder="t.collectionsSearchPlaceholder"
+                        :aria-label="t.collectionsSearchPlaceholder"
+                        class="w-full rounded-md border border-border bg-background px-3 py-2 pr-9 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm"
+                    />
+                    <span
+                        v-if="isLoading"
+                        class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    >
+                        <Loader2 class="h-4 w-4 animate-spin" />
+                    </span>
+                </div>
+
+                <Select v-if="settingsStore.languageOptions.length > 0" v-model="selectedLanguage">
+                    <SelectTrigger class="w-full max-w-xs" :aria-label="t.collectionsFilterByLanguage">
+                        <SelectValue :placeholder="t.collectionsFilterByLanguage" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem :value="ALL_LANGUAGES">{{ t.collectionsAllLanguages }}</SelectItem>
+                        <SelectItem v-for="lang in settingsStore.languageOptions" :key="lang.code" :value="lang.code">
+                            {{ lang.emoji }} {{ lang.name }}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
 
             <div
@@ -163,7 +150,7 @@
                             <p class="text-sm text-muted-foreground">
                                 {{ formatNumber(collection.translation_count) }} {{ t.collectionsTranslationsLabel }}
                                 <template v-if="collection.user_add_count > 0">
-                                    · <span role="img" aria-label="Saved">🔖</span> {{ formatNumber(collection.user_add_count) }}
+                                    · {{ saves(collection.user_add_count) }}
                                 </template>
                             </p>
                         </CardContent>
@@ -176,13 +163,14 @@
                 class="mb-8 flex min-h-72 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 px-6 text-center"
             >
                 <h2 class="text-xl font-semibold text-foreground">
-                    {{ search ? t.collectionsNoResultsTitle : t.collectionsEmptyTitle }}
+                    {{ hasActiveFilters ? t.collectionsNoResultsTitle : t.collectionsEmptyTitle }}
                 </h2>
                 <p class="mt-2 max-w-md text-sm text-muted-foreground">
-                    {{ search ? t.collectionsNoResultsDescription : t.collectionsEmptyDescription }}
+                    {{ hasActiveFilters ? t.collectionsNoResultsDescription : t.collectionsEmptyDescription }}
                 </p>
-                <Button v-if="!search" class="mt-5" @click="isCreateDialogOpen = true">
-                    <Plus class="mr-2 h-4 w-4" />
+                <Button v-if="!hasActiveFilters" class="mt-5" :disabled="isCreating" @click="handleCreate">
+                    <Loader2 v-if="isCreating" class="mr-2 h-4 w-4 animate-spin" />
+                    <Plus v-else class="mr-2 h-4 w-4" />
                     {{ t.collectionsCreateButton }}
                 </Button>
             </div>
@@ -231,6 +219,7 @@ import { formatNumber } from '@/lib/utils.ts'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Pagination, PaginationContent, PaginationItem, PaginationEllipsis } from '@/components/ui/pagination'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
     Dialog,
     DialogContent,
@@ -242,7 +231,7 @@ import {
 } from '@/components/ui/dialog'
 import { Loader2, Plus, Sparkles } from 'lucide-vue-next'
 
-const { t } = useI18n()
+const { t, saves } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
@@ -253,36 +242,25 @@ const currentPage = ref(1)
 const paginationData = ref<PaginationData>({ page: 1, page_size: 24, total: 0, total_pages: 0 })
 const isLoading = ref(false)
 const errorMessage = ref('')
+const ALL_LANGUAGES = 'all'
+
 const searchInput = ref('')
 const search = ref('')
+const selectedLanguage = ref<string>(ALL_LANGUAGES)
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
-const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
-const newTitle = ref('')
-const newIsAdmin = ref(false)
 
 const isGenerateDialogOpen = ref(false)
 const isGenerating = ref(false)
 const generatePrompt = ref('')
 
 const isAdmin = computed(() => !!authStore.user?.is_admin)
-const isFormValid = computed(() => newTitle.value.trim().length > 0)
 const isGenerateValid = computed(() => generatePrompt.value.trim().length > 0)
+const hasActiveFilters = computed(() => !!search.value || selectedLanguage.value !== ALL_LANGUAGES)
 
 const getLanguageName = (code: string) =>
     settingsStore.languageOptions.find((l) => l.code === code)?.name || code.toUpperCase()
-
-const resetForm = () => {
-    newTitle.value = ''
-    newIsAdmin.value = false
-}
-
-watch(isCreateDialogOpen, (isOpen) => {
-    if (isOpen) {
-        resetForm()
-    }
-})
 
 watch(isGenerateDialogOpen, (isOpen) => {
     if (isOpen) {
@@ -308,6 +286,10 @@ watch(search, async () => {
     await fetchCollections(1)
 })
 
+watch(selectedLanguage, async () => {
+    await fetchCollections(1)
+})
+
 const fetchCollections = async (page: number) => {
     isLoading.value = true
     currentPage.value = page
@@ -317,7 +299,8 @@ const fetchCollections = async (page: number) => {
         const response = await collectionsApi.getCollections(
             page,
             paginationData.value.page_size,
-            search.value || undefined
+            search.value || undefined,
+            selectedLanguage.value === ALL_LANGUAGES ? undefined : [selectedLanguage.value]
         )
         collections.value = response.data
         paginationData.value = response.pagination
@@ -334,21 +317,13 @@ const handlePageChange = async (page: number) => {
 }
 
 const handleCreate = async () => {
-    if (isCreating.value || !isFormValid.value) return
+    if (isCreating.value) return
 
     isCreating.value = true
     try {
-        await collectionsApi.createCollection(newTitle.value.trim(), isAdmin.value && newIsAdmin.value)
-        isCreateDialogOpen.value = false
-        resetForm()
-        await fetchCollections(1)
-
-        addToast({
-            title: t.value.collectionsCreateSuccessTitle,
-            description: t.value.collectionsCreateSuccessDescription,
-            variant: 'success',
-            duration: 3000,
-        })
+        const title = `Collection #${Math.floor(Math.random() * 999) + 1}`
+        const collection = await collectionsApi.createCollection(title)
+        router.push(`/collections/${collection.id}`)
     } catch {
         addToast({
             title: t.value.toastErrorTitle,
@@ -371,8 +346,12 @@ const handleGenerate = async () => {
         generatePrompt.value = ''
 
         addToast({
-            title: t.value.collectionsGenerateSuccessTitle,
-            description: t.value.collectionsGenerateSuccessDescription,
+            title: isAdmin.value
+                ? t.value.collectionsGenerateSuccessTitleAdmin
+                : t.value.collectionsGenerateSuccessTitle,
+            description: isAdmin.value
+                ? t.value.collectionsGenerateSuccessDescriptionAdmin
+                : t.value.collectionsGenerateSuccessDescription,
             variant: 'success',
             duration: 3000,
         })

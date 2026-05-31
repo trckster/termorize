@@ -14,10 +14,9 @@ type Collection struct {
 	Title   string    `json:"title"`
 	OwnerID *uint     `json:"-"`
 	IsAdmin bool      `json:"is_admin"`
-	// No gorm default tag: GORM omits zero-valued fields that carry a `default` tag from
-	// INSERTs, which would make Published:false (drafts) silently become true. Every Create
-	// path sets Published explicitly; the DB column keeps DEFAULT true for the backfill.
-	IsPublished   bool       `json:"is_published"`
+	// No gorm default tag: a `default` tag makes GORM omit the zero value from INSERTs, which
+	// would silently turn unpublished drafts into published. Every Create path sets it explicitly.
+	IsPublished bool       `json:"is_published"`
 	InviteToken string     `json:"-"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"-"`
@@ -26,6 +25,10 @@ type Collection struct {
 
 func (c *Collection) TableName() string {
 	return "collections"
+}
+
+func (c *Collection) IsOwnedBy(userID uint) bool {
+	return c.OwnerID != nil && *c.OwnerID == userID
 }
 
 func (c *Collection) BeforeCreate(_ *gorm.DB) error {
@@ -40,19 +43,18 @@ func (c *Collection) BeforeCreate(_ *gorm.DB) error {
 	return nil
 }
 
-// CollectionTranslation is the join row linking a collection to a translation.
+// Position is the manual sort order within a collection (ascending). A newly added
+// translation gets max(position)+1 so it lands at the end of the list.
 type CollectionTranslation struct {
 	CollectionID  uuid.UUID `gorm:"primaryKey"`
 	TranslationID uuid.UUID `gorm:"primaryKey"`
-	CreatedAt     time.Time
+	Position      int
 }
 
 func (CollectionTranslation) TableName() string {
 	return "collection_translations"
 }
 
-// CollectionMember is the join row granting a user access to a shared collection
-// (added via the collection's invite link).
 type CollectionMember struct {
 	CollectionID uuid.UUID `gorm:"primaryKey"`
 	UserID       uint      `gorm:"primaryKey"`
@@ -63,8 +65,6 @@ func (CollectionMember) TableName() string {
 	return "collection_members"
 }
 
-// CollectionUserAdd tracks which users have added a collection to their vocabulary.
-// Each user can only count once per collection.
 type CollectionUserAdd struct {
 	CollectionID uuid.UUID `gorm:"primaryKey"`
 	UserID       uint      `gorm:"primaryKey"`

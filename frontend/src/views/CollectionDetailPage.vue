@@ -61,10 +61,11 @@
                             </span>
                         </div>
                         <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                            <span>{{ formatNumber(collection.translation_count) }} {{ t.collectionTranslationsLabel }}</span>
-                            <span v-if="collection.user_add_count > 0">
-                                <span role="img" aria-label="Saved">🔖</span> {{ formatNumber(collection.user_add_count) }}
-                            </span>
+                            <span
+                                >{{ formatNumber(collection.translation_count) }}
+                                {{ t.collectionTranslationsLabel }}</span
+                            >
+                            <span v-if="collection.user_add_count > 0">{{ saves(collection.user_add_count) }}</span>
                             <span v-if="!collection.is_admin && !collection.is_owner && collection.owner_username">
                                 {{ t.collectionBy }} @{{ collection.owner_username }}
                             </span>
@@ -152,7 +153,9 @@
                         </DialogHeader>
                         <form @submit.prevent="handleSaveTitle" class="space-y-4 py-4">
                             <div class="space-y-2">
-                                <label for="collection-edit-title" class="text-sm font-medium">{{ t.collectionsTitleLabel }}</label>
+                                <label for="collection-edit-title" class="text-sm font-medium">{{
+                                    t.collectionsTitleLabel
+                                }}</label>
                                 <input
                                     id="collection-edit-title"
                                     v-model="editTitle"
@@ -179,122 +182,174 @@
                     {{ t.collectionDraftNotice }}
                 </div>
 
-                <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div class="mb-6 flex flex-wrap items-center gap-3">
                     <Button
-                        :disabled="isAddingToVocabulary || collection.translation_count === 0"
+                        :disabled="isAddingToVocabulary || collection.translation_count === 0 || (isSelecting && selectedCount === 0)"
                         @click="handleAddToVocabulary"
                     >
                         <Loader2 v-if="isAddingToVocabulary" class="mr-2 h-4 w-4 animate-spin" />
                         <BookmarkPlus v-else class="mr-2 h-4 w-4" />
-                        {{ isAddingToVocabulary ? t.adding : t.collectionAddToVocabulary }}
+                        {{ addToVocabularyLabel }}
                     </Button>
-
-                    <Dialog v-if="canManage" v-model:open="isAddTranslationOpen">
-                        <DialogTrigger as-child>
-                            <Button variant="outline">
-                                <Plus class="mr-2 h-4 w-4" />
-                                {{ t.collectionAddTranslationButton }}
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent class="sm:max-w-md">
-                            <DialogHeader>
-                                <DialogTitle>{{ t.collectionAddTranslationDialogTitle }}</DialogTitle>
-                                <DialogDescription>{{ t.collectionAddTranslationDialogDescription }}</DialogDescription>
-                            </DialogHeader>
-                            <form @submit.prevent="handleAddTranslation" class="space-y-4 py-4">
-                                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                    <div class="space-y-2">
-                                        <label class="text-sm font-medium">{{ t.vocabularyLanguage1 }}</label>
-                                        <LanguageSelector
-                                            v-model="newTranslation.language1"
-                                            :placeholder="t.vocabularySelectLanguagePlaceholder"
-                                            :disabled-values="[newTranslation.language2]"
-                                            :aria-label="t.vocabularyLanguage1"
-                                            :empty-text="t.languageSelectorNoResults"
-                                        />
-                                    </div>
-                                    <div class="space-y-2">
-                                        <label for="collection-word1" class="text-sm font-medium">{{
-                                            t.vocabularyWord1
-                                        }}</label>
-                                        <input
-                                            id="collection-word1"
-                                            v-model="newTranslation.word1"
-                                            type="text"
-                                            :placeholder="t.vocabularyWord1Placeholder"
-                                            maxlength="500"
-                                            class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                                        />
-                                    </div>
-                                </div>
-                                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                    <div class="space-y-2">
-                                        <label class="text-sm font-medium">{{ t.vocabularyLanguage2 }}</label>
-                                        <LanguageSelector
-                                            v-model="newTranslation.language2"
-                                            :placeholder="t.vocabularySelectLanguagePlaceholder"
-                                            :disabled-values="[newTranslation.language1]"
-                                            :aria-label="t.vocabularyLanguage2"
-                                            :empty-text="t.languageSelectorNoResults"
-                                        />
-                                    </div>
-                                    <div class="space-y-2">
-                                        <label for="collection-word2" class="text-sm font-medium">{{
-                                            t.vocabularyWord2
-                                        }}</label>
-                                        <input
-                                            id="collection-word2"
-                                            v-model="newTranslation.word2"
-                                            type="text"
-                                            :placeholder="t.vocabularyWord2Placeholder"
-                                            maxlength="500"
-                                            class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                                        />
-                                    </div>
-                                </div>
-                                <DialogFooter class="justify-center sm:justify-center pt-2">
-                                    <Button type="submit" :disabled="isAddingTranslation || !isTranslationFormValid">
-                                        <Loader2 v-if="isAddingTranslation" class="mr-2 h-4 w-4 animate-spin" />
-                                        {{ isAddingTranslation ? t.adding : t.collectionAddTranslationButton }}
-                                    </Button>
-                                </DialogFooter>
-                            </form>
-                        </DialogContent>
-                    </Dialog>
+                    <Button
+                        v-if="!isSelecting"
+                        variant="outline"
+                        :disabled="isAddingToVocabulary || collection.translation_count === 0"
+                        @click="startSelecting"
+                    >
+                        <ListChecks class="mr-2 h-4 w-4" />
+                        {{ t.collectionAddSelectButton }}
+                    </Button>
+                    <Button v-else variant="ghost" :disabled="isAddingToVocabulary" @click="cancelSelecting">
+                        {{ t.collectionSelectCancel }}
+                    </Button>
                 </div>
+
+                <Dialog v-if="canManage" v-model:open="isAddTranslationOpen">
+                    <DialogContent class="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>{{ t.collectionAddTranslationDialogTitle }}</DialogTitle>
+                            <DialogDescription>{{ t.collectionAddTranslationDialogDescription }}</DialogDescription>
+                        </DialogHeader>
+                        <form @submit.prevent="handleAddTranslation" class="space-y-4 py-4">
+                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div class="space-y-2">
+                                    <label class="text-sm font-medium">{{ t.vocabularyLanguage1 }}</label>
+                                    <LanguageSelector
+                                        v-model="newTranslation.language1"
+                                        :placeholder="t.vocabularySelectLanguagePlaceholder"
+                                        :disabled-values="[newTranslation.language2]"
+                                        :aria-label="t.vocabularyLanguage1"
+                                        :empty-text="t.languageSelectorNoResults"
+                                    />
+                                </div>
+                                <div class="space-y-2">
+                                    <label for="collection-word1" class="text-sm font-medium">{{
+                                        t.vocabularyWord1
+                                    }}</label>
+                                    <input
+                                        id="collection-word1"
+                                        v-model="newTranslation.word1"
+                                        type="text"
+                                        :placeholder="t.vocabularyWord1Placeholder"
+                                        maxlength="500"
+                                        class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                    />
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div class="space-y-2">
+                                    <label class="text-sm font-medium">{{ t.vocabularyLanguage2 }}</label>
+                                    <LanguageSelector
+                                        v-model="newTranslation.language2"
+                                        :placeholder="t.vocabularySelectLanguagePlaceholder"
+                                        :disabled-values="[newTranslation.language1]"
+                                        :aria-label="t.vocabularyLanguage2"
+                                        :empty-text="t.languageSelectorNoResults"
+                                    />
+                                </div>
+                                <div class="space-y-2">
+                                    <label for="collection-word2" class="text-sm font-medium">{{
+                                        t.vocabularyWord2
+                                    }}</label>
+                                    <input
+                                        id="collection-word2"
+                                        v-model="newTranslation.word2"
+                                        type="text"
+                                        :placeholder="t.vocabularyWord2Placeholder"
+                                        maxlength="500"
+                                        class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                    />
+                                </div>
+                            </div>
+                            <DialogFooter class="justify-center sm:justify-center pt-2">
+                                <Button type="submit" :disabled="isAddingTranslation || !isTranslationFormValid">
+                                    <Loader2 v-if="isAddingTranslation" class="mr-2 h-4 w-4 animate-spin" />
+                                    {{ isAddingTranslation ? t.adding : t.collectionAddTranslationButton }}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
 
                 <h2 class="mb-3 text-lg font-semibold text-foreground">{{ t.collectionTranslationsTitle }}</h2>
 
-                <div v-if="collection.translations.length > 0" class="space-y-2">
-                    <div
-                        v-for="item in collection.translations"
-                        :key="item.id"
-                        class="group flex items-center justify-between gap-4 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent/50"
+                <div v-if="collection.translations.length > 0">
+                    <VueDraggable
+                        v-model="orderedTranslations"
+                        :disabled="!canManage"
+                        handle=".collection-drag-handle"
+                        :animation="150"
+                        class="space-y-2"
+                        @end="handleReorder"
                     >
-                        <h3 class="flex min-w-0 items-center gap-2 font-semibold text-foreground">
-                            <span class="text-xl" role="img" :aria-label="getLanguageName(item.original.language)">{{
-                                settingsStore.getFlag(item.original.language)
-                            }}</span>
-                            <span class="min-w-0 break-words text-lg">{{ item.original.word }}</span>
-                            <span class="text-muted-foreground">-</span>
-                            <span class="min-w-0 break-words text-lg">{{ item.translation.word }}</span>
-                            <span class="text-xl" role="img" :aria-label="getLanguageName(item.translation.language)">{{
-                                settingsStore.getFlag(item.translation.language)
-                            }}</span>
-                        </h3>
-                        <Button
-                            v-if="canManage"
-                            variant="ghost"
-                            size="icon"
-                            class="shrink-0 text-muted-foreground opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive focus:opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                            :aria-label="t.collectionRemoveTranslationLabel"
-                            :disabled="removingId === item.id"
-                            @click="handleRemoveTranslation(item.id)"
+                        <div
+                            v-for="item in orderedTranslations"
+                            :key="item.id"
+                            class="group flex items-center justify-between gap-4 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent/50"
                         >
-                            <Loader2 v-if="removingId === item.id" class="h-4 w-4 animate-spin" />
-                            <Trash2 v-else class="h-4 w-4" />
-                        </Button>
-                    </div>
+                            <div class="flex min-w-0 items-center gap-2">
+                                <span
+                                    v-if="canManage"
+                                    class="collection-drag-handle shrink-0 cursor-grab touch-none text-muted-foreground transition-colors hover:text-foreground active:cursor-grabbing"
+                                    role="button"
+                                    :aria-label="t.collectionReorderTranslationLabel"
+                                >
+                                    <GripVertical class="h-4 w-4" />
+                                </span>
+                                <h3 class="flex min-w-0 items-center gap-2 font-semibold text-foreground">
+                                    <span
+                                        class="text-xl"
+                                        role="img"
+                                        :aria-label="getLanguageName(item.original.language)"
+                                        >{{ settingsStore.getFlag(item.original.language) }}</span
+                                    >
+                                    <span class="min-w-0 break-words text-lg">{{ item.original.word }}</span>
+                                    <span class="text-muted-foreground">-</span>
+                                    <span class="min-w-0 break-words text-lg">{{ item.translation.word }}</span>
+                                    <span
+                                        class="text-xl"
+                                        role="img"
+                                        :aria-label="getLanguageName(item.translation.language)"
+                                        >{{ settingsStore.getFlag(item.translation.language) }}</span
+                                    >
+                                </h3>
+                            </div>
+                            <div class="flex shrink-0 items-center gap-2">
+                                <input
+                                    v-if="isSelecting"
+                                    type="checkbox"
+                                    class="h-5 w-5 shrink-0 cursor-pointer rounded border-border text-primary accent-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                    :checked="selectedIds.has(item.id)"
+                                    :disabled="isAddingToVocabulary"
+                                    :aria-label="t.collectionSelectTranslationLabel"
+                                    @change="toggleSelection(item.id)"
+                                />
+                                <Button
+                                    v-if="canManage"
+                                    variant="ghost"
+                                    size="icon"
+                                    class="shrink-0 text-muted-foreground opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive focus:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                                    :aria-label="t.collectionRemoveTranslationLabel"
+                                    :disabled="removingId === item.id"
+                                    @click="handleRemoveTranslation(item.id)"
+                                >
+                                    <Loader2 v-if="removingId === item.id" class="h-4 w-4 animate-spin" />
+                                    <Trash2 v-else class="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+                    </VueDraggable>
+
+                    <button
+                        v-if="canManage"
+                        type="button"
+                        class="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-card/40 p-4 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:bg-accent/50 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                        @click="isAddTranslationOpen = true"
+                    >
+                        <Plus class="h-4 w-4" />
+                        {{ t.collectionAddTranslationButton }}
+                    </button>
                 </div>
 
                 <div
@@ -302,6 +357,10 @@
                     class="flex min-h-48 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 px-6 text-center"
                 >
                     <p class="max-w-md text-sm text-muted-foreground">{{ t.collectionDetailEmpty }}</p>
+                    <Button v-if="canManage" class="mt-5" @click="isAddTranslationOpen = true">
+                        <Plus class="mr-2 h-4 w-4" />
+                        {{ t.collectionAddTranslationButton }}
+                    </Button>
                 </div>
             </div>
         </div>
@@ -331,7 +390,8 @@
 </template>
 
 <script setup lang="ts">
-import { collectionsApi, type CollectionDetail } from '@/api/collections.ts'
+import { collectionsApi, type CollectionDetail, type CollectionTranslation } from '@/api/collections.ts'
+import { VueDraggable } from 'vue-draggable-plus'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.ts'
@@ -351,9 +411,23 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog'
 import { formatNumber } from '@/lib/utils.ts'
-import { ArrowLeft, BookmarkPlus, Check, Copy, EyeOff, Globe, Loader2, Pencil, Plus, Share2, Trash2 } from 'lucide-vue-next'
+import {
+    ArrowLeft,
+    BookmarkPlus,
+    Check,
+    Copy,
+    EyeOff,
+    Globe,
+    GripVertical,
+    ListChecks,
+    Loader2,
+    Pencil,
+    Plus,
+    Share2,
+    Trash2,
+} from 'lucide-vue-next'
 
-const { t } = useI18n()
+const { t, saves } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
@@ -368,6 +442,9 @@ const isShareDialogOpen = ref(false)
 const isDeleting = ref(false)
 const isPublishing = ref(false)
 const removingId = ref<string | null>(null)
+const orderedTranslations = ref<CollectionTranslation[]>([])
+const isSelecting = ref(false)
+const selectedIds = ref<Set<string>>(new Set())
 const justCopied = ref(false)
 let copyTimeoutId: ReturnType<typeof setTimeout> | null = null
 
@@ -413,6 +490,38 @@ const inviteLink = computed(() =>
     collection.value?.invite_token ? `${window.location.origin}/collections/join/${collection.value.invite_token}` : ''
 )
 
+const selectedCount = computed(() => selectedIds.value.size)
+
+const allSelected = computed(
+    () => orderedTranslations.value.length > 0 && selectedCount.value === orderedTranslations.value.length
+)
+
+const addToVocabularyLabel = computed(() => {
+    if (isAddingToVocabulary.value) return t.value.adding
+    if (isSelecting.value && !allSelected.value) return `${t.value.collectionAddSelectedLabel} ${selectedCount.value}`
+    return t.value.collectionAddToVocabulary
+})
+
+const startSelecting = () => {
+    selectedIds.value = new Set(orderedTranslations.value.map((item) => item.id))
+    isSelecting.value = true
+}
+
+const cancelSelecting = () => {
+    isSelecting.value = false
+    selectedIds.value = new Set()
+}
+
+const toggleSelection = (id: string) => {
+    const next = new Set(selectedIds.value)
+    if (next.has(id)) {
+        next.delete(id)
+    } else {
+        next.add(id)
+    }
+    selectedIds.value = next
+}
+
 const getLanguageName = (code: string) =>
     settingsStore.languageOptions.find((l) => l.code === code)?.name || code.toUpperCase()
 
@@ -427,6 +536,14 @@ watch(isEditTitleOpen, (isOpen) => {
         editTitle.value = collection.value.title
     }
 })
+
+watch(
+    () => collection.value?.translations,
+    (translations) => {
+        orderedTranslations.value = translations ? [...translations] : []
+    },
+    { immediate: true }
+)
 
 const fetchCollection = async (id: string) => {
     isLoading.value = true
@@ -444,13 +561,16 @@ const fetchCollection = async (id: string) => {
 
 const handleAddToVocabulary = async () => {
     if (!collection.value) return
+    if (isSelecting.value && selectedCount.value === 0) return
+    const translationIds = isSelecting.value ? Array.from(selectedIds.value) : undefined
 
     isAddingToVocabulary.value = true
     try {
-        const result = await collectionsApi.addToVocabulary(collection.value.id)
+        const result = await collectionsApi.addToVocabulary(collection.value.id, translationIds)
         if (collection.value) {
             collection.value.user_add_count = result.user_add_count
         }
+        cancelSelecting()
         addToast({
             title: t.value.collectionAddedToVocabularyTitle,
             description: `${result.added} ${t.value.collectionAddedLabel}, ${result.skipped} ${t.value.collectionSkippedLabel}`,
@@ -516,6 +636,27 @@ const handleRemoveTranslation = async (translationId: string) => {
         })
     } finally {
         removingId.value = null
+    }
+}
+
+const handleReorder = async () => {
+    if (!collection.value) return
+
+    const newOrder = orderedTranslations.value.map((item) => item.id)
+    const currentOrder = collection.value.translations.map((item) => item.id)
+    // vue-draggable-plus fires @end even when the item is dropped in its original spot.
+    if (newOrder.join(',') === currentOrder.join(',')) return
+
+    try {
+        collection.value = await collectionsApi.reorderTranslations(collection.value.id, newOrder)
+    } catch {
+        orderedTranslations.value = collection.value ? [...collection.value.translations] : []
+        addToast({
+            title: t.value.toastErrorTitle,
+            description: t.value.collectionTranslationReorderErrorDescription,
+            variant: 'destructive',
+            duration: 5000,
+        })
     }
 }
 
@@ -616,7 +757,8 @@ const copyInviteLink = () => {
     const showError = () => {
         addToast({
             title: t.value.toastErrorTitle,
-            description: t.value.collectionLinkCopiedErrorDescription || 'Unable to copy. Please copy the link manually.',
+            description:
+                t.value.collectionLinkCopiedErrorDescription || 'Unable to copy. Please copy the link manually.',
             variant: 'destructive',
             duration: 5000,
         })

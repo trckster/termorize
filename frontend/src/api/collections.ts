@@ -46,12 +46,14 @@ export const collectionsApi = {
     async getCollections(
         page: number = 1,
         pageSize: number = 50,
-        search?: string
+        search?: string,
+        languages?: string[]
     ): Promise<Paginated<CollectionSummary>> {
         return apiCall<Paginated<CollectionSummary>>('/collections', 'GET', {
             page,
             page_size: pageSize,
             search,
+            languages: languages && languages.length > 0 ? languages.join(',') : undefined,
         }).then(unwrapBody)
     },
 
@@ -89,8 +91,18 @@ export const collectionsApi = {
         await apiCall<void>(`/collections/${id}/translations/${translationId}`, 'DELETE')
     },
 
-    async addToVocabulary(id: string): Promise<AddCollectionToVocabularyResult> {
-        return apiCall<AddCollectionToVocabularyResult>(`/collections/${id}/add-to-vocabulary`, 'POST').then(unwrapBody)
+    async reorderTranslations(id: string, translationIds: string[]): Promise<CollectionDetail> {
+        return apiCall<CollectionDetail>(`/collections/${id}/translations/order`, 'PUT', {
+            translation_ids: translationIds,
+        }).then(unwrapBody)
+    },
+
+    async addToVocabulary(id: string, translationIds?: string[]): Promise<AddCollectionToVocabularyResult> {
+        return apiCall<AddCollectionToVocabularyResult>(
+            `/collections/${id}/add-to-vocabulary`,
+            'POST',
+            translationIds ? { translation_ids: translationIds } : undefined
+        ).then(unwrapBody)
     },
 
     async joinByToken(token: string): Promise<CollectionDetail> {
