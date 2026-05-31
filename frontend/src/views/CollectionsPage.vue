@@ -4,7 +4,7 @@
             <div class="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
                 <h1 class="text-3xl font-bold text-foreground">{{ t.collectionsTitle }}</h1>
                 <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <Dialog v-if="isAdmin" v-model:open="isGenerateDialogOpen">
+                    <Dialog v-model:open="isGenerateDialogOpen">
                         <DialogTrigger as-child>
                             <Button variant="outline" class="min-h-11 w-full sm:w-auto">
                                 <Sparkles class="h-4 w-4 mr-2" />
@@ -14,7 +14,11 @@
                         <DialogContent class="sm:max-w-md">
                             <DialogHeader>
                                 <DialogTitle>{{ t.collectionsGenerateDialogTitle }}</DialogTitle>
-                                <DialogDescription>{{ t.collectionsGenerateDialogDescription }}</DialogDescription>
+                                <DialogDescription>{{
+                                    isAdmin
+                                        ? t.collectionsGenerateDialogDescriptionAdmin
+                                        : t.collectionsGenerateDialogDescription
+                                }}</DialogDescription>
                             </DialogHeader>
                             <form @submit.prevent="handleGenerate" class="space-y-4 py-4">
                                 <div class="space-y-2">
@@ -371,8 +375,12 @@ const handleGenerate = async () => {
         generatePrompt.value = ''
 
         addToast({
-            title: t.value.collectionsGenerateSuccessTitle,
-            description: t.value.collectionsGenerateSuccessDescription,
+            title: isAdmin.value
+                ? t.value.collectionsGenerateSuccessTitleAdmin
+                : t.value.collectionsGenerateSuccessTitle,
+            description: isAdmin.value
+                ? t.value.collectionsGenerateSuccessDescriptionAdmin
+                : t.value.collectionsGenerateSuccessDescription,
             variant: 'success',
             duration: 3000,
         })

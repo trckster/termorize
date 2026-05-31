@@ -644,8 +644,9 @@ func AddTranslationToCollection(userID uint, collectionID uuid.UUID, req AddColl
 }
 
 // GenerateCollection asks the configured LLM (via OpenRouter) to produce a set of
-// translations from a free-text admin prompt, then stores them as an UNPUBLISHED admin
-// (draft) collection visible only on the admin side until explicitly published.
+// translations from a free-text prompt, then stores them as a collection. For admins the
+// result is an UNPUBLISHED admin (draft) collection visible only on the admin side until
+// explicitly published; for regular users it is a normal published, owned collection.
 func GenerateCollection(userID uint, prompt string) (*CollectionDetail, error) {
 	prompt = strings.TrimSpace(prompt)
 	if prompt == "" {
@@ -655,9 +656,6 @@ func GenerateCollection(userID uint, prompt string) (*CollectionDetail, error) {
 	isAdmin, err := userIsAdmin(db.DB, userID)
 	if err != nil {
 		return nil, err
-	}
-	if !isAdmin {
-		return nil, ErrCollectionAdminForbidden
 	}
 
 	generated, err := openrouter.NewClient().GenerateCollection(prompt, enums.AllLanguages())
@@ -725,12 +723,14 @@ func GenerateCollection(userID uint, prompt string) (*CollectionDetail, error) {
 		return nil, err
 	}
 
+	// Admins get an unpublished admin (draft) collection visible only on the admin side
+	// until explicitly published. Regular users get a normal published, owned collection.
 	owner := userID
 	collection := models.Collection{
 		Title:       title,
 		OwnerID:     &owner,
-		IsAdmin:     true,
-		IsPublished:   false,
+		IsAdmin:     isAdmin,
+		IsPublished:   !isAdmin,
 		InviteToken: token,
 	}
 
