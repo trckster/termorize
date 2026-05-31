@@ -95,8 +95,12 @@ export const collectionsApi = {
         }).then(unwrapBody)
     },
 
-    async addToVocabulary(id: string): Promise<AddCollectionToVocabularyResult> {
-        return apiCall<AddCollectionToVocabularyResult>(`/collections/${id}/add-to-vocabulary`, 'POST').then(unwrapBody)
+    async addToVocabulary(id: string, translationIds?: string[]): Promise<AddCollectionToVocabularyResult> {
+        return apiCall<AddCollectionToVocabularyResult>(
+            `/collections/${id}/add-to-vocabulary`,
+            'POST',
+            translationIds ? { translation_ids: translationIds } : undefined
+        ).then(unwrapBody)
     },
 
     async joinByToken(token: string): Promise<CollectionDetail> {

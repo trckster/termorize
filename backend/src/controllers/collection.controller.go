@@ -192,7 +192,12 @@ func AddCollectionToVocabulary(c *gin.Context) {
 		return
 	}
 
-	result, err := services.AddCollectionToVocabulary(userID, collectionID)
+	// The body is optional: an absent/empty body means "add all", while a list of
+	// translation_ids restricts the operation to those translations.
+	var req services.AddCollectionToVocabularyRequest
+	_ = c.ShouldBindJSON(&req)
+
+	result, err := services.AddCollectionToVocabulary(userID, collectionID, req.TranslationIDs)
 	if err != nil {
 		respondCollectionError(c, err)
 		return

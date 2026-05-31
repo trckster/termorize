@@ -185,14 +185,26 @@
                     {{ t.collectionDraftNotice }}
                 </div>
 
-                <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div class="mb-6 flex flex-wrap items-center gap-3">
                     <Button
-                        :disabled="isAddingToVocabulary || collection.translation_count === 0"
+                        :disabled="isAddingToVocabulary || collection.translation_count === 0 || (isSelecting && selectedCount === 0)"
                         @click="handleAddToVocabulary"
                     >
                         <Loader2 v-if="isAddingToVocabulary" class="mr-2 h-4 w-4 animate-spin" />
                         <BookmarkPlus v-else class="mr-2 h-4 w-4" />
-                        {{ isAddingToVocabulary ? t.adding : t.collectionAddToVocabulary }}
+                        {{ addToVocabularyLabel }}
+                    </Button>
+                    <Button
+                        v-if="!isSelecting"
+                        variant="outline"
+                        :disabled="isAddingToVocabulary || collection.translation_count === 0"
+                        @click="startSelecting"
+                    >
+                        <ListChecks class="mr-2 h-4 w-4" />
+                        {{ t.collectionAddSelectButton }}
+                    </Button>
+                    <Button v-else variant="ghost" :disabled="isAddingToVocabulary" @click="cancelSelecting">
+                        {{ t.collectionSelectCancel }}
                     </Button>
                 </div>
 
@@ -306,18 +318,29 @@
                                     >
                                 </h3>
                             </div>
-                            <Button
-                                v-if="canManage"
-                                variant="ghost"
-                                size="icon"
-                                class="shrink-0 text-muted-foreground opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive focus:opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                                :aria-label="t.collectionRemoveTranslationLabel"
-                                :disabled="removingId === item.id"
-                                @click="handleRemoveTranslation(item.id)"
-                            >
-                                <Loader2 v-if="removingId === item.id" class="h-4 w-4 animate-spin" />
-                                <Trash2 v-else class="h-4 w-4" />
-                            </Button>
+                            <div class="flex shrink-0 items-center gap-2">
+                                <input
+                                    v-if="isSelecting"
+                                    type="checkbox"
+                                    class="h-5 w-5 shrink-0 cursor-pointer rounded border-border text-primary accent-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                    :checked="selectedIds.has(item.id)"
+                                    :disabled="isAddingToVocabulary"
+                                    :aria-label="t.collectionSelectTranslationLabel"
+                                    @change="toggleSelection(item.id)"
+                                />
+                                <Button
+                                    v-if="canManage"
+                                    variant="ghost"
+                                    size="icon"
+                                    class="shrink-0 text-muted-foreground opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive focus:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                                    :aria-label="t.collectionRemoveTranslationLabel"
+                                    :disabled="removingId === item.id"
+                                    @click="handleRemoveTranslation(item.id)"
+                                >
+                                    <Loader2 v-if="removingId === item.id" class="h-4 w-4 animate-spin" />
+                                    <Trash2 v-else class="h-4 w-4" />
+                                </Button>
+                            </div>
                         </div>
                     </VueDraggable>
 
@@ -399,6 +422,7 @@ import {
     EyeOff,
     Globe,
     GripVertical,
+    ListChecks,
     Loader2,
     Pencil,
     Plus,
@@ -422,6 +446,8 @@ const isDeleting = ref(false)
 const isPublishing = ref(false)
 const removingId = ref<string | null>(null)
 const orderedTranslations = ref<CollectionTranslation[]>([])
+const isSelecting = ref(false)
+const selectedIds = ref<Set<string>>(new Set())
 const justCopied = ref(false)
 let copyTimeoutId: ReturnType<typeof setTimeout> | null = null
 
@@ -467,6 +493,39 @@ const inviteLink = computed(() =>
     collection.value?.invite_token ? `${window.location.origin}/collections/join/${collection.value.invite_token}` : ''
 )
 
+const selectedCount = computed(() => selectedIds.value.size)
+
+const allSelected = computed(
+    () => orderedTranslations.value.length > 0 && selectedCount.value === orderedTranslations.value.length
+)
+
+const addToVocabularyLabel = computed(() => {
+    if (isAddingToVocabulary.value) return t.value.adding
+    // While selecting a subset, reflect the count; an untouched (all-checked) selection still reads "Add All".
+    if (isSelecting.value && !allSelected.value) return `${t.value.collectionAddSelectedLabel} ${selectedCount.value}`
+    return t.value.collectionAddToVocabulary
+})
+
+const startSelecting = () => {
+    selectedIds.value = new Set(orderedTranslations.value.map((item) => item.id))
+    isSelecting.value = true
+}
+
+const cancelSelecting = () => {
+    isSelecting.value = false
+    selectedIds.value = new Set()
+}
+
+const toggleSelection = (id: string) => {
+    const next = new Set(selectedIds.value)
+    if (next.has(id)) {
+        next.delete(id)
+    } else {
+        next.add(id)
+    }
+    selectedIds.value = next
+}
+
 const getLanguageName = (code: string) =>
     settingsStore.languageOptions.find((l) => l.code === code)?.name || code.toUpperCase()
 
@@ -508,13 +567,17 @@ const fetchCollection = async (id: string) => {
 
 const handleAddToVocabulary = async () => {
     if (!collection.value) return
+    // When selecting a subset, send the chosen ids; otherwise omit them to add everything.
+    if (isSelecting.value && selectedCount.value === 0) return
+    const translationIds = isSelecting.value ? Array.from(selectedIds.value) : undefined
 
     isAddingToVocabulary.value = true
     try {
-        const result = await collectionsApi.addToVocabulary(collection.value.id)
+        const result = await collectionsApi.addToVocabulary(collection.value.id, translationIds)
         if (collection.value) {
             collection.value.user_add_count = result.user_add_count
         }
+        cancelSelecting()
         addToast({
             title: t.value.collectionAddedToVocabularyTitle,
             description: `${result.added} ${t.value.collectionAddedLabel}, ${result.skipped} ${t.value.collectionSkippedLabel}`,

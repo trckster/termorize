@@ -72,6 +72,10 @@ type SetCollectionIsPublishedRequest struct {
 	IsPublished bool `json:"is_published"`
 }
 
+type AddCollectionToVocabularyRequest struct {
+	TranslationIDs []uuid.UUID `json:"translation_ids"`
+}
+
 type AddCollectionToVocabularyResult struct {
 	Added        int `json:"added"`
 	Skipped      int `json:"skipped"`
@@ -858,22 +862,30 @@ func ReorderCollectionTranslations(userID uint, collectionID uuid.UUID, translat
 	return GetCollection(userID, collectionID)
 }
 
-func AddCollectionToVocabulary(userID uint, collectionID uuid.UUID) (*AddCollectionToVocabularyResult, error) {
+// AddCollectionToVocabulary adds the collection's translations to the user's vocabulary.
+// When translationIDs is empty, every translation in the collection is added; otherwise only
+// the requested ones that actually belong to the collection are added.
+func AddCollectionToVocabulary(userID uint, collectionID uuid.UUID, translationIDs []uuid.UUID) (*AddCollectionToVocabularyResult, error) {
 	if _, err := getAccessibleCollection(db.DB, userID, collectionID); err != nil {
 		return nil, err
 	}
 
-	var translationIDs []uuid.UUID
-	if err := db.DB.
+	query := db.DB.
 		Table("collection_translations").
-		Where("collection_id = ?", collectionID).
+		Where("collection_id = ?", collectionID)
+	if len(translationIDs) > 0 {
+		query = query.Where("translation_id IN ?", translationIDs)
+	}
+
+	var selectedIDs []uuid.UUID
+	if err := query.
 		Order("position ASC, translation_id ASC").
-		Pluck("translation_id", &translationIDs).Error; err != nil {
+		Pluck("translation_id", &selectedIDs).Error; err != nil {
 		return nil, err
 	}
 
-	result := &AddCollectionToVocabularyResult{Total: len(translationIDs)}
-	for _, translationID := range translationIDs {
+	result := &AddCollectionToVocabularyResult{Total: len(selectedIDs)}
+	for _, translationID := range selectedIDs {
 		if _, err := CreateVocabularyByTranslation(userID, translationID); err != nil {
 			if VocabularyAlreadyExistsError(err) {
 				result.Skipped++
