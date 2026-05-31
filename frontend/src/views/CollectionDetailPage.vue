@@ -188,80 +188,74 @@
                         <BookmarkPlus v-else class="mr-2 h-4 w-4" />
                         {{ isAddingToVocabulary ? t.adding : t.collectionAddToVocabulary }}
                     </Button>
-
-                    <Dialog v-if="canManage" v-model:open="isAddTranslationOpen">
-                        <DialogTrigger as-child>
-                            <Button variant="outline">
-                                <Plus class="mr-2 h-4 w-4" />
-                                {{ t.collectionAddTranslationButton }}
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent class="sm:max-w-md">
-                            <DialogHeader>
-                                <DialogTitle>{{ t.collectionAddTranslationDialogTitle }}</DialogTitle>
-                                <DialogDescription>{{ t.collectionAddTranslationDialogDescription }}</DialogDescription>
-                            </DialogHeader>
-                            <form @submit.prevent="handleAddTranslation" class="space-y-4 py-4">
-                                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                    <div class="space-y-2">
-                                        <label class="text-sm font-medium">{{ t.vocabularyLanguage1 }}</label>
-                                        <LanguageSelector
-                                            v-model="newTranslation.language1"
-                                            :placeholder="t.vocabularySelectLanguagePlaceholder"
-                                            :disabled-values="[newTranslation.language2]"
-                                            :aria-label="t.vocabularyLanguage1"
-                                            :empty-text="t.languageSelectorNoResults"
-                                        />
-                                    </div>
-                                    <div class="space-y-2">
-                                        <label for="collection-word1" class="text-sm font-medium">{{
-                                            t.vocabularyWord1
-                                        }}</label>
-                                        <input
-                                            id="collection-word1"
-                                            v-model="newTranslation.word1"
-                                            type="text"
-                                            :placeholder="t.vocabularyWord1Placeholder"
-                                            maxlength="500"
-                                            class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                                        />
-                                    </div>
-                                </div>
-                                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                    <div class="space-y-2">
-                                        <label class="text-sm font-medium">{{ t.vocabularyLanguage2 }}</label>
-                                        <LanguageSelector
-                                            v-model="newTranslation.language2"
-                                            :placeholder="t.vocabularySelectLanguagePlaceholder"
-                                            :disabled-values="[newTranslation.language1]"
-                                            :aria-label="t.vocabularyLanguage2"
-                                            :empty-text="t.languageSelectorNoResults"
-                                        />
-                                    </div>
-                                    <div class="space-y-2">
-                                        <label for="collection-word2" class="text-sm font-medium">{{
-                                            t.vocabularyWord2
-                                        }}</label>
-                                        <input
-                                            id="collection-word2"
-                                            v-model="newTranslation.word2"
-                                            type="text"
-                                            :placeholder="t.vocabularyWord2Placeholder"
-                                            maxlength="500"
-                                            class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                                        />
-                                    </div>
-                                </div>
-                                <DialogFooter class="justify-center sm:justify-center pt-2">
-                                    <Button type="submit" :disabled="isAddingTranslation || !isTranslationFormValid">
-                                        <Loader2 v-if="isAddingTranslation" class="mr-2 h-4 w-4 animate-spin" />
-                                        {{ isAddingTranslation ? t.adding : t.collectionAddTranslationButton }}
-                                    </Button>
-                                </DialogFooter>
-                            </form>
-                        </DialogContent>
-                    </Dialog>
                 </div>
+
+                <Dialog v-if="canManage" v-model:open="isAddTranslationOpen">
+                    <DialogContent class="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>{{ t.collectionAddTranslationDialogTitle }}</DialogTitle>
+                            <DialogDescription>{{ t.collectionAddTranslationDialogDescription }}</DialogDescription>
+                        </DialogHeader>
+                        <form @submit.prevent="handleAddTranslation" class="space-y-4 py-4">
+                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div class="space-y-2">
+                                    <label class="text-sm font-medium">{{ t.vocabularyLanguage1 }}</label>
+                                    <LanguageSelector
+                                        v-model="newTranslation.language1"
+                                        :placeholder="t.vocabularySelectLanguagePlaceholder"
+                                        :disabled-values="[newTranslation.language2]"
+                                        :aria-label="t.vocabularyLanguage1"
+                                        :empty-text="t.languageSelectorNoResults"
+                                    />
+                                </div>
+                                <div class="space-y-2">
+                                    <label for="collection-word1" class="text-sm font-medium">{{
+                                        t.vocabularyWord1
+                                    }}</label>
+                                    <input
+                                        id="collection-word1"
+                                        v-model="newTranslation.word1"
+                                        type="text"
+                                        :placeholder="t.vocabularyWord1Placeholder"
+                                        maxlength="500"
+                                        class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                    />
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div class="space-y-2">
+                                    <label class="text-sm font-medium">{{ t.vocabularyLanguage2 }}</label>
+                                    <LanguageSelector
+                                        v-model="newTranslation.language2"
+                                        :placeholder="t.vocabularySelectLanguagePlaceholder"
+                                        :disabled-values="[newTranslation.language1]"
+                                        :aria-label="t.vocabularyLanguage2"
+                                        :empty-text="t.languageSelectorNoResults"
+                                    />
+                                </div>
+                                <div class="space-y-2">
+                                    <label for="collection-word2" class="text-sm font-medium">{{
+                                        t.vocabularyWord2
+                                    }}</label>
+                                    <input
+                                        id="collection-word2"
+                                        v-model="newTranslation.word2"
+                                        type="text"
+                                        :placeholder="t.vocabularyWord2Placeholder"
+                                        maxlength="500"
+                                        class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                    />
+                                </div>
+                            </div>
+                            <DialogFooter class="justify-center sm:justify-center pt-2">
+                                <Button type="submit" :disabled="isAddingTranslation || !isTranslationFormValid">
+                                    <Loader2 v-if="isAddingTranslation" class="mr-2 h-4 w-4 animate-spin" />
+                                    {{ isAddingTranslation ? t.adding : t.collectionAddTranslationButton }}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
 
                 <h2 class="mb-3 text-lg font-semibold text-foreground">{{ t.collectionTranslationsTitle }}</h2>
 
@@ -295,6 +289,16 @@
                             <Trash2 v-else class="h-4 w-4" />
                         </Button>
                     </div>
+
+                    <button
+                        v-if="canManage"
+                        type="button"
+                        class="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-card/40 p-4 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:bg-accent/50 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                        @click="isAddTranslationOpen = true"
+                    >
+                        <Plus class="h-4 w-4" />
+                        {{ t.collectionAddTranslationButton }}
+                    </button>
                 </div>
 
                 <div
@@ -302,6 +306,10 @@
                     class="flex min-h-48 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 px-6 text-center"
                 >
                     <p class="max-w-md text-sm text-muted-foreground">{{ t.collectionDetailEmpty }}</p>
+                    <Button v-if="canManage" class="mt-5" @click="isAddTranslationOpen = true">
+                        <Plus class="mr-2 h-4 w-4" />
+                        {{ t.collectionAddTranslationButton }}
+                    </Button>
                 </div>
             </div>
         </div>

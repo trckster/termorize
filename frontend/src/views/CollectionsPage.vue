@@ -45,45 +45,11 @@
                         </DialogContent>
                     </Dialog>
 
-                    <Dialog v-model:open="isCreateDialogOpen">
-                        <DialogTrigger as-child>
-                            <Button class="min-h-11 w-full sm:w-auto">
-                                <Plus class="h-4 w-4 mr-2" />
-                                {{ t.collectionsCreateButton }}
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent class="sm:max-w-md">
-                            <DialogHeader>
-                                <DialogTitle>{{ t.collectionsCreateDialogTitle }}</DialogTitle>
-                                <DialogDescription>{{ t.collectionsCreateDialogDescription }}</DialogDescription>
-                            </DialogHeader>
-                            <form @submit.prevent="handleCreate" class="space-y-4 py-4">
-                                <div class="space-y-2">
-                                    <label for="collection-title" class="text-sm font-medium">{{
-                                        t.collectionsTitleLabel
-                                    }}</label>
-                                    <input
-                                        id="collection-title"
-                                        v-model="newTitle"
-                                        type="text"
-                                        :placeholder="t.collectionsTitlePlaceholder"
-                                        maxlength="255"
-                                        class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                                    />
-                                </div>
-                                <label v-if="isAdmin" class="flex items-center gap-2 text-sm font-medium">
-                                    <input v-model="newIsAdmin" type="checkbox" class="h-4 w-4 rounded border-border" />
-                                    <span>{{ t.collectionsAdminToggleLabel }}</span>
-                                </label>
-                                <DialogFooter class="justify-center sm:justify-center pt-2">
-                                    <Button type="submit" :disabled="isCreating || !isFormValid">
-                                        <Loader2 v-if="isCreating" class="mr-2 h-4 w-4 animate-spin" />
-                                        {{ isCreating ? t.adding : t.collectionsCreateSubmit }}
-                                    </Button>
-                                </DialogFooter>
-                            </form>
-                        </DialogContent>
-                    </Dialog>
+                    <Button class="min-h-11 w-full sm:w-auto" :disabled="isCreating" @click="handleCreate">
+                        <Loader2 v-if="isCreating" class="mr-2 h-4 w-4 animate-spin" />
+                        <Plus v-else class="h-4 w-4 mr-2" />
+                        {{ t.collectionsCreateButton }}
+                    </Button>
                 </div>
             </div>
 
@@ -185,8 +151,9 @@
                 <p class="mt-2 max-w-md text-sm text-muted-foreground">
                     {{ search ? t.collectionsNoResultsDescription : t.collectionsEmptyDescription }}
                 </p>
-                <Button v-if="!search" class="mt-5" @click="isCreateDialogOpen = true">
-                    <Plus class="mr-2 h-4 w-4" />
+                <Button v-if="!search" class="mt-5" :disabled="isCreating" @click="handleCreate">
+                    <Loader2 v-if="isCreating" class="mr-2 h-4 w-4 animate-spin" />
+                    <Plus v-else class="mr-2 h-4 w-4" />
                     {{ t.collectionsCreateButton }}
                 </Button>
             </div>
@@ -261,32 +228,17 @@ const searchInput = ref('')
 const search = ref('')
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
-const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
-const newTitle = ref('')
-const newIsAdmin = ref(false)
 
 const isGenerateDialogOpen = ref(false)
 const isGenerating = ref(false)
 const generatePrompt = ref('')
 
 const isAdmin = computed(() => !!authStore.user?.is_admin)
-const isFormValid = computed(() => newTitle.value.trim().length > 0)
 const isGenerateValid = computed(() => generatePrompt.value.trim().length > 0)
 
 const getLanguageName = (code: string) =>
     settingsStore.languageOptions.find((l) => l.code === code)?.name || code.toUpperCase()
-
-const resetForm = () => {
-    newTitle.value = ''
-    newIsAdmin.value = false
-}
-
-watch(isCreateDialogOpen, (isOpen) => {
-    if (isOpen) {
-        resetForm()
-    }
-})
 
 watch(isGenerateDialogOpen, (isOpen) => {
     if (isOpen) {
@@ -338,21 +290,13 @@ const handlePageChange = async (page: number) => {
 }
 
 const handleCreate = async () => {
-    if (isCreating.value || !isFormValid.value) return
+    if (isCreating.value) return
 
     isCreating.value = true
     try {
-        await collectionsApi.createCollection(newTitle.value.trim(), isAdmin.value && newIsAdmin.value)
-        isCreateDialogOpen.value = false
-        resetForm()
-        await fetchCollections(1)
-
-        addToast({
-            title: t.value.collectionsCreateSuccessTitle,
-            description: t.value.collectionsCreateSuccessDescription,
-            variant: 'success',
-            duration: 3000,
-        })
+        const title = `Collection #${Math.floor(Math.random() * 999) + 1}`
+        const collection = await collectionsApi.createCollection(title)
+        router.push(`/collections/${collection.id}`)
     } catch {
         addToast({
             title: t.value.toastErrorTitle,
