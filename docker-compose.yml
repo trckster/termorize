@@ -10,6 +10,7 @@ x-backend-env: &backend-env
   DB_USER: ${DB_USER}
   DB_PASSWORD: ${DB_PASSWORD}
   GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+  SENTRY_DSN: ${SENTRY_DSN:-}
   TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
 
 services:
@@ -19,6 +20,7 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL:-/api}
         VITE_BOT_USERNAME: ${VITE_BOT_USERNAME}
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
     depends_on:
       - backend
     expose:

@@ -9,6 +9,7 @@ import (
 	"termorize/src/http"
 	"termorize/src/integrations/telegram"
 	"termorize/src/logger"
+	"termorize/src/monitoring"
 	"termorize/src/runners"
 )
 
@@ -17,19 +18,28 @@ func main() {
 
 	config.LoadEnv()
 
+	monitoring.Init()
+	defer monitoring.Flush()
+
 	if err := db.Connect(); err != nil {
-		logger.L().Fatalw("database connection failed", "error", err)
+		fatal("database connection failed", err)
 	}
 
 	if err := db.Migrate(); err != nil {
-		logger.L().Fatalw("migration failed", "error", err)
+		fatal("migration failed", err)
 	}
 
 	if err := telegram.SetupWebhook(); err != nil {
-		logger.L().Fatalw("telegram webhook setup failed", "error", err)
+		fatal("telegram webhook setup failed", err)
 	}
 
 	runners.StartExerciseRunner()
 
 	http.LaunchServer()
+}
+
+func fatal(message string, err error) {
+	monitoring.CaptureException(nil, err)
+	monitoring.Flush()
+	logger.L().Fatalw(message, "error", err)
 }

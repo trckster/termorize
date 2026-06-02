@@ -5,6 +5,7 @@ import (
 	"termorize/src/enums"
 	"termorize/src/integrations/telegram"
 	"termorize/src/logger"
+	"termorize/src/monitoring"
 	"termorize/src/services"
 	"time"
 )
@@ -18,6 +19,13 @@ func StartExerciseRunner() {
 }
 
 func runExerciseRunner() {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			logger.L().Errorw("exercise runner panicked", "panic", recovered)
+			monitoring.Recover(nil, recovered)
+		}
+	}()
+
 	processDueExercises()
 
 	ticker := time.NewTicker(5 * time.Second)
@@ -33,19 +41,23 @@ func processDueExercises() {
 
 	if err := services.ExpireStaleInProgressExercises(now); err != nil {
 		logger.L().Errorw("failed to expire stale in-progress exercises", "error", err)
+		monitoring.CaptureException(nil, err)
 	}
 
 	if err := processDueExerciseReminders(now); err != nil {
 		logger.L().Errorw("failed to process exercise reminders", "error", err)
+		monitoring.CaptureException(nil, err)
 	}
 
 	if err := services.IgnoreDuePendingExercisesWithoutActiveVocabulary(now); err != nil {
 		logger.L().Errorw("failed to ignore invalid pending exercises", "error", err)
+		monitoring.CaptureException(nil, err)
 	}
 
 	exercises, err := services.GetDuePendingExercises(now)
 	if err != nil {
 		logger.L().Errorw("failed to fetch due pending exercises", "error", err)
+		monitoring.CaptureException(nil, err)
 		return
 	}
 

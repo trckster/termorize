@@ -5,6 +5,7 @@ import (
 	"termorize/src/http/middlewares"
 	"termorize/src/http/validators"
 	"termorize/src/logger"
+	"termorize/src/monitoring"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -21,6 +22,7 @@ func LaunchServer() {
 
 	registerCustomValidators()
 
+	router.Use(monitoring.Middleware())
 	router.Use(middlewares.RequestLoggerMiddleware())
 	router.Use(middlewares.RecoveryMiddleware())
 	router.Use(middlewares.CorsMiddleware())

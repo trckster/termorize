@@ -7,6 +7,7 @@ import (
 	"termorize/src/config"
 	"termorize/src/data/db"
 	"termorize/src/logger"
+	"termorize/src/monitoring"
 	"termorize/src/services"
 )
 
@@ -14,11 +15,20 @@ func main() {
 	defer logger.Sync()
 	config.LoadEnv()
 
+	monitoring.Init()
+	defer monitoring.Flush()
+
 	if err := db.Connect(); err != nil {
-		logger.L().Fatalw("database connection failed", "error", err)
+		fatal("database connection failed", err)
 	}
 
 	if err := services.GenerateDailyExercises(); err != nil {
-		logger.L().Fatalw("generation of daily exercises failed", "error", err)
+		fatal("generation of daily exercises failed", err)
 	}
+}
+
+func fatal(message string, err error) {
+	monitoring.CaptureException(nil, err)
+	monitoring.Flush()
+	logger.L().Fatalw(message, "error", err)
 }

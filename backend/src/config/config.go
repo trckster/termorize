@@ -31,6 +31,8 @@ type Config struct {
 	OpenRouterApiKey string
 	OpenRouterModel  string
 
+	SentryDSN string
+
 	JWTExpirationTime time.Duration
 }
 
@@ -83,6 +85,8 @@ func LoadEnv() {
 
 		OpenRouterApiKey: getEnv("OPENROUTER_API_KEY", ""),
 		OpenRouterModel:  getEnv("OPENROUTER_MODEL", "openai/gpt-4o-mini"),
+
+		SentryDSN: getEnv("SENTRY_DSN", ""),
 
 		JWTExpirationTime: 7 * 24 * time.Hour,
 	}
@@ -174,4 +178,12 @@ func GetOpenRouterModel() string {
 
 func GetJWTExpirationTime() time.Duration {
 	return config.JWTExpirationTime
+}
+
+func GetSentryDSN() string {
+	return config.SentryDSN
+}
+
+func GetEnv() string {
+	return config.Env
 }

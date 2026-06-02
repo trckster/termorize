@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"termorize/src/logger"
+	"termorize/src/monitoring"
 
 	"github.com/gin-gonic/gin"
 )
@@ -44,6 +45,8 @@ func RecoveryMiddleware() gin.HandlerFunc {
 					"path", c.Request.URL.Path,
 					"stack", string(debug.Stack()),
 				)
+
+				monitoring.Recover(c, recovered)
 
 				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 			}
