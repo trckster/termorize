@@ -214,38 +214,17 @@
                         <form @submit.prevent="handleAddTranslation" class="space-y-4 py-4">
                             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div class="space-y-2">
-                                    <label class="text-sm font-medium">{{ t.vocabularyLanguage1 }}</label>
-                                    <LanguageSelector
-                                        v-model="newTranslation.language1"
-                                        :placeholder="t.vocabularySelectLanguagePlaceholder"
-                                        :disabled-values="[newTranslation.language2]"
-                                        :aria-label="t.vocabularyLanguage1"
-                                        :empty-text="t.languageSelectorNoResults"
-                                    />
-                                </div>
-                                <div class="space-y-2">
                                     <label for="collection-word1" class="text-sm font-medium">{{
                                         t.vocabularyWord1
                                     }}</label>
                                     <input
                                         id="collection-word1"
+                                        ref="newTranslationWord1Ref"
                                         v-model="newTranslation.word1"
                                         type="text"
                                         :placeholder="t.vocabularyWord1Placeholder"
                                         maxlength="500"
                                         class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                                    />
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                <div class="space-y-2">
-                                    <label class="text-sm font-medium">{{ t.vocabularyLanguage2 }}</label>
-                                    <LanguageSelector
-                                        v-model="newTranslation.language2"
-                                        :placeholder="t.vocabularySelectLanguagePlaceholder"
-                                        :disabled-values="[newTranslation.language1]"
-                                        :aria-label="t.vocabularyLanguage2"
-                                        :empty-text="t.languageSelectorNoResults"
                                     />
                                 </div>
                                 <div class="space-y-2">
@@ -262,6 +241,36 @@
                                     />
                                 </div>
                             </div>
+                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div class="space-y-2">
+                                    <label class="text-sm font-medium">{{ t.vocabularyLanguage1 }}</label>
+                                    <LanguageSelector
+                                        v-model="newTranslation.language1"
+                                        :placeholder="t.vocabularySelectLanguagePlaceholder"
+                                        :disabled-values="[newTranslation.language2]"
+                                        :aria-label="t.vocabularyLanguage1"
+                                        :empty-text="t.languageSelectorNoResults"
+                                    />
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-sm font-medium">{{ t.vocabularyLanguage2 }}</label>
+                                    <LanguageSelector
+                                        v-model="newTranslation.language2"
+                                        :placeholder="t.vocabularySelectLanguagePlaceholder"
+                                        :disabled-values="[newTranslation.language1]"
+                                        :aria-label="t.vocabularyLanguage2"
+                                        :empty-text="t.languageSelectorNoResults"
+                                    />
+                                </div>
+                            </div>
+                            <label class="flex items-center gap-2 text-sm font-medium text-foreground">
+                                <input
+                                    v-model="openAddTranslationAgain"
+                                    type="checkbox"
+                                    class="h-4 w-4 rounded border-border text-primary accent-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                />
+                                {{ t.collectionOpenAddTranslationAgain }}
+                            </label>
                             <DialogFooter class="justify-center sm:justify-center pt-2">
                                 <Button type="submit" :disabled="isAddingTranslation || !isTranslationFormValid">
                                     <Loader2 v-if="isAddingTranslation" class="mr-2 h-4 w-4 animate-spin" />
@@ -392,7 +401,7 @@
 <script setup lang="ts">
 import { collectionsApi, type CollectionDetail, type CollectionTranslation } from '@/api/collections.ts'
 import { VueDraggable } from 'vue-draggable-plus'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.ts'
 import { useSettingsStore } from '@/stores/settings.ts'
@@ -450,10 +459,12 @@ let copyTimeoutId: ReturnType<typeof setTimeout> | null = null
 
 const isAddTranslationOpen = ref(false)
 const isAddingTranslation = ref(false)
+const openAddTranslationAgain = ref(false)
 const isEditTitleOpen = ref(false)
 const isSavingTitle = ref(false)
 const editTitle = ref('')
 const linkRef = ref<HTMLDivElement | null>(null)
+const newTranslationWord1Ref = ref<HTMLInputElement | null>(null)
 
 type NewTranslationForm = {
     word1: string
@@ -525,9 +536,24 @@ const toggleSelection = (id: string) => {
 const getLanguageName = (code: string) =>
     settingsStore.languageOptions.find((l) => l.code === code)?.name || code.toUpperCase()
 
+const focusNewTranslationWord1 = async () => {
+    await nextTick()
+    newTranslationWord1Ref.value?.focus()
+}
+
+const clearNewTranslationWords = () => {
+    newTranslation.value = {
+        ...newTranslation.value,
+        word1: '',
+        word2: '',
+    }
+}
+
 watch(isAddTranslationOpen, (isOpen) => {
     if (isOpen) {
         newTranslation.value = defaultNewTranslation()
+        openAddTranslationAgain.value = false
+        void focusNewTranslationWord1()
     }
 })
 
@@ -601,7 +627,12 @@ const handleAddTranslation = async () => {
             newTranslation.value.language1,
             newTranslation.value.language2
         )
-        isAddTranslationOpen.value = false
+        if (openAddTranslationAgain.value) {
+            clearNewTranslationWords()
+            void focusNewTranslationWord1()
+        } else {
+            isAddTranslationOpen.value = false
+        }
         addToast({
             title: t.value.collectionTranslationAddedTitle,
             description: t.value.collectionTranslationAddedDescription,
