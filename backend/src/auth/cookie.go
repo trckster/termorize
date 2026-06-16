@@ -22,7 +22,7 @@ func DeleteAuthCookie(c *gin.Context) {
 }
 
 func authCookieSameSite() http.SameSite {
-	sameSite := http.SameSiteStrictMode
+	sameSite := http.SameSiteNoneMode
 	if config.IsLocal() {
 		sameSite = http.SameSiteLaxMode
 	}
