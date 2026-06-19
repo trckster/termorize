@@ -561,8 +561,7 @@ func addInlineTranslation(
 
 	var existing models.Translation
 	result := tx.
-		Where("(original_id = ? AND translation_id = ?) OR (original_id = ? AND translation_id = ?)",
-			originalWord.ID, translatedWord.ID, translatedWord.ID, originalWord.ID).
+		Where("original_id = ? AND translation_id = ?", originalWord.ID, translatedWord.ID).
 		Where("source = ?", source).
 		Where("user_id = ?", ownerID).
 		First(&existing)

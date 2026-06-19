@@ -495,11 +495,32 @@ function handleKeydown(event: KeyboardEvent) {
 
     if (event.key === 'Escape' && state.value === 'results') {
         event.preventDefault()
-        closeQuiz()
+        void closeQuiz()
     }
 }
 
-function closeQuiz() {
+function handleQuizBodyClick(event: MouseEvent) {
+    if (state.value !== 'feedback' || event.button !== 0) {
+        return
+    }
+
+    advanceFromFeedback()
+}
+
+async function closeQuiz() {
+    clearChoiceSubmit()
+    clearMatchResolve()
+    clearFeedbackAdvance()
+
+    const exerciseId = currentExercise.value?.exercise_id
+    if (exerciseId && state.value === 'question') {
+        try {
+            await exercisesApi.ignoreExercise(exerciseId)
+        } catch {
+            // Closing the quiz should not trap the user if the exercise was already handled elsewhere.
+        }
+    }
+
     void router.push({ name: 'translation' })
 }
 
@@ -681,7 +702,10 @@ onBeforeUnmount(() => {
             />
         </div>
 
-        <div class="flex min-h-[calc(100vh-83px)] flex-col items-center justify-center px-4 py-8 sm:px-6 sm:py-12">
+        <div
+            class="flex min-h-[calc(100vh-83px)] flex-col items-center justify-center px-4 py-8 sm:px-6 sm:py-12"
+            @click="handleQuizBodyClick"
+        >
             <div :class="quizContentClass">
                 <template v-if="state === 'loading'">
                     <div v-if="error" class="space-y-4 text-center">

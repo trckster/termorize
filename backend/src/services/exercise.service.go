@@ -438,6 +438,34 @@ func IgnoreExercise(exerciseID uuid.UUID) error {
 		}).Error
 }
 
+func IgnoreUserExercise(exerciseID uuid.UUID, userID uint) error {
+	result := db.DB.Model(&models.Exercise{}).
+		Where("id = ? AND user_id = ?", exerciseID, userID).
+		Where("status IN ?", []enums.ExerciseStatus{enums.ExerciseStatusPending, enums.ExerciseStatusInProgress}).
+		Updates(map[string]any{
+			"status":      enums.ExerciseStatusIgnored,
+			"finished_at": time.Now().UTC(),
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected > 0 {
+		return nil
+	}
+
+	var count int64
+	if err := db.DB.Model(&models.Exercise{}).
+		Where("id = ? AND user_id = ?", exerciseID, userID).
+		Count(&count).Error; err != nil {
+		return err
+	}
+	if count == 0 {
+		return ErrExerciseNotFound
+	}
+
+	return ErrExerciseNotInProgress
+}
+
 func IgnoreDuePendingExercisesWithoutActiveVocabulary(now time.Time) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Exec(`

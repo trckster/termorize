@@ -122,8 +122,7 @@ func CreateVocabulary(userID uint, req CreateVocabularyRequest) (*models.Vocabul
 
 		var translation models.Translation
 		result := tx.
-			Where("(original_id = ? AND translation_id = ?) OR (original_id = ? AND translation_id = ?)",
-				originalWord.ID, translatedWord.ID, translatedWord.ID, originalWord.ID).
+			Where("original_id = ? AND translation_id = ?", originalWord.ID, translatedWord.ID).
 			Where("source = ?", enums.TranslationSourceUser).
 			Where("user_id = ?", userID).
 			First(&translation)

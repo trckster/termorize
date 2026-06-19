@@ -139,6 +139,34 @@ func VerifyExercise(c *gin.Context) {
 	})
 }
 
+func IgnoreExercise(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+
+	exerciseIDStr := c.Param("id")
+	exerciseID, err := uuid.Parse(exerciseIDStr)
+	if err != nil {
+		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid exercise id"})
+		return
+	}
+
+	if err := services.IgnoreUserExercise(exerciseID, userID); err != nil {
+		if errors.Is(err, services.ErrExerciseNotFound) {
+			c.JSON(nethttp.StatusNotFound, gin.H{"error": "exercise not found"})
+			return
+		}
+
+		if errors.Is(err, services.ErrExerciseNotInProgress) {
+			c.JSON(nethttp.StatusConflict, gin.H{"error": "exercise is not in progress"})
+			return
+		}
+
+		ServerError(c, err)
+		return
+	}
+
+	c.JSON(nethttp.StatusOK, gin.H{"status": "ignored"})
+}
+
 func CompleteMatchPairsExercise(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 

@@ -110,6 +110,10 @@ export const exercisesApi = {
         return apiCall<VerifyResult>(`/exercises/${exerciseId}/verify`, 'POST', { answer }).then(unwrapBody)
     },
 
+    async ignoreExercise(exerciseId: string): Promise<void> {
+        await apiCall(`/exercises/${exerciseId}/ignore`, 'POST')
+    },
+
     async completeMatchPairsExercise(
         exerciseId: string,
         attempts: MatchPairAttempt[]

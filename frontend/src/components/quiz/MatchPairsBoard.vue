@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { ExerciseMatchCard, MatchPairResult } from '@/api/exercises.ts'
 
 type MatchCardVisualState = 'idle' | 'selected' | 'green' | 'yellow' | 'red'
@@ -9,6 +9,7 @@ type MatchVocabularyState = {
 type MatchCardLayout = {
     x: number
     y: number
+    width: number
     rotation: number
 }
 type PlacedCard = {
@@ -44,13 +45,9 @@ const emit = defineEmits<{
 
 const boardRef = ref<HTMLElement | null>(null)
 const boardSize = ref(0)
-const cardWidth = ref(112)
+const fallbackCardWidth = ref(112)
 const cardLayouts = ref<Record<string, MatchCardLayout>>({})
 let resizeObserver: ResizeObserver | null = null
-
-const boardStyle = computed(() => ({
-    '--match-card-width': `${cardWidth.value}px`,
-}))
 
 function clamp(value: number, min: number, max: number): number {
     return Math.min(max, Math.max(min, value))
@@ -70,6 +67,24 @@ function createSeededRandom(seedInput: string): () => number {
         value ^= value + Math.imul(value ^ (value >>> 7), value | 61)
         return ((value ^ (value >>> 14)) >>> 0) / 4294967296
     }
+}
+
+function getLongestWordLength(text: string): number {
+    return Math.max(
+        ...text
+            .trim()
+            .split(/\s+/u)
+            .filter(Boolean)
+            .map((word) => word.length),
+        0
+    )
+}
+
+function estimateCardWidth(card: ExerciseMatchCard, baseWidth: number, maxWidth: number): number {
+    const horizontalPadding = 28
+    const averageCharacterWidth = 9.5
+    const longestWordWidth = Math.ceil(getLongestWordLength(card.word) * averageCharacterWidth + horizontalPadding)
+    return Math.round(clamp(Math.max(baseWidth, longestWordWidth), baseWidth, maxWidth))
 }
 
 function estimateCardHeight(card: ExerciseMatchCard, width: number): number {
@@ -162,14 +177,16 @@ function generateMatchCardLayouts() {
         return
     }
 
-    const width = Math.round(clamp(size * 0.2, 60, 140))
-    cardWidth.value = width
+    const baseWidth = Math.round(clamp(size * 0.2, 60, 112))
+    const maxWidth = Math.round(clamp(size * 0.44, baseWidth, 240))
+    fallbackCardWidth.value = baseWidth
 
     const random = createSeededRandom(props.cards.map((card) => card.id).join('|'))
     const layouts: Record<string, MatchCardLayout> = {}
     const placed: PlacedCard[] = []
 
     props.cards.forEach((card, index) => {
+        const width = estimateCardWidth(card, baseWidth, maxWidth)
         const height = estimateCardHeight(card, width)
         const placementWidth = width + ROTATION_PADDING
         const placementHeight = height + ROTATION_PADDING
@@ -244,6 +261,7 @@ function generateMatchCardLayouts() {
         layouts[card.id] = {
             x: Math.round(selected.renderX),
             y: Math.round(selected.renderY),
+            width,
             rotation: Math.round((random() * 10 - 5) * 10) / 10,
         }
     })
@@ -313,7 +331,6 @@ onBeforeUnmount(() => {
         class="quiz-match-board relative mx-auto aspect-square w-full max-w-[680px]"
         role="group"
         :aria-label="boardLabel"
-        :style="boardStyle"
     >
         <button
             v-for="card in cards"
@@ -324,12 +341,13 @@ onBeforeUnmount(() => {
             :style="{
                 left: `${cardLayouts[card.id]?.x ?? boardSize / 2}px`,
                 top: `${cardLayouts[card.id]?.y ?? boardSize / 2}px`,
+                width: `${cardLayouts[card.id]?.width ?? fallbackCardWidth}px`,
                 transform: `translate(-50%, -50%) rotate(${cardLayouts[card.id]?.rotation ?? 0}deg)`,
             }"
             class="quiz-match-card absolute flex min-h-14 items-center justify-center rounded-md border px-3 py-2 text-center text-sm font-semibold leading-tight shadow-sm transition-[background-color,border-color,box-shadow,filter,transform] duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-default sm:min-h-16 sm:px-3.5 sm:py-2.5"
             @click="emit('choose', card)"
         >
-            <span class="w-full min-w-0 break-words">{{ card.word }}</span>
+            <span class="quiz-match-card__text w-full min-w-0">{{ card.word }}</span>
         </button>
 
         <div
@@ -347,10 +365,14 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .quiz-match-card {
-    width: var(--match-card-width);
     color: hsl(var(--foreground));
     background: hsl(var(--background));
     border-color: hsl(var(--border));
+}
+
+.quiz-match-card__text {
+    overflow-wrap: anywhere;
+    word-break: normal;
 }
 
 .quiz-match-card--idle:hover:not(:disabled) {

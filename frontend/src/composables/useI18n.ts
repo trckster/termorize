@@ -250,7 +250,7 @@ const en = {
 
     // Quiz
     quizCardTitle: 'Practice your vocabulary',
-    quizCardDescription: '10 questions, one word at a time. Termorize tracks your progress automatically.',
+    quizCardDescription: '10 questions. Keep your vocabulary moving.',
     quizRun: 'Run',
     quizTitle: 'Quiz',
     quizLoading: 'Loading question...',
@@ -647,7 +647,7 @@ const ru: typeof en = {
 
     // Quiz
     quizCardTitle: 'Практикуйте словарь',
-    quizCardDescription: '10 вопросов, по одному слову за раз. Termorize отслеживает прогресс автоматически.',
+    quizCardDescription: '10 вопросов. Освежите слова в памяти.',
     quizRun: 'Запустить',
     quizTitle: 'Тест',
     quizLoading: 'Загрузка вопроса...',
