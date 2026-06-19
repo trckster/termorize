@@ -82,6 +82,7 @@ func RandomExercise(c *gin.Context) {
 		"language":        result.Language,
 		"answer_language": result.AnswerLanguage,
 		"options":         result.Options,
+		"cards":           result.Cards,
 	})
 }
 
@@ -121,6 +122,11 @@ func VerifyExercise(c *gin.Context) {
 			return
 		}
 
+		if errors.Is(err, services.ErrInvalidMatchPairResults) {
+			c.JSON(nethttp.StatusBadRequest, gin.H{"error": services.ErrInvalidMatchPairResults.Error()})
+			return
+		}
+
 		ServerError(c, err)
 		return
 	}
@@ -129,7 +135,67 @@ func VerifyExercise(c *gin.Context) {
 		"result":         result.Result,
 		"correct_answer": result.CorrectAnswer,
 		"knowledge":      result.Knowledge,
+		"progress_delta": result.ProgressDelta,
 	})
+}
+
+func CompleteMatchPairsExercise(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+
+	exerciseIDStr := c.Param("id")
+	exerciseID, err := uuid.Parse(exerciseIDStr)
+	if err != nil {
+		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid exercise id"})
+		return
+	}
+
+	var body struct {
+		Attempts []struct {
+			FirstCardID  string `json:"first_card_id" binding:"required"`
+			SecondCardID string `json:"second_card_id" binding:"required"`
+		} `json:"attempts" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "attempts are required"})
+		return
+	}
+
+	attempts := make([]services.MatchPairAttempt, 0, len(body.Attempts))
+	for _, item := range body.Attempts {
+		attempts = append(attempts, services.MatchPairAttempt{
+			FirstCardID:  item.FirstCardID,
+			SecondCardID: item.SecondCardID,
+		})
+	}
+
+	result, err := services.CompleteMatchPairsExercise(exerciseID, userID, attempts)
+	if err != nil {
+		if errors.Is(err, services.ErrExerciseNotFound) {
+			c.JSON(nethttp.StatusNotFound, gin.H{"error": "exercise not found"})
+			return
+		}
+
+		if errors.Is(err, services.ErrExerciseNotInProgress) {
+			c.JSON(nethttp.StatusConflict, gin.H{"error": "exercise is not in progress"})
+			return
+		}
+
+		if errors.Is(err, services.ErrExerciseVocabularyDeleted) {
+			c.JSON(nethttp.StatusConflict, gin.H{"error": services.ErrExerciseVocabularyDeleted.Error()})
+			return
+		}
+
+		if errors.Is(err, services.ErrInvalidMatchPairResults) {
+			c.JSON(nethttp.StatusBadRequest, gin.H{"error": services.ErrInvalidMatchPairResults.Error()})
+			return
+		}
+
+		ServerError(c, err)
+		return
+	}
+
+	c.JSON(nethttp.StatusOK, result)
 }
 
 func GetExercisesByIDs(c *gin.Context) {

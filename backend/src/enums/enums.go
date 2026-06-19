@@ -22,6 +22,7 @@ const (
 	ExerciseTypeBasicReversed  ExerciseType = "basic/reversed"
 	ExerciseTypeChoiceDirect   ExerciseType = "choice/direct"
 	ExerciseTypeChoiceReversed ExerciseType = "choice/reversed"
+	ExerciseTypeMatchPairs     ExerciseType = "match/pairs"
 )
 
 type ExerciseStatus string

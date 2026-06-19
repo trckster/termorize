@@ -24,11 +24,6 @@ func handleExerciseAnswer(message *message) (bool, error) {
 	}
 
 	t := getBotTextsForTelegramID(telegramID)
-	if len(exercise.Vocabulary) == 0 || exercise.Vocabulary[0].Translation == nil {
-		_ = services.IgnoreExercise(exercise.ExerciseID)
-		return true, SendMessage(message.Chat.ID, t.ExerciseVocabularyDeleted)
-	}
-
 	switch exercise.Status {
 	case enums.ExerciseStatusIgnored:
 		return true, SendMessage(message.Chat.ID, t.ExerciseOutdated)
@@ -41,8 +36,15 @@ func handleExerciseAnswer(message *message) (bool, error) {
 		return true, nil
 	}
 
+	if len(exercise.Vocabulary) == 0 || exercise.Vocabulary[0].Translation == nil {
+		_ = services.MarkExerciseVocabularyResultWithoutProgress(exercise.ExerciseID, services.ExerciseVocabularyResultIgnored, services.ExerciseVocabularyResultReasonDeletedVocabulary)
+		_ = services.IgnoreExercise(exercise.ExerciseID)
+		return true, SendMessage(message.Chat.ID, t.ExerciseVocabularyDeleted)
+	}
+
 	if exercise.ExerciseType == enums.ExerciseTypeChoiceDirect || exercise.ExerciseType == enums.ExerciseTypeChoiceReversed {
 		if len(exercise.Options) != 4 {
+			_ = services.MarkExerciseVocabularyResultWithoutProgress(exercise.ExerciseID, services.ExerciseVocabularyResultIgnored, services.ExerciseVocabularyResultReasonInvalidOptions)
 			_ = services.IgnoreExercise(exercise.ExerciseID)
 			return true, SendMessage(message.Chat.ID, t.ExerciseVocabularyDeleted)
 		}
