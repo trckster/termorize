@@ -32,17 +32,20 @@
                                         :placeholder="t.collectionsGeneratePromptPlaceholder"
                                         maxlength="500"
                                         class="w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                                        @keydown.enter.prevent="handleGenerate"
+                                        @keydown.enter.shift.prevent="handleGenerate"
                                     ></textarea>
                                 </div>
                                 <p class="text-xs text-muted-foreground">
                                     {{ t.collectionsGenerateDisclaimer }}
                                 </p>
-                                <DialogFooter class="justify-center sm:justify-center pt-2">
+                                <DialogFooter
+                                    class="flex-col items-center justify-center gap-2 pt-2 sm:flex-col sm:justify-center"
+                                >
                                     <Button type="submit" :disabled="isGenerating || !isGenerateValid">
                                         <Loader2 v-if="isGenerating" class="mr-2 h-4 w-4 animate-spin" />
                                         {{ isGenerating ? t.collectionsGenerating : t.collectionsGenerateSubmit }}
                                     </Button>
+                                    <span class="text-xs text-muted-foreground/70">Shift + Enter</span>
                                 </DialogFooter>
                             </form>
                         </DialogContent>
