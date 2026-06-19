@@ -3,7 +3,6 @@ import { onMounted, ref } from 'vue'
 import { exercisesApi, type Exercise } from '@/api/exercises.ts'
 import type { PaginationData } from '@/api/pagination.ts'
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem } from '@/components/ui/pagination'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/composables/useI18n'
 import { useSettingsStore } from '@/stores/settings.ts'
@@ -97,26 +96,113 @@ const getWhereLabel = (exercise: Exercise) => {
     return t.value.exercisesWhereWebsite
 }
 
-const getExerciseTranslation = (exercise: Exercise) => {
-    const translation = exercise.vocabularies?.[0]?.translation ?? exercise.vocabulary?.translation ?? null
+const getExerciseVocabularyChanges = (exercise: Exercise) => {
+    const vocabularies = [...(exercise.vocabularies ?? [])].sort(
+        (left, right) => (left.position ?? 0) - (right.position ?? 0)
+    )
 
-    const original = translation?.original ?? {
-        word: exercise.original_word ?? '',
-        language: exercise.original_language ?? '',
-    }
-    const translated = translation?.translation ?? {
-        word: exercise.translation_word ?? '',
-        language: exercise.translation_language ?? '',
-    }
-
-    if (!original || !translated || !original.word || !translated.word) {
-        return null
+    if (vocabularies.length === 0 && exercise.vocabulary?.translation) {
+        vocabularies.push({
+            id: exercise.id,
+            translation: exercise.vocabulary.translation,
+            is_correct: true,
+            position: 0,
+        })
     }
 
-    return {
-        original,
-        translated,
+    if (vocabularies.length === 0 && exercise.original_word && exercise.translation_word) {
+        vocabularies.push({
+            id: exercise.id,
+            translation: {
+                original: {
+                    word: exercise.original_word,
+                    language: exercise.original_language ?? '',
+                },
+                translation: {
+                    word: exercise.translation_word,
+                    language: exercise.translation_language ?? '',
+                },
+            },
+            is_correct: true,
+            position: 0,
+        })
     }
+
+    return vocabularies
+        .map((vocabulary) => {
+            const original = vocabulary.translation?.original
+            const translated = vocabulary.translation?.translation
+
+            if (!original?.word || !translated?.word) {
+                return {
+                    ...vocabulary,
+                    translation: null,
+                }
+            }
+
+            return {
+                ...vocabulary,
+                translation: {
+                    original,
+                    translation: translated,
+                },
+            }
+        })
+        .filter((vocabulary) => vocabulary.translation || vocabulary.exercise_result)
+}
+
+const getResultLabel = (result?: string | null) => {
+    switch (result) {
+        case 'correct':
+            return t.value.exerciseResultCorrect
+        case 'almost':
+            return t.value.exerciseResultAlmost
+        case 'wrong':
+            return t.value.exerciseResultWrong
+        case 'ignored':
+            return t.value.exerciseResultIgnored
+        default:
+            return ''
+    }
+}
+
+const getResultBadgeClass = (result?: string | null) => {
+    switch (result) {
+        case 'correct':
+            return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300'
+        case 'almost':
+            return 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300'
+        case 'wrong':
+            return 'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-300'
+        case 'ignored':
+            return 'border-zinc-400/40 bg-zinc-500/10 text-zinc-700 dark:border-zinc-500/40 dark:bg-zinc-400/10 dark:text-zinc-300'
+        default:
+            return 'border-border bg-muted/40 text-muted-foreground'
+    }
+}
+
+const formatProgressDelta = (delta?: number | null) => {
+    if (delta == null) {
+        return t.value.exerciseNoProgressChange
+    }
+
+    if (delta > 0) {
+        return `+${formatNumber(delta)}`
+    }
+
+    return formatNumber(delta)
+}
+
+const getProgressDeltaClass = (delta?: number | null) => {
+    if (delta == null) {
+        return 'text-muted-foreground'
+    }
+
+    if (delta > 0) {
+        return 'text-emerald-700 dark:text-emerald-300'
+    }
+
+    return 'text-rose-700 dark:text-rose-300'
 }
 
 const getLanguageBadge = (language: string) => {
@@ -208,33 +294,55 @@ onMounted(() => {
                                 </span>
                             </div>
 
-                            <div v-if="getExerciseTranslation(exercise)" class="space-y-2">
-                                <div class="flex flex-wrap items-center gap-2 text-sm text-foreground">
-                                    <span
-                                        class="inline-flex min-w-0 max-w-full rounded-full bg-muted/50 px-3 py-1.5 font-medium"
-                                    >
-                                        <span class="truncate">{{
-                                            getExerciseTranslation(exercise)?.original.word
-                                        }}</span>
-                                    </span>
-                                    <span class="text-muted-foreground">→</span>
-                                    <span
-                                        class="inline-flex min-w-0 max-w-full rounded-full bg-muted/50 px-3 py-1.5 font-medium"
-                                    >
-                                        <span class="truncate">{{
-                                            getExerciseTranslation(exercise)?.translated.word
-                                        }}</span>
-                                    </span>
-                                </div>
+                            <div v-if="getExerciseVocabularyChanges(exercise).length > 0" class="space-y-2">
                                 <div
-                                    class="flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                                    v-for="vocabulary in getExerciseVocabularyChanges(exercise)"
+                                    :key="vocabulary.id"
+                                    class="space-y-1.5"
                                 >
-                                    <span>{{
-                                        getLanguageBadge(getExerciseTranslation(exercise)?.original.language ?? '')
-                                    }}</span>
-                                    <span>{{
-                                        getLanguageBadge(getExerciseTranslation(exercise)?.translated.language ?? '')
-                                    }}</span>
+                                    <div
+                                        v-if="vocabulary.translation"
+                                        class="flex flex-wrap items-center gap-2 text-sm text-foreground"
+                                    >
+                                        <span
+                                            class="inline-flex min-w-0 max-w-full rounded-full bg-muted/50 px-3 py-1.5 font-medium"
+                                        >
+                                            <span class="truncate">{{ vocabulary.translation.original.word }}</span>
+                                        </span>
+                                        <span class="text-muted-foreground">→</span>
+                                        <span
+                                            class="inline-flex min-w-0 max-w-full rounded-full bg-muted/50 px-3 py-1.5 font-medium"
+                                        >
+                                            <span class="truncate">{{ vocabulary.translation.translation.word }}</span>
+                                        </span>
+                                    </div>
+                                    <p v-else class="text-sm text-muted-foreground">
+                                        {{ t.exercisesDeletedVocabulary }}
+                                    </p>
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span
+                                            v-if="vocabulary.translation"
+                                            class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                                        >
+                                            {{ getLanguageBadge(vocabulary.translation.original.language) }}
+                                            <span class="px-1 text-muted-foreground/70">→</span>
+                                            {{ getLanguageBadge(vocabulary.translation.translation.language) }}
+                                        </span>
+                                        <span
+                                            v-if="vocabulary.exercise_result"
+                                            class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+                                            :class="getResultBadgeClass(vocabulary.exercise_result)"
+                                        >
+                                            {{ getResultLabel(vocabulary.exercise_result) }}
+                                        </span>
+                                        <span
+                                            v-if="vocabulary.exercise_result || vocabulary.progress_delta != null"
+                                            class="text-xs font-semibold"
+                                            :class="getProgressDeltaClass(vocabulary.progress_delta)"
+                                        >
+                                            {{ formatProgressDelta(vocabulary.progress_delta) }}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                             <p v-else class="text-sm text-muted-foreground">
@@ -332,94 +440,67 @@ onMounted(() => {
                                         {{ getTypeLabel(exercise.type) }}
                                     </span>
                                 </td>
-                                <td class="px-4 py-3 text-center text-muted-foreground">
+                                <td class="px-4 py-3 text-muted-foreground">
                                     <div
-                                        v-if="getExerciseTranslation(exercise)"
-                                        class="inline-flex max-w-[320px] items-center gap-2 rounded-full border border-border/70 bg-muted/30 px-3 py-1.5 text-left"
+                                        v-if="getExerciseVocabularyChanges(exercise).length > 0"
+                                        class="mx-auto flex max-w-[420px] flex-col gap-1.5"
                                     >
-                                        <Tooltip
-                                            v-if="
-                                                isWordShortened(getExerciseTranslation(exercise)?.original.word ?? '')
-                                            "
+                                        <div
+                                            v-for="vocabulary in getExerciseVocabularyChanges(exercise)"
+                                            :key="vocabulary.id"
+                                            class="flex flex-wrap items-center justify-center gap-2 rounded-full border border-border/70 bg-muted/30 px-3 py-1.5 text-left"
                                         >
-                                            <TooltipTrigger as-child>
+                                            <template v-if="vocabulary.translation">
                                                 <span
                                                     class="inline-flex min-w-0 max-w-[7rem] rounded-full bg-background px-2.5 py-1 text-xs font-medium text-foreground"
+                                                    :title="vocabulary.translation.original.word"
+                                                >
+                                                    <span class="block truncate">
+                                                        {{ formatExerciseWord(vocabulary.translation.original.word) }}
+                                                    </span>
+                                                </span>
+                                                <span
+                                                    class="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                                                >
+                                                    {{ getLanguageBadge(vocabulary.translation.original.language) }}
+                                                </span>
+                                                <span class="shrink-0 text-muted-foreground">→</span>
+                                                <span
+                                                    class="inline-flex min-w-0 max-w-[7rem] rounded-full bg-background px-2.5 py-1 text-xs font-medium text-foreground"
+                                                    :title="vocabulary.translation.translation.word"
                                                 >
                                                     <span class="block truncate">
                                                         {{
-                                                            formatExerciseWord(
-                                                                getExerciseTranslation(exercise)?.original.word ?? ''
-                                                            )
+                                                            formatExerciseWord(vocabulary.translation.translation.word)
                                                         }}
                                                     </span>
                                                 </span>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>{{ getExerciseTranslation(exercise)?.original.word }}</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                        <span
-                                            v-else
-                                            class="inline-flex min-w-0 max-w-[7rem] rounded-full bg-background px-2.5 py-1 text-xs font-medium text-foreground"
-                                        >
-                                            <span class="block">{{
-                                                getExerciseTranslation(exercise)?.original.word
-                                            }}</span>
-                                        </span>
-                                        <span
-                                            class="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
-                                        >
-                                            {{
-                                                getLanguageBadge(
-                                                    getExerciseTranslation(exercise)?.original.language ?? ''
-                                                )
-                                            }}
-                                        </span>
-                                        <span class="shrink-0 text-muted-foreground">→</span>
-                                        <Tooltip
-                                            v-if="
-                                                isWordShortened(getExerciseTranslation(exercise)?.translated.word ?? '')
-                                            "
-                                        >
-                                            <TooltipTrigger as-child>
                                                 <span
-                                                    class="inline-flex min-w-0 max-w-[7rem] rounded-full bg-background px-2.5 py-1 text-xs font-medium text-foreground"
+                                                    class="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
                                                 >
-                                                    <span class="block truncate">
-                                                        {{
-                                                            formatExerciseWord(
-                                                                getExerciseTranslation(exercise)?.translated.word ?? ''
-                                                            )
-                                                        }}
-                                                    </span>
+                                                    {{ getLanguageBadge(vocabulary.translation.translation.language) }}
                                                 </span>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>{{ getExerciseTranslation(exercise)?.translated.word }}</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                        <span
-                                            v-else
-                                            class="inline-flex min-w-0 max-w-[7rem] rounded-full bg-background px-2.5 py-1 text-xs font-medium text-foreground"
-                                        >
-                                            <span class="block">{{
-                                                getExerciseTranslation(exercise)?.translated.word
-                                            }}</span>
-                                        </span>
-                                        <span
-                                            class="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
-                                        >
-                                            {{
-                                                getLanguageBadge(
-                                                    getExerciseTranslation(exercise)?.translated.language ?? ''
-                                                )
-                                            }}
-                                        </span>
+                                            </template>
+                                            <span v-else class="text-xs text-muted-foreground">
+                                                {{ t.exercisesDeletedVocabulary }}
+                                            </span>
+                                            <span
+                                                v-if="vocabulary.exercise_result"
+                                                class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+                                                :class="getResultBadgeClass(vocabulary.exercise_result)"
+                                            >
+                                                {{ getResultLabel(vocabulary.exercise_result) }}
+                                            </span>
+                                            <span
+                                                v-if="vocabulary.exercise_result || vocabulary.progress_delta != null"
+                                                class="text-xs font-semibold"
+                                                :class="getProgressDeltaClass(vocabulary.progress_delta)"
+                                            >
+                                                {{ formatProgressDelta(vocabulary.progress_delta) }}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <span v-else>
-                                        {{ t.exercisesTranslationUnavailable }}
-                                    </span>
+                                    <span v-else>{{ t.exercisesTranslationUnavailable }}</span>
                                 </td>
                             </tr>
                         </tbody>

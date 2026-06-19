@@ -89,6 +89,9 @@ func processDueExercises() {
 			}
 			if len(options) != 4 {
 				logger.L().Warnw("ignoring choice exercise with incomplete options", "exercise_id", exercise.ExerciseID, "options_count", len(options))
+				if markErr := services.MarkExerciseVocabularyResultWithoutProgress(exercise.ExerciseID, services.ExerciseVocabularyResultIgnored, services.ExerciseVocabularyResultReasonInvalidOptions); markErr != nil {
+					logger.L().Warnw("failed to mark invalid exercise vocabulary result", "error", markErr, "exercise_id", exercise.ExerciseID)
+				}
 				if ignoreErr := services.IgnoreExercise(exercise.ExerciseID); ignoreErr != nil {
 					logger.L().Warnw("failed to ignore invalid exercise", "error", ignoreErr, "exercise_id", exercise.ExerciseID)
 				}

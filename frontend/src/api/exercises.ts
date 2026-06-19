@@ -21,6 +21,13 @@ type ExerciseTranslation = {
 type ExerciseVocabulary = {
     id: string
     translation?: ExerciseTranslation | null
+    exercise_result?: 'correct' | 'almost' | 'wrong' | 'ignored' | null
+    result_reason?: string | null
+    progress_delta?: number | null
+    knowledge_after?: number | null
+    answered_at?: string | null
+    is_correct?: boolean
+    position?: number
 }
 
 export type Exercise = {

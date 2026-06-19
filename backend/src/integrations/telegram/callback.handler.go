@@ -134,11 +134,13 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 	}
 
 	if len(exercise.Vocabulary) == 0 || exercise.Vocabulary[0].Translation == nil {
+		_ = services.MarkExerciseVocabularyResultWithoutProgress(exercise.ExerciseID, services.ExerciseVocabularyResultIgnored, services.ExerciseVocabularyResultReasonDeletedVocabulary)
 		_ = services.IgnoreExercise(exercise.ExerciseID)
 		return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
 	}
 
 	if (exercise.ExerciseType == enums.ExerciseTypeChoiceDirect || exercise.ExerciseType == enums.ExerciseTypeChoiceReversed) && len(exercise.Options) != 4 {
+		_ = services.MarkExerciseVocabularyResultWithoutProgress(exercise.ExerciseID, services.ExerciseVocabularyResultIgnored, services.ExerciseVocabularyResultReasonInvalidOptions)
 		_ = services.IgnoreExercise(exercise.ExerciseID)
 		return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
 	}
@@ -180,7 +182,13 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 		}
 	}
 
-	updated, translationKnowledge, err := services.FinishExercise(exerciseID, enums.ExerciseStatusFailed, services.ExerciseFailProgressDelta)
+	updated, translationKnowledge, err := services.FinishExercise(
+		exerciseID,
+		enums.ExerciseStatusFailed,
+		services.ExerciseVocabularyResultIgnored,
+		services.ExerciseVocabularyResultReasonSkipped,
+		services.ExerciseFailProgressDelta,
+	)
 	if err != nil {
 		return err
 	}
