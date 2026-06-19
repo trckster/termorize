@@ -65,6 +65,8 @@ const getTypeLabel = (type: string) => {
             return t.value.exerciseTypeChoiceDirect
         case 'choice/reversed':
             return t.value.exerciseTypeChoiceReversed
+        case 'match/pairs':
+            return t.value.exerciseTypeMatchPairs
         default:
             return type
     }
@@ -80,6 +82,8 @@ const getTypeBadgeClass = (type: string) => {
             return 'border-sky-300 bg-sky-100 text-sky-800 dark:border-sky-400 dark:bg-sky-200 dark:text-sky-950'
         case 'choice/reversed':
             return 'border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-400 dark:bg-amber-200 dark:text-amber-950'
+        case 'match/pairs':
+            return 'border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-400 dark:bg-emerald-200 dark:text-emerald-950'
         default:
             return 'border-border bg-muted/40 text-foreground'
     }

@@ -30,6 +30,14 @@ type ExerciseVocabulary = {
     position?: number
 }
 
+export type ExerciseMatchCard = {
+    id: string
+    vocabulary_id: string
+    word: string
+    language: string
+    side: 'original' | 'translation'
+}
+
 export type Exercise = {
     id: string
     type: string
@@ -51,17 +59,31 @@ export type Exercise = {
 
 export type RandomExercise = {
     exercise_id: string
-    type: 'basic/direct' | 'basic/reversed' | 'choice/direct' | 'choice/reversed'
+    type: 'basic/direct' | 'basic/reversed' | 'choice/direct' | 'choice/reversed' | 'match/pairs'
     question_word: string
     language: string
     answer_language: string
     options: string[]
+    cards?: ExerciseMatchCard[]
 }
 
 export type VerifyResult = {
     result: 'correct' | 'almost' | 'wrong'
     correct_answer: string
     knowledge: number
+    progress_delta: number
+}
+
+export type MatchPairResult = 'correct' | 'almost' | 'wrong'
+
+export type MatchPairAttempt = {
+    first_card_id: string
+    second_card_id: string
+}
+
+export type MatchPairsCompleteResult = {
+    status: 'completed' | 'failed'
+    results: ExerciseVocabulary[]
 }
 
 export const exercisesApi = {
@@ -86,5 +108,14 @@ export const exercisesApi = {
 
     async verifyExercise(exerciseId: string, answer: string): Promise<VerifyResult> {
         return apiCall<VerifyResult>(`/exercises/${exerciseId}/verify`, 'POST', { answer }).then(unwrapBody)
+    },
+
+    async completeMatchPairsExercise(
+        exerciseId: string,
+        attempts: MatchPairAttempt[]
+    ): Promise<MatchPairsCompleteResult> {
+        return apiCall<MatchPairsCompleteResult>(`/exercises/${exerciseId}/match-pairs/complete`, 'POST', {
+            attempts,
+        }).then(unwrapBody)
     },
 }

@@ -22,6 +22,7 @@ func defineProtectedRoutes(group *gin.RouterGroup) {
 	group.GET("/exercises/statistics", controllers.GetExerciseStatistics)
 	group.POST("/exercises/random", controllers.RandomExercise)
 	group.POST("/exercises/:id/verify", controllers.VerifyExercise)
+	group.POST("/exercises/:id/match-pairs/complete", controllers.CompleteMatchPairsExercise)
 
 	group.GET("/collections", controllers.GetCollections)
 	group.POST("/collections", controllers.CreateCollection)
