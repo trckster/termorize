@@ -23,7 +23,7 @@ func ValidateEnum(fl validator.FieldLevel) bool {
 
 	fn, ok := enumFuncs[param]
 	if !ok {
-		return false // unknown enum
+		return false
 	}
 
 	for _, v := range fn() {

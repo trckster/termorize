@@ -206,7 +206,6 @@ func AddCollectionToVocabulary(c *gin.Context) {
 		return
 	}
 
-	// Optional body: absent means "add all", a translation_ids list restricts to those.
 	var req services.AddCollectionToVocabularyRequest
 	_ = c.ShouldBindJSON(&req)
 

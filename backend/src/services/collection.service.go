@@ -12,6 +12,7 @@ import (
 	"termorize/src/integrations/openrouter"
 	"termorize/src/logger"
 	"termorize/src/models"
+	"termorize/src/utils"
 	"time"
 
 	"github.com/google/uuid"
@@ -131,9 +132,6 @@ func AIGenerationFailedError(err error) bool {
 	return errors.Is(err, ErrAIGenerationFailed)
 }
 
-// collectionTitleMaxLength matches the collections.title VARCHAR(255) column. Titles are
-// truncated (on runes, not bytes) rather than rejected so an over-long title never surfaces
-// as a raw DB error.
 const collectionTitleMaxLength = 255
 
 func truncateTitle(title string) string {
@@ -162,11 +160,6 @@ func userIsAdmin(conn *gorm.DB, userID uint) (bool, error) {
 	return user.IsAdmin, nil
 }
 
-// getAccessibleCollection loads a non-deleted collection the user may view, returning
-// ErrCollectionNotFound both when it's missing and when the user has no access so that
-// private collections and drafts don't leak their existence. Viewable by: anyone for a
-// published global collection, the owner, invited members, and admins (any collection,
-// including unpublished drafts).
 func getAccessibleCollection(conn *gorm.DB, userID uint, collectionID uuid.UUID) (*models.Collection, error) {
 	var collection models.Collection
 	err := conn.Where("id = ? AND deleted_at IS NULL", collectionID).First(&collection).Error
@@ -212,8 +205,6 @@ func canEditCollection(conn *gorm.DB, userID uint, collection *models.Collection
 	return false, nil
 }
 
-// getEditableCollection loads a collection and verifies the user may modify it (owner, or
-// admin for a global collection), returning ErrCollectionForbidden otherwise.
 func getEditableCollection(conn *gorm.DB, userID uint, collectionID uuid.UUID) (*models.Collection, error) {
 	collection, err := getAccessibleCollection(conn, userID, collectionID)
 	if err != nil {
@@ -262,8 +253,6 @@ func collectionLanguages(conn *gorm.DB, collectionIDs []uuid.UUID) (map[uuid.UUI
 	return result, nil
 }
 
-// countByCollection returns the number of rows in table grouped by collection_id, for the
-// given collection IDs (used for translation counts and user-add counts).
 func countByCollection(conn *gorm.DB, table string, collectionIDs []uuid.UUID) (map[uuid.UUID]int, error) {
 	result := make(map[uuid.UUID]int)
 	if len(collectionIDs) == 0 {
@@ -487,7 +476,6 @@ func GetCollection(userID uint, collectionID uuid.UUID) (*CollectionDetail, erro
 		}
 	}
 
-	// Global collections are visible to all, so only a private collection's owner gets the invite link.
 	if isOwner && !collection.IsAdmin {
 		detail.InviteToken = collection.InviteToken
 	}
@@ -544,8 +532,6 @@ func DeleteCollection(userID uint, collectionID uuid.UUID) error {
 	})
 }
 
-// addInlineTranslation finds or creates the translation for a word pair (owned by ownerID,
-// with the given source) and appends it to the collection. Idempotent on the link.
 func addInlineTranslation(
 	tx *gorm.DB,
 	collectionID uuid.UUID,
@@ -556,6 +542,13 @@ func addInlineTranslation(
 	translation string,
 	translationLanguage enums.Language,
 ) error {
+	original, translation = utils.NormalizeTranslationPairCasing(
+		original,
+		string(originalLanguage),
+		translation,
+		string(translationLanguage),
+	)
+
 	originalWord, err := GetOrCreateWord(tx, original, originalLanguage)
 	if err != nil {
 		return err
@@ -634,8 +627,6 @@ func AddTranslationToCollection(userID uint, collectionID uuid.UUID, req AddColl
 	return GetCollection(userID, collectionID)
 }
 
-// GenerateCollection asks the configured LLM to build a collection from a free-text prompt.
-// Admins get an unpublished draft to review; regular users get a published, owned collection.
 func GenerateCollection(userID uint, prompt string) (*CollectionDetail, error) {
 	prompt = strings.TrimSpace(prompt)
 	if prompt == "" {
@@ -773,8 +764,6 @@ type ReorderCollectionTranslationsRequest struct {
 	TranslationIDs []uuid.UUID `json:"translation_ids" binding:"required"`
 }
 
-// ReorderCollectionTranslations sets each listed translation's position to its index in
-// translationIDs. IDs not in the collection are ignored; translations not listed keep their position.
 func ReorderCollectionTranslations(userID uint, collectionID uuid.UUID, translationIDs []uuid.UUID) (*CollectionDetail, error) {
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
 		if _, err := getEditableCollection(tx, userID, collectionID); err != nil {
@@ -798,9 +787,6 @@ func ReorderCollectionTranslations(userID uint, collectionID uuid.UUID, translat
 	return GetCollection(userID, collectionID)
 }
 
-// AddCollectionToVocabulary adds the collection's translations to the user's vocabulary.
-// An empty translationIDs adds every translation; otherwise only the listed ones that belong
-// to the collection.
 func AddCollectionToVocabulary(userID uint, collectionID uuid.UUID, translationIDs []uuid.UUID) (*AddCollectionToVocabularyResult, error) {
 	if _, err := getAccessibleCollection(db.DB, userID, collectionID); err != nil {
 		return nil, err
@@ -884,8 +870,6 @@ func JoinCollectionByToken(userID uint, token string) (*CollectionDetail, error)
 		return nil, err
 	}
 
-	// Owners and global collections are already accessible; only an outside user joining a
-	// private collection needs a membership row.
 	if !collection.IsOwnedBy(userID) && !collection.IsAdmin {
 		member := models.CollectionMember{CollectionID: collection.ID, UserID: userID}
 		if err := db.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&member).Error; err != nil {

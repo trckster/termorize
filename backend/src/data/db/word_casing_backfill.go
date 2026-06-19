@@ -12,15 +12,6 @@ type wordCasingRow struct {
 	Language string
 }
 
-// backfillWordCasing re-normalizes the casing of every stored word using the
-// same rules as word creation (utils.NormalizeWordCasing). Registered as
-// migration 0004_normalize_word_casing.
-//
-// The words table has a UNIQUE (word, language) constraint, so if normalizing a
-// row would collide with an already-correctly-cased row, the duplicate's
-// translations are repointed to the canonical row and the duplicate is removed.
-// Such collisions are essentially impossible in practice because word lookup has
-// always been case-insensitive (LOWER(word) = LOWER(?)); the handling is defensive.
 func backfillWordCasing() error {
 	return DB.Transaction(func(tx *gorm.DB) error {
 		var rows []wordCasingRow
@@ -29,7 +20,7 @@ func backfillWordCasing() error {
 		}
 
 		for _, row := range rows {
-			normalized := utils.NormalizeWordCasing(row.Word)
+			normalized := utils.NormalizeWordCasingForLanguage(row.Word, row.Language)
 			if normalized == row.Word {
 				continue
 			}

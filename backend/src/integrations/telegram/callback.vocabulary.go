@@ -81,7 +81,6 @@ func handleVocabularyDeleteCallback(callback *callbackQuery, payload []string) e
 		return err
 	}
 
-	// Try trimming both EN and RU suffixes since user may have changed language since word was added
 	updatedText := strings.TrimSuffix(callback.Message.Text, botTextsEn.VocabularyAutoAddedSuffix)
 	if updatedText == callback.Message.Text {
 		updatedText = strings.TrimSuffix(callback.Message.Text, botTextsRu.VocabularyAutoAddedSuffix)

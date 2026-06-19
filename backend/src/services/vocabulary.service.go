@@ -74,7 +74,7 @@ func InvalidPaginationError(err error) bool {
 }
 
 func GetOrCreateWord(conn *gorm.DB, word string, language enums.Language) (*models.Word, error) {
-	normalizedWord := utils.NormalizeWordCasing(word)
+	normalizedWord := utils.NormalizeWordCasingForLanguage(word, string(language))
 
 	var existingWord models.Word
 	result := conn.Where("LOWER(word) = LOWER(?) AND language = ?", normalizedWord, language).First(&existingWord)
@@ -103,12 +103,19 @@ func CreateVocabulary(userID uint, req CreateVocabularyRequest) (*models.Vocabul
 	var vocabulary models.Vocabulary
 
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		originalWord, err := GetOrCreateWord(tx, req.Original, req.OriginalLanguage)
+		original, translationText := utils.NormalizeTranslationPairCasing(
+			req.Original,
+			string(req.OriginalLanguage),
+			req.Translation,
+			string(req.TranslationLanguage),
+		)
+
+		originalWord, err := GetOrCreateWord(tx, original, req.OriginalLanguage)
 		if err != nil {
 			return err
 		}
 
-		translatedWord, err := GetOrCreateWord(tx, req.Translation, req.TranslationLanguage)
+		translatedWord, err := GetOrCreateWord(tx, translationText, req.TranslationLanguage)
 		if err != nil {
 			return err
 		}

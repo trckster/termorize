@@ -7,6 +7,7 @@ import (
 	"termorize/src/enums"
 	"termorize/src/integrations/google"
 	"termorize/src/models"
+	"termorize/src/utils"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -65,6 +66,13 @@ func Translate(fromWord string, fromLanguage enums.Language, toLanguage enums.La
 		if err != nil {
 			return err
 		}
+
+		_, translatedText = utils.NormalizeTranslationPairCasing(
+			fromWord,
+			string(fromLanguage),
+			translatedText,
+			string(toLanguage),
+		)
 
 		targetWord, err := GetOrCreateWord(tx, translatedText, toLanguage)
 		if err != nil {

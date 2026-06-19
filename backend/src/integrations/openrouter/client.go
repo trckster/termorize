@@ -14,10 +14,8 @@ import (
 
 const apiURL = "https://openrouter.ai/api/v1/chat/completions"
 
-// ErrNotConfigured is returned when no OpenRouter API key is set.
 var ErrNotConfigured = errors.New("openrouter api key is not configured")
 
-// GeneratedTranslation is a single word pair produced by the model.
 type GeneratedTranslation struct {
 	Original            string `json:"original"`
 	OriginalLanguage    string `json:"original_language"`
@@ -25,7 +23,6 @@ type GeneratedTranslation struct {
 	TranslationLanguage string `json:"translation_language"`
 }
 
-// GeneratedCollection is the structured result the model is asked to return.
 type GeneratedCollection struct {
 	Title        string                 `json:"title"`
 	Translations []GeneratedTranslation `json:"translations"`

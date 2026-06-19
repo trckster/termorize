@@ -105,7 +105,6 @@ func GetDomain() string {
 	return parseUrl.Hostname()
 }
 
-// GetPublicURL returns frontend URL
 func GetPublicURL() string {
 	return config.PublicURL
 }

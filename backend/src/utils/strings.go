@@ -5,18 +5,18 @@ import (
 	"unicode"
 )
 
-// NormalizeWordCasing decides the stored casing of a vocabulary word. It is
-// purely string-based — casing does not depend on the word's language.
-//
-// Rules, applied in order (first match wins):
-//  1. Trim surrounding whitespace.
-//  2. Multi-token phrases keep their casing as-is. This protects German nouns,
-//     which are entered with their article (e.g. "das Haus"), and other phrases
-//     ("New York").
-//  3. Acronyms (all-uppercase, 2+ letters) keep their casing: USB, NATO.
-//  4. Words with internal capitals keep their casing: iPhone, eBay.
-//  5. Otherwise lowercase. A single-token German word has no article, so it is
-//     not a noun and is correctly lowercased ("gehen", "schön").
+var italianArticles = map[string]bool{
+	"il":  true,
+	"lo":  true,
+	"i":   true,
+	"gli": true,
+	"la":  true,
+	"le":  true,
+	"un":  true,
+	"uno": true,
+	"una": true,
+}
+
 func NormalizeWordCasing(word string) string {
 	trimmed := strings.TrimSpace(word)
 
@@ -35,8 +35,47 @@ func NormalizeWordCasing(word string) string {
 	return strings.ToLower(trimmed)
 }
 
-// isAllUppercaseWord reports whether every letter is uppercase and there are at
-// least two letters (so single letters like "I" fall through to other rules).
+func NormalizeWordCasingForLanguage(word string, language string) string {
+	trimmed := strings.TrimSpace(word)
+	if IsItalianArticlePhrase(trimmed, language) {
+		return strings.ToLower(trimmed)
+	}
+
+	return NormalizeWordCasing(trimmed)
+}
+
+func NormalizeTranslationPairCasing(
+	original string,
+	originalLanguage string,
+	translation string,
+	translationLanguage string,
+) (string, string) {
+	normalizedOriginal := NormalizeWordCasingForLanguage(original, originalLanguage)
+	normalizedTranslation := NormalizeWordCasingForLanguage(translation, translationLanguage)
+
+	if IsItalianArticlePhrase(original, originalLanguage) {
+		normalizedTranslation = strings.ToLower(strings.TrimSpace(translation))
+	}
+	if IsItalianArticlePhrase(translation, translationLanguage) {
+		normalizedOriginal = strings.ToLower(strings.TrimSpace(original))
+	}
+
+	return normalizedOriginal, normalizedTranslation
+}
+
+func IsItalianArticlePhrase(word string, language string) bool {
+	if strings.ToLower(strings.TrimSpace(language)) != "it" {
+		return false
+	}
+
+	parts := strings.Fields(strings.TrimSpace(word))
+	if len(parts) != 2 {
+		return false
+	}
+
+	return italianArticles[strings.ToLower(parts[0])]
+}
+
 func isAllUppercaseWord(value string) bool {
 	letters := 0
 	for _, r := range value {
@@ -52,8 +91,6 @@ func isAllUppercaseWord(value string) bool {
 	return letters >= 2
 }
 
-// hasInternalUppercase reports whether any rune after the first is uppercase
-// (e.g. iPhone, eBay, McDonald), signalling intentional brand/proper-noun casing.
 func hasInternalUppercase(value string) bool {
 	for index, r := range []rune(value) {
 		if index == 0 {

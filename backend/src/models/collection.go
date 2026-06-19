@@ -43,8 +43,6 @@ func (c *Collection) BeforeCreate(_ *gorm.DB) error {
 	return nil
 }
 
-// Position is the manual sort order within a collection (ascending). A newly added
-// translation gets max(position)+1 so it lands at the end of the list.
 type CollectionTranslation struct {
 	CollectionID  uuid.UUID `gorm:"primaryKey"`
 	TranslationID uuid.UUID `gorm:"primaryKey"`

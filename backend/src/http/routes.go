@@ -9,7 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-/** Defines routes protected by authentication */
 func defineProtectedRoutes(group *gin.RouterGroup) {
 	group.GET("/me", controllers.Me)
 	group.PUT("/settings", controllers.UpdateSettings)
