@@ -60,7 +60,7 @@
                     <button
                         ref="profileMenuButtonRef"
                         @click.stop="toggleProfileMenu"
-                        class="inline-flex min-w-0 items-center gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary"
+                        class="inline-flex min-w-0 items-center gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-accent focus:outline-none"
                         aria-haspopup="menu"
                         :aria-label="t.headerOpenProfileMenu"
                         :aria-expanded="isProfileMenuOpen"
@@ -102,7 +102,7 @@
                             ref="firstMenuActionRef"
                             @click="goToSettings"
                             role="menuitem"
-                            class="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary"
+                            class="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium transition-colors hover:bg-accent focus:outline-none"
                         >
                             <Settings class="h-4 w-4" />
                             <span>{{ t.headerSettings }}</span>
@@ -114,7 +114,7 @@
                             v-if="!isMiniApp"
                             @click="handleLogout"
                             role="menuitem"
-                            class="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive hover:text-primary-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                            class="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive hover:text-primary-foreground focus:outline-none"
                         >
                             <LogOut class="h-4 w-4" />
                             <span>{{ t.headerLogout }}</span>
@@ -124,7 +124,7 @@
                             v-if="isMiniApp"
                             @click="handleLogout"
                             role="menuitem"
-                            class="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive hover:text-primary-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                            class="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive hover:text-primary-foreground focus:outline-none"
                         >
                             <LogOut class="h-4 w-4" />
                             <span>{{ t.headerRelogin }}</span>
