@@ -200,7 +200,7 @@ watch(
                         href="https://t.me/termorize_bot"
                         target="_blank"
                         rel="noopener noreferrer"
-                        class="text-blue-500 underline"
+                        class="text-info underline"
                     >
                         @termorize_bot
                     </a>

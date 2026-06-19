@@ -43,13 +43,13 @@ const getStatusLabel = (status: string) => {
 const getStatusBadgeClass = (status: string) => {
     switch (status) {
         case 'inProgress':
-            return 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:border-sky-400/30 dark:bg-sky-400/10 dark:text-sky-300'
+            return 'border-info/30 bg-info/10 text-info'
         case 'completed':
-            return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300'
+            return 'border-success/30 bg-success/10 text-success'
         case 'failed':
-            return 'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-300'
+            return 'border-destructive/30 bg-destructive/10 text-destructive'
         case 'ignored':
-            return 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300'
+            return 'border-warning/30 bg-warning/10 text-warning'
         default:
             return 'border-border bg-muted/40 text-foreground'
     }
@@ -75,15 +75,15 @@ const getTypeLabel = (type: string) => {
 const getTypeBadgeClass = (type: string) => {
     switch (type) {
         case 'basic/direct':
-            return 'border-zinc-300 bg-zinc-100 text-zinc-800 dark:border-zinc-400 dark:bg-zinc-200 dark:text-zinc-900'
+            return 'border-border bg-muted text-muted-foreground'
         case 'basic/reversed':
-            return 'border-zinc-900 bg-zinc-900 text-white dark:border-zinc-700 dark:bg-zinc-900 dark:text-white'
+            return 'border-primary/30 bg-primary/10 text-primary'
         case 'choice/direct':
-            return 'border-sky-300 bg-sky-100 text-sky-800 dark:border-sky-400 dark:bg-sky-200 dark:text-sky-950'
+            return 'border-info/30 bg-info/10 text-info'
         case 'choice/reversed':
-            return 'border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-400 dark:bg-amber-200 dark:text-amber-950'
+            return 'border-warning/30 bg-warning/10 text-warning'
         case 'match/pairs':
-            return 'border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-400 dark:bg-emerald-200 dark:text-emerald-950'
+            return 'border-success/30 bg-success/10 text-success'
         default:
             return 'border-border bg-muted/40 text-foreground'
     }

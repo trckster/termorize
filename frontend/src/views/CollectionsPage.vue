@@ -115,7 +115,7 @@
                                 <span v-if="collection.is_admin">
                                     <span
                                         v-if="!collection.is_published && isAdmin"
-                                        class="shrink-0 rounded bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400"
+                                        class="shrink-0 rounded bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning"
                                     >
                                         {{ t.collectionsDraftBadge }}
                                     </span>

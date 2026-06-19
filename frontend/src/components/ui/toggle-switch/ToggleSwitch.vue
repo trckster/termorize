@@ -21,7 +21,7 @@ const handleClick = () => {
 <template>
     <button
         type="button"
-        class="relative inline-flex h-11 w-12 items-center justify-center rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+        class="relative inline-flex h-11 w-12 items-center justify-center rounded-md focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
         role="switch"
         :aria-checked="modelValue"
         :aria-label="label"

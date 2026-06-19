@@ -5,6 +5,13 @@
         <meta name="description" content="Termorize — vocabulary trainer with Telegram support. Translate, save, practice, and automate daily learning inside Telegram." />
         <script>
             (function () {
+                const palettes = ['evergreen', 'sage', 'emerald']
+                const palette = localStorage.getItem('palette')
+                document.documentElement.setAttribute(
+                    'data-theme',
+                    palettes.indexOf(palette) !== -1 ? palette : 'evergreen'
+                )
+
                 const theme = localStorage.getItem('theme')
                 if (theme === 'dark' || (!theme && matchMedia('(prefers-color-scheme: dark)').matches)) {
                     document.documentElement.classList.add('dark')

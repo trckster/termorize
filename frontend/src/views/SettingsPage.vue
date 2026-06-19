@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth.ts'
 import { useI18n } from '@/composables/useI18n'
 import SettingsCommonSection from '@/components/SettingsCommonSection.vue'
+import SettingsAppearanceSection from '@/components/SettingsAppearanceSection.vue'
 import SettingsLanguagesSection from '@/components/SettingsLanguagesSection.vue'
 import SettingsTelegramSection from '@/components/SettingsTelegramSection.vue'
 
@@ -24,6 +25,7 @@ const userSettings = computed(() => user.value?.settings)
             </div>
 
             <SettingsCommonSection :user="user" />
+            <SettingsAppearanceSection />
             <SettingsLanguagesSection :settings="userSettings" />
             <SettingsTelegramSection :settings="userSettings" />
         </div>

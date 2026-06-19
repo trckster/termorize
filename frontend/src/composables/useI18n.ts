@@ -62,6 +62,19 @@ const en = {
     settingsCommonTimezoneNotFound: 'No timezone found.',
     settingsCommonFieldNotAvailable: 'Not available',
 
+    // Settings - Appearance section
+    settingsAppearanceTitle: 'Appearance',
+    settingsAppearanceDescription: 'Choose how Termorize looks on this device.',
+    settingsAppearanceThemeLabel: 'Color palette',
+    settingsAppearanceThemeExplanation: 'Pick a green palette. Your choice is saved on this device.',
+    settingsAppearanceModeLabel: 'Dark mode',
+    settingsAppearanceModeExplanation: 'Switch between light and dark. Defaults to your system setting.',
+    settingsAppearanceModeLight: 'Light',
+    settingsAppearanceModeDark: 'Dark',
+    themeDescEvergreen: 'Deep emerald on cool, neutral surfaces.',
+    themeDescSage: 'Warm, soft herbal green on paper.',
+    themeDescEmerald: 'Vivid emerald on cool slate.',
+
     // Settings - Languages section
     settingsLanguagesTitle: 'Languages',
     settingsLanguagesDescription: 'Language preferences used in translation and learning.',
@@ -445,6 +458,19 @@ const ru: typeof en = {
     settingsCommonTimezoneSearchPlaceholder: 'Поиск часового пояса...',
     settingsCommonTimezoneNotFound: 'Часовой пояс не найден.',
     settingsCommonFieldNotAvailable: 'Недоступно',
+
+    // Settings - Appearance section
+    settingsAppearanceTitle: 'Оформление',
+    settingsAppearanceDescription: 'Выберите, как выглядит Termorize на этом устройстве.',
+    settingsAppearanceThemeLabel: 'Цветовая палитра',
+    settingsAppearanceThemeExplanation: 'Выберите зелёную палитру. Выбор сохраняется на этом устройстве.',
+    settingsAppearanceModeLabel: 'Тёмная тема',
+    settingsAppearanceModeExplanation: 'Переключение светлой и тёмной темы. По умолчанию — как в системе.',
+    settingsAppearanceModeLight: 'Светлая',
+    settingsAppearanceModeDark: 'Тёмная',
+    themeDescEvergreen: 'Глубокий изумруд на прохладных нейтральных поверхностях.',
+    themeDescSage: 'Тёплый мягкий травяной зелёный.',
+    themeDescEmerald: 'Яркий изумруд на прохладном сланцевом фоне.',
 
     // Settings - Languages section
     settingsLanguagesTitle: 'Языки',

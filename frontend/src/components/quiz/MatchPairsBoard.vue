@@ -310,7 +310,7 @@ onBeforeUnmount(() => {
 <template>
     <div
         ref="boardRef"
-        class="quiz-match-board relative mx-auto aspect-square w-full max-w-[680px] rounded-full bg-muted/20"
+        class="quiz-match-board relative mx-auto aspect-square w-full max-w-[680px]"
         role="group"
         :aria-label="boardLabel"
         :style="boardStyle"
@@ -348,41 +348,41 @@ onBeforeUnmount(() => {
 <style scoped>
 .quiz-match-card {
     width: var(--match-card-width);
-    color: var(--foreground);
-    background: var(--background);
-    border-color: var(--border);
+    color: hsl(var(--foreground));
+    background: hsl(var(--background));
+    border-color: hsl(var(--border));
 }
 
 .quiz-match-card--idle:hover:not(:disabled) {
-    border-color: color-mix(in oklab, var(--primary) 42%, var(--border));
-    box-shadow: 0 14px 28px -24px var(--primary);
+    border-color: color-mix(in oklab, hsl(var(--primary)) 42%, hsl(var(--border)));
+    box-shadow: 0 14px 28px -24px hsl(var(--primary));
     filter: brightness(1.02);
 }
 
 .quiz-match-card--selected {
-    border-color: color-mix(in oklab, var(--primary) 65%, var(--border));
-    background: color-mix(in oklab, var(--primary) 12%, var(--background));
+    border-color: color-mix(in oklab, hsl(var(--primary)) 65%, hsl(var(--border)));
+    background: color-mix(in oklab, hsl(var(--primary)) 12%, hsl(var(--background)));
     box-shadow:
-        0 0 0 2px color-mix(in oklab, var(--primary) 18%, transparent),
-        0 16px 28px -24px var(--primary);
+        0 0 0 2px color-mix(in oklab, hsl(var(--primary)) 18%, transparent),
+        0 16px 28px -24px hsl(var(--primary));
 }
 
 .quiz-match-card--green {
-    border-color: color-mix(in oklab, rgb(16 185 129) 55%, var(--border));
-    background: color-mix(in oklab, rgb(16 185 129) 14%, var(--background));
-    color: color-mix(in oklab, rgb(4 120 87) 72%, var(--foreground));
+    border-color: color-mix(in oklab, hsl(var(--success)) 55%, hsl(var(--border)));
+    background: color-mix(in oklab, hsl(var(--success)) 14%, hsl(var(--background)));
+    color: color-mix(in oklab, hsl(var(--success)) 76%, hsl(var(--foreground)));
 }
 
 .quiz-match-card--yellow {
-    border-color: color-mix(in oklab, rgb(245 158 11) 60%, var(--border));
-    background: color-mix(in oklab, rgb(245 158 11) 16%, var(--background));
-    color: color-mix(in oklab, rgb(180 83 9) 72%, var(--foreground));
+    border-color: color-mix(in oklab, hsl(var(--warning)) 60%, hsl(var(--border)));
+    background: color-mix(in oklab, hsl(var(--warning)) 16%, hsl(var(--background)));
+    color: color-mix(in oklab, hsl(var(--warning)) 76%, hsl(var(--foreground)));
 }
 
 .quiz-match-card--red {
-    border-color: color-mix(in oklab, rgb(244 63 94) 58%, var(--border));
-    background: color-mix(in oklab, rgb(244 63 94) 14%, var(--background));
-    color: color-mix(in oklab, rgb(190 18 60) 74%, var(--foreground));
+    border-color: color-mix(in oklab, hsl(var(--destructive)) 58%, hsl(var(--border)));
+    background: color-mix(in oklab, hsl(var(--destructive)) 14%, hsl(var(--background)));
+    color: color-mix(in oklab, hsl(var(--destructive)) 78%, hsl(var(--foreground)));
 }
 
 .quiz-inline-spinner {

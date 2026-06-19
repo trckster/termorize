@@ -28,8 +28,7 @@ const statisticCards = computed(() => [
         description: t.value.exerciseStatInProgressDesc,
         value: statistics.value.in_progress,
         icon: Activity,
-        accentClass:
-            'text-sky-600 dark:text-sky-400 bg-sky-500/10 dark:bg-sky-400/10 border-sky-500/20 dark:border-sky-400/20',
+        accentClass: 'text-info bg-info/10 border-info/20',
     },
     {
         key: 'done',
@@ -37,8 +36,7 @@ const statisticCards = computed(() => [
         description: t.value.exerciseStatDoneDesc,
         value: statistics.value.done,
         icon: CheckCircle2,
-        accentClass:
-            'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 dark:bg-emerald-400/10 border-emerald-500/20 dark:border-emerald-400/20',
+        accentClass: 'text-success bg-success/10 border-success/20',
     },
     {
         key: 'failed',
@@ -46,8 +44,7 @@ const statisticCards = computed(() => [
         description: t.value.exerciseStatFailedDesc,
         value: statistics.value.failed,
         icon: AlertCircle,
-        accentClass:
-            'text-rose-600 dark:text-rose-400 bg-rose-500/10 dark:bg-rose-400/10 border-rose-500/20 dark:border-rose-400/20',
+        accentClass: 'text-destructive bg-destructive/10 border-destructive/20',
     },
     {
         key: 'ignored',
@@ -55,8 +52,7 @@ const statisticCards = computed(() => [
         description: t.value.exerciseStatIgnoredDesc,
         value: statistics.value.ignored,
         icon: Ban,
-        accentClass:
-            'text-amber-600 dark:text-amber-400 bg-amber-500/10 dark:bg-amber-400/10 border-amber-500/20 dark:border-amber-400/20',
+        accentClass: 'text-warning bg-warning/10 border-warning/20',
     },
 ])
 

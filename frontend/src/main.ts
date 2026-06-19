@@ -5,6 +5,7 @@ import App from './App.vue'
 import router from './router'
 import { initSentry } from '@/lib/sentry.ts'
 import { useSettingsStore } from '@/stores/settings.ts'
+import { initTheme } from '@/composables/useTheme.ts'
 
 const REQUIRED_ENV_VARS = ['VITE_API_URL', 'VITE_BOT_USERNAME']
 
@@ -23,6 +24,8 @@ if (missingVars.length > 0) {
     </div>
   `
 } else {
+    initTheme()
+
     const app = createApp(App)
     const pinia = createPinia()
 
