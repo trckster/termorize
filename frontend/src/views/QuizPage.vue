@@ -971,42 +971,42 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .quiz-choice-button {
-    background: var(--primary);
-    border-color: color-mix(in oklab, var(--primary-foreground) 18%, var(--primary));
+    background: hsl(var(--primary));
+    border-color: color-mix(in oklab, hsl(var(--primary-foreground)) 18%, hsl(var(--primary)));
     box-shadow:
-        inset 0 1px 0 color-mix(in oklab, var(--primary-foreground) 16%, transparent),
-        0 10px 24px -22px var(--primary);
+        inset 0 1px 0 color-mix(in oklab, hsl(var(--primary-foreground)) 16%, transparent),
+        0 10px 24px -22px hsl(var(--primary));
 }
 
 .quiz-choice-button--idle:hover:not(:disabled) {
     filter: brightness(1.06) saturate(1.02);
     box-shadow:
-        inset 0 1px 0 color-mix(in oklab, var(--primary-foreground) 18%, transparent),
-        0 16px 30px -22px var(--primary);
+        inset 0 1px 0 color-mix(in oklab, hsl(var(--primary-foreground)) 18%, transparent),
+        0 16px 30px -22px hsl(var(--primary));
     transform: translateY(-1px);
 }
 
 .quiz-choice-button--selected {
     filter: brightness(1.03) saturate(1.02);
-    border-color: color-mix(in oklab, var(--primary-foreground) 35%, var(--primary));
+    border-color: color-mix(in oklab, hsl(var(--primary-foreground)) 35%, hsl(var(--primary)));
     box-shadow:
-        inset 0 1px 0 color-mix(in oklab, var(--primary-foreground) 18%, transparent),
-        0 0 0 2px color-mix(in oklab, var(--primary-foreground) 18%, transparent),
-        0 14px 28px -22px var(--primary);
+        inset 0 1px 0 color-mix(in oklab, hsl(var(--primary-foreground)) 18%, transparent),
+        0 0 0 2px color-mix(in oklab, hsl(var(--primary-foreground)) 18%, transparent),
+        0 14px 28px -22px hsl(var(--primary));
 }
 
 .quiz-choice-button:active:not(:disabled) {
     filter: brightness(0.96) saturate(1.01);
     transform: translateY(1px);
     box-shadow:
-        inset 0 2px 3px color-mix(in oklab, var(--primary) 38%, transparent),
-        0 4px 14px -18px var(--primary);
+        inset 0 2px 3px color-mix(in oklab, hsl(var(--primary)) 38%, transparent),
+        0 4px 14px -18px hsl(var(--primary));
 }
 
 .quiz-choice-index {
-    background: color-mix(in oklab, var(--primary-foreground) 14%, transparent);
-    color: color-mix(in oklab, var(--primary-foreground) 88%, var(--primary));
-    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary-foreground) 16%, transparent);
+    background: color-mix(in oklab, hsl(var(--primary-foreground)) 14%, transparent);
+    color: color-mix(in oklab, hsl(var(--primary-foreground)) 88%, hsl(var(--primary)));
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, hsl(var(--primary-foreground)) 16%, transparent);
 }
 
 .quiz-inline-spinner {
