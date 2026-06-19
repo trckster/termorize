@@ -258,7 +258,6 @@ function getErrorMessage(err: unknown): string {
         <section id="features" class="block">
             <div class="wrap">
                 <div class="sec-head reveal">
-                    <div class="sec-eyebrow">Everything in one place</div>
                     <h2 class="sec-title">Translate, save, practice — then automate it.</h2>
                     <p class="sec-desc">
                         Four tools working together so a word you look up today becomes a word you actually remember.
@@ -266,39 +265,47 @@ function getErrorMessage(err: unknown): string {
                 </div>
                 <div class="feat-grid">
                     <div class="feat reveal">
-                        <div class="feat-ico">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M4 5h7M9 3v2c0 4-2 7-6 8M5 9c0 3 3 5 6 6M14 19l4-9 4 9M15.5 16h5" />
-                            </svg>
+                        <div class="feat-head">
+                            <div class="feat-ico">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M4 5h7M9 3v2c0 4-2 7-6 8M5 9c0 3 3 5 6 6M14 19l4-9 4 9M15.5 16h5" />
+                                </svg>
+                            </div>
+                            <h3>Translate instantly</h3>
                         </div>
-                        <h3>Translate instantly</h3>
                         <p>Translate words and short phrases with your selected language pair, with keyboard shortcuts for everything.</p>
                     </div>
                     <div class="feat reveal">
-                        <div class="feat-ico">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M12 6c-2-1.3-5-1.3-8 0v13c3-1.3 6-1.3 8 0M12 6c2-1.3 5-1.3 8 0v13c-3-1.3-6-1.3-8 0M12 6v13" />
-                            </svg>
+                        <div class="feat-head">
+                            <div class="feat-ico">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 6c-2-1.3-5-1.3-8 0v13c3-1.3 6-1.3 8 0M12 6c2-1.3 5-1.3 8 0v13c-3-1.3-6-1.3-8 0M12 6v13" />
+                                </svg>
+                            </div>
+                            <h3>Build your vocabulary</h3>
                         </div>
-                        <h3>Build your vocabulary</h3>
                         <p>Save your own word pairs and keep everything in one personal, searchable list across devices.</p>
                     </div>
                     <div class="feat reveal">
-                        <div class="feat-ico">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M4 20V10M10 20V4M16 20v-6M22 20H2" />
-                            </svg>
+                        <div class="feat-head">
+                            <div class="feat-ico">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M4 20V10M10 20V4M16 20v-6M22 20H2" />
+                                </svg>
+                            </div>
+                            <h3>Practice and track progress</h3>
                         </div>
-                        <h3>Practice and track progress</h3>
                         <p>Run website exercises, quiz mode and statistics to see exactly how each word is sticking.</p>
                     </div>
                     <div class="feat reveal">
-                        <div class="feat-ico">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21.5 4.5 2.5 11.8c-1 .4-1 .9-.2 1.1l4.7 1.5 1.8 5.6c.2.6.4.8 1 .8l3-2.3M21.5 4.5l-3.4 15.9c-.2.7-.6.9-1.2.6L9 16M21.5 4.5 9 16" />
-                            </svg>
+                        <div class="feat-head">
+                            <div class="feat-ico">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21.5 4.5 2.5 11.8c-1 .4-1 .9-.2 1.1l4.7 1.5 1.8 5.6c.2.6.4.8 1 .8l3-2.3M21.5 4.5l-3.4 15.9c-.2.7-.6.9-1.2.6L9 16M21.5 4.5 9 16" />
+                                </svg>
+                            </div>
+                            <h3>Automate in Telegram</h3>
                         </div>
-                        <h3>Automate in Telegram</h3>
                         <p>Enable daily exercises, control the schedule and keep learning without ever leaving Telegram.</p>
                     </div>
                 </div>
@@ -308,7 +315,6 @@ function getErrorMessage(err: unknown): string {
         <section id="showcase" class="block">
             <div class="wrap">
                 <div class="sec-head reveal">
-                    <div class="sec-eyebrow">Inside the app</div>
                     <h2 class="sec-title">Your words, organised the way you learn.</h2>
                     <p class="sec-desc">
                         Build and share your own collections, or start from ready-made sets curated by Termorize — then
@@ -405,7 +411,6 @@ function getErrorMessage(err: unknown): string {
         <section id="how" class="block">
             <div class="wrap">
                 <div class="sec-head reveal">
-                    <div class="sec-eyebrow">How it works</div>
                     <h2 class="sec-title">From a quick lookup to a learned word.</h2>
                 </div>
                 <div class="steps">
@@ -544,88 +549,72 @@ function getErrorMessage(err: unknown): string {
 
 <style>
 .landing-view {
-    --bg: oklch(0.97 0.008 152);
-    --bg-deep: oklch(0.94 0.01 152);
-    --surface: oklch(0.99 0.006 152);
-    --surface-2: oklch(0.96 0.008 152);
-    --border: oklch(0.82 0.02 152 / 0.6);
-    --border-soft: oklch(0.82 0.02 152 / 0.3);
-    --text: oklch(0.2 0.015 152);
-    --text-muted: oklch(0.48 0.02 152);
-    --text-dim: oklch(0.6 0.02 152);
-    --green: oklch(0.55 0.14 152);
-    --green-bright: oklch(0.6 0.16 152);
-    --green-deep: oklch(0.48 0.13 152);
+    /* Colors derive from the global theme tokens (set per data-theme + .dark on
+       <html>), so the landing follows whichever palette the user picked. */
+    --bg: hsl(var(--background));
+    --bg-deep: hsl(var(--background));
+    --surface: hsl(var(--card));
+    --surface-2: hsl(var(--muted));
+    --border: hsl(var(--border));
+    --border-soft: hsl(var(--border) / 0.5);
+    --text: hsl(var(--foreground));
+    --text-muted: hsl(var(--muted-foreground));
+    --text-dim: hsl(var(--muted-foreground) / 0.72);
+    --green: hsl(var(--primary));
+    --green-bright: hsl(var(--ring));
+    --green-deep: hsl(var(--primary));
     --tg: #229ed9;
     --tg-bright: #2aabee;
     --font-display: 'Space Grotesk', sans-serif;
     --font-body: 'Hanken Grotesk', sans-serif;
     --maxw: 1200px;
 
-    --shadow-mock: 0 30px 80px -30px rgba(0, 0, 0, 0.12), inset 0 1px 0 oklch(1 0.01 152 / 0.45);
-    --shadow-mock-run: 0 24px 60px -20px rgba(0, 0, 0, 0.12);
-    --shadow-feat-hover: 0 20px 50px -28px rgba(0, 0, 0, 0.12);
-    --shadow-brand: 0 4px 12px oklch(0.55 0.16 152 / 0.2);
-    --shadow-btn-tg: 0 6px 20px rgba(34, 158, 217, 0.18);
-    --shadow-btn-tg-hover: 0 10px 26px rgba(34, 158, 217, 0.26);
-    --shadow-btn-green: 0 6px 20px oklch(0.55 0.16 152 / 0.18);
-    --shadow-btn-green-hover: 0 10px 26px oklch(0.55 0.16 152 / 0.28);
-    --shadow-tg-ico: 0 8px 24px rgba(34, 158, 217, 0.28);
-    --bg-mock-dot: oklch(0.75 0.02 152);
-    --bg-kbd: oklch(0.82 0.02 152 / 0.45);
-    --bg-feat-ico: oklch(0.55 0.16 152 / 0.08);
-    --bg-step-num: oklch(0.55 0.16 152 / 0.08);
-    --bg-bar: oklch(0.82 0.02 152 / 0.45);
-    --bg-flag-more: oklch(0.55 0.16 152 / 0.08);
-    --bg-tg-feat: rgba(34, 158, 217, 0.1);
-    --bg-nav: oklch(0.97 0.008 152 / 0.72);
-    --bg-nav-links: oklch(0.97 0.008 152 / 0.96);
-    --gradient-feat-end: oklch(0.96 0.008 152);
-    --color-error: oklch(0.55 0.18 25);
+    --shadow-mock: 0 30px 80px -30px rgb(0 0 0 / 0.14), inset 0 1px 0 hsl(0 0% 100% / 0.4);
+    --shadow-mock-run: 0 24px 60px -20px rgb(0 0 0 / 0.14);
+    --shadow-feat-hover: 0 20px 50px -28px rgb(0 0 0 / 0.14);
+    --shadow-brand: 0 4px 12px hsl(var(--primary) / 0.22);
+    --shadow-btn-tg: 0 6px 20px rgb(34 158 217 / 0.18);
+    --shadow-btn-tg-hover: 0 10px 26px rgb(34 158 217 / 0.26);
+    --shadow-btn-green: 0 6px 20px hsl(var(--primary) / 0.2);
+    --shadow-btn-green-hover: 0 10px 26px hsl(var(--primary) / 0.3);
+    --shadow-tg-ico: 0 8px 24px rgb(34 158 217 / 0.28);
+    --bg-mock-dot: hsl(var(--muted-foreground) / 0.4);
+    --bg-kbd: hsl(var(--muted));
+    --bg-feat-ico: hsl(var(--primary) / 0.1);
+    --bg-step-num: hsl(var(--primary) / 0.1);
+    --bg-bar: hsl(var(--muted));
+    --bg-flag-more: hsl(var(--primary) / 0.1);
+    --bg-tg-feat: rgb(34 158 217 / 0.1);
+    --bg-nav: hsl(var(--background) / 0.72);
+    --bg-nav-links: hsl(var(--background) / 0.96);
+    --gradient-feat-end: hsl(var(--secondary));
+    --color-error: hsl(var(--destructive));
 
     font-family: var(--font-body);
     color: var(--text);
     line-height: 1.55;
     -webkit-font-smoothing: antialiased;
-    overflow-x: hidden;
+    /* `clip` (not `hidden`) prevents horizontal overflow WITHOUT making this a
+       scroll container — `overflow-x: hidden` forces overflow-y to compute to
+       `auto`, which breaks `position: sticky` on the nav (it scrolls away). */
+    overflow-x: clip;
     background: var(--bg);
     min-height: 100vh;
 }
 
 .dark .landing-view {
-    --bg: oklch(0.135 0.018 152);
-    --bg-deep: oklch(0.105 0.014 152);
-    --surface: oklch(0.175 0.018 152);
-    --surface-2: oklch(0.205 0.02 152);
-    --border: oklch(0.3 0.028 152 / 0.55);
-    --border-soft: oklch(0.3 0.028 152 / 0.3);
-    --text: oklch(0.96 0.006 152);
-    --text-muted: oklch(0.74 0.022 152);
-    --text-dim: oklch(0.58 0.022 152);
-    --green: oklch(0.6 0.15 152);
-    --green-bright: oklch(0.8 0.17 152);
-    --green-deep: oklch(0.48 0.13 152);
-
-    --shadow-mock: 0 30px 80px -30px rgba(0, 0, 0, 0.8), inset 0 1px 0 oklch(0.4 0.03 152 / 0.2);
-    --shadow-mock-run: 0 24px 60px -20px rgba(0, 0, 0, 0.85);
-    --shadow-feat-hover: 0 20px 50px -28px rgba(0, 0, 0, 0.7);
-    --shadow-brand: 0 4px 12px oklch(0.55 0.16 152 / 0.38);
-    --shadow-btn-tg: 0 6px 20px rgba(34, 158, 217, 0.28);
-    --shadow-btn-tg-hover: 0 10px 26px rgba(34, 158, 217, 0.36);
-    --shadow-btn-green: 0 6px 20px oklch(0.55 0.16 152 / 0.3);
-    --shadow-btn-green-hover: 0 10px 26px oklch(0.55 0.16 152 / 0.4);
-    --shadow-tg-ico: 0 8px 24px rgba(34, 158, 217, 0.35);
-    --bg-mock-dot: oklch(0.35 0.02 152);
-    --bg-kbd: oklch(0.45 0.06 152 / 0.18);
-    --bg-feat-ico: oklch(0.55 0.16 152 / 0.12);
-    --bg-step-num: oklch(0.55 0.16 152 / 0.12);
-    --bg-bar: oklch(0.3 0.02 152 / 0.5);
-    --bg-flag-more: oklch(0.55 0.16 152 / 0.14);
-    --bg-tg-feat: rgba(34, 158, 217, 0.15);
-    --bg-nav: oklch(0.135 0.018 152 / 0.72);
-    --bg-nav-links: oklch(0.135 0.018 152 / 0.96);
-    --gradient-feat-end: oklch(0.15 0.016 152);
-    --color-error: #ff6b6b;
+    /* Colors inherit from the global dark tokens automatically (they're var()
+       references). Only the dark-specific depth cues need overriding here. */
+    --shadow-mock: 0 30px 80px -30px rgb(0 0 0 / 0.8), inset 0 1px 0 hsl(var(--foreground) / 0.06);
+    --shadow-mock-run: 0 24px 60px -20px rgb(0 0 0 / 0.85);
+    --shadow-feat-hover: 0 20px 50px -28px rgb(0 0 0 / 0.7);
+    --shadow-brand: 0 4px 12px hsl(var(--primary) / 0.38);
+    --shadow-btn-green: 0 6px 20px hsl(var(--primary) / 0.3);
+    --shadow-btn-green-hover: 0 10px 26px hsl(var(--primary) / 0.42);
+    --bg-feat-ico: hsl(var(--primary) / 0.14);
+    --bg-step-num: hsl(var(--primary) / 0.14);
+    --bg-bar: hsl(var(--muted) / 0.6);
+    --bg-flag-more: hsl(var(--primary) / 0.16);
 }
 
 .landing-view a {
@@ -648,14 +637,14 @@ function getErrorMessage(err: unknown): string {
     z-index: 0;
     pointer-events: none;
     background:
-        radial-gradient(900px 600px at 78% -8%, oklch(0.75 0.14 152 / 0.10), transparent 60%),
-        radial-gradient(1100px 800px at 10% 8%, oklch(0.7 0.11 152 / 0.07), transparent 55%);
+        radial-gradient(900px 600px at 78% -8%, hsl(var(--primary) / 0.1), transparent 60%),
+        radial-gradient(1100px 800px at 10% 8%, hsl(var(--primary) / 0.07), transparent 55%);
 }
 
 .dark .landing-view .glow {
     background:
-        radial-gradient(900px 600px at 78% -8%, oklch(0.55 0.16 152 / 0.18), transparent 60%),
-        radial-gradient(1100px 800px at 10% 8%, oklch(0.45 0.12 152 / 0.12), transparent 55%);
+        radial-gradient(900px 600px at 78% -8%, hsl(var(--primary) / 0.18), transparent 60%),
+        radial-gradient(1100px 800px at 10% 8%, hsl(var(--primary) / 0.12), transparent 55%);
 }
 
 /* ---------- nav ---------- */
@@ -765,7 +754,7 @@ function getErrorMessage(err: unknown): string {
 }
 .landing-view .btn-green {
     background: var(--green);
-    color: #06140c;
+    color: hsl(var(--primary-foreground));
     box-shadow: var(--shadow-btn-green);
 }
 .landing-view .btn-green:hover {
@@ -779,10 +768,10 @@ function getErrorMessage(err: unknown): string {
 }
 .landing-view .btn-outline:hover {
     border-color: var(--green);
-    background: oklch(0.55 0.16 152 / 0.04);
+    background: hsl(var(--primary) / 0.06);
 }
 .dark .landing-view .btn-outline:hover {
-    background: oklch(0.55 0.16 152 / 0.08);
+    background: hsl(var(--primary) / 0.12);
 }
 .landing-view .btn-lg {
     padding: 14px 26px;
@@ -1044,14 +1033,6 @@ function getErrorMessage(err: unknown): string {
     max-width: 640px;
     margin-bottom: 48px;
 }
-.landing-view .sec-eyebrow {
-    font-size: 12.5px;
-    font-weight: 600;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--green-bright);
-    margin-bottom: 14px;
-}
 .landing-view .sec-title {
     font-family: var(--font-display);
     font-weight: 700;
@@ -1072,10 +1053,10 @@ function getErrorMessage(err: unknown): string {
     gap: 18px;
 }
 .landing-view .feat {
-    background: linear-gradient(165deg, var(--surface), var(--gradient-feat-end));
+    background: var(--surface);
     border: 1px solid var(--border-soft);
     border-radius: 16px;
-    padding: 28px;
+    padding: 26px 28px;
     transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 .landing-view .feat:hover {
@@ -1083,25 +1064,27 @@ function getErrorMessage(err: unknown): string {
     border-color: var(--border);
     box-shadow: var(--shadow-feat-hover);
 }
+.landing-view .feat-head {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    margin-bottom: 12px;
+}
 .landing-view .feat-ico {
-    width: 46px;
-    height: 46px;
-    border-radius: 12px;
-    display: grid;
-    place-items: center;
-    background: var(--bg-feat-ico);
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
     color: var(--green-bright);
-    margin-bottom: 20px;
 }
 .landing-view .feat-ico svg {
-    width: 23px;
-    height: 23px;
+    width: 26px;
+    height: 26px;
 }
 .landing-view .feat h3 {
     font-family: var(--font-display);
-    font-size: 19px;
+    font-size: 18px;
     font-weight: 600;
-    margin-bottom: 9px;
+    margin-bottom: 0;
 }
 .landing-view .feat p {
     font-size: 14.5px;
@@ -1115,7 +1098,7 @@ function getErrorMessage(err: unknown): string {
     gap: 22px;
 }
 .landing-view .show-card {
-    background: linear-gradient(165deg, var(--surface), var(--bg-deep));
+    background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 18px;
     padding: 26px;
@@ -1170,11 +1153,11 @@ function getErrorMessage(err: unknown): string {
 }
 .landing-view .tag.global {
     color: var(--green-bright);
-    background: oklch(0.55 0.16 152 / 0.14);
+    background: hsl(var(--primary) / 0.14);
 }
 .landing-view .tag.draft {
-    color: oklch(0.78 0.13 75);
-    background: oklch(0.6 0.13 75 / 0.14);
+    color: hsl(var(--warning));
+    background: hsl(var(--warning) / 0.14);
 }
 
 /* vocab mini */
@@ -1224,24 +1207,18 @@ function getErrorMessage(err: unknown): string {
     counter-reset: step;
 }
 .landing-view .step {
-    background: linear-gradient(165deg, var(--surface), var(--gradient-feat-end));
-    border: 1px solid var(--border-soft);
-    border-radius: 16px;
-    padding: 28px;
+    padding: 22px 16px 0 0;
     position: relative;
+    border-top: 1px solid var(--border);
 }
 .landing-view .step .num {
     font-family: var(--font-display);
-    font-size: 13px;
+    font-size: 38px;
     font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.02em;
     color: var(--green-bright);
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
-    display: grid;
-    place-items: center;
-    background: var(--bg-step-num);
-    margin-bottom: 18px;
+    margin: 16px 0 14px;
 }
 .landing-view .step h3 {
     font-family: var(--font-display);

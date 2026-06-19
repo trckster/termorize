@@ -3,28 +3,16 @@ import { onMounted, onBeforeUnmount, watch } from 'vue'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import ToastProvider from '@/components/ToastProvider.vue'
 import { getLocaleDirection, useI18n } from '@/composables/useI18n'
+import { useTheme } from '@/composables/useTheme'
 
 const { locale } = useI18n()
-
-const applyTheme = () => {
-    const theme = localStorage.getItem('theme')
-    if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-        document.documentElement.classList.add('dark')
-    } else {
-        document.documentElement.classList.remove('dark')
-    }
-}
+const { syncSystemTheme } = useTheme()
 
 const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)')
 
-const handleSystemThemeChange = () => {
-    if (!localStorage.getItem('theme')) {
-        applyTheme()
-    }
-}
+const handleSystemThemeChange = () => syncSystemTheme()
 
 onMounted(() => {
-    applyTheme()
     systemThemeQuery.addEventListener('change', handleSystemThemeChange)
 })
 

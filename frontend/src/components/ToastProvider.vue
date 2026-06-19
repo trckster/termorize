@@ -18,8 +18,7 @@ const { t } = useI18n()
             :duration="toast.duration"
             class="group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-6 pr-8 shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--reka-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--reka-toast-swipe-move-x)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full"
             :class="{
-                'border-green-500 bg-green-50 text-green-900 dark:border-green-500 dark:bg-green-950 dark:text-green-100':
-                    toast.variant === 'success',
+                'border-success/50 bg-success/10 text-foreground': toast.variant === 'success',
                 'border-destructive bg-destructive text-destructive-foreground': toast.variant === 'destructive',
                 'border-border bg-background text-foreground': toast.variant === 'default' || !toast.variant,
             }"

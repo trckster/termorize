@@ -93,7 +93,7 @@
                             <ToggleSwitch
                                 :model-value="isDark"
                                 :labelledby="themeSwitchLabelId"
-                                @update:model-value="setTheme"
+                                @update:model-value="setDark"
                                 @click.stop
                             />
                         </div>
@@ -144,15 +144,16 @@ import { Sun, Moon, ChevronDown, Settings, LogOut } from 'lucide-vue-next'
 import { ToggleSwitch } from '@/components/ui/toggle-switch'
 import { isTelegramWebApp } from '@/lib/telegram.ts'
 import { useI18n } from '@/composables/useI18n'
+import { useTheme } from '@/composables/useTheme'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const { t } = useI18n()
+const { isDark, setDark } = useTheme()
 
 const user = computed(() => authStore.user)
 const isMiniApp = isTelegramWebApp()
-const isDark = ref(false)
 const isProfileMenuOpen = ref(false)
 const profileMenuRef = ref<HTMLElement | null>(null)
 const profileMenuButtonRef = ref<HTMLButtonElement | null>(null)
@@ -189,24 +190,12 @@ watch(isProfileMenuOpen, async (open) => {
 })
 
 onMounted(() => {
-    isDark.value = document.documentElement.classList.contains('dark')
     document.addEventListener('click', handleClickOutside)
 })
 
 onBeforeUnmount(() => {
     document.removeEventListener('click', handleClickOutside)
 })
-
-const setTheme = (nextIsDark: boolean) => {
-    isDark.value = nextIsDark
-    if (nextIsDark) {
-        document.documentElement.classList.add('dark')
-        localStorage.setItem('theme', 'dark')
-    } else {
-        document.documentElement.classList.remove('dark')
-        localStorage.setItem('theme', 'light')
-    }
-}
 
 const goToSettings = () => {
     closeProfileMenu()

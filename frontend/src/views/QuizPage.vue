@@ -333,9 +333,9 @@ const resultLabel = computed(() => {
 
 const resultClass = computed(() => {
     if (!verifyResult.value) return ''
-    if (verifyResult.value.result === 'correct') return 'text-green-600 dark:text-green-400'
-    if (verifyResult.value.result === 'almost') return 'text-yellow-600 dark:text-yellow-400'
-    return 'text-red-600 dark:text-red-400'
+    if (verifyResult.value.result === 'correct') return 'text-success'
+    if (verifyResult.value.result === 'almost') return 'text-warning'
+    return 'text-destructive'
 })
 
 onMounted(() => {
@@ -386,9 +386,7 @@ onBeforeUnmount(() => {
                 <template v-if="state === 'loading'">
                     <div v-if="error" class="space-y-4 text-center">
                         <p
-                            :class="
-                                emptyState === 'mastered' ? 'text-green-600 dark:text-green-400' : 'text-destructive'
-                            "
+                            :class="emptyState === 'mastered' ? 'text-success' : 'text-destructive'"
                         >
                             {{ error }}
                         </p>
@@ -522,7 +520,7 @@ onBeforeUnmount(() => {
 
                         <div class="grid gap-8 sm:grid-cols-2">
                             <div class="space-y-2">
-                                <p class="text-base font-medium text-green-600 dark:text-green-400 sm:text-lg">
+                                <p class="text-base font-medium text-success sm:text-lg">
                                     ✓ {{ t.quizCorrect }}
                                 </p>
                                 <ul class="space-y-1">
@@ -542,7 +540,7 @@ onBeforeUnmount(() => {
                                 </ul>
                             </div>
                             <div class="space-y-2">
-                                <p class="text-base font-medium text-red-600 dark:text-red-400 sm:text-lg">
+                                <p class="text-base font-medium text-destructive sm:text-lg">
                                     ✗ {{ t.quizWrong }}
                                 </p>
                                 <ul class="space-y-1">

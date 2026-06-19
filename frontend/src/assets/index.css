@@ -2,86 +2,209 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Design tokens — stored as bare HSL triples ("H S% L%") and consumed via
+ * `hsl(var(--token) / <alpha-value>)` in tailwind.config.cjs. This is the shadcn
+ * convention and is what makes opacity modifiers (e.g. `bg-primary/90`,
+ * `bg-destructive/5`) work correctly.
+ *
+ * Three selectable palettes, each with a light + dark mode:
+ *   - evergreen (default) · sage · emerald
+ * The active palette is set via `data-theme` on <html>; dark mode via the
+ * `.dark` class. Both are persisted in localStorage (see useTheme.ts) and
+ * applied pre-paint by the inline script in index.html.
+ */
 @layer base {
-    :root {
-        --background: hsl(142.1, 60%, 98%);
-        --foreground: hsl(240, 10%, 3.9%);
-        --app-gradient: linear-gradient(135deg, hsl(138, 76%, 97%) 0%, hsl(141, 84%, 93%) 55%, hsl(138, 76%, 97%) 100%);
-
-        --card: hsl(142.1, 60%, 98%);
-        --card-foreground: hsl(240, 10%, 3.9%);
-
-        --popover: hsl(142.1, 60%, 98%);
-        --popover-foreground: hsl(240, 10%, 3.9%);
-
-        --primary: hsl(142.1, 70.2%, 21.2%);
-        --primary-foreground: hsl(144.4, 61.4%, 98%);
-
-        --secondary: hsl(142.1, 30%, 90%);
-        --secondary-foreground: hsl(240, 5.9%, 10%);
-
-        --muted: hsl(142.1, 30%, 90%);
-        --muted-foreground: hsl(240, 3.8%, 46.1%);
-
-        --accent: hsl(142.1, 30%, 90%);
-        --accent-foreground: hsl(240, 5.9%, 10%);
-
-        --destructive: hsl(0, 84.2%, 60.2%);
-        --destructive-foreground: hsl(0, 0%, 98%);
-
-        --border: hsl(142.1, 30%, 85%);
-        --input: hsl(142.1, 30%, 85%);
-        --ring: hsl(142.1, 70.2%, 21.2%);
-
-        --radius: 0.5rem;
+    /* Evergreen (default — also the no-JS fallback) */
+    :root,
+    [data-theme='evergreen'] {
+        --background: 150 22% 99%;
+        --foreground: 160 14% 12%;
+        --card: 0 0% 100%;
+        --card-foreground: 160 14% 12%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 160 14% 12%;
+        --primary: 152 56% 30%;
+        --primary-foreground: 150 40% 98%;
+        --secondary: 150 16% 95.5%;
+        --secondary-foreground: 160 14% 20%;
+        --muted: 150 14% 93%;
+        --muted-foreground: 155 8% 40%;
+        --accent: 151 34% 89%;
+        --accent-foreground: 152 52% 20%;
+        --destructive: 2 72% 48%;
+        --destructive-foreground: 0 0% 99%;
+        --border: 150 15% 88%;
+        --input: 150 15% 85%;
+        --ring: 152 56% 36%;
+        --success: 152 52% 34%;
+        --success-foreground: 150 40% 98%;
+        --warning: 36 84% 42%;
+        --warning-foreground: 40 60% 98%;
+        --info: 208 68% 44%;
+        --info-foreground: 208 60% 98%;
+        --overlay: 160 30% 8%;
+        --radius: 0.625rem;
+        --app-gradient: linear-gradient(150deg, hsl(150, 28%, 99%) 0%, hsl(150, 34%, 96.5%) 55%, hsl(150, 28%, 99%) 100%);
     }
 
-    .dark {
-        /* Colors */
-        --main-color-hsl: 142;
+    [data-theme='evergreen'].dark {
+        --background: 160 18% 7%;
+        --foreground: 150 10% 95%;
+        --card: 158 16% 10.5%;
+        --card-foreground: 150 10% 95%;
+        --popover: 158 17% 11%;
+        --popover-foreground: 150 10% 95%;
+        --primary: 151 52% 39%;
+        --primary-foreground: 150 35% 97%;
+        --secondary: 156 14% 15.5%;
+        --secondary-foreground: 150 10% 92%;
+        --muted: 156 12% 18%;
+        --muted-foreground: 150 9% 64%;
+        --accent: 153 24% 22%;
+        --accent-foreground: 150 22% 92%;
+        --destructive: 2 66% 52%;
+        --destructive-foreground: 0 0% 99%;
+        --border: 153 14% 19%;
+        --input: 153 14% 21%;
+        --ring: 150 54% 48%;
+        --success: 150 50% 46%;
+        --success-foreground: 160 30% 8%;
+        --warning: 40 82% 56%;
+        --warning-foreground: 40 40% 10%;
+        --info: 208 72% 60%;
+        --info-foreground: 208 40% 10%;
+        --overlay: 160 30% 3%;
+        --radius: 0.625rem;
+        --app-gradient: linear-gradient(150deg, hsl(160, 18%, 7%) 0%, hsl(158, 22%, 9.5%) 55%, hsl(160, 18%, 7%) 100%);
+        color-scheme: dark;
+    }
 
-        --color-bg-primary: hsl(var(--main-color-hsl), 80%, 2%);
-        --color-bg-secondary: hsl(var(--main-color-hsl), 50%, 6%);
-        --color-border: hsl(var(--main-color-hsl), 40%, 10%);
+    /* Sage */
+    [data-theme='sage'] {
+        --background: 95 24% 97%;
+        --foreground: 120 12% 15%;
+        --card: 80 36% 99.3%;
+        --card-foreground: 120 12% 15%;
+        --popover: 80 36% 99.3%;
+        --popover-foreground: 120 12% 15%;
+        --primary: 140 38% 32%;
+        --primary-foreground: 90 32% 98%;
+        --secondary: 95 22% 93.5%;
+        --secondary-foreground: 120 14% 22%;
+        --muted: 95 20% 90.5%;
+        --muted-foreground: 110 11% 39%;
+        --accent: 108 28% 87%;
+        --accent-foreground: 135 36% 22%;
+        --destructive: 8 64% 49%;
+        --destructive-foreground: 20 50% 98%;
+        --border: 95 18% 85%;
+        --input: 95 18% 82%;
+        --ring: 140 40% 38%;
+        --success: 140 42% 35%;
+        --success-foreground: 90 32% 98%;
+        --warning: 33 76% 43%;
+        --warning-foreground: 40 55% 98%;
+        --info: 198 48% 41%;
+        --info-foreground: 198 50% 98%;
+        --overlay: 120 20% 9%;
+        --radius: 0.625rem;
+        --app-gradient: linear-gradient(150deg, hsl(95, 28%, 97.5%) 0%, hsl(102, 34%, 94.5%) 55%, hsl(95, 28%, 97.5%) 100%);
+    }
 
-        --color-text-primary: hsl(0, 0%, 98%);
-        --color-text-primary-muted: hsl(var(--main-color-hsl), 20%, 65%);
+    [data-theme='sage'].dark {
+        --background: 120 12% 8%;
+        --foreground: 90 12% 92%;
+        --card: 118 12% 11%;
+        --card-foreground: 90 12% 92%;
+        --popover: 118 13% 11.5%;
+        --popover-foreground: 90 12% 92%;
+        --primary: 140 44% 39%;
+        --primary-foreground: 90 28% 96%;
+        --secondary: 115 12% 16.5%;
+        --secondary-foreground: 90 10% 90%;
+        --muted: 115 10% 19%;
+        --muted-foreground: 100 10% 63%;
+        --accent: 125 20% 24%;
+        --accent-foreground: 95 20% 92%;
+        --destructive: 8 62% 53%;
+        --destructive-foreground: 20 50% 98%;
+        --border: 118 12% 19.5%;
+        --input: 118 12% 21.5%;
+        --ring: 140 45% 47%;
+        --success: 138 46% 45%;
+        --success-foreground: 120 30% 8%;
+        --warning: 36 74% 55%;
+        --warning-foreground: 38 40% 10%;
+        --info: 198 52% 56%;
+        --info-foreground: 198 40% 10%;
+        --overlay: 120 20% 4%;
+        --radius: 0.625rem;
+        --app-gradient: linear-gradient(150deg, hsl(120, 12%, 8%) 0%, hsl(115, 15%, 10.5%) 55%, hsl(120, 12%, 8%) 100%);
+        color-scheme: dark;
+    }
 
-        --color-action-primary: hsl(var(--main-color-hsl), 70%, 30%);
-        --color-action-hover: hsl(var(--main-color-hsl), 80%, 20%);
-        --color-action-destructive: hsl(0, 80%, 60%);
-        --color-action-muted: hsl(var(--main-color-hsl), 30%, 20%);
+    /* Emerald */
+    [data-theme='emerald'] {
+        --background: 200 24% 98.5%;
+        --foreground: 215 25% 12%;
+        --card: 0 0% 100%;
+        --card-foreground: 215 25% 12%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 215 25% 12%;
+        --primary: 160 70% 30%;
+        --primary-foreground: 160 40% 98%;
+        --secondary: 205 22% 95.5%;
+        --secondary-foreground: 215 22% 20%;
+        --muted: 205 18% 92.5%;
+        --muted-foreground: 212 12% 42%;
+        --accent: 162 44% 89%;
+        --accent-foreground: 162 62% 21%;
+        --destructive: 352 70% 50%;
+        --destructive-foreground: 352 50% 98%;
+        --border: 208 18% 88%;
+        --input: 208 18% 85%;
+        --ring: 160 68% 36%;
+        --success: 160 64% 33%;
+        --success-foreground: 160 40% 98%;
+        --warning: 32 90% 46%;
+        --warning-foreground: 36 60% 98%;
+        --info: 214 80% 50%;
+        --info-foreground: 214 60% 98%;
+        --overlay: 213 30% 8%;
+        --radius: 0.625rem;
+        --app-gradient: linear-gradient(150deg, hsl(200, 26%, 99%) 0%, hsl(172, 44%, 95.5%) 55%, hsl(200, 26%, 99%) 100%);
+    }
 
-        /* Tailwind Variables */
-        --background: var(--color-bg-primary);
-        --foreground: var(--color-text-primary);
-        --app-gradient: linear-gradient(135deg, var(--color-bg-primary) 0%, var(--color-bg-secondary) 55%, var(--color-bg-primary) 100%);
-
-        --card: var(--color-bg-secondary);
-        --card-foreground: var(--color-text-primary);
-
-        --popover: var(--color-bg-primary);
-        --popover-foreground: var(--color-text-primary);
-
-        --primary: var(--color-action-primary);
-        --primary-foreground: var(--color-text-primary);
-
-        --secondary: var(--color-bg-secondary);
-        --secondary-foreground: var(--color-text-primary);
-
-        --muted: var(--color-action-muted);
-        --muted-foreground: var(--color-text-primary-muted);
-
-        --accent: var(--color-action-hover);
-        --accent-foreground: var(--color-text-primary);
-
-        --destructive: var(--color-action-destructive);
-        --destructive-foreground: var(--color-text-primary);
-
-        --border: var(--color-border);
-        --input: var(--color-border);
-        --ring: var(--color-action-hover);
-
+    [data-theme='emerald'].dark {
+        --background: 213 30% 8%;
+        --foreground: 205 16% 96%;
+        --card: 214 26% 11%;
+        --card-foreground: 205 16% 96%;
+        --popover: 214 27% 11.5%;
+        --popover-foreground: 205 16% 96%;
+        --primary: 158 62% 45%;
+        --primary-foreground: 165 50% 9%;
+        --secondary: 214 20% 17%;
+        --secondary-foreground: 205 14% 92%;
+        --muted: 214 16% 19.5%;
+        --muted-foreground: 210 13% 64%;
+        --accent: 160 34% 23%;
+        --accent-foreground: 160 50% 86%;
+        --destructive: 352 68% 57%;
+        --destructive-foreground: 352 50% 98%;
+        --border: 214 18% 20.5%;
+        --input: 214 18% 22.5%;
+        --ring: 158 62% 50%;
+        --success: 158 60% 47%;
+        --success-foreground: 165 45% 9%;
+        --warning: 34 86% 57%;
+        --warning-foreground: 36 45% 10%;
+        --info: 213 80% 62%;
+        --info-foreground: 214 45% 10%;
+        --overlay: 213 40% 3%;
+        --radius: 0.625rem;
+        --app-gradient: linear-gradient(150deg, hsl(213, 30%, 8%) 0%, hsl(192, 40%, 11%) 55%, hsl(213, 30%, 8%) 100%);
         color-scheme: dark;
     }
 }

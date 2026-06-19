@@ -42,7 +42,7 @@
                             <span v-if="collection.is_admin">
                                 <span
                                     v-if="!collection.is_published && isAdmin"
-                                    class="rounded bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400"
+                                    class="rounded bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning"
                                 >
                                     {{ t.collectionsDraftBadge }}
                                 </span>
@@ -177,7 +177,7 @@
 
                 <div
                     v-if="collection.is_admin && !collection.is_published"
-                    class="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300"
+                    class="mb-6 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning"
                 >
                     {{ t.collectionDraftNotice }}
                 </div>
@@ -388,7 +388,7 @@
                         {{ inviteLink }}
                     </div>
                     <Button variant="outline" size="sm" class="w-full" @click="copyInviteLink">
-                        <Check v-if="justCopied" class="mr-2 h-4 w-4 text-green-600" />
+                        <Check v-if="justCopied" class="mr-2 h-4 w-4 text-success" />
                         <Copy v-else class="mr-2 h-4 w-4" />
                         {{ justCopied ? t.collectionCopied : t.collectionCopyLink }}
                     </Button>
