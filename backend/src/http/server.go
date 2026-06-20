@@ -1,6 +1,7 @@
 package http
 
 import (
+	"sync"
 	"termorize/src/config"
 	"termorize/src/http/middlewares"
 	"termorize/src/http/validators"
@@ -12,7 +13,13 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-func LaunchServer() {
+// BuildRouter constructs the fully-configured Gin engine (middleware, custom
+// validators and all routes) WITHOUT starting the HTTP server. It is the single
+// source of truth for the application's routing and is safe to call from tests.
+//
+// Custom validator registration is guarded so repeated calls do not register the
+// same validators multiple times.
+func BuildRouter() *gin.Engine {
 	if config.IsProduction() {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -34,15 +41,25 @@ func LaunchServer() {
 	protectedApiGroup.Use(middlewares.AuthMiddleware())
 	defineProtectedRoutes(protectedApiGroup)
 
+	return router
+}
+
+func LaunchServer() {
+	router := BuildRouter()
+
 	if err := router.Run(":" + config.GetPort()); err != nil {
 		logger.L().Fatalw("failed to start http server", "error", err)
 	}
 }
 
+var registerValidatorsOnce sync.Once
+
 func registerCustomValidators() {
-	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
-		v.RegisterValidation("enum", validators.ValidateEnum)
-		v.RegisterValidation("timezone", validators.ValidateTimezone)
-		v.RegisterValidation("hhmm", validators.ValidateHHMM)
-	}
+	registerValidatorsOnce.Do(func() {
+		if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+			v.RegisterValidation("enum", validators.ValidateEnum)
+			v.RegisterValidation("timezone", validators.ValidateTimezone)
+			v.RegisterValidation("hhmm", validators.ValidateHHMM)
+		}
+	})
 }

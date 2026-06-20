@@ -25,8 +25,12 @@ import (
 
 const telegramIssuer = "https://oauth.telegram.org"
 const telegramAuthorizationEndpoint = telegramIssuer + "/auth"
-const telegramTokenEndpoint = telegramIssuer + "/token"
-const telegramJWKSURL = telegramIssuer + "/.well-known/jwks.json"
+
+// telegramTokenEndpoint and telegramJWKSURL are vars (not consts) so tests can
+// point them at a local fake server. Production values are unchanged.
+var telegramTokenEndpoint = telegramIssuer + "/token"
+var telegramJWKSURL = telegramIssuer + "/.well-known/jwks.json"
+
 const telegramLoginScope = "openid profile telegram:bot_access"
 const telegramLoginSessionTTL = 60 * time.Minute
 const telegramInitDataTTL = 24 * time.Hour
@@ -116,6 +120,19 @@ func (v *telegramNumericString) UnmarshalJSON(data []byte) error {
 
 	*v = telegramNumericString(parsed)
 	return nil
+}
+
+// SetTelegramOAuthEndpointsForTest overrides the OAuth token and JWKS URLs so
+// integration tests can drive the login flow against a local fake server. It
+// returns a restore func that reverts to the production endpoints.
+func SetTelegramOAuthEndpointsForTest(tokenURL, jwksURL string) (restore func()) {
+	previousToken, previousJWKS := telegramTokenEndpoint, telegramJWKSURL
+	telegramTokenEndpoint = tokenURL
+	telegramJWKSURL = jwksURL
+	return func() {
+		telegramTokenEndpoint = previousToken
+		telegramJWKSURL = previousJWKS
+	}
 }
 
 func IsTelegramLoginConfigured() bool {

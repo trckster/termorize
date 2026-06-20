@@ -200,6 +200,9 @@ func CreateVocabularyByTranslation(userID uint, translationID uuid.UUID) (*model
 			Preload("Translation").
 			Where("id = ?", translationID).
 			First(&translation).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrTranslationNotFound
+			}
 			return err
 		}
 

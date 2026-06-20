@@ -18,7 +18,11 @@ type translateClient struct {
 	apiKey string
 }
 
-func NewTranslateClient() TranslateClient {
+// NewTranslateClient builds the Google Translate client. It is declared as a
+// package-level variable (rather than a plain function) so tests can swap in a
+// fake implementation and restore the original afterwards. Production behavior is
+// unchanged.
+var NewTranslateClient = func() TranslateClient {
 	return &translateClient{
 		apiKey: config.GetGoogleApiKey(),
 	}
