@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/json"
 	"errors"
 	"math/rand"
 	"strings"
@@ -74,6 +75,9 @@ const (
 	matchPairCardSideTranslation = "translation"
 )
 
+// MatchPairsVocabularyCount is the exported number of vocabulary pairs in a match exercise.
+const MatchPairsVocabularyCount = matchPairsVocabularyCount
+
 type PendingExercise struct {
 	ExerciseID          uuid.UUID          `gorm:"column:exercise_id"`
 	ExerciseType        enums.ExerciseType `gorm:"column:exercise_type"`
@@ -85,6 +89,14 @@ type PendingExercise struct {
 	TranslationWord     string             `gorm:"column:translation_word"`
 	TranslationLanguage enums.Language     `gorm:"column:translation_language"`
 	SystemLanguage      enums.Language     `gorm:"column:system_language"`
+}
+
+type PendingMatchExercise struct {
+	ExerciseID     uuid.UUID      `gorm:"column:exercise_id"`
+	UserID         uint           `gorm:"column:user_id"`
+	Username       string         `gorm:"column:username"`
+	TelegramID     int64          `gorm:"column:telegram_id"`
+	SystemLanguage enums.Language `gorm:"column:system_language"`
 }
 
 type ExerciseWords struct {
@@ -241,6 +253,20 @@ func GenerateExercises(user models.User, targetDate time.Time) int {
 
 	generatedCount := 0
 
+	if len(vocabularyIDs) >= matchPairsVocabularyCount {
+		midnightOffset := rand.Intn(totalMinutes)
+		realOffsetInMinutes := MapOffsetOnSchedule(user.Settings.Telegram.DailyQuestionsSchedule, midnightOffset)
+		exerciseScheduleTime := targetMidnight.Add(time.Duration(realOffsetInMinutes) * time.Minute).UTC()
+
+		if _, err := generateMatchPairsExercise(user.ID, exerciseScheduleTime); err != nil {
+			if !errors.Is(err, errNoExerciseTypeAvailable) {
+				logger.L().Errorw("failed to generate match pairs exercise", "user_id", user.ID, "scheduled_for", exerciseScheduleTime, "error", err)
+			}
+		} else {
+			generatedCount++
+		}
+	}
+
 	for _, vocabularyID := range vocabularyIDs {
 		if generatedCount >= int(requestedExercisesCount) {
 			break
@@ -252,7 +278,7 @@ func GenerateExercises(user models.User, targetDate time.Time) int {
 
 		exerciseScheduleTime := targetMidnight.Add(time.Duration(realOffsetInMinutes) * time.Minute).UTC()
 
-		if err := generateExercise(user.ID, vocabularyID, exerciseScheduleTime); err != nil {
+		if err := generateExercise(user.ID, vocabularyID, exerciseScheduleTime, false); err != nil {
 			if errors.Is(err, errNoExerciseTypeAvailable) {
 				continue
 			}
@@ -293,13 +319,13 @@ func getEligibleVocabularyIDs(userID uint, limit uint) ([]uuid.UUID, error) {
 	return vocabularyIDs, nil
 }
 
-func generateExercise(userID uint, vocabularyID uuid.UUID, when time.Time) error {
+func generateExercise(userID uint, vocabularyID uuid.UUID, when time.Time, includeMatchPairs bool) error {
 	vocabulary, err := loadExerciseVocabulary(vocabularyID)
 	if err != nil {
 		return err
 	}
 
-	exerciseType, options, err := selectExerciseTypeAndOptions(userID, vocabulary, false)
+	exerciseType, options, err := selectExerciseTypeAndOptions(userID, vocabulary, includeMatchPairs)
 	if err != nil {
 		return err
 	}
@@ -316,8 +342,62 @@ func generateExercise(userID uint, vocabularyID uuid.UUID, when time.Time) error
 			return err
 		}
 
-		return createExerciseVocabularyLinks(tx, exercise.ID, vocabularyID, options)
+		correctVocabularyID := vocabularyID
+		if exerciseType == enums.ExerciseTypeMatchPairs {
+			correctVocabularyID = uuid.Nil
+		}
+
+		return createExerciseVocabularyLinks(tx, exercise.ID, correctVocabularyID, options)
 	})
+}
+
+// CreatePendingMatchExercise creates a pending match/pairs exercise scheduled for `when`
+// and returns its ID. Exposed for test tooling that sends exercises to Telegram directly.
+func CreatePendingMatchExercise(userID uint, when time.Time) (uuid.UUID, error) {
+	return generateMatchPairsExercise(userID, when)
+}
+
+func generateMatchPairsExercise(userID uint, when time.Time) (uuid.UUID, error) {
+	seedIDs, err := getEligibleVocabularyIDs(userID, 1)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if len(seedIDs) == 0 {
+		return uuid.Nil, errNoExerciseTypeAvailable
+	}
+
+	seedVocabulary, err := loadExerciseVocabulary(seedIDs[0])
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	options, err := buildMatchPairOptions(userID, seedVocabulary)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if len(options) != matchPairsVocabularyCount {
+		return uuid.Nil, errNoExerciseTypeAvailable
+	}
+
+	exercise := models.Exercise{
+		Type:         enums.ExerciseTypeMatchPairs,
+		Status:       enums.ExerciseStatusPending,
+		UserID:       userID,
+		ScheduledFor: &when,
+	}
+
+	err = db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&exercise).Error; err != nil {
+			return err
+		}
+
+		return createExerciseVocabularyLinks(tx, exercise.ID, uuid.Nil, options)
+	})
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	return exercise.ID, nil
 }
 
 func GetDuePendingExercises(now time.Time) ([]PendingExercise, error) {
@@ -356,6 +436,113 @@ func GetDuePendingExercises(now time.Time) ([]PendingExercise, error) {
 	return exercises, nil
 }
 
+func GetDuePendingMatchExercises(now time.Time) ([]PendingMatchExercise, error) {
+	var exercises []PendingMatchExercise
+
+	err := db.DB.Raw(`
+		SELECT
+			e.id AS exercise_id,
+			e.user_id AS user_id,
+			u.username AS username,
+			u.telegram_id AS telegram_id,
+			u.settings->>'system_language' AS system_language
+		FROM exercises AS e
+		JOIN users AS u ON u.id = e.user_id
+		WHERE e.status = ?
+			AND e.type = ?
+			AND e.scheduled_for <= ?
+			AND u.settings->'telegram'->'bot_enabled' = ?
+			AND (
+				SELECT COUNT(*)
+				FROM vocabulary_exercises AS ve
+				JOIN vocabulary AS v ON v.id = ve.vocabulary_id AND v.deleted_at IS NULL
+				WHERE ve.exercise_id = e.id AND ve.is_correct = true
+			) = ?
+		ORDER BY e.scheduled_for ASC, e.created_at ASC
+	`, enums.ExerciseStatusPending, enums.ExerciseTypeMatchPairs, now, true, matchPairsVocabularyCount).Scan(&exercises).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return exercises, nil
+}
+
+// buildCanonicalMatchCards builds the 10 cards in canonical order from the supplied
+// vocabulary rows. Card at index i (= position*2+side) is stable across taps.
+func buildCanonicalMatchCards(rows []exerciseVocabularyDetails) []ExerciseMatchCard {
+	cards := make([]ExerciseMatchCard, 0, len(rows)*2)
+	for _, row := range rows {
+		cards = append(cards, ExerciseMatchCard{
+			ID:           row.VocabularyID.String() + ":" + matchPairCardSideOriginal,
+			VocabularyID: row.VocabularyID,
+			Word:         row.OriginalWord,
+			Language:     row.OriginalLanguage,
+			Side:         matchPairCardSideOriginal,
+		})
+		cards = append(cards, ExerciseMatchCard{
+			ID:           row.VocabularyID.String() + ":" + matchPairCardSideTranslation,
+			VocabularyID: row.VocabularyID,
+			Word:         row.TranslationWord,
+			Language:     row.TranslationLanguage,
+			Side:         matchPairCardSideTranslation,
+		})
+	}
+
+	return cards
+}
+
+// BuildMatchBoard returns the canonical (unshuffled) cards for an exercise plus a
+// random display permutation to persist. It returns ErrExerciseVocabularyDeleted when
+// the exercise no longer has exactly matchPairsVocabularyCount active vocabularies.
+func BuildMatchBoard(exerciseID uuid.UUID) ([]ExerciseMatchCard, []int, error) {
+	rows, err := getExerciseVocabularyDetails([]uuid.UUID{exerciseID}, true, true)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(rows) != matchPairsVocabularyCount {
+		return nil, nil, ErrExerciseVocabularyDeleted
+	}
+
+	cards := buildCanonicalMatchCards(rows)
+
+	order := make([]int, len(cards))
+	for i := range order {
+		order[i] = i
+	}
+	rand.Shuffle(len(order), func(i, j int) {
+		order[i], order[j] = order[j], order[i]
+	})
+
+	return cards, order, nil
+}
+
+// StartMatchExercise marks a pending match exercise as in-progress, records the Telegram
+// message id, and initializes match_state with the supplied display order.
+func StartMatchExercise(exerciseID uuid.UUID, telegramMessageID int64, order []int) error {
+	stateBytes, err := json.Marshal(matchStateJSON{Order: order, Pending: -1, Attempts: [][2]int{}})
+	if err != nil {
+		return err
+	}
+
+	result := db.DB.Model(&models.Exercise{}).
+		Where("id = ? AND status = ?", exerciseID, enums.ExerciseStatusPending).
+		Updates(map[string]any{
+			"status":              enums.ExerciseStatusInProgress,
+			"telegram_message_id": telegramMessageID,
+			"started_at":          time.Now().UTC(),
+			"match_state":         string(stateBytes),
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrExerciseNotInProgress
+	}
+
+	return nil
+}
+
 func GetExerciseByTelegramMessage(telegramMessageID int64, telegramID int64) (*TelegramMessageExercise, error) {
 	var exercise models.Exercise
 
@@ -373,6 +560,30 @@ func GetExerciseByTelegramMessage(telegramMessageID int64, telegramID int64) (*T
 		return nil, err
 	}
 
+	return buildTelegramMessageExercise(exercise)
+}
+
+func GetExerciseByTelegramExerciseID(exerciseID uuid.UUID, telegramID int64) (*TelegramMessageExercise, error) {
+	var exercise models.Exercise
+
+	err := db.DB.
+		Model(&models.Exercise{}).
+		Joins("JOIN users AS u ON u.id = exercises.user_id").
+		Where("exercises.id = ?", exerciseID).
+		Where("u.telegram_id = ?", telegramID).
+		First(&exercise).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+
+		return nil, err
+	}
+
+	return buildTelegramMessageExercise(exercise)
+}
+
+func buildTelegramMessageExercise(exercise models.Exercise) (*TelegramMessageExercise, error) {
 	correctVocabulary, err := getCorrectExerciseVocabularyDetails(exercise.ID)
 	if err != nil {
 		return nil, err
@@ -473,14 +684,23 @@ func IgnoreDuePendingExercisesWithoutActiveVocabulary(now time.Time) error {
 				SELECT e.id
 				FROM exercises AS e
 				WHERE e.status = ?
-					AND e.type IN (?, ?, ?, ?)
+					AND e.type IN (?, ?, ?, ?, ?)
 					AND e.scheduled_for <= ?
-					AND NOT EXISTS (
-						SELECT 1
-						FROM vocabulary_exercises AS ve
-						JOIN vocabulary AS v ON v.id = ve.vocabulary_id AND v.deleted_at IS NULL
-						WHERE ve.exercise_id = e.id
-							AND ve.is_correct = true
+					AND (
+						(e.type <> ? AND NOT EXISTS (
+							SELECT 1
+							FROM vocabulary_exercises AS ve
+							JOIN vocabulary AS v ON v.id = ve.vocabulary_id AND v.deleted_at IS NULL
+							WHERE ve.exercise_id = e.id
+								AND ve.is_correct = true
+						))
+						OR (e.type = ? AND (
+							SELECT COUNT(*)
+							FROM vocabulary_exercises AS ve
+							JOIN vocabulary AS v ON v.id = ve.vocabulary_id AND v.deleted_at IS NULL
+							WHERE ve.exercise_id = e.id
+								AND ve.is_correct = true
+						) <> ?)
 					)
 			)
 			UPDATE vocabulary_exercises AS ve
@@ -495,7 +715,11 @@ func IgnoreDuePendingExercisesWithoutActiveVocabulary(now time.Time) error {
 			enums.ExerciseTypeBasicReversed,
 			enums.ExerciseTypeChoiceDirect,
 			enums.ExerciseTypeChoiceReversed,
+			enums.ExerciseTypeMatchPairs,
 			now,
+			enums.ExerciseTypeMatchPairs,
+			enums.ExerciseTypeMatchPairs,
+			matchPairsVocabularyCount,
 			ExerciseVocabularyResultIgnored,
 			ExerciseVocabularyResultReasonDeletedVocabulary,
 			now,
@@ -507,16 +731,25 @@ func IgnoreDuePendingExercisesWithoutActiveVocabulary(now time.Time) error {
 			UPDATE exercises AS e
 			SET status = ?, finished_at = ?
 			WHERE e.status = ?
-				AND e.type IN (?, ?, ?, ?)
+				AND e.type IN (?, ?, ?, ?, ?)
 				AND e.scheduled_for <= ?
-				AND NOT EXISTS (
-					SELECT 1
-					FROM vocabulary_exercises AS ve
-					JOIN vocabulary AS v ON v.id = ve.vocabulary_id AND v.deleted_at IS NULL
-					WHERE ve.exercise_id = e.id
-						AND ve.is_correct = true
+				AND (
+					(e.type <> ? AND NOT EXISTS (
+						SELECT 1
+						FROM vocabulary_exercises AS ve
+						JOIN vocabulary AS v ON v.id = ve.vocabulary_id AND v.deleted_at IS NULL
+						WHERE ve.exercise_id = e.id
+							AND ve.is_correct = true
+					))
+					OR (e.type = ? AND (
+						SELECT COUNT(*)
+						FROM vocabulary_exercises AS ve
+						JOIN vocabulary AS v ON v.id = ve.vocabulary_id AND v.deleted_at IS NULL
+						WHERE ve.exercise_id = e.id
+							AND ve.is_correct = true
+					) <> ?)
 				)
-		`, enums.ExerciseStatusIgnored, now, enums.ExerciseStatusPending, enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed, now).Error
+		`, enums.ExerciseStatusIgnored, now, enums.ExerciseStatusPending, enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed, enums.ExerciseTypeMatchPairs, now, enums.ExerciseTypeMatchPairs, enums.ExerciseTypeMatchPairs, matchPairsVocabularyCount).Error
 	})
 }
 
@@ -940,6 +1173,23 @@ type MatchPairsCompleteResult struct {
 	Results []ExerciseListVocabulary `json:"results"`
 }
 
+// matchStateJSON is the persisted transient state of a Telegram match game.
+type matchStateJSON struct {
+	Order    []int    `json:"order"`
+	Pending  int      `json:"pending"`
+	Attempts [][2]int `json:"attempts"`
+}
+
+// MatchBoardState is the rendered state of a match board after replaying the persisted attempts.
+type MatchBoardState struct {
+	Order        []int                // display permutation of canonical card indices
+	Cards        []ExerciseMatchCard  // canonical order; index == canonical card index
+	Pending      int                  // canonical index of held first pick, or -1
+	Resolved     map[uuid.UUID]string // vocabulary -> result (correct/almost/wrong)
+	CardWrong    map[string]int       // card.ID -> wrong attempts
+	MatchedCount int                  // number of resolved vocabularies
+}
+
 func CreateRandomExercise(userID uint) (*RandomExerciseResult, error) {
 	ids, err := getEligibleVocabularyIDs(userID, 64)
 	if err != nil {
@@ -1156,6 +1406,61 @@ func VerifyExerciseChoice(exerciseID uuid.UUID, userID uint, selectedVocabularyI
 	}, nil
 }
 
+// replayMatchAttempts replays the given attempts over the supplied cards and returns the
+// per-vocabulary result ("" = unresolved, else correct/almost/wrong) and per-card wrong
+// counts. The expectedVocabularyIDs seed the states map so every vocabulary is present.
+// It returns ErrInvalidMatchPairResults on malformed input (identical card ids, unknown
+// cards, or an attempt touching an already-resolved vocabulary).
+func replayMatchAttempts(
+	cardByID map[string]ExerciseMatchCard,
+	expectedVocabularyIDs []uuid.UUID,
+	attempts []MatchPairAttempt,
+) (states map[uuid.UUID]string, cardWrong map[string]int, err error) {
+	states = make(map[uuid.UUID]string, len(expectedVocabularyIDs))
+	cardWrong = make(map[string]int, len(expectedVocabularyIDs)*2)
+	for _, vocabularyID := range expectedVocabularyIDs {
+		states[vocabularyID] = ""
+	}
+
+	for _, attempt := range attempts {
+		if attempt.FirstCardID == attempt.SecondCardID {
+			return nil, nil, ErrInvalidMatchPairResults
+		}
+
+		firstCard, ok := cardByID[attempt.FirstCardID]
+		if !ok {
+			return nil, nil, ErrInvalidMatchPairResults
+		}
+		secondCard, ok := cardByID[attempt.SecondCardID]
+		if !ok {
+			return nil, nil, ErrInvalidMatchPairResults
+		}
+
+		if states[firstCard.VocabularyID] != "" || states[secondCard.VocabularyID] != "" {
+			return nil, nil, ErrInvalidMatchPairResults
+		}
+
+		isCorrectPair := firstCard.VocabularyID == secondCard.VocabularyID && firstCard.Side != secondCard.Side
+		if isCorrectPair {
+			result := ExerciseVocabularyResultCorrect
+			if cardWrong[firstCard.ID] > 0 || cardWrong[secondCard.ID] > 0 {
+				result = ExerciseVocabularyResultAlmost
+			}
+			states[firstCard.VocabularyID] = result
+			continue
+		}
+
+		for _, card := range []ExerciseMatchCard{firstCard, secondCard} {
+			cardWrong[card.ID]++
+			if cardWrong[card.ID] >= 2 {
+				states[card.VocabularyID] = ExerciseVocabularyResultWrong
+			}
+		}
+	}
+
+	return states, cardWrong, nil
+}
+
 func CompleteMatchPairsExercise(exerciseID uuid.UUID, userID uint, attempts []MatchPairAttempt) (*MatchPairsCompleteResult, error) {
 	if len(attempts) == 0 {
 		return nil, ErrInvalidMatchPairResults
@@ -1215,65 +1520,24 @@ func CompleteMatchPairsExercise(exerciseID uuid.UUID, userID uint, attempts []Ma
 		cardByID[translationCard.ID] = translationCard
 	}
 
-	type matchVocabularyState struct {
-		result string
+	expectedVocabularyIDs := make([]uuid.UUID, 0, len(expected))
+	for vocabularyID := range expected {
+		expectedVocabularyIDs = append(expectedVocabularyIDs, vocabularyID)
+	}
+
+	states, _, err := replayMatchAttempts(cardByID, expectedVocabularyIDs, attempts)
+	if err != nil {
+		return nil, err
 	}
 
 	submitted := make(map[uuid.UUID]string, len(expected))
-	states := make(map[uuid.UUID]matchVocabularyState, len(expected))
-	cardWrongAttempts := make(map[string]int, len(expected)*2)
-	for vocabularyID := range expected {
-		states[vocabularyID] = matchVocabularyState{}
-	}
-
-	for _, attempt := range attempts {
-		if attempt.FirstCardID == attempt.SecondCardID {
-			return nil, ErrInvalidMatchPairResults
-		}
-
-		firstCard, ok := cardByID[attempt.FirstCardID]
-		if !ok {
-			return nil, ErrInvalidMatchPairResults
-		}
-		secondCard, ok := cardByID[attempt.SecondCardID]
-		if !ok {
-			return nil, ErrInvalidMatchPairResults
-		}
-
-		firstState := states[firstCard.VocabularyID]
-		secondState := states[secondCard.VocabularyID]
-		if firstState.result != "" || secondState.result != "" {
-			return nil, ErrInvalidMatchPairResults
-		}
-
-		isCorrectPair := firstCard.VocabularyID == secondCard.VocabularyID && firstCard.Side != secondCard.Side
-		if isCorrectPair {
-			result := ExerciseVocabularyResultCorrect
-			if cardWrongAttempts[firstCard.ID] > 0 || cardWrongAttempts[secondCard.ID] > 0 {
-				result = ExerciseVocabularyResultAlmost
-			}
-			firstState.result = result
-			states[firstCard.VocabularyID] = firstState
-			continue
-		}
-
-		for _, card := range []ExerciseMatchCard{firstCard, secondCard} {
-			state := states[card.VocabularyID]
-			cardWrongAttempts[card.ID]++
-			if cardWrongAttempts[card.ID] >= 2 {
-				state.result = ExerciseVocabularyResultWrong
-			}
-			states[card.VocabularyID] = state
-		}
-	}
-
 	hasWrong := false
-	for vocabularyID, state := range states {
-		if state.result == "" {
+	for vocabularyID, result := range states {
+		if result == "" {
 			return nil, ErrInvalidMatchPairResults
 		}
 
-		switch state.result {
+		switch result {
 		case ExerciseVocabularyResultCorrect, ExerciseVocabularyResultAlmost:
 		case ExerciseVocabularyResultWrong:
 			hasWrong = true
@@ -1281,7 +1545,7 @@ func CompleteMatchPairsExercise(exerciseID uuid.UUID, userID uint, attempts []Ma
 			return nil, ErrInvalidMatchPairResults
 		}
 
-		submitted[vocabularyID] = state.result
+		submitted[vocabularyID] = result
 	}
 
 	status := enums.ExerciseStatusCompleted
@@ -1341,6 +1605,186 @@ func CompleteMatchPairsExercise(exerciseID uuid.UUID, userID uint, attempts []Ma
 		Status:  status,
 		Results: completedRows,
 	}, nil
+}
+
+// ApplyMatchTap applies a single tap (by canonical card index) to a Telegram match
+// exercise under a row lock. It returns the new board state, whether the just-committed
+// attempt was a wrong pair, whether all vocabularies are now resolved, and (when finished)
+// the full ordered attempts to pass to CompleteMatchPairsExercise.
+func ApplyMatchTap(exerciseID uuid.UUID, userID uint, tappedIdx int) (
+	board *MatchBoardState, wasWrong bool, finished bool, finalizeAttempts []MatchPairAttempt, err error,
+) {
+	var vocabularyDeleted bool
+
+	txErr := db.DB.Transaction(func(tx *gorm.DB) error {
+		var exercise models.Exercise
+		if lockErr := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ? AND user_id = ?", exerciseID, userID).
+			Take(&exercise).Error; lockErr != nil {
+			if errors.Is(lockErr, gorm.ErrRecordNotFound) {
+				return ErrExerciseNotFound
+			}
+			return lockErr
+		}
+
+		if exercise.Type != enums.ExerciseTypeMatchPairs {
+			return ErrInvalidMatchPairResults
+		}
+		if exercise.Status != enums.ExerciseStatusInProgress {
+			return ErrExerciseNotInProgress
+		}
+
+		rows, detailErr := getExerciseVocabularyDetails([]uuid.UUID{exerciseID}, true, true)
+		if detailErr != nil {
+			return detailErr
+		}
+		if len(rows) != matchPairsVocabularyCount {
+			vocabularyDeleted = true
+			return ErrExerciseVocabularyDeleted
+		}
+
+		cards := buildCanonicalMatchCards(rows)
+		if tappedIdx < 0 || tappedIdx >= len(cards) {
+			return ErrInvalidMatchPairResults
+		}
+
+		cardByID := make(map[string]ExerciseMatchCard, len(cards))
+		for _, card := range cards {
+			cardByID[card.ID] = card
+		}
+
+		expectedVocabularyIDs := make([]uuid.UUID, 0, len(rows))
+		for _, row := range rows {
+			expectedVocabularyIDs = append(expectedVocabularyIDs, row.VocabularyID)
+		}
+
+		var state matchStateJSON
+		if exercise.MatchState == nil {
+			return ErrInvalidMatchPairResults
+		}
+		if unmarshalErr := json.Unmarshal([]byte(*exercise.MatchState), &state); unmarshalErr != nil {
+			return unmarshalErr
+		}
+
+		attemptsToPairs := func(attempts [][2]int) []MatchPairAttempt {
+			pairs := make([]MatchPairAttempt, 0, len(attempts))
+			for _, attempt := range attempts {
+				if attempt[0] < 0 || attempt[0] >= len(cards) || attempt[1] < 0 || attempt[1] >= len(cards) {
+					continue
+				}
+				pairs = append(pairs, MatchPairAttempt{
+					FirstCardID:  cards[attempt[0]].ID,
+					SecondCardID: cards[attempt[1]].ID,
+				})
+			}
+			return pairs
+		}
+
+		states, cardWrong, replayErr := replayMatchAttempts(cardByID, expectedVocabularyIDs, attemptsToPairs(state.Attempts))
+		if replayErr != nil {
+			return replayErr
+		}
+
+		tappedCard := cards[tappedIdx]
+
+		wasWrong = false
+		if states[tappedCard.VocabularyID] != "" {
+			// Stale tap on an already-resolved card: no-op, do not write.
+			board = buildMatchBoardState(state.Order, cards, state.Pending, states, cardWrong)
+			finished = isMatchFinished(states)
+			return nil
+		}
+
+		switch {
+		case state.Pending == -1:
+			state.Pending = tappedIdx
+		case state.Pending == tappedIdx:
+			state.Pending = -1
+		default:
+			resolvedCorrectBefore := countResolvedNonWrong(states)
+			state.Attempts = append(state.Attempts, [2]int{state.Pending, tappedIdx})
+			state.Pending = -1
+
+			states, cardWrong, replayErr = replayMatchAttempts(cardByID, expectedVocabularyIDs, attemptsToPairs(state.Attempts))
+			if replayErr != nil {
+				return replayErr
+			}
+			wasWrong = countResolvedNonWrong(states) == resolvedCorrectBefore
+		}
+
+		stateBytes, marshalErr := json.Marshal(state)
+		if marshalErr != nil {
+			return marshalErr
+		}
+
+		updateResult := tx.Model(&models.Exercise{}).
+			Where("id = ? AND status = ?", exerciseID, enums.ExerciseStatusInProgress).
+			Update("match_state", string(stateBytes))
+		if updateResult.Error != nil {
+			return updateResult.Error
+		}
+		if updateResult.RowsAffected == 0 {
+			return ErrExerciseNotInProgress
+		}
+
+		board = buildMatchBoardState(state.Order, cards, state.Pending, states, cardWrong)
+		finished = isMatchFinished(states)
+		if finished {
+			finalizeAttempts = attemptsToPairs(state.Attempts)
+		}
+
+		return nil
+	})
+
+	if txErr != nil {
+		if vocabularyDeleted {
+			_ = MarkExerciseVocabularyResultWithoutProgress(exerciseID, ExerciseVocabularyResultIgnored, ExerciseVocabularyResultReasonDeletedVocabulary)
+			_ = IgnoreExercise(exerciseID)
+		}
+		return nil, false, false, nil, txErr
+	}
+
+	return board, wasWrong, finished, finalizeAttempts, nil
+}
+
+func buildMatchBoardState(order []int, cards []ExerciseMatchCard, pending int, states map[uuid.UUID]string, cardWrong map[string]int) *MatchBoardState {
+	resolved := make(map[uuid.UUID]string)
+	for vocabularyID, result := range states {
+		if result != "" {
+			resolved[vocabularyID] = result
+		}
+	}
+
+	return &MatchBoardState{
+		Order:        order,
+		Cards:        cards,
+		Pending:      pending,
+		Resolved:     resolved,
+		CardWrong:    cardWrong,
+		MatchedCount: len(resolved),
+	}
+}
+
+func isMatchFinished(states map[uuid.UUID]string) bool {
+	if len(states) == 0 {
+		return false
+	}
+	for _, result := range states {
+		if result == "" {
+			return false
+		}
+	}
+	return true
+}
+
+func countResolvedNonWrong(states map[uuid.UUID]string) int {
+	count := 0
+	for _, result := range states {
+		if result == ExerciseVocabularyResultCorrect || result == ExerciseVocabularyResultAlmost {
+			count++
+		}
+	}
+	return count
 }
 
 func createRandomExerciseForVocabulary(userID uint, vocabularyID uuid.UUID) (*RandomExerciseResult, error) {

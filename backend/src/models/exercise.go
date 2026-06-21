@@ -13,6 +13,7 @@ type Exercise struct {
 	Status            enums.ExerciseStatus `json:"status"`
 	UserID            uint                 `json:"-"`
 	TelegramMessageID *int64               `json:"-"`
+	MatchState        *string              `json:"-" gorm:"column:match_state"`
 
 	ScheduledFor   *time.Time `json:"-"`
 	StartedAt      *time.Time `json:"starts_at"`

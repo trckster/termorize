@@ -225,6 +225,96 @@ func TestGetExercisesEmpty(t *testing.T) {
 	assert.Equal(t, 0, body.Pagination.TotalPages)
 }
 
+func TestGenerateExercisesSchedulesMatchPairsWhenEligible(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{
+		SystemLanguage: enums.LanguageEn,
+		TimeZone:       "UTC",
+		Telegram: models.UserTelegramSettings{
+			BotEnabled:             true,
+			DailyQuestionsEnabled:  true,
+			DailyQuestionsCount:    2,
+			DailyQuestionsSchedule: []models.UserTelegramQuestionsScheduleItem{{From: "10:00", To: "10:30"}},
+		},
+	}))
+
+	for _, pair := range []struct {
+		original    string
+		translation string
+	}{
+		{"release", "rilasciare"},
+		{"cell", "la cella"},
+		{"sentence", "la condanna"},
+		{"prison", "la prigione"},
+		{"guard", "la guardia"},
+	} {
+		exerciseSeedVocabulary(t, user.ID, pair.original, pair.translation, enums.LanguageEn, enums.LanguageIt)
+	}
+
+	require.Equal(t, 2, services.GenerateExercises(user, time.Date(2026, time.June, 21, 0, 0, 0, 0, time.UTC)))
+
+	var matchCount int64
+	require.NoError(t, db.DB.Model(&models.Exercise{}).
+		Where("user_id = ? AND type = ? AND status = ?", user.ID, enums.ExerciseTypeMatchPairs, enums.ExerciseStatusPending).
+		Count(&matchCount).Error)
+	assert.EqualValues(t, 1, matchCount)
+}
+
+func TestIgnoreDuePendingExercisesIgnoresMatchPairsWithPartialDeletedVocabulary(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+	vocabularies := []models.Vocabulary{
+		exerciseSeedVocabulary(t, user.ID, "release", "rilasciare", enums.LanguageEn, enums.LanguageIt),
+		exerciseSeedVocabulary(t, user.ID, "cell", "la cella", enums.LanguageEn, enums.LanguageIt),
+		exerciseSeedVocabulary(t, user.ID, "sentence", "la condanna", enums.LanguageEn, enums.LanguageIt),
+		exerciseSeedVocabulary(t, user.ID, "prison", "la prigione", enums.LanguageEn, enums.LanguageIt),
+		exerciseSeedVocabulary(t, user.ID, "guard", "la guardia", enums.LanguageEn, enums.LanguageIt),
+	}
+
+	now := time.Now().UTC()
+	exercise := models.Exercise{
+		Type:         enums.ExerciseTypeMatchPairs,
+		Status:       enums.ExerciseStatusPending,
+		UserID:       user.ID,
+		ScheduledFor: &now,
+	}
+	require.NoError(t, db.DB.Create(&exercise).Error)
+	for index, vocabulary := range vocabularies {
+		link := models.ExerciseVocabulary{
+			ExerciseID:   exercise.ID,
+			VocabularyID: vocabulary.ID,
+			IsCorrect:    true,
+			Position:     index,
+		}
+		require.NoError(t, db.DB.Create(&link).Error)
+	}
+
+	deletedAt := now.Add(-time.Minute)
+	require.NoError(t, db.DB.Model(&models.Vocabulary{}).
+		Where("id = ?", vocabularies[0].ID).
+		Update("deleted_at", deletedAt).Error)
+
+	due, err := services.GetDuePendingMatchExercises(now)
+	require.NoError(t, err)
+	assert.Empty(t, due)
+
+	require.NoError(t, services.IgnoreDuePendingExercisesWithoutActiveVocabulary(now))
+
+	refreshed := exerciseReload(t, exercise.ID)
+	assert.Equal(t, enums.ExerciseStatusIgnored, refreshed.Status)
+	require.NotNil(t, refreshed.FinishedAt)
+
+	var ignoredLinks int64
+	require.NoError(t, db.DB.Model(&models.ExerciseVocabulary{}).
+		Where("exercise_id = ?", exercise.ID).
+		Where("result = ?", services.ExerciseVocabularyResultIgnored).
+		Where("result_reason = ?", services.ExerciseVocabularyResultReasonDeletedVocabulary).
+		Count(&ignoredLinks).Error)
+	assert.EqualValues(t, services.MatchPairsVocabularyCount, ignoredLinks)
+}
+
 func TestGetExercisesReturnsStartedExercises(t *testing.T) {
 	testkit.Truncate(t)
 
@@ -499,12 +589,12 @@ func TestRandomExerciseHappyPath(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
 
 	var body struct {
-		ExerciseID     uuid.UUID                  `json:"exercise_id"`
-		Type           enums.ExerciseType         `json:"type"`
-		QuestionWord   string                     `json:"question_word"`
-		Language       enums.Language             `json:"language"`
-		AnswerLanguage enums.Language             `json:"answer_language"`
-		Options        []string                   `json:"options"`
+		ExerciseID     uuid.UUID                    `json:"exercise_id"`
+		Type           enums.ExerciseType           `json:"type"`
+		QuestionWord   string                       `json:"question_word"`
+		Language       enums.Language               `json:"language"`
+		AnswerLanguage enums.Language               `json:"answer_language"`
+		Options        []string                     `json:"options"`
 		Cards          []services.ExerciseMatchCard `json:"cards"`
 	}
 	testkit.DecodeJSON(t, rec, &body)

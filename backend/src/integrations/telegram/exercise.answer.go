@@ -3,6 +3,8 @@ package telegram
 import (
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 	"termorize/src/enums"
 	"termorize/src/logger"
 	"termorize/src/services"
@@ -113,6 +115,70 @@ func buildExerciseInvalidResultText(originalWord string, translationWord string,
 func buildExerciseIDKResultText(originalWord string, translationWord string, originalLanguage enums.Language, translationLanguage enums.Language, translationKnowledge int, t BotTexts) string {
 	answerPair := buildExerciseAnswerPairText(originalWord, translationWord, originalLanguage, translationLanguage, t)
 	return t.ExerciseIDK + "\n\n" + answerPair + "\n\n" + fmt.Sprintf(t.ExerciseTranslationKnowledgeDownFormat, translationKnowledge)
+}
+
+func buildMatchBoardText(board *services.MatchBoardState, t BotTexts) string {
+	total := services.MatchPairsVocabularyCount
+	matched := board.MatchedCount
+	if matched > total {
+		matched = total
+	}
+
+	dots := strings.Repeat("●", matched) + strings.Repeat("○", total-matched)
+
+	return t.MatchExerciseTitle + "\n\n" + fmt.Sprintf(t.MatchProgressFormat, matched, total) + " " + dots
+}
+
+func buildMatchResultSummaryText(result *services.MatchPairsCompleteResult, t BotTexts) string {
+	header := t.MatchSummaryCompleted
+	if result.Status != enums.ExerciseStatusCompleted {
+		header = t.MatchSummaryFailed
+	}
+
+	rows := make([]services.ExerciseListVocabulary, len(result.Results))
+	copy(rows, result.Results)
+	sort.SliceStable(rows, func(i, j int) bool {
+		return rows[i].Position < rows[j].Position
+	})
+
+	total := services.MatchPairsVocabularyCount
+	matchedCount := 0
+
+	lines := make([]string, 0, len(rows)+2)
+	lines = append(lines, header, "")
+
+	for _, row := range rows {
+		emoji := "⚪"
+		if row.ExerciseResult != nil {
+			switch *row.ExerciseResult {
+			case services.ExerciseVocabularyResultCorrect:
+				emoji = "✅"
+				matchedCount++
+			case services.ExerciseVocabularyResultAlmost:
+				emoji = "🟡"
+				matchedCount++
+			case services.ExerciseVocabularyResultWrong:
+				emoji = "❌"
+			}
+		}
+
+		pairText := t.MatchPairDeletedVocabulary
+		if row.Translation != nil && row.Translation.Original != nil && row.Translation.Translation != nil {
+			pairText = buildExerciseAnswerPairText(
+				row.Translation.Original.Word,
+				row.Translation.Translation.Word,
+				row.Translation.Original.Language,
+				row.Translation.Translation.Language,
+				t,
+			)
+		}
+
+		lines = append(lines, emoji+" "+pairText)
+	}
+
+	lines = append(lines, "", fmt.Sprintf(t.MatchSummaryKnowledgeFormat, matchedCount, total))
+
+	return strings.Join(lines, "\n")
 }
 
 func buildExerciseAnswerPairText(originalWord string, translationWord string, originalLanguage enums.Language, translationLanguage enums.Language, t BotTexts) string {

@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"encoding/base64"
+	"strconv"
 
 	"github.com/google/uuid"
 
@@ -30,8 +31,10 @@ const (
 	menuActionSetTargetLang        = "set_target_lang"
 	menuActionSetSystemLang        = "set_system_lang"
 
-	exerciseActionAnswer = "answer"
-	exerciseActionIDK    = "idk"
+	exerciseActionAnswer    = "answer"
+	exerciseActionIDK       = "idk"
+	exerciseActionMatchTap  = "mt"
+	exerciseActionMatchNoop = "mn"
 
 	vocabularyActionAdd    = "add"
 	vocabularyActionDelete = "delete"
@@ -155,6 +158,51 @@ func buildExerciseKeyboard(exerciseID uuid.UUID, options []services.ExerciseOpti
 			Text:         option.Label,
 			CallbackData: callbackTypeExercise + ":" + exerciseActionAnswer + ":" + compactExerciseID + ":" + compactCallbackUUID(option.VocabularyID),
 		})
+	}
+
+	return rows
+}
+
+func buildMatchKeyboard(exerciseID uuid.UUID, board *services.MatchBoardState) [][]inlineKeyboardButton {
+	compactExerciseID := compactCallbackUUID(exerciseID)
+	noopCallback := callbackTypeExercise + ":" + exerciseActionMatchNoop
+
+	rows := make([][]inlineKeyboardButton, 0, len(board.Order)/2)
+	for slot, canonical := range board.Order {
+		if canonical < 0 || canonical >= len(board.Cards) {
+			continue
+		}
+		card := board.Cards[canonical]
+
+		var button inlineKeyboardButton
+		if result, resolved := board.Resolved[card.VocabularyID]; resolved {
+			prefix := "❌ "
+			switch result {
+			case services.ExerciseVocabularyResultCorrect:
+				prefix = "✅ "
+			case services.ExerciseVocabularyResultAlmost:
+				prefix = "🟡 "
+			}
+			button = inlineKeyboardButton{Text: prefix + card.Word, CallbackData: noopCallback}
+		} else {
+			text := card.Word
+			if board.CardWrong[card.ID] > 0 {
+				text = "⚠️ " + text
+			}
+			if canonical == board.Pending {
+				text = "▸ " + text
+			}
+			button = inlineKeyboardButton{
+				Text:         text,
+				CallbackData: callbackTypeExercise + ":" + exerciseActionMatchTap + ":" + compactExerciseID + ":" + strconv.Itoa(canonical),
+			}
+		}
+
+		rowIndex := slot / 2
+		if len(rows) <= rowIndex {
+			rows = append(rows, []inlineKeyboardButton{})
+		}
+		rows[rowIndex] = append(rows[rowIndex], button)
 	}
 
 	return rows
