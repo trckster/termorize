@@ -3,6 +3,7 @@ package telegram
 import (
 	"encoding/base64"
 	"errors"
+	"strconv"
 	"strings"
 	"termorize/src/enums"
 	"termorize/src/logger"
@@ -16,7 +17,7 @@ func handleCallbackQuery(callback *callbackQuery) error {
 		return nil
 	}
 
-	if callback.ID != "" {
+	if callback.ID != "" && !shouldDeferCallbackAnswer(callback) {
 		if err := answerTelegramCallbackQuery(callback.ID); err != nil {
 			logger.L().Warnw("failed to answer callback query", "error", err, "callback_id", callback.ID)
 		}
@@ -27,6 +28,15 @@ func handleCallbackQuery(callback *callbackQuery) error {
 	}
 
 	return routeCallbackData(callback)
+}
+
+func shouldDeferCallbackAnswer(callback *callbackQuery) bool {
+	if callback.From == nil || callback.Message == nil {
+		return false
+	}
+
+	handlerType, payload, ok := parseCallbackData(callback.Data)
+	return ok && handlerType == callbackTypeExercise && len(payload) > 0 && payload[0] == exerciseActionMatchTap
 }
 
 func parseCallbackData(data string) (string, []string, bool) {
@@ -87,6 +97,24 @@ func parseExerciseAnswerPayload(payload []string) (uuid.UUID, uuid.UUID, bool) {
 	return exerciseID, selectedVocabularyID, true
 }
 
+func parseExerciseMatchPayload(payload []string) (uuid.UUID, int, bool) {
+	if len(payload) != 3 || payload[0] != exerciseActionMatchTap {
+		return uuid.Nil, 0, false
+	}
+
+	exerciseID, err := parseCallbackUUID(payload[1])
+	if err != nil {
+		return uuid.Nil, 0, false
+	}
+
+	tappedIdx, err := strconv.Atoi(payload[2])
+	if err != nil || tappedIdx < 0 || tappedIdx > 9 {
+		return uuid.Nil, 0, false
+	}
+
+	return exerciseID, tappedIdx, true
+}
+
 func parseCallbackUUID(value string) (uuid.UUID, error) {
 	if id, err := uuid.Parse(value); err == nil {
 		return id, nil
@@ -106,6 +134,14 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 	}
 
 	t := getBotTextsForTelegramID(callback.From.ID)
+
+	if len(payload) > 0 && payload[0] == exerciseActionMatchNoop {
+		return nil
+	}
+	if len(payload) >= 2 && payload[0] == exerciseActionMatchTap {
+		return handleMatchTap(callback, payload, t)
+	}
+
 	exerciseID, selectedVocabularyID, hasAnswer := parseExerciseAnswerPayload(payload)
 	if !hasAnswer {
 		var ok bool
@@ -215,6 +251,165 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 		t,
 	)
 	return SendMessageMarkdown(callback.From.ID, answerText)
+}
+
+func handleMatchTap(callback *callbackQuery, payload []string, t BotTexts) error {
+	if callback.Message == nil {
+		return nil
+	}
+
+	callbackAnswered := false
+	defer func() {
+		if callback.ID == "" || callbackAnswered {
+			return
+		}
+		if answerErr := answerTelegramCallbackQuery(callback.ID); answerErr != nil {
+			logger.L().Warnw("failed to answer match callback", "error", answerErr, "callback_id", callback.ID)
+		}
+	}()
+
+	exerciseID, tappedIdx, ok := parseExerciseMatchPayload(payload)
+	if !ok {
+		return nil
+	}
+
+	exercise, err := services.GetExerciseByTelegramMessage(callback.Message.MessageID, callback.From.ID)
+	if err != nil {
+		return err
+	}
+
+	if exercise == nil {
+		exercise, err = recoverPendingMatchExerciseFromCallback(callback, exerciseID)
+		if err != nil {
+			return err
+		}
+	}
+
+	if exercise == nil || exercise.ExerciseID != exerciseID {
+		return nil
+	}
+
+	switch exercise.Status {
+	case enums.ExerciseStatusIgnored:
+		return SendMessage(callback.From.ID, t.ExerciseOutdated)
+	case enums.ExerciseStatusCompleted:
+		return SendMessage(callback.From.ID, t.ExerciseCompleted)
+	case enums.ExerciseStatusFailed:
+		return SendMessage(callback.From.ID, t.ExerciseFailed)
+	}
+
+	board, wasWrong, finished, finalizeAttempts, err := services.ApplyMatchTap(exercise.ExerciseID, exercise.UserID, tappedIdx)
+	if err != nil {
+		if errors.Is(err, services.ErrExerciseVocabularyDeleted) {
+			if removeErr := removeMessageInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID); removeErr != nil {
+				logger.L().Warnw("failed to remove inline keyboard", "error", removeErr, "chat_id", callback.Message.Chat.ID, "message_id", callback.Message.MessageID)
+			}
+			return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
+		}
+		if errors.Is(err, services.ErrExerciseNotInProgress) {
+			return nil
+		}
+
+		return err
+	}
+
+	if !finished {
+		if wasWrong {
+			if answerErr := answerTelegramCallbackQueryWithText(callback.ID, t.MatchNotAMatchToast); answerErr != nil {
+				logger.L().Warnw("failed to answer match callback toast", "error", answerErr, "callback_id", callback.ID)
+			} else {
+				callbackAnswered = true
+			}
+		}
+
+		return EditMatchBoardMessage(callback.Message.Chat.ID, callback.Message.MessageID, buildMatchBoardText(board, t), buildMatchKeyboard(exercise.ExerciseID, board))
+	}
+
+	// A stale/duplicate tap can observe an already-finished board (all cards resolved)
+	// without producing new attempts. A concurrent tap already finalized it, so no-op.
+	if len(finalizeAttempts) == 0 {
+		return nil
+	}
+
+	result, err := services.CompleteMatchPairsExercise(exercise.ExerciseID, exercise.UserID, finalizeAttempts)
+	if err != nil {
+		if errors.Is(err, services.ErrExerciseNotInProgress) {
+			return nil
+		}
+		if errors.Is(err, services.ErrExerciseVocabularyDeleted) {
+			if removeErr := removeMessageInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID); removeErr != nil {
+				logger.L().Warnw("failed to remove inline keyboard", "error", removeErr, "chat_id", callback.Message.Chat.ID, "message_id", callback.Message.MessageID)
+			}
+			return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
+		}
+
+		return err
+	}
+
+	return EditMatchBoardMessage(callback.Message.Chat.ID, callback.Message.MessageID, buildMatchResultSummaryText(result, t), [][]inlineKeyboardButton{})
+}
+
+func recoverPendingMatchExerciseFromCallback(callback *callbackQuery, exerciseID uuid.UUID) (*services.TelegramMessageExercise, error) {
+	exercise, err := services.GetExerciseByTelegramExerciseID(exerciseID, callback.From.ID)
+	if err != nil {
+		return nil, err
+	}
+	if exercise == nil || exercise.Status != enums.ExerciseStatusPending || exercise.ExerciseType != enums.ExerciseTypeMatchPairs {
+		return nil, nil
+	}
+
+	order, ok := extractMatchOrderFromReplyMarkup(callback.Message.ReplyMarkup, exerciseID)
+	if !ok {
+		return nil, nil
+	}
+
+	if err := services.StartMatchExercise(exerciseID, callback.Message.MessageID, order); err != nil {
+		if errors.Is(err, services.ErrExerciseNotInProgress) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return services.GetExerciseByTelegramMessage(callback.Message.MessageID, callback.From.ID)
+}
+
+func extractMatchOrderFromReplyMarkup(markup *inlineKeyboardMarkup, exerciseID uuid.UUID) ([]int, bool) {
+	if markup == nil {
+		return nil, false
+	}
+
+	expectedCards := services.MatchPairsVocabularyCount * 2
+	order := make([]int, 0, expectedCards)
+	seen := make(map[int]bool, expectedCards)
+
+	for _, row := range markup.InlineKeyboard {
+		for _, button := range row {
+			handlerType, payload, ok := parseCallbackData(button.CallbackData)
+			if !ok || handlerType != callbackTypeExercise {
+				return nil, false
+			}
+
+			buttonExerciseID, canonical, ok := parseExerciseMatchPayload(payload)
+			if !ok || buttonExerciseID != exerciseID || seen[canonical] {
+				return nil, false
+			}
+
+			seen[canonical] = true
+			order = append(order, canonical)
+		}
+	}
+
+	if len(order) != expectedCards {
+		return nil, false
+	}
+
+	for i := 0; i < expectedCards; i++ {
+		if !seen[i] {
+			return nil, false
+		}
+	}
+
+	return order, true
 }
 
 func handleMenuCallback(callback *callbackQuery, payload []string) error {

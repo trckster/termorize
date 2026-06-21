@@ -24,12 +24,13 @@ type chatMember struct {
 }
 
 type message struct {
-	MessageID      int64    `json:"message_id"`
-	Date           int64    `json:"date"`
-	Text           string   `json:"text,omitempty"`
-	Chat           chat     `json:"chat"`
-	From           *user    `json:"from,omitempty"`
-	ReplyToMessage *message `json:"reply_to_message,omitempty"`
+	MessageID      int64                 `json:"message_id"`
+	Date           int64                 `json:"date"`
+	Text           string                `json:"text,omitempty"`
+	Chat           chat                  `json:"chat"`
+	From           *user                 `json:"from,omitempty"`
+	ReplyToMessage *message              `json:"reply_to_message,omitempty"`
+	ReplyMarkup    *inlineKeyboardMarkup `json:"reply_markup,omitempty"`
 }
 
 type callbackQuery struct {

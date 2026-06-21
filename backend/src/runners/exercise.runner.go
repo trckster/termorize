@@ -1,6 +1,7 @@
 package runners
 
 import (
+	"errors"
 	"sync"
 	"termorize/src/enums"
 	"termorize/src/integrations/telegram"
@@ -116,6 +117,53 @@ func processDueExercises() {
 
 		if err := services.StartTelegramExercise(exercise.ExerciseID, *messageID); err != nil {
 			logger.L().Warnw("failed to mark exercise in progress", "error", err, "exercise_id", exercise.ExerciseID)
+		}
+	}
+
+	processDueMatchExercises(now)
+}
+
+func processDueMatchExercises(now time.Time) {
+	matchExercises, err := services.GetDuePendingMatchExercises(now)
+	if err != nil {
+		logger.L().Errorw("failed to fetch due pending match exercises", "error", err)
+		monitoring.CaptureException(nil, err)
+		return
+	}
+
+	for _, exercise := range matchExercises {
+		texts := telegram.GetBotTexts(exercise.SystemLanguage)
+
+		cards, order, err := services.BuildMatchBoard(exercise.ExerciseID)
+		if errors.Is(err, services.ErrExerciseVocabularyDeleted) {
+			if markErr := services.MarkExerciseVocabularyResultWithoutProgress(exercise.ExerciseID, services.ExerciseVocabularyResultIgnored, services.ExerciseVocabularyResultReasonDeletedVocabulary); markErr != nil {
+				logger.L().Warnw("failed to mark deleted match exercise vocabulary result", "error", markErr, "exercise_id", exercise.ExerciseID)
+			}
+			if ignoreErr := services.IgnoreExercise(exercise.ExerciseID); ignoreErr != nil {
+				logger.L().Warnw("failed to ignore match exercise with deleted vocabulary", "error", ignoreErr, "exercise_id", exercise.ExerciseID)
+			}
+			continue
+		}
+		if err != nil {
+			logger.L().Warnw("failed to build match board", "error", err, "exercise_id", exercise.ExerciseID)
+			monitoring.CaptureException(nil, err)
+			continue
+		}
+
+		messageID, err := telegram.SendMatchExerciseMessage(exercise.TelegramID, exercise.ExerciseID, cards, order, texts)
+		if err != nil {
+			logger.L().Warnw("failed to send match exercise", "error", err, "exercise_id", exercise.ExerciseID, "telegram_id", exercise.TelegramID)
+			continue
+		}
+
+		if messageID == nil {
+			continue
+		}
+
+		logger.L().Infow("match exercise sent", "username", exercise.Username)
+
+		if err := services.StartMatchExercise(exercise.ExerciseID, *messageID, order); err != nil {
+			logger.L().Warnw("failed to start match exercise", "error", err, "exercise_id", exercise.ExerciseID)
 		}
 	}
 }
