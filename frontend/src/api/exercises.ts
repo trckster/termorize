@@ -6,6 +6,19 @@ export type ExerciseStatistics = {
     done: number
     failed: number
     ignored: number
+    exercise_activity: ExerciseDailyActivity[]
+    vocabulary_activity: VocabularyDailyActivity[]
+}
+
+export type ExerciseDailyActivity = {
+    date: string
+    completed: number
+    failed: number
+}
+
+export type VocabularyDailyActivity = {
+    date: string
+    count: number
 }
 
 type ExerciseWord = {
