@@ -157,10 +157,23 @@ type exerciseVocabularyDetails struct {
 }
 
 type ExerciseStatistics struct {
-	InProgress int64 `json:"in_progress" gorm:"column:in_progress"`
-	Done       int64 `json:"done" gorm:"column:done"`
-	Failed     int64 `json:"failed" gorm:"column:failed"`
-	Ignored    int64 `json:"ignored" gorm:"column:ignored"`
+	InProgress         int64                     `json:"in_progress" gorm:"column:in_progress"`
+	Done               int64                     `json:"done" gorm:"column:done"`
+	Failed             int64                     `json:"failed" gorm:"column:failed"`
+	Ignored            int64                     `json:"ignored" gorm:"column:ignored"`
+	ExerciseActivity   []ExerciseDailyActivity   `json:"exercise_activity" gorm:"-"`
+	VocabularyActivity []VocabularyDailyActivity `json:"vocabulary_activity" gorm:"-"`
+}
+
+type ExerciseDailyActivity struct {
+	Date      string `json:"date"`
+	Completed int64  `json:"completed"`
+	Failed    int64  `json:"failed"`
+}
+
+type VocabularyDailyActivity struct {
+	Date  string `json:"date"`
+	Count int64  `json:"count"`
 }
 
 type ExerciseListExercise struct {
@@ -840,6 +853,82 @@ func GetExerciseStatistics(userID uint) (*ExerciseStatistics, error) {
 	`, enums.ExerciseStatusInProgress, enums.ExerciseStatusCompleted, enums.ExerciseStatusFailed, enums.ExerciseStatusIgnored, userID).Scan(&statistics).Error
 	if err != nil {
 		return nil, err
+	}
+
+	location := time.UTC
+	var user models.User
+	if err := db.DB.Select("settings").First(&user, userID).Error; err != nil {
+		return nil, err
+	}
+	if user.Settings.TimeZone != "" {
+		if configuredLocation, locationErr := time.LoadLocation(user.Settings.TimeZone); locationErr == nil {
+			location = configuredLocation
+		}
+	}
+
+	now := time.Now().In(location)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, location)
+	weekStart := today.AddDate(0, 0, -7)
+	activityStart := time.Date(today.Year(), today.Month()-5, 1, 0, 0, 0, 0, location)
+	rangeEnd := today.AddDate(0, 0, 1)
+
+	type exerciseActivityRow struct {
+		Status     enums.ExerciseStatus
+		FinishedAt time.Time
+	}
+	var exerciseRows []exerciseActivityRow
+	if err := db.DB.Model(&models.Exercise{}).
+		Select("status, finished_at").
+		Where("user_id = ?", userID).
+		Where("status IN ?", []enums.ExerciseStatus{enums.ExerciseStatusCompleted, enums.ExerciseStatusFailed}).
+		Where("finished_at >= ? AND finished_at < ?", weekStart.UTC(), rangeEnd.UTC()).
+		Find(&exerciseRows).Error; err != nil {
+		return nil, err
+	}
+
+	exerciseByDate := make(map[string]int, 8)
+	statistics.ExerciseActivity = make([]ExerciseDailyActivity, 0, 8)
+	for day := weekStart; !day.After(today); day = day.AddDate(0, 0, 1) {
+		date := day.Format("2006-01-02")
+		statistics.ExerciseActivity = append(statistics.ExerciseActivity, ExerciseDailyActivity{Date: date})
+		exerciseByDate[date] = len(statistics.ExerciseActivity) - 1
+	}
+	for _, row := range exerciseRows {
+		index, ok := exerciseByDate[row.FinishedAt.In(location).Format("2006-01-02")]
+		if !ok {
+			continue
+		}
+		if row.Status == enums.ExerciseStatusCompleted {
+			statistics.ExerciseActivity[index].Completed++
+		} else {
+			statistics.ExerciseActivity[index].Failed++
+		}
+	}
+
+	type vocabularyActivityRow struct {
+		CreatedAt time.Time
+	}
+	var vocabularyRows []vocabularyActivityRow
+	if err := db.DB.Raw(`
+		SELECT created_at
+		FROM vocabulary
+		WHERE user_id = ? AND created_at >= ? AND created_at < ?
+	`, userID, activityStart.UTC(), rangeEnd.UTC()).Scan(&vocabularyRows).Error; err != nil {
+		return nil, err
+	}
+
+	vocabularyByDate := make(map[string]int)
+	statistics.VocabularyActivity = make([]VocabularyDailyActivity, 0, 186)
+	for day := activityStart; !day.After(today); day = day.AddDate(0, 0, 1) {
+		date := day.Format("2006-01-02")
+		statistics.VocabularyActivity = append(statistics.VocabularyActivity, VocabularyDailyActivity{Date: date})
+		vocabularyByDate[date] = len(statistics.VocabularyActivity) - 1
+	}
+	for _, row := range vocabularyRows {
+		index, ok := vocabularyByDate[row.CreatedAt.In(location).Format("2006-01-02")]
+		if ok {
+			statistics.VocabularyActivity[index].Count++
+		}
 	}
 
 	return &statistics, nil
