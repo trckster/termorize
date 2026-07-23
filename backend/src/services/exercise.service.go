@@ -371,6 +371,75 @@ func CreatePendingMatchExercise(userID uint, when time.Time) (uuid.UUID, error) 
 	return generateMatchPairsExercise(userID, when)
 }
 
+func CreatePendingCharacterExercise(userID uint, when time.Time) (*RandomExerciseResult, error) {
+	vocabularyIDs, err := getEligibleVocabularyIDs(userID, 64)
+	if err != nil {
+		return nil, err
+	}
+	if len(vocabularyIDs) == 0 {
+		hasVocabulary, hasVocabularyErr := userHasVocabulary(userID)
+		if hasVocabularyErr != nil {
+			return nil, hasVocabularyErr
+		}
+		if hasVocabulary {
+			return nil, ErrAllVocabularyMastered
+		}
+		return nil, ErrNoVocabularyForExercise
+	}
+
+	vocabulary, err := loadExerciseVocabulary(vocabularyIDs[0])
+	if err != nil {
+		return nil, err
+	}
+
+	exerciseTypes := []enums.ExerciseType{
+		enums.ExerciseTypeCharactersDirect,
+		enums.ExerciseTypeCharactersReversed,
+	}
+	exerciseType := exerciseTypes[rand.Intn(len(exerciseTypes))]
+	questionWord, language, answerLanguage, err := buildExerciseQuestionData(vocabulary, exerciseType)
+	if err != nil {
+		return nil, err
+	}
+
+	answerWord := vocabulary.Translation.Translation.Word
+	if isReversedExerciseType(exerciseType) {
+		answerWord = vocabulary.Translation.Original.Word
+	}
+	if len(AnswerCharacters(answerWord)) == 0 {
+		return nil, errNoExerciseTypeAvailable
+	}
+
+	exercise := models.Exercise{
+		Type:         exerciseType,
+		Status:       enums.ExerciseStatusPending,
+		UserID:       userID,
+		ScheduledFor: &when,
+	}
+	options := []exerciseChoiceCandidate{{
+		VocabularyID: vocabulary.ID,
+		AnswerWord:   answerWord,
+	}}
+
+	if err := db.DB.Transaction(func(tx *gorm.DB) error {
+		if createErr := tx.Create(&exercise).Error; createErr != nil {
+			return createErr
+		}
+		return createExerciseVocabularyLinks(tx, exercise.ID, vocabulary.ID, options)
+	}); err != nil {
+		return nil, err
+	}
+
+	return &RandomExerciseResult{
+		ExerciseID:     exercise.ID,
+		Type:           exerciseType,
+		QuestionWord:   questionWord,
+		Language:       language,
+		AnswerLanguage: answerLanguage,
+		Options:        ShuffledAnswerCharacters(answerWord),
+	}, nil
+}
+
 func generateMatchPairsExercise(userID uint, when time.Time) (uuid.UUID, error) {
 	seedIDs, err := getEligibleVocabularyIDs(userID, 1)
 	if err != nil {

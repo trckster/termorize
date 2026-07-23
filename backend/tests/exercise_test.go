@@ -261,6 +261,48 @@ func TestGenerateExercisesUsesWeightedExerciseSelection(t *testing.T) {
 	assert.EqualValues(t, 2, generatedCount)
 }
 
+func TestCreatePendingCharacterExerciseUsesRandomDirection(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+	vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
+	scheduledFor := time.Now().UTC().Truncate(time.Microsecond)
+
+	result, err := services.CreatePendingCharacterExercise(user.ID, scheduledFor)
+	require.NoError(t, err)
+	require.Contains(t, []enums.ExerciseType{
+		enums.ExerciseTypeCharactersDirect,
+		enums.ExerciseTypeCharactersReversed,
+	}, result.Type)
+
+	expectedAnswer := "carta"
+	if result.Type == enums.ExerciseTypeCharactersReversed {
+		assert.Equal(t, "carta", result.QuestionWord)
+		assert.Equal(t, enums.LanguageIt, result.Language)
+		assert.Equal(t, enums.LanguageEn, result.AnswerLanguage)
+		expectedAnswer = "paper"
+	} else {
+		assert.Equal(t, "paper", result.QuestionWord)
+		assert.Equal(t, enums.LanguageEn, result.Language)
+		assert.Equal(t, enums.LanguageIt, result.AnswerLanguage)
+	}
+	assert.ElementsMatch(t, services.AnswerCharacters(expectedAnswer), result.Options)
+
+	stored := exerciseReload(t, result.ExerciseID)
+	assert.Equal(t, user.ID, stored.UserID)
+	assert.Equal(t, enums.ExerciseStatusPending, stored.Status)
+	require.NotNil(t, stored.ScheduledFor)
+	assert.WithinDuration(t, scheduledFor, *stored.ScheduledFor, time.Microsecond)
+
+	link := exerciseLink(t, result.ExerciseID, vocabulary.ID)
+	assert.True(t, link.IsCorrect)
+
+	answerOptions, err := services.GetExerciseAnswerOptions(result.ExerciseID, result.Type)
+	require.NoError(t, err)
+	require.Len(t, answerOptions, 1)
+	assert.Equal(t, expectedAnswer, answerOptions[0].Label)
+}
+
 func TestIgnoreDuePendingExercisesIgnoresMatchPairsWithPartialDeletedVocabulary(t *testing.T) {
 	testkit.Truncate(t)
 
