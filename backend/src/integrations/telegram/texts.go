@@ -136,7 +136,7 @@ var botTextsEn = BotTexts{
 	MatchProgressFormat:         "Matched %d/%d",
 	MatchNotAMatchToast:         "Not a match",
 	MatchSummaryCompleted:       "🧩 Match complete! ✅",
-	MatchSummaryFailed:          "🧩 Match finished 😔",
+	MatchSummaryFailed:          "🧩 Match finished 👌",
 	MatchSummaryKnowledgeFormat: "Pairs matched: *%d/%d*",
 	MatchPairDeletedVocabulary:  "(deleted word)",
 
@@ -259,7 +259,7 @@ var botTextsRu = BotTexts{
 	MatchProgressFormat:         "Сопоставлено %d/%d",
 	MatchNotAMatchToast:         "Не пара",
 	MatchSummaryCompleted:       "🧩 Сопоставление завершено! ✅",
-	MatchSummaryFailed:          "🧩 Сопоставление завершено 😔",
+	MatchSummaryFailed:          "🧩 Сопоставление завершено 👌",
 	MatchSummaryKnowledgeFormat: "Совпало пар: *%d/%d*",
 	MatchPairDeletedVocabulary:  "(удалённое слово)",
 

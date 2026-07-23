@@ -155,7 +155,7 @@ func buildMatchResultSummaryText(result *services.MatchPairsCompleteResult, t Bo
 				emoji = "✅"
 				matchedCount++
 			case services.ExerciseVocabularyResultAlmost:
-				emoji = "🟡"
+				emoji = "👌"
 				matchedCount++
 			case services.ExerciseVocabularyResultWrong:
 				emoji = "❌"

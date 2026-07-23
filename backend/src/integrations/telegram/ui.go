@@ -181,7 +181,7 @@ func buildMatchKeyboard(exerciseID uuid.UUID, board *services.MatchBoardState) [
 			case services.ExerciseVocabularyResultCorrect:
 				prefix = "✅ "
 			case services.ExerciseVocabularyResultAlmost:
-				prefix = "🟡 "
+				prefix = "👌 "
 			}
 			button = inlineKeyboardButton{Text: prefix + card.Word, CallbackData: noopCallback}
 		} else {

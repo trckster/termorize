@@ -175,7 +175,8 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 		return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
 	}
 
-	if (exercise.ExerciseType == enums.ExerciseTypeChoiceDirect || exercise.ExerciseType == enums.ExerciseTypeChoiceReversed) && len(exercise.Options) != 4 {
+	if (exercise.ExerciseType == enums.ExerciseTypeChoiceDirect || exercise.ExerciseType == enums.ExerciseTypeChoiceReversed) &&
+		len(exercise.Options) != services.ChoiceExerciseVocabularyCount {
 		_ = services.MarkExerciseVocabularyResultWithoutProgress(exercise.ExerciseID, services.ExerciseVocabularyResultIgnored, services.ExerciseVocabularyResultReasonInvalidOptions)
 		_ = services.IgnoreExercise(exercise.ExerciseID)
 		return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)

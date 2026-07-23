@@ -38,10 +38,7 @@ type client struct {
 	http   *http.Client
 }
 
-// NewClient builds the OpenRouter client. It is declared as a package-level
-// variable (rather than a plain function) so tests can swap in a fake
-// implementation and restore the original afterwards. Production behavior is
-// unchanged.
+// NewClient builds an OpenRouter client.
 var NewClient = func() Client {
 	return &client{
 		apiKey: config.GetOpenRouterApiKey(),

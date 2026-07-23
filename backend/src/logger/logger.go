@@ -28,9 +28,7 @@ func L() *zap.SugaredLogger {
 	return sugar
 }
 
-// UseNop replaces the logger with a no-op one that discards all output. It is
-// intended for tests, where log lines would otherwise pollute test output. Call
-// it before any other code touches the logger so that initLogger never runs.
+// UseNop disables logging.
 func UseNop() {
 	initOnce.Do(func() {})
 	baseLogger = zap.NewNop()

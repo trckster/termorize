@@ -88,11 +88,11 @@ func exerciseSeedExercise(t *testing.T, userID uint, exerciseType enums.Exercise
 	return exercise
 }
 
-// exerciseSeedChoiceExercise inserts a choice exercise with exactly 4
-// vocabulary links: one correct (the first) and three distractors.
+// exerciseSeedChoiceExercise inserts a choice exercise with the required number
+// of vocabulary links: one correct (the first) and the remaining distractors.
 func exerciseSeedChoiceExercise(t *testing.T, userID uint, exerciseType enums.ExerciseType, status enums.ExerciseStatus, vocabularyIDs []uuid.UUID) models.Exercise {
 	t.Helper()
-	require.Len(t, vocabularyIDs, 4, "choice exercise needs 4 options")
+	require.Len(t, vocabularyIDs, services.ChoiceExerciseVocabularyCount, "choice exercise has an invalid option count")
 
 	now := time.Now().UTC()
 	exercise := models.Exercise{
@@ -225,7 +225,7 @@ func TestGetExercisesEmpty(t *testing.T) {
 	assert.Equal(t, 0, body.Pagination.TotalPages)
 }
 
-func TestGenerateExercisesSchedulesMatchPairsWhenEligible(t *testing.T) {
+func TestGenerateExercisesUsesWeightedExerciseSelection(t *testing.T) {
 	testkit.Truncate(t)
 
 	user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{
@@ -254,11 +254,11 @@ func TestGenerateExercisesSchedulesMatchPairsWhenEligible(t *testing.T) {
 
 	require.Equal(t, 2, services.GenerateExercises(user, time.Date(2026, time.June, 21, 0, 0, 0, 0, time.UTC)))
 
-	var matchCount int64
+	var generatedCount int64
 	require.NoError(t, db.DB.Model(&models.Exercise{}).
-		Where("user_id = ? AND type = ? AND status = ?", user.ID, enums.ExerciseTypeMatchPairs, enums.ExerciseStatusPending).
-		Count(&matchCount).Error)
-	assert.EqualValues(t, 1, matchCount)
+		Where("user_id = ? AND status = ?", user.ID, enums.ExerciseStatusPending).
+		Count(&generatedCount).Error)
+	assert.EqualValues(t, 2, generatedCount)
 }
 
 func TestIgnoreDuePendingExercisesIgnoresMatchPairsWithPartialDeletedVocabulary(t *testing.T) {

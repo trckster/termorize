@@ -70,12 +70,20 @@ const (
 )
 
 const (
-	matchPairsVocabularyCount    = 5
-	matchPairCardSideOriginal    = "original"
-	matchPairCardSideTranslation = "translation"
+	choiceExerciseVocabularyCount = 4
+	matchPairsVocabularyCount     = 5
+	matchPairCardSideOriginal     = "original"
+	matchPairCardSideTranslation  = "translation"
+
+	basicExerciseWeight      = 45
+	choiceExerciseWeight     = 45
+	matchPairsExerciseWeight = 10
 )
 
-// MatchPairsVocabularyCount is the exported number of vocabulary pairs in a match exercise.
+// ChoiceExerciseVocabularyCount is the required number of choice options.
+const ChoiceExerciseVocabularyCount = choiceExerciseVocabularyCount
+
+// MatchPairsVocabularyCount is the required number of match pairs.
 const MatchPairsVocabularyCount = matchPairsVocabularyCount
 
 type PendingExercise struct {
@@ -266,20 +274,6 @@ func GenerateExercises(user models.User, targetDate time.Time) int {
 
 	generatedCount := 0
 
-	if len(vocabularyIDs) >= matchPairsVocabularyCount {
-		midnightOffset := rand.Intn(totalMinutes)
-		realOffsetInMinutes := MapOffsetOnSchedule(user.Settings.Telegram.DailyQuestionsSchedule, midnightOffset)
-		exerciseScheduleTime := targetMidnight.Add(time.Duration(realOffsetInMinutes) * time.Minute).UTC()
-
-		if _, err := generateMatchPairsExercise(user.ID, exerciseScheduleTime); err != nil {
-			if !errors.Is(err, errNoExerciseTypeAvailable) {
-				logger.L().Errorw("failed to generate match pairs exercise", "user_id", user.ID, "scheduled_for", exerciseScheduleTime, "error", err)
-			}
-		} else {
-			generatedCount++
-		}
-	}
-
 	for _, vocabularyID := range vocabularyIDs {
 		if generatedCount >= int(requestedExercisesCount) {
 			break
@@ -291,7 +285,7 @@ func GenerateExercises(user models.User, targetDate time.Time) int {
 
 		exerciseScheduleTime := targetMidnight.Add(time.Duration(realOffsetInMinutes) * time.Minute).UTC()
 
-		if err := generateExercise(user.ID, vocabularyID, exerciseScheduleTime, false); err != nil {
+		if err := generateExercise(user.ID, vocabularyID, exerciseScheduleTime, true); err != nil {
 			if errors.Is(err, errNoExerciseTypeAvailable) {
 				continue
 			}
@@ -364,8 +358,7 @@ func generateExercise(userID uint, vocabularyID uuid.UUID, when time.Time, inclu
 	})
 }
 
-// CreatePendingMatchExercise creates a pending match/pairs exercise scheduled for `when`
-// and returns its ID. Exposed for test tooling that sends exercises to Telegram directly.
+// CreatePendingMatchExercise creates a pending match exercise.
 func CreatePendingMatchExercise(userID uint, when time.Time) (uuid.UUID, error) {
 	return generateMatchPairsExercise(userID, when)
 }
@@ -481,8 +474,6 @@ func GetDuePendingMatchExercises(now time.Time) ([]PendingMatchExercise, error) 
 	return exercises, nil
 }
 
-// buildCanonicalMatchCards builds the 10 cards in canonical order from the supplied
-// vocabulary rows. Card at index i (= position*2+side) is stable across taps.
 func buildCanonicalMatchCards(rows []exerciseVocabularyDetails) []ExerciseMatchCard {
 	cards := make([]ExerciseMatchCard, 0, len(rows)*2)
 	for _, row := range rows {
@@ -505,9 +496,7 @@ func buildCanonicalMatchCards(rows []exerciseVocabularyDetails) []ExerciseMatchC
 	return cards
 }
 
-// BuildMatchBoard returns the canonical (unshuffled) cards for an exercise plus a
-// random display permutation to persist. It returns ErrExerciseVocabularyDeleted when
-// the exercise no longer has exactly matchPairsVocabularyCount active vocabularies.
+// BuildMatchBoard builds and shuffles the cards for a match exercise.
 func BuildMatchBoard(exerciseID uuid.UUID) ([]ExerciseMatchCard, []int, error) {
 	rows, err := getExerciseVocabularyDetails([]uuid.UUID{exerciseID}, true, true)
 	if err != nil {
@@ -530,8 +519,7 @@ func BuildMatchBoard(exerciseID uuid.UUID) ([]ExerciseMatchCard, []int, error) {
 	return cards, order, nil
 }
 
-// StartMatchExercise marks a pending match exercise as in-progress, records the Telegram
-// message id, and initializes match_state with the supplied display order.
+// StartMatchExercise starts a pending Telegram match exercise.
 func StartMatchExercise(exerciseID uuid.UUID, telegramMessageID int64, order []int) error {
 	stateBytes, err := json.Marshal(matchStateJSON{Order: order, Pending: -1, Attempts: [][2]int{}})
 	if err != nil {
@@ -1262,14 +1250,13 @@ type MatchPairsCompleteResult struct {
 	Results []ExerciseListVocabulary `json:"results"`
 }
 
-// matchStateJSON is the persisted transient state of a Telegram match game.
 type matchStateJSON struct {
 	Order    []int    `json:"order"`
 	Pending  int      `json:"pending"`
 	Attempts [][2]int `json:"attempts"`
 }
 
-// MatchBoardState is the rendered state of a match board after replaying the persisted attempts.
+// MatchBoardState is the current state of a match board.
 type MatchBoardState struct {
 	Order        []int                // display permutation of canonical card indices
 	Cards        []ExerciseMatchCard  // canonical order; index == canonical card index
@@ -1495,11 +1482,6 @@ func VerifyExerciseChoice(exerciseID uuid.UUID, userID uint, selectedVocabularyI
 	}, nil
 }
 
-// replayMatchAttempts replays the given attempts over the supplied cards and returns the
-// per-vocabulary result ("" = unresolved, else correct/almost/wrong) and per-card wrong
-// counts. The expectedVocabularyIDs seed the states map so every vocabulary is present.
-// It returns ErrInvalidMatchPairResults on malformed input (identical card ids, unknown
-// cards, or an attempt touching an already-resolved vocabulary).
 func replayMatchAttempts(
 	cardByID map[string]ExerciseMatchCard,
 	expectedVocabularyIDs []uuid.UUID,
@@ -1696,10 +1678,7 @@ func CompleteMatchPairsExercise(exerciseID uuid.UUID, userID uint, attempts []Ma
 	}, nil
 }
 
-// ApplyMatchTap applies a single tap (by canonical card index) to a Telegram match
-// exercise under a row lock. It returns the new board state, whether the just-committed
-// attempt was a wrong pair, whether all vocabularies are now resolved, and (when finished)
-// the full ordered attempts to pass to CompleteMatchPairsExercise.
+// ApplyMatchTap applies a card tap to a Telegram match exercise.
 func ApplyMatchTap(exerciseID uuid.UUID, userID uint, tappedIdx int) (
 	board *MatchBoardState, wasWrong bool, finished bool, finalizeAttempts []MatchPairAttempt, err error,
 ) {
@@ -1778,7 +1757,6 @@ func ApplyMatchTap(exerciseID uuid.UUID, userID uint, tappedIdx int) (
 
 		wasWrong = false
 		if states[tappedCard.VocabularyID] != "" {
-			// Stale tap on an already-resolved card: no-op, do not write.
 			board = buildMatchBoardState(state.Order, cards, state.Pending, states, cardWrong)
 			finished = isMatchFinished(states)
 			return nil
@@ -1984,31 +1962,68 @@ func selectExerciseTypeAndOptions(userID uint, vocabulary *models.Vocabulary, in
 		return "", nil, err
 	}
 
-	typeOrder := []enums.ExerciseType{
-		enums.ExerciseTypeBasicDirect,
-		enums.ExerciseTypeBasicReversed,
-		enums.ExerciseTypeChoiceDirect,
-		enums.ExerciseTypeChoiceReversed,
-	}
-	if includeMatchPairs {
-		typeOrder = append(typeOrder, enums.ExerciseTypeMatchPairs)
+	type exerciseTypeGroup struct {
+		weight int
+		types  []enums.ExerciseType
 	}
 
-	available := make([]enums.ExerciseType, 0, len(typeOrder))
-	for _, exerciseType := range typeOrder {
-		options := availableTypes[exerciseType]
-		if (isChoiceExerciseType(exerciseType) && len(options) == 4) ||
-			(isMatchPairsExerciseType(exerciseType) && len(options) == matchPairsVocabularyCount) ||
-			(!isChoiceExerciseType(exerciseType) && !isMatchPairsExerciseType(exerciseType) && len(options) > 0) {
-			available = append(available, exerciseType)
+	groups := []exerciseTypeGroup{
+		{
+			weight: basicExerciseWeight,
+			types: []enums.ExerciseType{
+				enums.ExerciseTypeBasicDirect,
+				enums.ExerciseTypeBasicReversed,
+			},
+		},
+		{
+			weight: choiceExerciseWeight,
+			types: []enums.ExerciseType{
+				enums.ExerciseTypeChoiceDirect,
+				enums.ExerciseTypeChoiceReversed,
+			},
+		},
+	}
+	if includeMatchPairs {
+		groups = append(groups, exerciseTypeGroup{
+			weight: matchPairsExerciseWeight,
+			types:  []enums.ExerciseType{enums.ExerciseTypeMatchPairs},
+		})
+	}
+
+	availableGroups := make([]exerciseTypeGroup, 0, len(groups))
+	totalWeight := 0
+	for _, group := range groups {
+		availableTypesInGroup := make([]enums.ExerciseType, 0, len(group.types))
+		for _, exerciseType := range group.types {
+			options := availableTypes[exerciseType]
+			if (isChoiceExerciseType(exerciseType) && len(options) == choiceExerciseVocabularyCount) ||
+				(isMatchPairsExerciseType(exerciseType) && len(options) == matchPairsVocabularyCount) ||
+				(!isChoiceExerciseType(exerciseType) && !isMatchPairsExerciseType(exerciseType) && len(options) > 0) {
+				availableTypesInGroup = append(availableTypesInGroup, exerciseType)
+			}
+		}
+		if len(availableTypesInGroup) > 0 {
+			group.types = availableTypesInGroup
+			availableGroups = append(availableGroups, group)
+			totalWeight += group.weight
 		}
 	}
 
-	if len(available) == 0 {
+	if len(availableGroups) == 0 {
 		return "", nil, errNoExerciseTypeAvailable
 	}
 
-	exerciseType := available[rand.Intn(len(available))]
+	roll := rand.Intn(totalWeight)
+	selectedGroup := availableGroups[len(availableGroups)-1]
+	for _, group := range availableGroups {
+		if roll < group.weight {
+			selectedGroup = group
+			break
+		}
+		roll -= group.weight
+	}
+
+	exerciseType := selectedGroup.types[rand.Intn(len(selectedGroup.types))]
 	return exerciseType, append([]exerciseChoiceCandidate(nil), availableTypes[exerciseType]...), nil
 }
 
@@ -2022,7 +2037,7 @@ func buildExerciseOptionsByType(userID uint, vocabulary *models.Vocabulary, incl
 	if len(directOptions) > 0 {
 		optionsByType[enums.ExerciseTypeBasicDirect] = append([]exerciseChoiceCandidate(nil), directOptions[:1]...)
 	}
-	if len(directOptions) == 4 {
+	if len(directOptions) == choiceExerciseVocabularyCount {
 		optionsByType[enums.ExerciseTypeChoiceDirect] = shuffledExerciseOptions(directOptions)
 	}
 
@@ -2033,7 +2048,7 @@ func buildExerciseOptionsByType(userID uint, vocabulary *models.Vocabulary, incl
 	if len(reversedOptions) > 0 {
 		optionsByType[enums.ExerciseTypeBasicReversed] = append([]exerciseChoiceCandidate(nil), reversedOptions[:1]...)
 	}
-	if len(reversedOptions) == 4 {
+	if len(reversedOptions) == choiceExerciseVocabularyCount {
 		optionsByType[enums.ExerciseTypeChoiceReversed] = shuffledExerciseOptions(reversedOptions)
 	}
 
@@ -2184,11 +2199,14 @@ func buildExerciseOptionsForType(userID uint, vocabulary *models.Vocabulary, exe
 		return nil, err
 	}
 
-	if len(distractors) < 3 {
+	requiredDistractors := choiceExerciseVocabularyCount - 1
+	if len(distractors) < requiredDistractors {
 		return []exerciseChoiceCandidate{answerOption}, nil
 	}
 
-	options := []exerciseChoiceCandidate{answerOption, distractors[0], distractors[1], distractors[2]}
+	options := make([]exerciseChoiceCandidate, 0, choiceExerciseVocabularyCount)
+	options = append(options, answerOption)
+	options = append(options, distractors[:requiredDistractors]...)
 
 	return options, nil
 }
