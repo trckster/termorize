@@ -152,10 +152,10 @@ onMounted(() => {
                     </div>
                     <div class="flex shrink-0 items-center gap-4 text-xs font-medium text-muted-foreground">
                         <span class="flex items-center gap-2">
-                            <i class="h-2.5 w-2.5 rounded-sm bg-success/80" />{{ t.statisticsCompleted }}
+                            <i class="h-0.5 w-5 rounded-full bg-success" />{{ t.statisticsCompleted }}
                         </span>
                         <span class="flex items-center gap-2">
-                            <i class="h-2.5 w-2.5 rounded-sm bg-destructive/75" />{{ t.statisticsFailed }}
+                            <i class="h-0.5 w-5 rounded-full bg-destructive" />{{ t.statisticsFailed }}
                         </span>
                     </div>
                 </header>

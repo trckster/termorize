@@ -31,11 +31,39 @@ const yMax = computed(() => {
 
 const yTicks = computed(() => Array.from({ length: 5 }, (_, index) => (yMax.value / 4) * index).reverse())
 const groupWidth = computed(() => plotWidth / Math.max(props.activity.length, 1))
-const barWidth = computed(() => Math.min(22, Math.max(9, groupWidth.value * 0.24)))
 
 const xCenter = (index: number) => chart.left + groupWidth.value * (index + 0.5)
 const barHeight = (value: number) => (value / yMax.value) * plotHeight
 const yPosition = (value: number) => chart.top + plotHeight - barHeight(value)
+
+type ActivityValue = 'completed' | 'failed'
+
+const pointsFor = (key: ActivityValue) =>
+    props.activity.map((day, index) => ({
+        x: xCenter(index),
+        y: yPosition(day[key]),
+    }))
+
+const smoothLinePath = (key: ActivityValue) => {
+    const points = pointsFor(key)
+    if (points.length === 0) return ''
+    const first = points[0]!
+    if (points.length === 1) return `M ${first.x} ${first.y}`
+
+    return points.slice(1).reduce((path, point, index) => {
+        const previous = points[index]!
+        const midpoint = (previous.x + point.x) / 2
+        return `${path} C ${midpoint} ${previous.y}, ${midpoint} ${point.y}, ${point.x} ${point.y}`
+    }, `M ${first.x} ${first.y}`)
+}
+
+const areaPath = (key: ActivityValue) => {
+    const points = pointsFor(key)
+    if (points.length === 0) return ''
+
+    const baseline = chart.top + plotHeight
+    return `${smoothLinePath(key)} L ${points.at(-1)!.x} ${baseline} L ${points[0]!.x} ${baseline} Z`
+}
 
 const dateFormatter = computed(() => new Intl.DateTimeFormat(props.locale, { day: 'numeric', month: 'short' }))
 const longDateFormatter = computed(
@@ -91,24 +119,46 @@ const activeDay = computed(() => (hoveredIndex.value === null ? null : props.act
                 </text>
             </g>
 
+            <path :d="areaPath('failed')" class="fill-destructive/5" />
+            <path :d="areaPath('completed')" class="fill-success/5" />
+
+            <path
+                :d="smoothLinePath('failed')"
+                fill="none"
+                class="stroke-destructive"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"
+            />
+            <path
+                :d="smoothLinePath('completed')"
+                fill="none"
+                class="stroke-success"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"
+            />
+
             <g v-for="(day, index) in activity" :key="day.date">
-                <rect
-                    :x="xCenter(index) - barWidth - 2"
-                    :y="yPosition(day.completed)"
-                    :width="barWidth"
-                    :height="Math.max(barHeight(day.completed), day.completed > 0 ? 2 : 0)"
-                    :rx="barWidth / 3"
-                    class="fill-success/80 transition-opacity duration-200"
-                    :class="hoveredIndex !== null && hoveredIndex !== index ? 'opacity-35' : ''"
+                <circle
+                    v-if="hoveredIndex === index"
+                    :cx="xCenter(index)"
+                    :cy="yPosition(day.completed)"
+                    r="3"
+                    class="fill-card stroke-success"
+                    stroke-width="1.5"
+                    vector-effect="non-scaling-stroke"
                 />
-                <rect
-                    :x="xCenter(index) + 2"
-                    :y="yPosition(day.failed)"
-                    :width="barWidth"
-                    :height="Math.max(barHeight(day.failed), day.failed > 0 ? 2 : 0)"
-                    :rx="barWidth / 3"
-                    class="fill-destructive/75 transition-opacity duration-200"
-                    :class="hoveredIndex !== null && hoveredIndex !== index ? 'opacity-35' : ''"
+                <circle
+                    v-if="hoveredIndex === index"
+                    :cx="xCenter(index)"
+                    :cy="yPosition(day.failed)"
+                    r="3"
+                    class="fill-card stroke-destructive"
+                    stroke-width="1.5"
+                    vector-effect="non-scaling-stroke"
                 />
                 <text
                     :x="xCenter(index)"
