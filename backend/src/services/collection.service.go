@@ -580,7 +580,6 @@ func addInlineTranslation(
 		return result.Error
 	}
 
-	// NullInt64 because MAX(position) is NULL for an empty collection, distinct from position 0.
 	var maxPosition sql.NullInt64
 	if err := tx.Model(&models.CollectionTranslation{}).
 		Where("collection_id = ?", collectionID).
@@ -642,7 +641,6 @@ func GenerateCollection(userID uint, prompt string) (*CollectionDetail, error) {
 		if errors.Is(err, openrouter.ErrNotConfigured) {
 			return nil, ErrAIGenerationUnavailable
 		}
-		// Sanitize the API key before logging; never leak the raw OpenRouter error to the client.
 		logMsg := err.Error()
 		if key := config.GetOpenRouterApiKey(); key != "" {
 			logMsg = strings.ReplaceAll(logMsg, key, "***")

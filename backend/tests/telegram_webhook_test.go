@@ -2,17 +2,21 @@ package tests
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"termorize/src/data/db"
 	"termorize/src/enums"
 	"termorize/src/integrations/telegram"
 	"termorize/src/models"
+	"termorize/src/services"
 	"termorize/src/testkit"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -45,6 +49,10 @@ func telegramUpdate(t *testing.T, update map[string]any) *httptest.ResponseRecor
 	require.NoError(t, err)
 
 	return telegramRequest(t, string(encoded), telegram.BuildWebhookSecret())
+}
+
+func telegramCompactUUID(id uuid.UUID) string {
+	return base64.RawURLEncoding.EncodeToString(id[:])
 }
 
 // telegramPrivateMessage builds a realistic private-chat message update for the
@@ -301,6 +309,356 @@ func TestTelegramWebhookCallbackDeleteTranslationSetsState(t *testing.T) {
 
 	require.True(t, tg.Sent("answerCallbackQuery"))
 	require.True(t, tg.Sent("editMessageText"))
+}
+
+func TestTelegramWebhookMatchTapEditsBoard(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+
+	const telegramID int64 = 555008
+	const messageID int64 = 99
+	user := testkit.CreateUser(t, testkit.WithTelegramID(telegramID))
+
+	vocabularies := []models.Vocabulary{
+		exerciseSeedVocabulary(t, user.ID, "release", "rilasciare", enums.LanguageEn, enums.LanguageIt),
+		exerciseSeedVocabulary(t, user.ID, "cell", "la cella", enums.LanguageEn, enums.LanguageIt),
+		exerciseSeedVocabulary(t, user.ID, "sentence", "la condanna", enums.LanguageEn, enums.LanguageIt),
+		exerciseSeedVocabulary(t, user.ID, "prison", "la prigione", enums.LanguageEn, enums.LanguageIt),
+		exerciseSeedVocabulary(t, user.ID, "guard", "la guardia", enums.LanguageEn, enums.LanguageIt),
+	}
+	vocabularyIDs := make([]uuid.UUID, 0, len(vocabularies))
+	for _, vocabulary := range vocabularies {
+		vocabularyIDs = append(vocabularyIDs, vocabulary.ID)
+	}
+
+	exercise := exerciseSeedMatchPairsExercise(t, user.ID, enums.ExerciseStatusPending, vocabularyIDs)
+	require.NoError(t, services.StartMatchExercise(exercise.ID, messageID, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}))
+
+	update := map[string]any{
+		"update_id": 5,
+		"callback_query": map[string]any{
+			"id":   "cb-match-1",
+			"data": "exercise:mt:" + telegramCompactUUID(exercise.ID) + ":0",
+			"from": map[string]any{
+				"id":     telegramID,
+				"is_bot": false,
+			},
+			"message": map[string]any{
+				"message_id": messageID,
+				"chat": map[string]any{
+					"id":   telegramID,
+					"type": "private",
+				},
+			},
+		},
+	}
+
+	rec := telegramUpdate(t, update)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	require.True(t, tg.Sent("answerCallbackQuery"))
+	require.True(t, tg.Sent("editMessageText"), "match tap should re-render the board")
+
+	var edited map[string]any
+	require.NoError(t, json.Unmarshal(tg.RequestsFor("editMessageText")[0].Body, &edited))
+	assert.EqualValues(t, telegramID, edited["chat_id"])
+	assert.EqualValues(t, messageID, edited["message_id"])
+	replyMarkup, ok := edited["reply_markup"].(map[string]any)
+	require.True(t, ok)
+	keyboard, ok := replyMarkup["inline_keyboard"].([]any)
+	require.True(t, ok)
+	require.NotEmpty(t, keyboard)
+	firstRow, ok := keyboard[0].([]any)
+	require.True(t, ok)
+	require.NotEmpty(t, firstRow)
+	firstButton, ok := firstRow[0].(map[string]any)
+	require.True(t, ok)
+	assert.Contains(t, firstButton["text"], "▸ ")
+
+	var refreshed models.Exercise
+	require.NoError(t, db.DB.Where("id = ?", exercise.ID).First(&refreshed).Error)
+	require.NotNil(t, refreshed.MatchState)
+	var matchState struct {
+		Pending int `json:"pending"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(*refreshed.MatchState), &matchState))
+	assert.Equal(t, 0, matchState.Pending)
+}
+
+func TestTelegramWebhookMatchTapRetriesFinalizationFromPersistedBoard(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+
+	const telegramID int64 = 555011
+	const messageID int64 = 102
+	user := testkit.CreateUser(t, testkit.WithTelegramID(telegramID))
+
+	vocabularyIDs := make([]uuid.UUID, 0, services.MatchPairsVocabularyCount)
+	for index := 0; index < services.MatchPairsVocabularyCount; index++ {
+		vocabulary := exerciseSeedVocabulary(
+			t, user.ID,
+			"original-"+strconv.Itoa(index), "translation-"+strconv.Itoa(index),
+			enums.LanguageEn, enums.LanguageIt,
+		)
+		vocabularyIDs = append(vocabularyIDs, vocabulary.ID)
+	}
+
+	exercise := exerciseSeedMatchPairsExercise(t, user.ID, enums.ExerciseStatusPending, vocabularyIDs)
+	require.NoError(t, services.StartMatchExercise(exercise.ID, messageID, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}))
+
+	// Persist a fully resolved board without completing the exercise, matching a
+	// transient failure between ApplyMatchTap and CompleteMatchPairsExercise.
+	for index := 0; index < services.MatchPairsVocabularyCount*2; index++ {
+		_, _, _, _, err := services.ApplyMatchTap(exercise.ID, user.ID, index)
+		require.NoError(t, err)
+	}
+
+	update := map[string]any{
+		"update_id": 51,
+		"callback_query": map[string]any{
+			"id":   "cb-match-retry-finalize",
+			"data": "exercise:mt:" + telegramCompactUUID(exercise.ID) + ":0",
+			"from": map[string]any{"id": telegramID, "is_bot": false},
+			"message": map[string]any{
+				"message_id": messageID,
+				"chat":       map[string]any{"id": telegramID, "type": "private"},
+			},
+		},
+	}
+
+	rec := telegramUpdate(t, update)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.True(t, tg.Sent("editMessageText"))
+
+	var refreshed models.Exercise
+	require.NoError(t, db.DB.Where("id = ?", exercise.ID).First(&refreshed).Error)
+	assert.Equal(t, enums.ExerciseStatusCompleted, refreshed.Status)
+}
+
+func TestTelegramWebhookCompletedMatchTapRepairsOriginalMessage(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+
+	const telegramID int64 = 555012
+	const messageID int64 = 103
+	user := testkit.CreateUser(t, testkit.WithTelegramID(telegramID))
+
+	vocabularyIDs := make([]uuid.UUID, 0, services.MatchPairsVocabularyCount)
+	for index := 0; index < services.MatchPairsVocabularyCount; index++ {
+		vocabulary := exerciseSeedVocabulary(
+			t, user.ID,
+			"original-"+strconv.Itoa(index), "translation-"+strconv.Itoa(index),
+			enums.LanguageEn, enums.LanguageIt,
+		)
+		vocabularyIDs = append(vocabularyIDs, vocabulary.ID)
+	}
+
+	exercise := exerciseSeedMatchPairsExercise(t, user.ID, enums.ExerciseStatusPending, vocabularyIDs)
+	require.NoError(t, services.StartMatchExercise(exercise.ID, messageID, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}))
+
+	var attempts []services.MatchPairAttempt
+	for index := 0; index < services.MatchPairsVocabularyCount*2; index++ {
+		_, _, _, finalizeAttempts, err := services.ApplyMatchTap(exercise.ID, user.ID, index)
+		require.NoError(t, err)
+		if len(finalizeAttempts) > 0 {
+			attempts = finalizeAttempts
+		}
+	}
+	_, err := services.CompleteMatchPairsExercise(exercise.ID, user.ID, attempts)
+	require.NoError(t, err)
+
+	update := map[string]any{
+		"update_id": 52,
+		"callback_query": map[string]any{
+			"id":   "cb-match-repair-completed",
+			"data": "exercise:mt:" + telegramCompactUUID(exercise.ID) + ":0",
+			"from": map[string]any{"id": telegramID, "is_bot": false},
+			"message": map[string]any{
+				"message_id": messageID,
+				"chat":       map[string]any{"id": telegramID, "type": "private"},
+			},
+		},
+	}
+
+	rec := telegramUpdate(t, update)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.True(t, tg.Sent("editMessageText"))
+	require.False(t, tg.Sent("sendMessage"))
+
+	var edited map[string]any
+	require.NoError(t, json.Unmarshal(tg.RequestsFor("editMessageText")[0].Body, &edited))
+	replyMarkup, ok := edited["reply_markup"].(map[string]any)
+	require.True(t, ok)
+	keyboard, ok := replyMarkup["inline_keyboard"].([]any)
+	require.True(t, ok)
+	assert.Empty(t, keyboard)
+}
+
+func TestTelegramWebhookMatchTapMarksWrongCards(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+
+	const telegramID int64 = 555010
+	const messageID int64 = 101
+	user := testkit.CreateUser(t, testkit.WithTelegramID(telegramID))
+
+	vocabularies := []models.Vocabulary{
+		exerciseSeedVocabulary(t, user.ID, "release", "rilasciare", enums.LanguageEn, enums.LanguageIt),
+		exerciseSeedVocabulary(t, user.ID, "cell", "la cella", enums.LanguageEn, enums.LanguageIt),
+		exerciseSeedVocabulary(t, user.ID, "sentence", "la condanna", enums.LanguageEn, enums.LanguageIt),
+		exerciseSeedVocabulary(t, user.ID, "prison", "la prigione", enums.LanguageEn, enums.LanguageIt),
+		exerciseSeedVocabulary(t, user.ID, "guard", "la guardia", enums.LanguageEn, enums.LanguageIt),
+	}
+	vocabularyIDs := make([]uuid.UUID, 0, len(vocabularies))
+	for _, vocabulary := range vocabularies {
+		vocabularyIDs = append(vocabularyIDs, vocabulary.ID)
+	}
+
+	exercise := exerciseSeedMatchPairsExercise(t, user.ID, enums.ExerciseStatusPending, vocabularyIDs)
+	require.NoError(t, services.StartMatchExercise(exercise.ID, messageID, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}))
+
+	for callbackIndex, tappedCard := range []int{0, 2} {
+		update := map[string]any{
+			"update_id": 50 + callbackIndex,
+			"callback_query": map[string]any{
+				"id":   "cb-match-wrong-" + string(rune('1'+callbackIndex)),
+				"data": "exercise:mt:" + telegramCompactUUID(exercise.ID) + ":" + strconv.Itoa(tappedCard),
+				"from": map[string]any{
+					"id":     telegramID,
+					"is_bot": false,
+				},
+				"message": map[string]any{
+					"message_id": messageID,
+					"chat": map[string]any{
+						"id":   telegramID,
+						"type": "private",
+					},
+				},
+			},
+		}
+
+		rec := telegramUpdate(t, update)
+		require.Equal(t, http.StatusOK, rec.Code)
+	}
+
+	editRequests := tg.RequestsFor("editMessageText")
+	require.Len(t, editRequests, 2)
+
+	answerRequests := tg.RequestsFor("answerCallbackQuery")
+	require.Len(t, answerRequests, 2)
+	var wrongAnswer map[string]any
+	require.NoError(t, json.Unmarshal(answerRequests[1].Body, &wrongAnswer))
+	assert.Equal(t, telegram.GetBotTexts(enums.LanguageRu).MatchNotAMatchToast, wrongAnswer["text"])
+
+	var edited map[string]any
+	require.NoError(t, json.Unmarshal(editRequests[1].Body, &edited))
+	replyMarkup, ok := edited["reply_markup"].(map[string]any)
+	require.True(t, ok)
+	keyboard, ok := replyMarkup["inline_keyboard"].([]any)
+	require.True(t, ok)
+	require.Len(t, keyboard, 5)
+
+	firstRow, ok := keyboard[0].([]any)
+	require.True(t, ok)
+	secondRow, ok := keyboard[1].([]any)
+	require.True(t, ok)
+	require.NotEmpty(t, firstRow)
+	require.NotEmpty(t, secondRow)
+
+	firstButton, ok := firstRow[0].(map[string]any)
+	require.True(t, ok)
+	secondButton, ok := secondRow[0].(map[string]any)
+	require.True(t, ok)
+	assert.Contains(t, firstButton["text"], "⚠️ ")
+	assert.Contains(t, secondButton["text"], "⚠️ ")
+}
+
+func TestTelegramWebhookMatchTapRecoversPendingMessage(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+
+	const telegramID int64 = 555009
+	const messageID int64 = 100
+	user := testkit.CreateUser(t, testkit.WithTelegramID(telegramID))
+
+	vocabularies := []models.Vocabulary{
+		exerciseSeedVocabulary(t, user.ID, "release", "rilasciare", enums.LanguageEn, enums.LanguageIt),
+		exerciseSeedVocabulary(t, user.ID, "cell", "la cella", enums.LanguageEn, enums.LanguageIt),
+		exerciseSeedVocabulary(t, user.ID, "sentence", "la condanna", enums.LanguageEn, enums.LanguageIt),
+		exerciseSeedVocabulary(t, user.ID, "prison", "la prigione", enums.LanguageEn, enums.LanguageIt),
+		exerciseSeedVocabulary(t, user.ID, "guard", "la guardia", enums.LanguageEn, enums.LanguageIt),
+	}
+	vocabularyIDs := make([]uuid.UUID, 0, len(vocabularies))
+	for _, vocabulary := range vocabularies {
+		vocabularyIDs = append(vocabularyIDs, vocabulary.ID)
+	}
+
+	exercise := exerciseSeedMatchPairsExercise(t, user.ID, enums.ExerciseStatusPending, vocabularyIDs)
+	compactExerciseID := telegramCompactUUID(exercise.ID)
+	inlineKeyboard := [][]map[string]string{
+		{
+			{"text": "release", "callback_data": "exercise:mt:" + compactExerciseID + ":0"},
+			{"text": "rilasciare", "callback_data": "exercise:mt:" + compactExerciseID + ":1"},
+		},
+		{
+			{"text": "cell", "callback_data": "exercise:mt:" + compactExerciseID + ":2"},
+			{"text": "la cella", "callback_data": "exercise:mt:" + compactExerciseID + ":3"},
+		},
+		{
+			{"text": "sentence", "callback_data": "exercise:mt:" + compactExerciseID + ":4"},
+			{"text": "la condanna", "callback_data": "exercise:mt:" + compactExerciseID + ":5"},
+		},
+		{
+			{"text": "prison", "callback_data": "exercise:mt:" + compactExerciseID + ":6"},
+			{"text": "la prigione", "callback_data": "exercise:mt:" + compactExerciseID + ":7"},
+		},
+		{
+			{"text": "guard", "callback_data": "exercise:mt:" + compactExerciseID + ":8"},
+			{"text": "la guardia", "callback_data": "exercise:mt:" + compactExerciseID + ":9"},
+		},
+	}
+
+	update := map[string]any{
+		"update_id": 6,
+		"callback_query": map[string]any{
+			"id":   "cb-match-2",
+			"data": "exercise:mt:" + compactExerciseID + ":0",
+			"from": map[string]any{
+				"id":     telegramID,
+				"is_bot": false,
+			},
+			"message": map[string]any{
+				"message_id": messageID,
+				"chat": map[string]any{
+					"id":   telegramID,
+					"type": "private",
+				},
+				"reply_markup": map[string]any{
+					"inline_keyboard": inlineKeyboard,
+				},
+			},
+		},
+	}
+
+	rec := telegramUpdate(t, update)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	require.True(t, tg.Sent("answerCallbackQuery"))
+	require.True(t, tg.Sent("editMessageText"), "pending match callback should be recovered and re-rendered")
+
+	var refreshed models.Exercise
+	require.NoError(t, db.DB.Where("id = ?", exercise.ID).First(&refreshed).Error)
+	assert.Equal(t, enums.ExerciseStatusInProgress, refreshed.Status)
+	require.NotNil(t, refreshed.TelegramMessageID)
+	assert.EqualValues(t, messageID, *refreshed.TelegramMessageID)
+	require.NotNil(t, refreshed.MatchState)
+	var matchState struct {
+		Order   []int `json:"order"`
+		Pending int   `json:"pending"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(*refreshed.MatchState), &matchState))
+	assert.Equal(t, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, matchState.Order)
+	assert.Equal(t, 0, matchState.Pending)
 }
 
 // -----------------------------------------------------------------------------

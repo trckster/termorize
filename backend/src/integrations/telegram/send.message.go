@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"errors"
+	"strings"
 	"termorize/src/logger"
 	"termorize/src/services"
 
@@ -37,6 +38,8 @@ type inlineKeyboardButton struct {
 
 type answerCallbackQueryRequest struct {
 	CallbackQueryID string `json:"callback_query_id"`
+	Text            string `json:"text,omitempty"`
+	ShowAlert       bool   `json:"show_alert,omitempty"`
 }
 
 type answerCallbackQueryResponse struct {
@@ -142,6 +145,36 @@ func SendChoiceExerciseMessage(chatID int64, text string, exerciseID uuid.UUID, 
 	return &messageID, nil
 }
 
+func SendMatchExerciseMessage(chatID int64, exerciseID uuid.UUID, cards []services.ExerciseMatchCard, order []int, texts BotTexts) (*int64, error) {
+	board := &services.MatchBoardState{
+		Order:        order,
+		Cards:        cards,
+		Pending:      -1,
+		Resolved:     map[uuid.UUID]string{},
+		CardWrong:    map[string]int{},
+		MatchedCount: 0,
+	}
+
+	messageRequest := sendMessageRequest{
+		ChatID:      chatID,
+		Text:        buildMatchBoardText(board, texts),
+		ParseMode:   telegramParseModeMarkdown,
+		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: buildMatchKeyboard(exerciseID, board)},
+	}
+
+	response, err := sendMessage(messageRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	if response == nil {
+		return nil, nil
+	}
+
+	messageID := response.Result.MessageID
+	return &messageID, nil
+}
+
 func SendReplyMessage(chatID int64, text string, replyToMessageID int64) error {
 	messageRequest := sendMessageRequest{
 		ChatID:           chatID,
@@ -188,8 +221,40 @@ func editMessageText(request editMessageTextRequest) error {
 	return nil
 }
 
+func editMessageTextTolerant(request editMessageTextRequest) error {
+	err := editMessageText(request)
+	if err != nil && strings.Contains(err.Error(), "message is not modified") {
+		return nil
+	}
+
+	return err
+}
+
+func EditMatchBoardMessage(chatID int64, messageID int64, text string, keyboard [][]inlineKeyboardButton) error {
+	return editMessageTextTolerant(editMessageTextRequest{
+		ChatID:      chatID,
+		MessageID:   messageID,
+		Text:        text,
+		ParseMode:   telegramParseModeMarkdown,
+		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: keyboard},
+	})
+}
+
 func answerTelegramCallbackQuery(callbackQueryID string) error {
 	response, err := CallAPI[answerCallbackQueryResponse]("answerCallbackQuery", answerCallbackQueryRequest{CallbackQueryID: callbackQueryID})
+	if err != nil {
+		return err
+	}
+
+	if !response.OK {
+		return errors.New("telegram answerCallbackQuery response not ok")
+	}
+
+	return nil
+}
+
+func answerTelegramCallbackQueryWithText(callbackQueryID string, text string) error {
+	response, err := CallAPI[answerCallbackQueryResponse]("answerCallbackQuery", answerCallbackQueryRequest{CallbackQueryID: callbackQueryID, Text: text})
 	if err != nil {
 		return err
 	}

@@ -10,12 +10,10 @@ import (
 )
 
 type Collection struct {
-	ID      uuid.UUID `json:"id" gorm:"default:gen_random_uuid()"`
-	Title   string    `json:"title"`
-	OwnerID *uint     `json:"-"`
-	IsAdmin bool      `json:"is_admin"`
-	// No gorm default tag: a `default` tag makes GORM omit the zero value from INSERTs, which
-	// would silently turn unpublished drafts into published. Every Create path sets it explicitly.
+	ID          uuid.UUID  `json:"id" gorm:"default:gen_random_uuid()"`
+	Title       string     `json:"title"`
+	OwnerID     *uint      `json:"-"`
+	IsAdmin     bool       `json:"is_admin"`
 	IsPublished bool       `json:"is_published"`
 	InviteToken string     `json:"-"`
 	CreatedAt   time.Time  `json:"created_at"`

@@ -13,15 +13,8 @@ import (
 
 var ErrBlocked = errors.New("blocked")
 
-// apiBaseURL is the base URL for the Telegram Bot API. It is a package-level var
-// so tests can point it at a local fake server; production behavior is unchanged
-// as long as it keeps its default value.
 var apiBaseURL = "https://api.telegram.org"
 
-// SetAPIBaseURLForTest overrides the Telegram API base URL and returns a function
-// that restores the previous value. It exists solely to let the integration-test
-// harness redirect outbound calls to a local fake server; it must not be used in
-// production code paths.
 func SetAPIBaseURLForTest(url string) (restore func()) {
 	previous := apiBaseURL
 	apiBaseURL = url

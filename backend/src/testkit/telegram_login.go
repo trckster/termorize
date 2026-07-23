@@ -25,22 +25,12 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// TelegramLoginProfile describes the user a faked Telegram login should yield.
 type TelegramLoginProfile struct {
 	ID       int64
 	Username string
 	Name     string
 }
 
-// MockTelegramLogin stands up a local fake of Telegram's OAuth endpoints (the
-// token exchange + the JWKS used to validate the returned id_token) and points
-// auth's OAuth endpoints at it for the duration of the test. This lets the
-// authorization-code branch of POST /api/telegram/login/callback complete
-// successfully without any real network call. The original endpoints are
-// restored automatically via t.Cleanup.
-//
-// Use auth.NewTelegramLoginSession + auth.IssueTelegramLoginSessionToken to mint
-// the `state` for the callback request; any non-empty `code` is accepted.
 func MockTelegramLogin(t *testing.T, profile TelegramLoginProfile) {
 	t.Helper()
 
@@ -86,8 +76,6 @@ func signTelegramIDToken(t *testing.T, key *rsa.PrivateKey, kid string, profile 
 
 	now := time.Now()
 	claims := jwt.MapClaims{
-		// Issuer must stay the real Telegram issuer: auth validates the id_token
-		// with jwt.WithIssuer(telegramIssuer). Only the network URLs are faked.
 		"iss":                "https://oauth.telegram.org",
 		"aud":                config.GetTelegramLoginClientID(),
 		"sub":                strconv.FormatInt(profile.ID, 10),
@@ -123,10 +111,6 @@ func buildJWKS(kid string, pub *rsa.PublicKey) map[string]any {
 	}
 }
 
-// BuildTelegramInitData produces a valid Telegram WebApp init_data string signed
-// with the configured bot token, so the init_data branch of the login callback
-// validates successfully without any network call. It mirrors Telegram's
-// signing scheme (HMAC-SHA256 with a "WebAppData"-derived secret).
 func BuildTelegramInitData(userID int64, username, firstName string) string {
 	userJSON := fmt.Sprintf(`{"id":%d,"username":%q,"first_name":%q}`, userID, username, firstName)
 

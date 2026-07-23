@@ -13,12 +13,6 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-// BuildRouter constructs the fully-configured Gin engine (middleware, custom
-// validators and all routes) WITHOUT starting the HTTP server. It is the single
-// source of truth for the application's routing and is safe to call from tests.
-//
-// Custom validator registration is guarded so repeated calls do not register the
-// same validators multiple times.
 func BuildRouter() *gin.Engine {
 	if config.IsProduction() {
 		gin.SetMode(gin.ReleaseMode)

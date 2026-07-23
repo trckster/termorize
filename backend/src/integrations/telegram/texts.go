@@ -33,6 +33,14 @@ type BotTexts struct {
 	ExerciseTranslationKnowledgeUpFormat   string
 	ExerciseTranslationKnowledgeDownFormat string
 
+	MatchExerciseTitle          string
+	MatchProgressFormat         string
+	MatchNotAMatchToast         string
+	MatchSummaryCompleted       string
+	MatchSummaryFailed          string
+	MatchSummaryKnowledgeFormat string
+	MatchPairDeletedVocabulary  string
+
 	QuestionTranslateReplyFormat  string
 	QuestionTranslateChoiceFormat string
 
@@ -123,6 +131,14 @@ var botTextsEn = BotTexts{
 	ExerciseAnswerPairFormat:               "%s %s — %s %s",
 	ExerciseTranslationKnowledgeUpFormat:   "Translation knowledge: *%d%%* 📈",
 	ExerciseTranslationKnowledgeDownFormat: "Translation knowledge: *%d%%* 📉",
+
+	MatchExerciseTitle:          "🧩 *Match the pairs*",
+	MatchProgressFormat:         "Matched %d/%d",
+	MatchNotAMatchToast:         "Not a match",
+	MatchSummaryCompleted:       "🧩 Match complete! ✅",
+	MatchSummaryFailed:          "🧩 Match finished 👌",
+	MatchSummaryKnowledgeFormat: "Pairs matched: *%d/%d*",
+	MatchPairDeletedVocabulary:  "(deleted word)",
 
 	QuestionTranslateReplyFormat:  "Translate word *%s* to %s\n\n(answer with reply)",
 	QuestionTranslateChoiceFormat: "Translate word *%s* to %s\n\nChoose one of the options below.",
@@ -238,6 +254,14 @@ var botTextsRu = BotTexts{
 	ExerciseAnswerPairFormat:               "%s %s — %s %s",
 	ExerciseTranslationKnowledgeUpFormat:   "Знание перевода: *%d%%* 📈",
 	ExerciseTranslationKnowledgeDownFormat: "Знание перевода: *%d%%* 📉",
+
+	MatchExerciseTitle:          "🧩 *Сопоставь пары*",
+	MatchProgressFormat:         "Сопоставлено %d/%d",
+	MatchNotAMatchToast:         "Не пара",
+	MatchSummaryCompleted:       "🧩 Сопоставление завершено! ✅",
+	MatchSummaryFailed:          "🧩 Сопоставление завершено 👌",
+	MatchSummaryKnowledgeFormat: "Совпало пар: *%d/%d*",
+	MatchPairDeletedVocabulary:  "(удалённое слово)",
 
 	QuestionTranslateReplyFormat:  "Переведи слово *%s* на %s\n\n(ответь реплаем)",
 	QuestionTranslateChoiceFormat: "Переведи слово *%s* на %s\n\nВыбери один из вариантов ниже.",
