@@ -189,8 +189,8 @@ func buildExerciseAnswerPairText(originalWord string, translationWord string, or
 	return fmt.Sprintf(
 		t.ExerciseAnswerPairFormat,
 		originalLanguage.Flag(),
-		originalWord,
-		translationWord,
+		escapeTelegramMarkdown(originalWord),
+		escapeTelegramMarkdown(translationWord),
 		translationLanguage.Flag(),
 	)
 }

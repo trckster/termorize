@@ -386,7 +386,7 @@ func buildTranslateQuestionText(word string, language string, exerciseType enums
 		format = texts.QuestionTranslateCharactersFormat
 	}
 
-	return fmt.Sprintf(format, word, language)
+	return fmt.Sprintf(format, escapeTelegramMarkdown(word), escapeTelegramMarkdown(language))
 }
 
 func buildAddVocabularyFirstText(systemLanguage string, mainLearningLanguage string, texts BotTexts) string {

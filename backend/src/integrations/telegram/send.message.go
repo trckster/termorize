@@ -11,6 +11,14 @@ import (
 
 const telegramParseModeMarkdown = "Markdown"
 
+var telegramMarkdownEscaper = strings.NewReplacer(
+	`\`, `\\`,
+	`_`, `\_`,
+	`*`, `\*`,
+	"`", "\\`",
+	`[`, `\[`,
+)
+
 type sendMessageRequest struct {
 	ChatID           int64       `json:"chat_id"`
 	Text             string      `json:"text"`
@@ -284,10 +292,17 @@ func buildCharacterBoardText(questionText string, board *services.CharacterBoard
 		if position >= len(slots) || canonical < 0 || canonical >= len(board.Characters) {
 			continue
 		}
-		slots[position] = displayCharacter(board.Characters[canonical])
+		slots[position] = escapeTelegramMarkdown(displayCharacter(board.Characters[canonical]))
 	}
 
 	return questionText + "\n\n" + strings.Join(slots, " ")
+}
+
+// escapeTelegramMarkdown escapes user-controlled text embedded in Telegram's
+// legacy Markdown parse mode. Inline keyboard button text is plain text and
+// must not be passed through this function.
+func escapeTelegramMarkdown(text string) string {
+	return telegramMarkdownEscaper.Replace(text)
 }
 
 func answerTelegramCallbackQuery(callbackQueryID string) error {
