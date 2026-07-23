@@ -77,7 +77,43 @@ const router = createRouter({
     ],
 })
 
+let lastVersionCheck = 0
+const VERSION_CHECK_INTERVAL = 60_000
+
+const hasNewAppVersion = async () => {
+    if (!import.meta.env.PROD || Date.now() - lastVersionCheck < VERSION_CHECK_INTERVAL) {
+        return false
+    }
+
+    lastVersionCheck = Date.now()
+
+    try {
+        const response = await fetch('/', {
+            cache: 'no-store',
+            headers: { Accept: 'text/html' },
+        })
+
+        if (!response.ok) {
+            return false
+        }
+
+        const html = await response.text()
+        const version = html.match(/<meta name="app-version" content="([^"]+)">/)?.[1]
+
+        return Boolean(version && version !== __APP_VERSION__)
+    } catch {
+        // A version check must never prevent navigation while offline or during a deployment.
+        return false
+    }
+}
+
 router.beforeEach(async (to, _from, next) => {
+    if (await hasNewAppVersion()) {
+        window.location.assign(to.fullPath)
+        next(false)
+        return
+    }
+
     const authStore = useAuthStore()
 
     if (!authStore.hasCheckedAuth) {

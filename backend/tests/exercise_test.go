@@ -531,6 +531,41 @@ func TestGetExerciseStatisticsOwnershipIsolation(t *testing.T) {
 	assert.Equal(t, int64(0), body.InProgress)
 }
 
+func TestGetExerciseStatisticsDailyActivityUsesUserTimezone(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{TimeZone: "Europe/Rome"}))
+	vocab := exerciseSeedVocabulary(t, user.ID, "today", "oggi", enums.LanguageEn, enums.LanguageIt)
+
+	location, err := time.LoadLocation("Europe/Rome")
+	require.NoError(t, err)
+	now := time.Now().In(location)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 30, 0, 0, location)
+	yesterday := today.AddDate(0, 0, -1)
+
+	completed := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusCompleted, vocab.ID)
+	failed := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusFailed, vocab.ID)
+	require.NoError(t, db.DB.Model(&completed).UpdateColumn("finished_at", today.UTC()).Error)
+	require.NoError(t, db.DB.Model(&failed).UpdateColumn("finished_at", yesterday.UTC()).Error)
+	require.NoError(t, db.DB.Model(&vocab).UpdateColumn("created_at", today.UTC()).Error)
+
+	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/exercises/statistics", nil)
+	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
+
+	var body services.ExerciseStatistics
+	testkit.DecodeJSON(t, rec, &body)
+
+	require.Len(t, body.ExerciseActivity, 8)
+	assert.Equal(t, today.Format("2006-01-02"), body.ExerciseActivity[7].Date)
+	assert.Equal(t, int64(1), body.ExerciseActivity[7].Completed)
+	assert.Equal(t, int64(1), body.ExerciseActivity[6].Failed)
+
+	require.NotEmpty(t, body.VocabularyActivity)
+	lastVocabularyDay := body.VocabularyActivity[len(body.VocabularyActivity)-1]
+	assert.Equal(t, today.Format("2006-01-02"), lastVocabularyDay.Date)
+	assert.Equal(t, int64(1), lastVocabularyDay.Count)
+}
+
 // ===========================================================================
 // POST /api/exercises/random (RandomExercise)
 // ===========================================================================
