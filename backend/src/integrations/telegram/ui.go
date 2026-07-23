@@ -32,12 +32,13 @@ const (
 	menuActionSetTargetLang        = "set_target_lang"
 	menuActionSetSystemLang        = "set_system_lang"
 
-	exerciseActionAnswer        = "answer"
-	exerciseActionIDK           = "idk"
-	exerciseActionMatchTap      = "mt"
-	exerciseActionMatchNoop     = "mn"
-	exerciseActionCharacterTap  = "ct"
-	exerciseActionCharacterNoop = "cn"
+	exerciseActionAnswer         = "answer"
+	exerciseActionIDK            = "idk"
+	exerciseActionMatchTap       = "mt"
+	exerciseActionMatchNoop      = "mn"
+	exerciseActionCharacterTap   = "ct"
+	exerciseActionCharacterNoop  = "cn"
+	exerciseActionCharacterClear = "cc"
 
 	vocabularyActionAdd    = "add"
 	vocabularyActionDelete = "delete"
@@ -211,12 +212,12 @@ func buildMatchKeyboard(exerciseID uuid.UUID, board *services.MatchBoardState) [
 	return rows
 }
 
-func buildCharacterKeyboard(exerciseID uuid.UUID, board *services.CharacterBoardState) [][]inlineKeyboardButton {
+func buildCharacterKeyboard(exerciseID uuid.UUID, board *services.CharacterBoardState, texts BotTexts) [][]inlineKeyboardButton {
 	if board == nil || len(board.Characters) == 0 {
 		return [][]inlineKeyboardButton{}
 	}
 
-	side := int(math.Ceil(math.Sqrt(float64(len(board.Characters)))))
+	side := int(math.Ceil(math.Sqrt(float64(len(board.Characters) + 1))))
 	compactExerciseID := compactCallbackUUID(exerciseID)
 	noopCallback := callbackTypeExercise + ":" + exerciseActionCharacterNoop
 	chosen := make(map[int]bool, len(board.Chosen))
@@ -229,6 +230,14 @@ func buildCharacterKeyboard(exerciseID uuid.UUID, board *services.CharacterBoard
 		rows[rowIndex] = make([]inlineKeyboardButton, 0, side)
 		for columnIndex := 0; columnIndex < side; columnIndex++ {
 			slot := rowIndex*side + columnIndex
+			if slot == side*side-1 {
+				rows[rowIndex] = append(rows[rowIndex], inlineKeyboardButton{
+					Text:         texts.ButtonExerciseClear,
+					CallbackData: callbackTypeExercise + ":" + exerciseActionCharacterClear + ":" + compactExerciseID,
+				})
+				continue
+			}
+
 			button := inlineKeyboardButton{Text: " ", CallbackData: noopCallback}
 			if slot < len(board.Order) {
 				canonical := board.Order[slot]

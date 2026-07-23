@@ -145,12 +145,12 @@ func SendChoiceExerciseMessage(chatID int64, text string, exerciseID uuid.UUID, 
 	return &messageID, nil
 }
 
-func SendCharacterExerciseMessage(chatID int64, text string, exerciseID uuid.UUID, board *services.CharacterBoardState, _ BotTexts) (*int64, error) {
+func SendCharacterExerciseMessage(chatID int64, text string, exerciseID uuid.UUID, board *services.CharacterBoardState, texts BotTexts) (*int64, error) {
 	messageRequest := sendMessageRequest{
 		ChatID:      chatID,
 		Text:        buildCharacterBoardText(text, board),
 		ParseMode:   telegramParseModeMarkdown,
-		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: buildCharacterKeyboard(exerciseID, board)},
+		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: buildCharacterKeyboard(exerciseID, board, texts)},
 	}
 
 	response, err := sendMessage(messageRequest)

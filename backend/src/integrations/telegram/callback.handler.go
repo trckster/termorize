@@ -133,6 +133,18 @@ func parseExerciseCharacterPayload(payload []string) (uuid.UUID, int, bool) {
 	return exerciseID, tappedIndex, true
 }
 
+func parseExerciseCharacterClearPayload(payload []string) (uuid.UUID, bool) {
+	if len(payload) != 2 || payload[0] != exerciseActionCharacterClear {
+		return uuid.Nil, false
+	}
+
+	exerciseID, err := parseCallbackUUID(payload[1])
+	if err != nil {
+		return uuid.Nil, false
+	}
+	return exerciseID, true
+}
+
 func parseCallbackUUID(value string) (uuid.UUID, error) {
 	if id, err := uuid.Parse(value); err == nil {
 		return id, nil
@@ -164,6 +176,9 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 	}
 	if len(payload) >= 2 && payload[0] == exerciseActionCharacterTap {
 		return handleCharacterTap(callback, payload, t)
+	}
+	if len(payload) >= 2 && payload[0] == exerciseActionCharacterClear {
+		return handleCharacterClear(callback, payload, t)
 	}
 
 	exerciseID, selectedVocabularyID, hasAnswer := parseExerciseAnswerPayload(payload)
@@ -349,7 +364,7 @@ func handleCharacterTap(callback *callbackQuery, payload []string, t BotTexts) e
 			callback.Message.Chat.ID,
 			callback.Message.MessageID,
 			buildCharacterBoardText(questionText, board),
-			buildCharacterKeyboard(exercise.ExerciseID, board),
+			buildCharacterKeyboard(exercise.ExerciseID, board, t),
 		)
 	}
 
@@ -397,6 +412,81 @@ func handleCharacterTap(callback *callbackQuery, payload []string, t BotTexts) e
 	}
 }
 
+func handleCharacterClear(callback *callbackQuery, payload []string, t BotTexts) error {
+	if callback.Message == nil {
+		return nil
+	}
+
+	exerciseID, ok := parseExerciseCharacterClearPayload(payload)
+	if !ok {
+		return nil
+	}
+
+	exercise, err := services.GetExerciseByTelegramMessage(callback.Message.MessageID, callback.From.ID)
+	if err != nil {
+		return err
+	}
+	if exercise == nil {
+		exercise, err = recoverPendingCharacterExerciseFromCallback(callback, exerciseID)
+		if err != nil {
+			return err
+		}
+	}
+	if exercise == nil || exercise.ExerciseID != exerciseID {
+		return nil
+	}
+
+	switch exercise.Status {
+	case enums.ExerciseStatusIgnored:
+		return SendMessage(callback.From.ID, t.ExerciseOutdated)
+	case enums.ExerciseStatusCompleted, enums.ExerciseStatusFailed:
+		questionText := BuildBasicExerciseQuestion(
+			exercise.OriginalWord,
+			exercise.TranslationWord,
+			exercise.OriginalLanguage,
+			exercise.TranslationLanguage,
+			exercise.ExerciseType,
+			t,
+		)
+		board := completedCharacterBoard(exercise)
+		return EditCharacterBoardMessage(
+			callback.Message.Chat.ID,
+			callback.Message.MessageID,
+			buildCharacterBoardText(questionText, board),
+			[][]inlineKeyboardButton{},
+		)
+	}
+
+	board, err := services.ClearCharacterSelection(exercise.ExerciseID, exercise.UserID)
+	if err != nil {
+		if errors.Is(err, services.ErrExerciseNotInProgress) {
+			return nil
+		}
+		if errors.Is(err, services.ErrExerciseVocabularyDeleted) {
+			if removeErr := removeMessageInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID); removeErr != nil {
+				logger.L().Warnw("failed to remove inline keyboard", "error", removeErr, "chat_id", callback.Message.Chat.ID, "message_id", callback.Message.MessageID)
+			}
+			return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
+		}
+		return err
+	}
+
+	questionText := BuildBasicExerciseQuestion(
+		exercise.OriginalWord,
+		exercise.TranslationWord,
+		exercise.OriginalLanguage,
+		exercise.TranslationLanguage,
+		exercise.ExerciseType,
+		t,
+	)
+	return EditCharacterBoardMessage(
+		callback.Message.Chat.ID,
+		callback.Message.MessageID,
+		buildCharacterBoardText(questionText, board),
+		buildCharacterKeyboard(exercise.ExerciseID, board, t),
+	)
+}
+
 func recoverPendingCharacterExerciseFromCallback(callback *callbackQuery, exerciseID uuid.UUID) (*services.TelegramMessageExercise, error) {
 	exercise, err := services.GetExerciseByTelegramExerciseID(exerciseID, callback.From.ID)
 	if err != nil {
@@ -429,15 +519,44 @@ func extractCharacterOrderFromReplyMarkup(markup *inlineKeyboardMarkup, exercise
 		return nil, false
 	}
 
-	order := make([]int, 0, characterCount)
+	side := len(markup.InlineKeyboard)
+	if side == 0 {
+		return nil, false
+	}
+	expectedSide := 1
+	for expectedSide*expectedSide < characterCount+1 {
+		expectedSide++
+	}
+	if side != expectedSide {
+		return nil, false
+	}
+
+	order := make([]int, 0, side*side-1)
 	seen := make(map[int]bool, characterCount)
-	for _, row := range markup.InlineKeyboard {
-		for _, button := range row {
+	clearSeen := false
+	for rowIndex, row := range markup.InlineKeyboard {
+		if len(row) != side {
+			return nil, false
+		}
+		for columnIndex, button := range row {
 			handlerType, payload, ok := parseCallbackData(button.CallbackData)
 			if !ok || handlerType != callbackTypeExercise || len(payload) == 0 {
 				return nil, false
 			}
 			if payload[0] == exerciseActionCharacterNoop {
+				order = append(order, -1)
+				continue
+			}
+			if payload[0] == exerciseActionCharacterClear {
+				buttonExerciseID, ok := parseExerciseCharacterClearPayload(payload)
+				if !ok ||
+					buttonExerciseID != exerciseID ||
+					clearSeen ||
+					rowIndex != side-1 ||
+					columnIndex != side-1 {
+					return nil, false
+				}
+				clearSeen = true
 				continue
 			}
 
@@ -450,7 +569,7 @@ func extractCharacterOrderFromReplyMarkup(markup *inlineKeyboardMarkup, exercise
 		}
 	}
 
-	if len(order) != characterCount {
+	if !clearSeen || len(order) != side*side-1 || len(seen) != characterCount {
 		return nil, false
 	}
 	return order, true

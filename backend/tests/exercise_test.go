@@ -864,7 +864,7 @@ func TestApplyCharacterTapTracksDuplicateCharacters(t *testing.T) {
 	user := testkit.CreateUser(t)
 	vocab := exerciseSeedVocabulary(t, user.ID, "letter", "lettera", enums.LanguageEn, enums.LanguageIt)
 	exercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeCharactersDirect, enums.ExerciseStatusPending, vocab.ID)
-	order := []int{6, 0, 5, 2, 1, 4, 3}
+	order := []int{6, -1, 0, 5, 2, 1, 4, 3}
 	require.NoError(t, services.StartCharacterExercise(exercise.ID, 901, order))
 
 	var board *services.CharacterBoardState
@@ -884,6 +884,38 @@ func TestApplyCharacterTapTracksDuplicateCharacters(t *testing.T) {
 	stored := exerciseReload(t, exercise.ID)
 	require.NotNil(t, stored.CharacterState)
 	assert.Equal(t, enums.ExerciseStatusInProgress, stored.Status)
+}
+
+func TestBuildCharacterBoardRandomizesCharactersAndPaddingSlots(t *testing.T) {
+	board := services.BuildCharacterBoardForAnswer("letter")
+
+	assert.Equal(t, services.AnswerCharacters("letter"), board.Characters)
+	require.Len(t, board.Order, 8, "a 3x3 board reserves its bottom-right cell for Clear")
+	assert.ElementsMatch(t, []int{0, 1, 2, 3, 4, 5, -1, -1}, board.Order)
+	assert.Empty(t, board.Chosen)
+	assert.Empty(t, board.Answer)
+}
+
+func TestClearCharacterSelectionRestoresAllCharacters(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+	vocab := exerciseSeedVocabulary(t, user.ID, "letter", "lettera", enums.LanguageEn, enums.LanguageIt)
+	exercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeCharactersDirect, enums.ExerciseStatusPending, vocab.ID)
+	order := []int{6, -1, 0, 5, 2, 1, 4, 3}
+	require.NoError(t, services.StartCharacterExercise(exercise.ID, 902, order))
+
+	_, _, err := services.ApplyCharacterTap(exercise.ID, user.ID, 0)
+	require.NoError(t, err)
+	_, _, err = services.ApplyCharacterTap(exercise.ID, user.ID, 2)
+	require.NoError(t, err)
+
+	board, err := services.ClearCharacterSelection(exercise.ID, user.ID)
+	require.NoError(t, err)
+	assert.Empty(t, board.Answer)
+	assert.Empty(t, board.Chosen)
+	assert.Equal(t, order, board.Order)
+	assert.Equal(t, services.AnswerCharacters("lettera"), board.Characters)
 }
 
 func TestVerifyExerciseWrongAnswer(t *testing.T) {

@@ -3,6 +3,7 @@ package services
 import (
 	"encoding/json"
 	"errors"
+	"math"
 	"math/rand"
 	"strings"
 	"termorize/src/data/db"
@@ -737,9 +738,12 @@ func ShuffledAnswerCharacters(answer string) []string {
 
 func BuildCharacterBoardForAnswer(answer string) *CharacterBoardState {
 	characters := AnswerCharacters(answer)
-	order := make([]int, len(characters))
-	for index := range order {
+	order := make([]int, characterBoardSlotCount(len(characters)))
+	for index := range characters {
 		order[index] = index
+	}
+	for index := len(characters); index < len(order); index++ {
+		order[index] = -1
 	}
 	rand.Shuffle(len(order), func(i, j int) {
 		order[i], order[j] = order[j], order[i]
@@ -866,17 +870,116 @@ func ApplyCharacterTap(exerciseID uuid.UUID, userID uint, tappedIndex int) (*Cha
 	return board, finished, nil
 }
 
+func ClearCharacterSelection(exerciseID uuid.UUID, userID uint) (*CharacterBoardState, error) {
+	var board *CharacterBoardState
+	var vocabularyDeleted bool
+
+	txErr := db.DB.Transaction(func(tx *gorm.DB) error {
+		var exercise models.Exercise
+		if lockErr := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ? AND user_id = ?", exerciseID, userID).
+			Take(&exercise).Error; lockErr != nil {
+			if errors.Is(lockErr, gorm.ErrRecordNotFound) {
+				return ErrExerciseNotFound
+			}
+			return lockErr
+		}
+
+		if !isCharacterExerciseType(exercise.Type) {
+			return ErrInvalidCharacterResults
+		}
+		if exercise.Status != enums.ExerciseStatusInProgress {
+			return ErrExerciseNotInProgress
+		}
+
+		correctVocabulary, detailErr := getCorrectExerciseVocabularyDetails(exercise.ID)
+		if detailErr != nil {
+			return detailErr
+		}
+		if correctVocabulary == nil {
+			vocabularyDeleted = true
+			return ErrExerciseVocabularyDeleted
+		}
+
+		answer := correctVocabulary.TranslationWord
+		if isReversedExerciseType(exercise.Type) {
+			answer = correctVocabulary.OriginalWord
+		}
+		characters := AnswerCharacters(answer)
+
+		if exercise.CharacterState == nil {
+			return ErrInvalidCharacterResults
+		}
+		var state characterStateJSON
+		if unmarshalErr := json.Unmarshal([]byte(*exercise.CharacterState), &state); unmarshalErr != nil {
+			return unmarshalErr
+		}
+		if !validCharacterState(state, len(characters)) {
+			return ErrInvalidCharacterResults
+		}
+
+		state.Chosen = []int{}
+		stateBytes, marshalErr := json.Marshal(state)
+		if marshalErr != nil {
+			return marshalErr
+		}
+		updateResult := tx.Model(&models.Exercise{}).
+			Where("id = ? AND status = ?", exerciseID, enums.ExerciseStatusInProgress).
+			Update("character_state", string(stateBytes))
+		if updateResult.Error != nil {
+			return updateResult.Error
+		}
+		if updateResult.RowsAffected == 0 {
+			return ErrExerciseNotInProgress
+		}
+
+		board = buildCharacterBoardState(state.Order, characters, state.Chosen)
+		return nil
+	})
+
+	if txErr != nil {
+		if vocabularyDeleted {
+			_ = MarkExerciseVocabularyResultWithoutProgress(exerciseID, ExerciseVocabularyResultIgnored, ExerciseVocabularyResultReasonDeletedVocabulary)
+			_ = IgnoreExercise(exerciseID)
+		}
+		return nil, txErr
+	}
+
+	return board, nil
+}
+
+func characterBoardSide(characterCount int) int {
+	if characterCount <= 0 {
+		return 0
+	}
+	return int(math.Ceil(math.Sqrt(float64(characterCount + 1))))
+}
+
+func characterBoardSlotCount(characterCount int) int {
+	side := characterBoardSide(characterCount)
+	if side == 0 {
+		return 0
+	}
+	return side*side - 1
+}
+
 func validCharacterState(state characterStateJSON, characterCount int) bool {
-	if len(state.Order) != characterCount || len(state.Chosen) > characterCount {
+	if len(state.Order) != characterBoardSlotCount(characterCount) || len(state.Chosen) > characterCount {
 		return false
 	}
 
 	seenOrder := make(map[int]bool, characterCount)
 	for _, index := range state.Order {
+		if index == -1 {
+			continue
+		}
 		if index < 0 || index >= characterCount || seenOrder[index] {
 			return false
 		}
 		seenOrder[index] = true
+	}
+	if len(seenOrder) != characterCount {
+		return false
 	}
 
 	seenChosen := make(map[int]bool, len(state.Chosen))
