@@ -44,8 +44,12 @@ func handleExerciseAnswer(message *message) (bool, error) {
 		return true, SendMessage(message.Chat.ID, t.ExerciseVocabularyDeleted)
 	}
 
-	if exercise.ExerciseType == enums.ExerciseTypeChoiceDirect || exercise.ExerciseType == enums.ExerciseTypeChoiceReversed {
-		if len(exercise.Options) != 4 {
+	if exercise.ExerciseType == enums.ExerciseTypeChoiceDirect ||
+		exercise.ExerciseType == enums.ExerciseTypeChoiceReversed ||
+		exercise.ExerciseType == enums.ExerciseTypeCharactersDirect ||
+		exercise.ExerciseType == enums.ExerciseTypeCharactersReversed {
+		if (exercise.ExerciseType == enums.ExerciseTypeChoiceDirect || exercise.ExerciseType == enums.ExerciseTypeChoiceReversed) &&
+			len(exercise.Options) != services.ChoiceExerciseVocabularyCount {
 			_ = services.MarkExerciseVocabularyResultWithoutProgress(exercise.ExerciseID, services.ExerciseVocabularyResultIgnored, services.ExerciseVocabularyResultReasonInvalidOptions)
 			_ = services.IgnoreExercise(exercise.ExerciseID)
 			return true, SendMessage(message.Chat.ID, t.ExerciseVocabularyDeleted)

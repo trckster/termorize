@@ -72,7 +72,14 @@ export type Exercise = {
 
 export type RandomExercise = {
     exercise_id: string
-    type: 'basic/direct' | 'basic/reversed' | 'choice/direct' | 'choice/reversed' | 'match/pairs'
+    type:
+        | 'basic/direct'
+        | 'basic/reversed'
+        | 'choice/direct'
+        | 'choice/reversed'
+        | 'characters/direct'
+        | 'characters/reversed'
+        | 'match/pairs'
     question_word: string
     language: string
     answer_language: string

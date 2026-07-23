@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"encoding/base64"
+	"math"
 	"strconv"
 
 	"github.com/google/uuid"
@@ -31,10 +32,12 @@ const (
 	menuActionSetTargetLang        = "set_target_lang"
 	menuActionSetSystemLang        = "set_system_lang"
 
-	exerciseActionAnswer    = "answer"
-	exerciseActionIDK       = "idk"
-	exerciseActionMatchTap  = "mt"
-	exerciseActionMatchNoop = "mn"
+	exerciseActionAnswer        = "answer"
+	exerciseActionIDK           = "idk"
+	exerciseActionMatchTap      = "mt"
+	exerciseActionMatchNoop     = "mn"
+	exerciseActionCharacterTap  = "ct"
+	exerciseActionCharacterNoop = "cn"
 
 	vocabularyActionAdd    = "add"
 	vocabularyActionDelete = "delete"
@@ -206,6 +209,52 @@ func buildMatchKeyboard(exerciseID uuid.UUID, board *services.MatchBoardState) [
 	}
 
 	return rows
+}
+
+func buildCharacterKeyboard(exerciseID uuid.UUID, board *services.CharacterBoardState) [][]inlineKeyboardButton {
+	if board == nil || len(board.Characters) == 0 {
+		return [][]inlineKeyboardButton{}
+	}
+
+	side := int(math.Ceil(math.Sqrt(float64(len(board.Characters)))))
+	compactExerciseID := compactCallbackUUID(exerciseID)
+	noopCallback := callbackTypeExercise + ":" + exerciseActionCharacterNoop
+	chosen := make(map[int]bool, len(board.Chosen))
+	for _, index := range board.Chosen {
+		chosen[index] = true
+	}
+
+	rows := make([][]inlineKeyboardButton, side)
+	for rowIndex := 0; rowIndex < side; rowIndex++ {
+		rows[rowIndex] = make([]inlineKeyboardButton, 0, side)
+		for columnIndex := 0; columnIndex < side; columnIndex++ {
+			slot := rowIndex*side + columnIndex
+			button := inlineKeyboardButton{Text: " ", CallbackData: noopCallback}
+			if slot < len(board.Order) {
+				canonical := board.Order[slot]
+				if canonical >= 0 && canonical < len(board.Characters) && !chosen[canonical] {
+					button = inlineKeyboardButton{
+						Text:         displayCharacter(board.Characters[canonical]),
+						CallbackData: callbackTypeExercise + ":" + exerciseActionCharacterTap + ":" + compactExerciseID + ":" + strconv.Itoa(canonical),
+					}
+				}
+			}
+			rows[rowIndex] = append(rows[rowIndex], button)
+		}
+	}
+
+	return rows
+}
+
+func displayCharacter(character string) string {
+	switch character {
+	case " ":
+		return "␠"
+	case "\t":
+		return "⇥"
+	default:
+		return character
+	}
 }
 
 func compactCallbackUUID(id uuid.UUID) string {

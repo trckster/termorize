@@ -311,6 +311,114 @@ func TestTelegramWebhookCallbackDeleteTranslationSetsState(t *testing.T) {
 	require.True(t, tg.Sent("editMessageText"))
 }
 
+func TestTelegramWebhookCharacterExerciseUsesSquareBoardAndCompletes(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+
+	const telegramID int64 = 555013
+	const messageID int64 = 104
+	user := testkit.CreateUser(t, testkit.WithTelegramID(telegramID))
+	vocabulary := exerciseSeedVocabulary(t, user.ID, "carta", "letter", enums.LanguageIt, enums.LanguageEn)
+	exercise := exerciseSeedExercise(
+		t,
+		user.ID,
+		enums.ExerciseTypeCharactersDirect,
+		enums.ExerciseStatusPending,
+		vocabulary.ID,
+	)
+	require.NoError(t, services.StartCharacterExercise(exercise.ID, messageID, []int{5, 0, 4, 1, 3, 2}))
+
+	for tappedIndex := range []rune("letter") {
+		update := map[string]any{
+			"update_id": 70 + tappedIndex,
+			"callback_query": map[string]any{
+				"id":   "cb-character-" + strconv.Itoa(tappedIndex),
+				"data": "exercise:ct:" + telegramCompactUUID(exercise.ID) + ":" + strconv.Itoa(tappedIndex),
+				"from": map[string]any{
+					"id":     telegramID,
+					"is_bot": false,
+				},
+				"message": map[string]any{
+					"message_id": messageID,
+					"chat": map[string]any{
+						"id":   telegramID,
+						"type": "private",
+					},
+				},
+			},
+		}
+
+		rec := telegramUpdate(t, update)
+		require.Equal(t, http.StatusOK, rec.Code)
+
+		if tappedIndex == 0 {
+			editRequests := tg.RequestsFor("editMessageText")
+			require.Len(t, editRequests, 1)
+
+			var edited map[string]any
+			require.NoError(t, json.Unmarshal(editRequests[0].Body, &edited))
+			replyMarkup, ok := edited["reply_markup"].(map[string]any)
+			require.True(t, ok)
+			keyboard, ok := replyMarkup["inline_keyboard"].([]any)
+			require.True(t, ok)
+			require.Len(t, keyboard, 3, "six characters should use a 3x3 board")
+			for _, rowValue := range keyboard {
+				row, ok := rowValue.([]any)
+				require.True(t, ok)
+				require.Len(t, row, 3)
+			}
+			assert.Contains(t, edited["text"], "l ＿ ＿ ＿ ＿ ＿")
+		}
+	}
+
+	stored := exerciseReload(t, exercise.ID)
+	assert.Equal(t, enums.ExerciseStatusCompleted, stored.Status)
+
+	editRequests := tg.RequestsFor("editMessageText")
+	require.Len(t, editRequests, len([]rune("letter")))
+	var finalEdit map[string]any
+	require.NoError(t, json.Unmarshal(editRequests[len(editRequests)-1].Body, &finalEdit))
+	replyMarkup, ok := finalEdit["reply_markup"].(map[string]any)
+	require.True(t, ok)
+	keyboard, ok := replyMarkup["inline_keyboard"].([]any)
+	require.True(t, ok)
+	assert.Empty(t, keyboard)
+
+	require.True(t, tg.Sent("sendMessage"), "completion should send the exercise result")
+	link := exerciseLink(t, exercise.ID, vocabulary.ID)
+	require.NotNil(t, link.ResultReason)
+	assert.Equal(t, services.ExerciseVocabularyResultReasonCharacterAnswer, *link.ResultReason)
+
+	feedbackCount := len(tg.RequestsFor("sendMessage"))
+	retry := map[string]any{
+		"update_id": 99,
+		"callback_query": map[string]any{
+			"id":   "cb-character-retry",
+			"data": "exercise:ct:" + telegramCompactUUID(exercise.ID) + ":0",
+			"from": map[string]any{
+				"id":     telegramID,
+				"is_bot": false,
+			},
+			"message": map[string]any{
+				"message_id": messageID,
+				"chat": map[string]any{
+					"id":   telegramID,
+					"type": "private",
+				},
+			},
+		},
+	}
+	rec := telegramUpdate(t, retry)
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Len(t, tg.RequestsFor("sendMessage"), feedbackCount, "a retried callback must not duplicate feedback")
+
+	retryEdits := tg.RequestsFor("editMessageText")
+	require.Len(t, retryEdits, len([]rune("letter"))+1)
+	var retryEdit map[string]any
+	require.NoError(t, json.Unmarshal(retryEdits[len(retryEdits)-1].Body, &retryEdit))
+	assert.Contains(t, retryEdit["text"], "l e t t e r")
+}
+
 func TestTelegramWebhookMatchTapEditsBoard(t *testing.T) {
 	testkit.Truncate(t)
 	tg := testkit.MockTelegramAPI(t)

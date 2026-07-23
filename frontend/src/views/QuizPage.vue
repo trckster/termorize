@@ -48,6 +48,7 @@ const choiceSubmitTimeoutId = ref<number | null>(null)
 const matchResolveTimeoutId = ref<number | null>(null)
 const answer = ref('')
 const selectedChoiceIndex = ref<number | null>(null)
+const selectedCharacterIndices = ref<number[]>([])
 const selectedMatchCardIds = ref<string[]>([])
 const matchPairAttempts = ref<MatchPairAttempt[]>([])
 const matchVocabularyStates = ref<Record<string, MatchVocabularyState>>({})
@@ -58,6 +59,9 @@ const quizRootRef = ref<HTMLElement | null>(null)
 const isMatchQuestion = computed(() => currentExercise.value?.type === 'match/pairs')
 const isChoiceQuestion = computed(
     () => currentExercise.value?.type === 'choice/direct' || currentExercise.value?.type === 'choice/reversed'
+)
+const isCharacterQuestion = computed(
+    () => currentExercise.value?.type === 'characters/direct' || currentExercise.value?.type === 'characters/reversed'
 )
 const isChoiceAnswerPending = computed(() => choiceSubmitTimeoutId.value != null || isSubmitting.value)
 const quizContentClass = computed(() => {
@@ -71,7 +75,11 @@ const questionHint = computed(() => {
     if (currentExercise.value.type === 'match/pairs') {
         return t.value.quizTypeMatchPairsHint
     }
-    if (currentExercise.value.type === 'basic/reversed' || currentExercise.value.type === 'choice/reversed') {
+    if (
+        currentExercise.value.type === 'basic/reversed' ||
+        currentExercise.value.type === 'choice/reversed' ||
+        currentExercise.value.type === 'characters/reversed'
+    ) {
         return t.value.quizTypeReversedHint
     }
 
@@ -86,6 +94,13 @@ const quizShortcuts = computed(() => {
     if (state.value === 'question') {
         if (isMatchQuestion.value) {
             return []
+        }
+
+        if (isCharacterQuestion.value) {
+            return [
+                { label: t.value.quizShortcutBuild, keys: t.value.quizShortcutKeyboard },
+                { label: t.value.quizShortcutSkip, keys: 'Esc' },
+            ]
         }
 
         return isChoiceQuestion.value
@@ -129,6 +144,7 @@ async function loadNextQuestion() {
     clearChoiceSubmit()
     clearMatchResolve()
     selectedChoiceIndex.value = null
+    selectedCharacterIndices.value = []
     selectedMatchCardIds.value = []
     matchPairAttempts.value = []
     matchVocabularyStates.value = {}
@@ -144,7 +160,7 @@ async function loadNextQuestion() {
         state.value = 'question'
         await nextTick()
 
-        if (isChoiceQuestion.value || isMatchQuestion.value) {
+        if (isChoiceQuestion.value || isCharacterQuestion.value || isMatchQuestion.value) {
             quizRootRef.value?.focus()
         } else {
             answerInputRef.value?.focus()
@@ -194,7 +210,14 @@ function getSkipAnswer(): string {
 }
 
 async function skipAnswer() {
-    if (!currentExercise.value || isSubmitting.value || state.value !== 'question' || isChoiceQuestion.value || isMatchQuestion.value) return
+    if (
+        !currentExercise.value ||
+        isSubmitting.value ||
+        state.value !== 'question' ||
+        isChoiceQuestion.value ||
+        isMatchQuestion.value
+    )
+        return
 
     isSubmitting.value = true
     error.value = null
@@ -228,6 +251,55 @@ function chooseOption(option: string, index: number) {
         choiceSubmitTimeoutId.value = null
         void submitAnswer(option)
     }, 220)
+}
+
+function chooseCharacter(index: number) {
+    if (
+        !currentExercise.value ||
+        !isCharacterQuestion.value ||
+        state.value !== 'question' ||
+        isSubmitting.value ||
+        selectedCharacterIndices.value.includes(index)
+    ) {
+        return
+    }
+
+    const character = currentExercise.value.options[index]
+    if (character == null) return
+
+    selectedCharacterIndices.value = [...selectedCharacterIndices.value, index]
+    if (selectedCharacterIndices.value.length === currentExercise.value.options.length) {
+        void submitAnswer(getCharacterAnswer())
+    } else {
+        void nextTick(() => quizRootRef.value?.focus())
+    }
+}
+
+function removeLastCharacter() {
+    if (!isCharacterQuestion.value || state.value !== 'question' || isSubmitting.value) return
+    selectedCharacterIndices.value = selectedCharacterIndices.value.slice(0, -1)
+    void nextTick(() => quizRootRef.value?.focus())
+}
+
+function getCharacterAnswer(): string {
+    const options = currentExercise.value?.options ?? []
+    return selectedCharacterIndices.value.map((index) => options[index] ?? '').join('')
+}
+
+function displayCharacter(character?: string): string {
+    if (character === ' ') return '␠'
+    if (character === '\t') return '⇥'
+    return character ?? ''
+}
+
+function findAvailableCharacterIndex(key: string): number | null {
+    const options = currentExercise.value?.options ?? []
+    const normalizedKey = key.toLocaleLowerCase()
+    const index = options.findIndex(
+        (character, optionIndex) =>
+            !selectedCharacterIndices.value.includes(optionIndex) && character.toLocaleLowerCase() === normalizedKey
+    )
+    return index >= 0 ? index : null
 }
 
 function setupMatchExercise(cards: ExerciseMatchCard[]) {
@@ -450,6 +522,29 @@ function handleKeydown(event: KeyboardEvent) {
         return
     }
 
+    if (state.value === 'question' && currentExercise.value && isCharacterQuestion.value) {
+        if (event.key === 'Escape') {
+            event.preventDefault()
+            void skipAnswer()
+            return
+        }
+
+        if (event.key === 'Backspace') {
+            event.preventDefault()
+            removeLastCharacter()
+            return
+        }
+
+        if (!event.repeat && Array.from(event.key).length === 1) {
+            const characterIndex = findAvailableCharacterIndex(event.key)
+            if (characterIndex != null) {
+                event.preventDefault()
+                chooseCharacter(characterIndex)
+            }
+        }
+        return
+    }
+
     if (event.key === 'Enter') {
         if (state.value === 'results') {
             event.preventDefault()
@@ -463,7 +558,12 @@ function handleKeydown(event: KeyboardEvent) {
             return
         }
 
-        if (state.value === 'question' && !isChoiceQuestion.value && !isMatchQuestion.value) {
+        if (
+            state.value === 'question' &&
+            !isChoiceQuestion.value &&
+            !isCharacterQuestion.value &&
+            !isMatchQuestion.value
+        ) {
             event.preventDefault()
             void submitAnswer(answer.value)
         }
@@ -709,9 +809,7 @@ onBeforeUnmount(() => {
             <div :class="quizContentClass">
                 <template v-if="state === 'loading'">
                     <div v-if="error" class="space-y-4 text-center">
-                        <p
-                            :class="emptyState === 'mastered' ? 'text-success' : 'text-destructive'"
-                        >
+                        <p :class="emptyState === 'mastered' ? 'text-success' : 'text-destructive'">
                             {{ error }}
                         </p>
                         <Button variant="outline" @click="startQuiz">{{ t.quizRetry }}</Button>
@@ -747,9 +845,7 @@ onBeforeUnmount(() => {
                                 @choose="chooseMatchCard"
                             />
 
-                            <p class="text-center text-sm text-muted-foreground">
-                                {{ matchResolvedCount }} / 5
-                            </p>
+                            <p class="text-center text-sm text-muted-foreground">{{ matchResolvedCount }} / 5</p>
                         </template>
 
                         <template v-else>
@@ -803,6 +899,72 @@ onBeforeUnmount(() => {
                                         aria-hidden="true"
                                     ></span>
                                 </button>
+                            </div>
+
+                            <div v-else-if="isCharacterQuestion" class="space-y-7">
+                                <div
+                                    class="flex flex-wrap justify-center gap-1.5 sm:gap-2"
+                                    role="group"
+                                    :aria-label="t.quizCharactersAnswerLabel"
+                                >
+                                    <button
+                                        v-for="(_, position) in currentExercise?.options ?? []"
+                                        :key="position"
+                                        type="button"
+                                        :disabled="
+                                            isSubmitting ||
+                                            position >= selectedCharacterIndices.length ||
+                                            position !== selectedCharacterIndices.length - 1
+                                        "
+                                        :aria-label="`${t.quizCharacterSlot} ${position + 1}`"
+                                        class="flex h-11 w-9 items-center justify-center border-b-2 border-foreground/40 text-xl font-semibold leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-100 sm:h-12 sm:w-10"
+                                        :class="
+                                            position < selectedCharacterIndices.length
+                                                ? 'border-primary text-foreground'
+                                                : 'text-transparent'
+                                        "
+                                        @click="removeLastCharacter"
+                                    >
+                                        {{
+                                            displayCharacter(
+                                                currentExercise?.options[selectedCharacterIndices[position] ?? -1]
+                                            ) || '·'
+                                        }}
+                                    </button>
+                                </div>
+
+                                <div class="space-y-3">
+                                    <p class="text-center text-sm text-muted-foreground">
+                                        {{ t.quizCharactersHint }}
+                                    </p>
+                                    <div
+                                        class="flex flex-wrap justify-center gap-2"
+                                        role="group"
+                                        :aria-label="t.quizCharactersAvailableLabel"
+                                    >
+                                        <button
+                                            v-for="(character, index) in currentExercise?.options ?? []"
+                                            :key="`${character}-${index}`"
+                                            type="button"
+                                            :disabled="isSubmitting || selectedCharacterIndices.includes(index)"
+                                            class="inline-flex h-12 min-w-12 items-center justify-center rounded-md border border-input bg-background px-3 text-lg font-semibold shadow-sm transition-[background-color,border-color,color,transform] duration-150 ease-out hover:border-primary/60 hover:bg-accent active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:border-transparent disabled:bg-muted/40 disabled:text-transparent disabled:shadow-none"
+                                            @click="chooseCharacter(index)"
+                                        >
+                                            {{ displayCharacter(character) }}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <Button
+                                    class="w-full"
+                                    size="lg"
+                                    type="button"
+                                    variant="outline"
+                                    :disabled="isSubmitting"
+                                    @click="skipAnswer"
+                                >
+                                    {{ t.quizSkip }}
+                                </Button>
                             </div>
 
                             <form v-else class="space-y-3" @submit.prevent="submitAnswer(answer)">
@@ -928,9 +1090,7 @@ onBeforeUnmount(() => {
 
                         <div class="grid gap-8 sm:grid-cols-2">
                             <div class="space-y-2">
-                                <p class="text-base font-medium text-success sm:text-lg">
-                                    ✓ {{ t.quizCorrect }}
-                                </p>
+                                <p class="text-base font-medium text-success sm:text-lg">✓ {{ t.quizCorrect }}</p>
                                 <ul class="space-y-1">
                                     <li
                                         v-for="exercise in correctResults"
@@ -948,9 +1108,7 @@ onBeforeUnmount(() => {
                                 </ul>
                             </div>
                             <div class="space-y-2">
-                                <p class="text-base font-medium text-destructive sm:text-lg">
-                                    ✗ {{ t.quizWrong }}
-                                </p>
+                                <p class="text-base font-medium text-destructive sm:text-lg">✗ {{ t.quizWrong }}</p>
                                 <ul class="space-y-1">
                                     <li
                                         v-for="exercise in wrongResults"

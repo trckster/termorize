@@ -41,8 +41,9 @@ type BotTexts struct {
 	MatchSummaryKnowledgeFormat string
 	MatchPairDeletedVocabulary  string
 
-	QuestionTranslateReplyFormat  string
-	QuestionTranslateChoiceFormat string
+	QuestionTranslateReplyFormat      string
+	QuestionTranslateChoiceFormat     string
+	QuestionTranslateCharactersFormat string
 
 	MenuDeleteWord                   string
 	MenuVocabularyEmpty              string
@@ -140,8 +141,9 @@ var botTextsEn = BotTexts{
 	MatchSummaryKnowledgeFormat: "Pairs matched: *%d/%d*",
 	MatchPairDeletedVocabulary:  "(deleted word)",
 
-	QuestionTranslateReplyFormat:  "Translate word *%s* to %s\n\n(answer with reply)",
-	QuestionTranslateChoiceFormat: "Translate word *%s* to %s\n\nChoose one of the options below.",
+	QuestionTranslateReplyFormat:      "Translate word *%s* to %s\n\n(answer with reply)",
+	QuestionTranslateChoiceFormat:     "Translate word *%s* to %s\n\nChoose one of the options below.",
+	QuestionTranslateCharactersFormat: "Translate word *%s* to %s\n\nBuild the answer from the characters below.",
 
 	MenuDeleteWord:                   "Send the word you want to delete from vocabulary 🗑️",
 	MenuVocabularyEmpty:              "Your vocabulary is empty for now. Add some translations!",
@@ -263,8 +265,9 @@ var botTextsRu = BotTexts{
 	MatchSummaryKnowledgeFormat: "Совпало пар: *%d/%d*",
 	MatchPairDeletedVocabulary:  "(удалённое слово)",
 
-	QuestionTranslateReplyFormat:  "Переведи слово *%s* на %s\n\n(ответь реплаем)",
-	QuestionTranslateChoiceFormat: "Переведи слово *%s* на %s\n\nВыбери один из вариантов ниже.",
+	QuestionTranslateReplyFormat:      "Переведи слово *%s* на %s\n\n(ответь реплаем)",
+	QuestionTranslateChoiceFormat:     "Переведи слово *%s* на %s\n\nВыбери один из вариантов ниже.",
+	QuestionTranslateCharactersFormat: "Переведи слово *%s* на %s\n\nСобери ответ из символов ниже.",
 
 	MenuDeleteWord:                   "Отправь слово, которое хочешь удалить из словаря 🗑️",
 	MenuVocabularyEmpty:              "Твой словарь пока пуст. Добавь несколько переводов!",
@@ -363,7 +366,9 @@ func BuildBasicExerciseQuestion(
 	exerciseType enums.ExerciseType,
 	texts BotTexts,
 ) string {
-	if exerciseType == enums.ExerciseTypeBasicReversed || exerciseType == enums.ExerciseTypeChoiceReversed {
+	if exerciseType == enums.ExerciseTypeBasicReversed ||
+		exerciseType == enums.ExerciseTypeChoiceReversed ||
+		exerciseType == enums.ExerciseTypeCharactersReversed {
 		return buildTranslateQuestionText(translationWord, originalLanguage.DisplayNameWithFlag(), exerciseType, texts)
 	}
 
@@ -374,6 +379,8 @@ func buildTranslateQuestionText(word string, language string, exerciseType enums
 	format := texts.QuestionTranslateReplyFormat
 	if exerciseType == enums.ExerciseTypeChoiceDirect || exerciseType == enums.ExerciseTypeChoiceReversed {
 		format = texts.QuestionTranslateChoiceFormat
+	} else if exerciseType == enums.ExerciseTypeCharactersDirect || exerciseType == enums.ExerciseTypeCharactersReversed {
+		format = texts.QuestionTranslateCharactersFormat
 	}
 
 	return fmt.Sprintf(format, word, language)

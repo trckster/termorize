@@ -24,6 +24,7 @@ var (
 	ErrExerciseNotInProgress     = errors.New("exercise is not in progress")
 	ErrExerciseVocabularyDeleted = errors.New("exercise vocabulary was deleted")
 	ErrInvalidMatchPairResults   = errors.New("invalid match pair results")
+	ErrInvalidCharacterResults   = errors.New("invalid character exercise results")
 	errNoExerciseTypeAvailable   = errors.New("no exercise type available")
 )
 
@@ -61,6 +62,7 @@ const (
 	ExerciseVocabularyResultIgnored = "ignored"
 
 	ExerciseVocabularyResultReasonTypedAnswer       = "typed_answer"
+	ExerciseVocabularyResultReasonCharacterAnswer   = "character_answer"
 	ExerciseVocabularyResultReasonChoiceAnswer      = "choice_answer"
 	ExerciseVocabularyResultReasonMatchPairs        = "match_pairs"
 	ExerciseVocabularyResultReasonSkipped           = "skipped"
@@ -75,8 +77,9 @@ const (
 	matchPairCardSideOriginal     = "original"
 	matchPairCardSideTranslation  = "translation"
 
-	basicExerciseWeight      = 45
-	choiceExerciseWeight     = 45
+	basicExerciseWeight      = 35
+	choiceExerciseWeight     = 35
+	characterExerciseWeight  = 20
 	matchPairsExerciseWeight = 10
 )
 
@@ -131,6 +134,7 @@ type TelegramMessageExercise struct {
 	TranslationWord     string         `gorm:"column:translation_word"`
 	TranslationLanguage enums.Language `gorm:"column:translation_language"`
 	Vocabulary          []models.Vocabulary
+	CharacterBoard      *CharacterBoardState
 }
 
 type ExerciseOption struct {
@@ -144,6 +148,13 @@ type ExerciseMatchCard struct {
 	Word         string         `json:"word"`
 	Language     enums.Language `json:"language"`
 	Side         string         `json:"side"`
+}
+
+type CharacterBoardState struct {
+	Order      []int
+	Characters []string
+	Chosen     []int
+	Answer     string
 }
 
 type exerciseChoiceCandidate struct {
@@ -426,11 +437,11 @@ func GetDuePendingExercises(now time.Time) ([]PendingExercise, error) {
 		JOIN words AS original ON original.id = t.original_id
 		JOIN words AS translated ON translated.id = t.translation_id
 		WHERE e.status = ?
-			AND e.type IN (?, ?, ?, ?)
+			AND e.type IN (?, ?, ?, ?, ?, ?)
 			AND e.scheduled_for <= ?
 			AND u.settings->'telegram'->'bot_enabled' = ?
 		ORDER BY e.scheduled_for ASC, e.created_at ASC
-	`, enums.ExerciseStatusPending, enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed, now, true).Scan(&exercises).Error
+	`, enums.ExerciseStatusPending, enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed, enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed, now, true).Scan(&exercises).Error
 
 	if err != nil {
 		return nil, err
@@ -604,6 +615,23 @@ func buildTelegramMessageExercise(exercise models.Exercise) (*TelegramMessageExe
 		telegramExercise.TranslationWord = correctVocabulary.TranslationWord
 		telegramExercise.TranslationLanguage = correctVocabulary.TranslationLanguage
 		telegramExercise.Vocabulary = []models.Vocabulary{buildVocabularyFromExerciseDetails(*correctVocabulary)}
+
+		if isCharacterExerciseType(exercise.Type) && exercise.CharacterState != nil {
+			answer := correctVocabulary.TranslationWord
+			if isReversedExerciseType(exercise.Type) {
+				answer = correctVocabulary.OriginalWord
+			}
+			characters := AnswerCharacters(answer)
+
+			var state characterStateJSON
+			if unmarshalErr := json.Unmarshal([]byte(*exercise.CharacterState), &state); unmarshalErr != nil {
+				return nil, unmarshalErr
+			}
+			if !validCharacterState(state, len(characters)) {
+				return nil, ErrInvalidCharacterResults
+			}
+			telegramExercise.CharacterBoard = buildCharacterBoardState(state.Order, characters, state.Chosen)
+		}
 	}
 
 	return &telegramExercise, nil
@@ -617,6 +645,205 @@ func StartTelegramExercise(exerciseID uuid.UUID, telegramMessageID int64) error 
 			"telegram_message_id": telegramMessageID,
 			"started_at":          time.Now().UTC(),
 		}).Error
+}
+
+func AnswerCharacters(answer string) []string {
+	trimmed := strings.TrimSpace(answer)
+	characters := make([]string, 0, len([]rune(trimmed)))
+	for _, character := range []rune(trimmed) {
+		characters = append(characters, string(character))
+	}
+
+	return characters
+}
+
+func ShuffledAnswerCharacters(answer string) []string {
+	characters := AnswerCharacters(answer)
+	rand.Shuffle(len(characters), func(i, j int) {
+		characters[i], characters[j] = characters[j], characters[i]
+	})
+
+	return characters
+}
+
+func BuildCharacterBoardForAnswer(answer string) *CharacterBoardState {
+	characters := AnswerCharacters(answer)
+	order := make([]int, len(characters))
+	for index := range order {
+		order[index] = index
+	}
+	rand.Shuffle(len(order), func(i, j int) {
+		order[i], order[j] = order[j], order[i]
+	})
+
+	return buildCharacterBoardState(order, characters, nil)
+}
+
+func StartCharacterExercise(exerciseID uuid.UUID, telegramMessageID int64, order []int) error {
+	stateBytes, err := json.Marshal(characterStateJSON{
+		Order:  append([]int(nil), order...),
+		Chosen: []int{},
+	})
+	if err != nil {
+		return err
+	}
+
+	result := db.DB.Model(&models.Exercise{}).
+		Where("id = ? AND status = ?", exerciseID, enums.ExerciseStatusPending).
+		Updates(map[string]any{
+			"status":              enums.ExerciseStatusInProgress,
+			"telegram_message_id": telegramMessageID,
+			"started_at":          time.Now().UTC(),
+			"character_state":     string(stateBytes),
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrExerciseNotInProgress
+	}
+
+	return nil
+}
+
+func ApplyCharacterTap(exerciseID uuid.UUID, userID uint, tappedIndex int) (*CharacterBoardState, bool, error) {
+	var board *CharacterBoardState
+	var finished bool
+	var vocabularyDeleted bool
+
+	txErr := db.DB.Transaction(func(tx *gorm.DB) error {
+		var exercise models.Exercise
+		if lockErr := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ? AND user_id = ?", exerciseID, userID).
+			Take(&exercise).Error; lockErr != nil {
+			if errors.Is(lockErr, gorm.ErrRecordNotFound) {
+				return ErrExerciseNotFound
+			}
+			return lockErr
+		}
+
+		if !isCharacterExerciseType(exercise.Type) {
+			return ErrInvalidCharacterResults
+		}
+		if exercise.Status != enums.ExerciseStatusInProgress {
+			return ErrExerciseNotInProgress
+		}
+
+		correctVocabulary, detailErr := getCorrectExerciseVocabularyDetails(exercise.ID)
+		if detailErr != nil {
+			return detailErr
+		}
+		if correctVocabulary == nil {
+			vocabularyDeleted = true
+			return ErrExerciseVocabularyDeleted
+		}
+
+		answer := correctVocabulary.TranslationWord
+		if isReversedExerciseType(exercise.Type) {
+			answer = correctVocabulary.OriginalWord
+		}
+		characters := AnswerCharacters(answer)
+		if len(characters) == 0 || tappedIndex < 0 || tappedIndex >= len(characters) {
+			return ErrInvalidCharacterResults
+		}
+
+		if exercise.CharacterState == nil {
+			return ErrInvalidCharacterResults
+		}
+
+		var state characterStateJSON
+		if unmarshalErr := json.Unmarshal([]byte(*exercise.CharacterState), &state); unmarshalErr != nil {
+			return unmarshalErr
+		}
+		if !validCharacterState(state, len(characters)) {
+			return ErrInvalidCharacterResults
+		}
+
+		if len(state.Chosen) >= len(characters) || containsInt(state.Chosen, tappedIndex) {
+			board = buildCharacterBoardState(state.Order, characters, state.Chosen)
+			finished = len(state.Chosen) == len(characters)
+			return nil
+		}
+
+		state.Chosen = append(state.Chosen, tappedIndex)
+		stateBytes, marshalErr := json.Marshal(state)
+		if marshalErr != nil {
+			return marshalErr
+		}
+
+		updateResult := tx.Model(&models.Exercise{}).
+			Where("id = ? AND status = ?", exerciseID, enums.ExerciseStatusInProgress).
+			Update("character_state", string(stateBytes))
+		if updateResult.Error != nil {
+			return updateResult.Error
+		}
+		if updateResult.RowsAffected == 0 {
+			return ErrExerciseNotInProgress
+		}
+
+		board = buildCharacterBoardState(state.Order, characters, state.Chosen)
+		finished = len(state.Chosen) == len(characters)
+		return nil
+	})
+
+	if txErr != nil {
+		if vocabularyDeleted {
+			_ = MarkExerciseVocabularyResultWithoutProgress(exerciseID, ExerciseVocabularyResultIgnored, ExerciseVocabularyResultReasonDeletedVocabulary)
+			_ = IgnoreExercise(exerciseID)
+		}
+		return nil, false, txErr
+	}
+
+	return board, finished, nil
+}
+
+func validCharacterState(state characterStateJSON, characterCount int) bool {
+	if len(state.Order) != characterCount || len(state.Chosen) > characterCount {
+		return false
+	}
+
+	seenOrder := make(map[int]bool, characterCount)
+	for _, index := range state.Order {
+		if index < 0 || index >= characterCount || seenOrder[index] {
+			return false
+		}
+		seenOrder[index] = true
+	}
+
+	seenChosen := make(map[int]bool, len(state.Chosen))
+	for _, index := range state.Chosen {
+		if index < 0 || index >= characterCount || seenChosen[index] {
+			return false
+		}
+		seenChosen[index] = true
+	}
+
+	return true
+}
+
+func containsInt(values []int, expected int) bool {
+	for _, value := range values {
+		if value == expected {
+			return true
+		}
+	}
+	return false
+}
+
+func buildCharacterBoardState(order []int, characters []string, chosen []int) *CharacterBoardState {
+	var answer strings.Builder
+	for _, index := range chosen {
+		if index >= 0 && index < len(characters) {
+			answer.WriteString(characters[index])
+		}
+	}
+
+	return &CharacterBoardState{
+		Order:      append([]int(nil), order...),
+		Characters: append([]string(nil), characters...),
+		Chosen:     append([]int(nil), chosen...),
+		Answer:     answer.String(),
+	}
 }
 
 func DeletePendingExercisesByUserID(tx *gorm.DB, userID uint) error {
@@ -680,7 +907,7 @@ func IgnoreDuePendingExercisesWithoutActiveVocabulary(now time.Time) error {
 				SELECT e.id
 				FROM exercises AS e
 				WHERE e.status = ?
-					AND e.type IN (?, ?, ?, ?, ?)
+					AND e.type IN (?, ?, ?, ?, ?, ?, ?)
 					AND e.scheduled_for <= ?
 					AND (
 						(e.type <> ? AND NOT EXISTS (
@@ -711,6 +938,8 @@ func IgnoreDuePendingExercisesWithoutActiveVocabulary(now time.Time) error {
 			enums.ExerciseTypeBasicReversed,
 			enums.ExerciseTypeChoiceDirect,
 			enums.ExerciseTypeChoiceReversed,
+			enums.ExerciseTypeCharactersDirect,
+			enums.ExerciseTypeCharactersReversed,
 			enums.ExerciseTypeMatchPairs,
 			now,
 			enums.ExerciseTypeMatchPairs,
@@ -727,7 +956,7 @@ func IgnoreDuePendingExercisesWithoutActiveVocabulary(now time.Time) error {
 			UPDATE exercises AS e
 			SET status = ?, finished_at = ?
 			WHERE e.status = ?
-				AND e.type IN (?, ?, ?, ?, ?)
+				AND e.type IN (?, ?, ?, ?, ?, ?, ?)
 				AND e.scheduled_for <= ?
 				AND (
 					(e.type <> ? AND NOT EXISTS (
@@ -745,7 +974,7 @@ func IgnoreDuePendingExercisesWithoutActiveVocabulary(now time.Time) error {
 							AND ve.is_correct = true
 					) <> ?)
 				)
-		`, enums.ExerciseStatusIgnored, now, enums.ExerciseStatusPending, enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed, enums.ExerciseTypeMatchPairs, now, enums.ExerciseTypeMatchPairs, enums.ExerciseTypeMatchPairs, matchPairsVocabularyCount).Error
+		`, enums.ExerciseStatusIgnored, now, enums.ExerciseStatusPending, enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed, enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed, enums.ExerciseTypeMatchPairs, now, enums.ExerciseTypeMatchPairs, enums.ExerciseTypeMatchPairs, matchPairsVocabularyCount).Error
 	})
 }
 
@@ -1251,6 +1480,11 @@ type matchStateJSON struct {
 	Attempts [][2]int `json:"attempts"`
 }
 
+type characterStateJSON struct {
+	Order  []int `json:"order"`
+	Chosen []int `json:"chosen"`
+}
+
 type MatchBoardState struct {
 	Order        []int                // display permutation of canonical card indices
 	Cards        []ExerciseMatchCard  // canonical order; index == canonical card index
@@ -1375,20 +1609,25 @@ func VerifyExerciseAnswer(exerciseID uuid.UUID, userID uint, answer string) (*Ve
 			resultType = "wrong"
 		}
 	} else {
+		answerReason := ExerciseVocabularyResultReasonTypedAnswer
+		if isCharacterExerciseType(exercise.Type) {
+			answerReason = ExerciseVocabularyResultReasonCharacterAnswer
+		}
+
 		if normalizedAnswer == normalizedExpectedAnswer {
 			progressDelta = ExerciseCompleteProgressDelta
-			updated, knowledge, err = CompleteExercise(exerciseID)
+			updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusCompleted, ExerciseVocabularyResultCorrect, answerReason, progressDelta)
 			resultType = "correct"
 		} else {
 			distance := utils.LevenshteinDistance(normalizedAnswer, normalizedExpectedAnswer)
 			threshold := almostCorrectThreshold(normalizedExpectedAnswer)
 			if distance <= threshold {
 				progressDelta = ExerciseAlmostCorrectProgressDelta
-				updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusCompleted, ExerciseVocabularyResultAlmost, ExerciseVocabularyResultReasonTypedAnswer, progressDelta)
+				updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusCompleted, ExerciseVocabularyResultAlmost, answerReason, progressDelta)
 				resultType = "almost"
 			} else {
 				progressDelta = ExerciseFailProgressDelta
-				updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusFailed, ExerciseVocabularyResultWrong, ExerciseVocabularyResultReasonTypedAnswer, progressDelta)
+				updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusFailed, ExerciseVocabularyResultWrong, answerReason, progressDelta)
 				resultType = "wrong"
 			}
 		}
@@ -1923,13 +2162,18 @@ func createRandomExerciseForVocabulary(userID uint, vocabularyID uuid.UUID) (*Ra
 		return nil, err
 	}
 
+	resultOptions := collectExerciseOptionLabels(options)
+	if isCharacterExerciseType(exerciseType) && len(options) > 0 {
+		resultOptions = ShuffledAnswerCharacters(options[0].AnswerWord)
+	}
+
 	return &RandomExerciseResult{
 		ExerciseID:     exercise.ID,
 		Type:           exerciseType,
 		QuestionWord:   questionWord,
 		Language:       language,
 		AnswerLanguage: answerLanguage,
-		Options:        collectExerciseOptionLabels(options),
+		Options:        resultOptions,
 	}, nil
 }
 
@@ -2012,6 +2256,13 @@ func selectExerciseTypeAndOptions(userID uint, vocabulary *models.Vocabulary, in
 				enums.ExerciseTypeChoiceReversed,
 			},
 		},
+		{
+			weight: characterExerciseWeight,
+			types: []enums.ExerciseType{
+				enums.ExerciseTypeCharactersDirect,
+				enums.ExerciseTypeCharactersReversed,
+			},
+		},
 	}
 	if includeMatchPairs {
 		groups = append(groups, exerciseTypeGroup{
@@ -2058,7 +2309,7 @@ func selectExerciseTypeAndOptions(userID uint, vocabulary *models.Vocabulary, in
 }
 
 func buildExerciseOptionsByType(userID uint, vocabulary *models.Vocabulary, includeMatchPairs bool) (map[enums.ExerciseType][]exerciseChoiceCandidate, error) {
-	optionsByType := make(map[enums.ExerciseType][]exerciseChoiceCandidate, 5)
+	optionsByType := make(map[enums.ExerciseType][]exerciseChoiceCandidate, 7)
 
 	directOptions, err := buildExerciseOptionsForType(userID, vocabulary, enums.ExerciseTypeBasicDirect)
 	if err != nil {
@@ -2066,6 +2317,9 @@ func buildExerciseOptionsByType(userID uint, vocabulary *models.Vocabulary, incl
 	}
 	if len(directOptions) > 0 {
 		optionsByType[enums.ExerciseTypeBasicDirect] = append([]exerciseChoiceCandidate(nil), directOptions[:1]...)
+		if strings.TrimSpace(directOptions[0].AnswerWord) != "" {
+			optionsByType[enums.ExerciseTypeCharactersDirect] = append([]exerciseChoiceCandidate(nil), directOptions[:1]...)
+		}
 	}
 	if len(directOptions) == choiceExerciseVocabularyCount {
 		optionsByType[enums.ExerciseTypeChoiceDirect] = shuffledExerciseOptions(directOptions)
@@ -2077,6 +2331,9 @@ func buildExerciseOptionsByType(userID uint, vocabulary *models.Vocabulary, incl
 	}
 	if len(reversedOptions) > 0 {
 		optionsByType[enums.ExerciseTypeBasicReversed] = append([]exerciseChoiceCandidate(nil), reversedOptions[:1]...)
+		if strings.TrimSpace(reversedOptions[0].AnswerWord) != "" {
+			optionsByType[enums.ExerciseTypeCharactersReversed] = append([]exerciseChoiceCandidate(nil), reversedOptions[:1]...)
+		}
 	}
 	if len(reversedOptions) == choiceExerciseVocabularyCount {
 		optionsByType[enums.ExerciseTypeChoiceReversed] = shuffledExerciseOptions(reversedOptions)
@@ -2325,7 +2582,16 @@ func buildExerciseQuestionData(vocabulary *models.Vocabulary, exerciseType enums
 
 func isReversedExerciseType(exerciseType enums.ExerciseType) bool {
 	switch exerciseType {
-	case enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceReversed:
+	case enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceReversed, enums.ExerciseTypeCharactersReversed:
+		return true
+	default:
+		return false
+	}
+}
+
+func isCharacterExerciseType(exerciseType enums.ExerciseType) bool {
+	switch exerciseType {
+	case enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed:
 		return true
 	default:
 		return false

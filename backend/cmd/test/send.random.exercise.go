@@ -156,11 +156,13 @@ func generateSendableExercise(userID uint) (*services.RandomExerciseResult, erro
 			return nil, err
 		}
 
-		if result.Type != enums.ExerciseTypeMatchPairs {
+		if result.Type != enums.ExerciseTypeMatchPairs &&
+			result.Type != enums.ExerciseTypeCharactersDirect &&
+			result.Type != enums.ExerciseTypeCharactersReversed {
 			return result, nil
 		}
 
-		logger.L().Infow("skipping match/pairs result, retrying for basic/choice", "exercise_id", result.ExerciseID)
+		logger.L().Infow("skipping board-based result, retrying for basic/choice", "exercise_id", result.ExerciseID)
 		if ignoreErr := services.IgnoreExercise(result.ExerciseID); ignoreErr != nil {
 			logger.L().Warnw("failed to ignore unused match/pairs exercise", "error", ignoreErr, "exercise_id", result.ExerciseID)
 		}
@@ -173,7 +175,7 @@ func generateSendableExercise(userID uint) (*services.RandomExerciseResult, erro
 // picks the shown word and target language from its arguments based on exercise type.
 func buildExerciseText(result *services.RandomExerciseResult, texts telegram.BotTexts) string {
 	switch result.Type {
-	case enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceReversed:
+	case enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceReversed, enums.ExerciseTypeCharactersReversed:
 		return telegram.BuildBasicExerciseQuestion("", result.QuestionWord, result.AnswerLanguage, result.Language, result.Type, texts)
 	default:
 		return telegram.BuildBasicExerciseQuestion(result.QuestionWord, "", result.Language, result.AnswerLanguage, result.Type, texts)
