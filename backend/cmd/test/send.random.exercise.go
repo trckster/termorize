@@ -28,6 +28,7 @@ import (
 //	go run ./cmd/test/            # default: match/pairs exercise
 //	go run ./cmd/test/ match      # match/pairs exercise
 //	go run ./cmd/test/ basic      # random basic/choice exercise
+//	go run ./cmd/test/ characters # character exercise, random direction
 const maxGenerationAttempts = 10
 
 func main() {
@@ -67,8 +68,10 @@ func main() {
 		sendMatchExercise(user, texts)
 	case "basic", "choice", "random":
 		sendBasicOrChoiceExercise(user, texts)
+	case "characters":
+		sendCharacterExercise(user, texts)
 	default:
-		fatal("unknown mode", errors.New("supported modes: match, basic"))
+		fatal("unknown mode", errors.New("supported modes: match, basic, characters"))
 	}
 }
 
@@ -99,6 +102,48 @@ func sendMatchExercise(user models.User, texts telegram.BotTexts) {
 
 	logger.L().Infow("match exercise sent to telegram",
 		"exercise_id", exerciseID,
+		"telegram_id", user.TelegramID,
+		"message_id", *messageID,
+	)
+}
+
+func sendCharacterExercise(user models.User, texts telegram.BotTexts) {
+	result, err := services.CreatePendingCharacterExercise(user.ID, time.Now().UTC())
+	if err != nil {
+		fatal("failed to create character exercise", err)
+	}
+
+	options, err := services.GetExerciseAnswerOptions(result.ExerciseID, result.Type)
+	if err != nil {
+		fatal("failed to load character exercise answer", err)
+	}
+	if len(options) != 1 {
+		fatal("character exercise has an invalid answer", errors.New("expected exactly one answer"))
+	}
+
+	board := services.BuildCharacterBoardForAnswer(options[0].Label)
+	questionText := buildExerciseText(result, texts)
+	messageID, err := telegram.SendCharacterExerciseMessage(
+		user.TelegramID,
+		questionText,
+		result.ExerciseID,
+		board,
+		texts,
+	)
+	if err != nil {
+		fatal("failed to send character exercise to telegram", err)
+	}
+	if messageID == nil {
+		fatal("telegram did not return a message id", errors.New("user may have blocked the bot or disabled it"))
+	}
+
+	if err := services.StartCharacterExercise(result.ExerciseID, *messageID, board.Order); err != nil {
+		fatal("failed to mark character exercise as started", err)
+	}
+
+	logger.L().Infow("character exercise sent to telegram",
+		"exercise_id", result.ExerciseID,
+		"exercise_type", result.Type,
 		"telegram_id", user.TelegramID,
 		"message_id", *messageID,
 	)
@@ -156,11 +201,13 @@ func generateSendableExercise(userID uint) (*services.RandomExerciseResult, erro
 			return nil, err
 		}
 
-		if result.Type != enums.ExerciseTypeMatchPairs {
+		if result.Type != enums.ExerciseTypeMatchPairs &&
+			result.Type != enums.ExerciseTypeCharactersDirect &&
+			result.Type != enums.ExerciseTypeCharactersReversed {
 			return result, nil
 		}
 
-		logger.L().Infow("skipping match/pairs result, retrying for basic/choice", "exercise_id", result.ExerciseID)
+		logger.L().Infow("skipping board-based result, retrying for basic/choice", "exercise_id", result.ExerciseID)
 		if ignoreErr := services.IgnoreExercise(result.ExerciseID); ignoreErr != nil {
 			logger.L().Warnw("failed to ignore unused match/pairs exercise", "error", ignoreErr, "exercise_id", result.ExerciseID)
 		}
@@ -173,7 +220,7 @@ func generateSendableExercise(userID uint) (*services.RandomExerciseResult, erro
 // picks the shown word and target language from its arguments based on exercise type.
 func buildExerciseText(result *services.RandomExerciseResult, texts telegram.BotTexts) string {
 	switch result.Type {
-	case enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceReversed:
+	case enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceReversed, enums.ExerciseTypeCharactersReversed:
 		return telegram.BuildBasicExerciseQuestion("", result.QuestionWord, result.AnswerLanguage, result.Language, result.Type, texts)
 	default:
 		return telegram.BuildBasicExerciseQuestion(result.QuestionWord, "", result.Language, result.AnswerLanguage, result.Type, texts)

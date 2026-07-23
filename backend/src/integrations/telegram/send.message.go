@@ -11,6 +11,14 @@ import (
 
 const telegramParseModeMarkdown = "Markdown"
 
+var telegramMarkdownEscaper = strings.NewReplacer(
+	`\`, `\\`,
+	`_`, `\_`,
+	`*`, `\*`,
+	"`", "\\`",
+	`[`, `\[`,
+)
+
 type sendMessageRequest struct {
 	ChatID           int64       `json:"chat_id"`
 	Text             string      `json:"text"`
@@ -145,6 +153,27 @@ func SendChoiceExerciseMessage(chatID int64, text string, exerciseID uuid.UUID, 
 	return &messageID, nil
 }
 
+func SendCharacterExerciseMessage(chatID int64, text string, exerciseID uuid.UUID, board *services.CharacterBoardState, texts BotTexts) (*int64, error) {
+	messageRequest := sendMessageRequest{
+		ChatID:      chatID,
+		Text:        buildCharacterBoardText(text, board),
+		ParseMode:   telegramParseModeMarkdown,
+		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: buildCharacterKeyboard(exerciseID, board, texts)},
+	}
+
+	response, err := sendMessage(messageRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	if response == nil {
+		return nil, nil
+	}
+
+	messageID := response.Result.MessageID
+	return &messageID, nil
+}
+
 func SendMatchExerciseMessage(chatID int64, exerciseID uuid.UUID, cards []services.ExerciseMatchCard, order []int, texts BotTexts) (*int64, error) {
 	board := &services.MatchBoardState{
 		Order:        order,
@@ -238,6 +267,42 @@ func EditMatchBoardMessage(chatID int64, messageID int64, text string, keyboard 
 		ParseMode:   telegramParseModeMarkdown,
 		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: keyboard},
 	})
+}
+
+func EditCharacterBoardMessage(chatID int64, messageID int64, text string, keyboard [][]inlineKeyboardButton) error {
+	return editMessageTextTolerant(editMessageTextRequest{
+		ChatID:      chatID,
+		MessageID:   messageID,
+		Text:        text,
+		ParseMode:   telegramParseModeMarkdown,
+		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: keyboard},
+	})
+}
+
+func buildCharacterBoardText(questionText string, board *services.CharacterBoardState) string {
+	if board == nil {
+		return questionText
+	}
+
+	slots := make([]string, len(board.Characters))
+	for index := range slots {
+		slots[index] = "＿"
+	}
+	for position, canonical := range board.Chosen {
+		if position >= len(slots) || canonical < 0 || canonical >= len(board.Characters) {
+			continue
+		}
+		slots[position] = escapeTelegramMarkdown(displayCharacter(board.Characters[canonical]))
+	}
+
+	return questionText + "\n\n" + strings.Join(slots, " ")
+}
+
+// escapeTelegramMarkdown escapes user-controlled text embedded in Telegram's
+// legacy Markdown parse mode. Inline keyboard button text is plain text and
+// must not be passed through this function.
+func escapeTelegramMarkdown(text string) string {
+	return telegramMarkdownEscaper.Replace(text)
 }
 
 func answerTelegramCallbackQuery(callbackQueryID string) error {

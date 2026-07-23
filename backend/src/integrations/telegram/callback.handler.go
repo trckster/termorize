@@ -115,6 +115,36 @@ func parseExerciseMatchPayload(payload []string) (uuid.UUID, int, bool) {
 	return exerciseID, tappedIdx, true
 }
 
+func parseExerciseCharacterPayload(payload []string) (uuid.UUID, int, bool) {
+	if len(payload) != 3 || payload[0] != exerciseActionCharacterTap {
+		return uuid.Nil, 0, false
+	}
+
+	exerciseID, err := parseCallbackUUID(payload[1])
+	if err != nil {
+		return uuid.Nil, 0, false
+	}
+
+	tappedIndex, err := strconv.Atoi(payload[2])
+	if err != nil || tappedIndex < 0 || tappedIndex > 1024 {
+		return uuid.Nil, 0, false
+	}
+
+	return exerciseID, tappedIndex, true
+}
+
+func parseExerciseCharacterClearPayload(payload []string) (uuid.UUID, bool) {
+	if len(payload) != 2 || payload[0] != exerciseActionCharacterClear {
+		return uuid.Nil, false
+	}
+
+	exerciseID, err := parseCallbackUUID(payload[1])
+	if err != nil {
+		return uuid.Nil, false
+	}
+	return exerciseID, true
+}
+
 func parseCallbackUUID(value string) (uuid.UUID, error) {
 	if id, err := uuid.Parse(value); err == nil {
 		return id, nil
@@ -138,8 +168,17 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 	if len(payload) > 0 && payload[0] == exerciseActionMatchNoop {
 		return nil
 	}
+	if len(payload) > 0 && payload[0] == exerciseActionCharacterNoop {
+		return nil
+	}
 	if len(payload) >= 2 && payload[0] == exerciseActionMatchTap {
 		return handleMatchTap(callback, payload, t)
+	}
+	if len(payload) >= 2 && payload[0] == exerciseActionCharacterTap {
+		return handleCharacterTap(callback, payload, t)
+	}
+	if len(payload) >= 2 && payload[0] == exerciseActionCharacterClear {
+		return handleCharacterClear(callback, payload, t)
 	}
 
 	exerciseID, selectedVocabularyID, hasAnswer := parseExerciseAnswerPayload(payload)
@@ -252,6 +291,312 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 		t,
 	)
 	return SendMessageMarkdown(callback.From.ID, answerText)
+}
+
+func handleCharacterTap(callback *callbackQuery, payload []string, t BotTexts) error {
+	if callback.Message == nil {
+		return nil
+	}
+
+	exerciseID, tappedIndex, ok := parseExerciseCharacterPayload(payload)
+	if !ok {
+		return nil
+	}
+
+	exercise, err := services.GetExerciseByTelegramMessage(callback.Message.MessageID, callback.From.ID)
+	if err != nil {
+		return err
+	}
+	if exercise == nil {
+		exercise, err = recoverPendingCharacterExerciseFromCallback(callback, exerciseID)
+		if err != nil {
+			return err
+		}
+	}
+	if exercise == nil || exercise.ExerciseID != exerciseID {
+		return nil
+	}
+
+	questionText := BuildBasicExerciseQuestion(
+		exercise.OriginalWord,
+		exercise.TranslationWord,
+		exercise.OriginalLanguage,
+		exercise.TranslationLanguage,
+		exercise.ExerciseType,
+		t,
+	)
+
+	switch exercise.Status {
+	case enums.ExerciseStatusIgnored:
+		return SendMessage(callback.From.ID, t.ExerciseOutdated)
+	case enums.ExerciseStatusCompleted, enums.ExerciseStatusFailed:
+		board := completedCharacterBoard(exercise)
+		return EditCharacterBoardMessage(
+			callback.Message.Chat.ID,
+			callback.Message.MessageID,
+			buildCharacterBoardText(questionText, board),
+			[][]inlineKeyboardButton{},
+		)
+	}
+
+	if len(exercise.Vocabulary) == 0 || exercise.Vocabulary[0].Translation == nil {
+		_ = services.MarkExerciseVocabularyResultWithoutProgress(exercise.ExerciseID, services.ExerciseVocabularyResultIgnored, services.ExerciseVocabularyResultReasonDeletedVocabulary)
+		_ = services.IgnoreExercise(exercise.ExerciseID)
+		return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
+	}
+
+	board, finished, err := services.ApplyCharacterTap(exercise.ExerciseID, exercise.UserID, tappedIndex)
+	if err != nil {
+		if errors.Is(err, services.ErrExerciseNotInProgress) {
+			return nil
+		}
+		if errors.Is(err, services.ErrExerciseVocabularyDeleted) {
+			if removeErr := removeMessageInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID); removeErr != nil {
+				logger.L().Warnw("failed to remove inline keyboard", "error", removeErr, "chat_id", callback.Message.Chat.ID, "message_id", callback.Message.MessageID)
+			}
+			return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
+		}
+		return err
+	}
+
+	if !finished {
+		return EditCharacterBoardMessage(
+			callback.Message.Chat.ID,
+			callback.Message.MessageID,
+			buildCharacterBoardText(questionText, board),
+			buildCharacterKeyboard(exercise.ExerciseID, board, t),
+		)
+	}
+
+	result, err := services.VerifyExerciseAnswer(exercise.ExerciseID, exercise.UserID, board.Answer)
+	if err != nil {
+		if errors.Is(err, services.ErrExerciseNotInProgress) {
+			return nil
+		}
+		if errors.Is(err, services.ErrExerciseVocabularyDeleted) {
+			return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
+		}
+		return err
+	}
+
+	if err := EditCharacterBoardMessage(
+		callback.Message.Chat.ID,
+		callback.Message.MessageID,
+		buildCharacterBoardText(questionText, board),
+		[][]inlineKeyboardButton{},
+	); err != nil {
+		logger.L().Warnw("failed to finalize character exercise board", "error", err, "exercise_id", exercise.ExerciseID)
+	}
+
+	switch result.Result {
+	case "correct":
+		return SendMessageMarkdown(callback.From.ID, buildExerciseSuccessResultText(result.Knowledge, t))
+	case "almost":
+		return SendMessageMarkdown(callback.From.ID, buildExerciseAlmostResultText(
+			exercise.OriginalWord,
+			exercise.TranslationWord,
+			exercise.OriginalLanguage,
+			exercise.TranslationLanguage,
+			result.Knowledge,
+			t,
+		))
+	default:
+		return SendMessageMarkdown(callback.From.ID, buildExerciseInvalidResultText(
+			exercise.OriginalWord,
+			exercise.TranslationWord,
+			exercise.OriginalLanguage,
+			exercise.TranslationLanguage,
+			result.Knowledge,
+			t,
+		))
+	}
+}
+
+func handleCharacterClear(callback *callbackQuery, payload []string, t BotTexts) error {
+	if callback.Message == nil {
+		return nil
+	}
+
+	exerciseID, ok := parseExerciseCharacterClearPayload(payload)
+	if !ok {
+		return nil
+	}
+
+	exercise, err := services.GetExerciseByTelegramMessage(callback.Message.MessageID, callback.From.ID)
+	if err != nil {
+		return err
+	}
+	if exercise == nil {
+		exercise, err = recoverPendingCharacterExerciseFromCallback(callback, exerciseID)
+		if err != nil {
+			return err
+		}
+	}
+	if exercise == nil || exercise.ExerciseID != exerciseID {
+		return nil
+	}
+
+	switch exercise.Status {
+	case enums.ExerciseStatusIgnored:
+		return SendMessage(callback.From.ID, t.ExerciseOutdated)
+	case enums.ExerciseStatusCompleted, enums.ExerciseStatusFailed:
+		questionText := BuildBasicExerciseQuestion(
+			exercise.OriginalWord,
+			exercise.TranslationWord,
+			exercise.OriginalLanguage,
+			exercise.TranslationLanguage,
+			exercise.ExerciseType,
+			t,
+		)
+		board := completedCharacterBoard(exercise)
+		return EditCharacterBoardMessage(
+			callback.Message.Chat.ID,
+			callback.Message.MessageID,
+			buildCharacterBoardText(questionText, board),
+			[][]inlineKeyboardButton{},
+		)
+	}
+
+	board, err := services.ClearCharacterSelection(exercise.ExerciseID, exercise.UserID)
+	if err != nil {
+		if errors.Is(err, services.ErrExerciseNotInProgress) {
+			return nil
+		}
+		if errors.Is(err, services.ErrExerciseVocabularyDeleted) {
+			if removeErr := removeMessageInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID); removeErr != nil {
+				logger.L().Warnw("failed to remove inline keyboard", "error", removeErr, "chat_id", callback.Message.Chat.ID, "message_id", callback.Message.MessageID)
+			}
+			return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
+		}
+		return err
+	}
+
+	questionText := BuildBasicExerciseQuestion(
+		exercise.OriginalWord,
+		exercise.TranslationWord,
+		exercise.OriginalLanguage,
+		exercise.TranslationLanguage,
+		exercise.ExerciseType,
+		t,
+	)
+	return EditCharacterBoardMessage(
+		callback.Message.Chat.ID,
+		callback.Message.MessageID,
+		buildCharacterBoardText(questionText, board),
+		buildCharacterKeyboard(exercise.ExerciseID, board, t),
+	)
+}
+
+func recoverPendingCharacterExerciseFromCallback(callback *callbackQuery, exerciseID uuid.UUID) (*services.TelegramMessageExercise, error) {
+	exercise, err := services.GetExerciseByTelegramExerciseID(exerciseID, callback.From.ID)
+	if err != nil {
+		return nil, err
+	}
+	if exercise == nil ||
+		exercise.Status != enums.ExerciseStatusPending ||
+		(exercise.ExerciseType != enums.ExerciseTypeCharactersDirect && exercise.ExerciseType != enums.ExerciseTypeCharactersReversed) {
+		return nil, nil
+	}
+
+	answer := characterExerciseAnswer(exercise)
+	order, ok := extractCharacterOrderFromReplyMarkup(callback.Message.ReplyMarkup, exerciseID, len(services.AnswerCharacters(answer)))
+	if !ok {
+		return nil, nil
+	}
+
+	if err := services.StartCharacterExercise(exerciseID, callback.Message.MessageID, order); err != nil {
+		if errors.Is(err, services.ErrExerciseNotInProgress) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return services.GetExerciseByTelegramMessage(callback.Message.MessageID, callback.From.ID)
+}
+
+func extractCharacterOrderFromReplyMarkup(markup *inlineKeyboardMarkup, exerciseID uuid.UUID, characterCount int) ([]int, bool) {
+	if markup == nil || characterCount == 0 {
+		return nil, false
+	}
+
+	side := len(markup.InlineKeyboard)
+	if side == 0 {
+		return nil, false
+	}
+	expectedSide := 1
+	for expectedSide*expectedSide < characterCount+1 {
+		expectedSide++
+	}
+	if side != expectedSide {
+		return nil, false
+	}
+
+	order := make([]int, 0, side*side-1)
+	seen := make(map[int]bool, characterCount)
+	clearSeen := false
+	for rowIndex, row := range markup.InlineKeyboard {
+		if len(row) != side {
+			return nil, false
+		}
+		for columnIndex, button := range row {
+			handlerType, payload, ok := parseCallbackData(button.CallbackData)
+			if !ok || handlerType != callbackTypeExercise || len(payload) == 0 {
+				return nil, false
+			}
+			if payload[0] == exerciseActionCharacterNoop {
+				order = append(order, -1)
+				continue
+			}
+			if payload[0] == exerciseActionCharacterClear {
+				buttonExerciseID, ok := parseExerciseCharacterClearPayload(payload)
+				if !ok ||
+					buttonExerciseID != exerciseID ||
+					clearSeen ||
+					rowIndex != side-1 ||
+					columnIndex != side-1 {
+					return nil, false
+				}
+				clearSeen = true
+				continue
+			}
+
+			buttonExerciseID, canonical, ok := parseExerciseCharacterPayload(payload)
+			if !ok || buttonExerciseID != exerciseID || canonical >= characterCount || seen[canonical] {
+				return nil, false
+			}
+			seen[canonical] = true
+			order = append(order, canonical)
+		}
+	}
+
+	if !clearSeen || len(order) != side*side-1 || len(seen) != characterCount {
+		return nil, false
+	}
+	return order, true
+}
+
+func characterExerciseAnswer(exercise *services.TelegramMessageExercise) string {
+	if exercise.ExerciseType == enums.ExerciseTypeCharactersReversed {
+		return exercise.OriginalWord
+	}
+	return exercise.TranslationWord
+}
+
+func completedCharacterBoard(exercise *services.TelegramMessageExercise) *services.CharacterBoardState {
+	if exercise.CharacterBoard != nil {
+		return exercise.CharacterBoard
+	}
+
+	characters := services.AnswerCharacters(characterExerciseAnswer(exercise))
+	chosen := make([]int, len(characters))
+	for index := range chosen {
+		chosen[index] = index
+	}
+	return &services.CharacterBoardState{
+		Characters: characters,
+		Chosen:     chosen,
+		Answer:     strings.Join(characters, ""),
+	}
 }
 
 func handleMatchTap(callback *callbackQuery, payload []string, t BotTexts) error {

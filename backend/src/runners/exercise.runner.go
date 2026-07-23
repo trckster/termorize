@@ -78,11 +78,30 @@ func processDueExercises() {
 		)
 
 		var (
-			messageID *int64
-			err       error
+			messageID      *int64
+			characterBoard *services.CharacterBoardState
+			err            error
 		)
 
-		if isChoiceExerciseType(exercise.ExerciseType) {
+		if isCharacterExerciseType(exercise.ExerciseType) {
+			answer := exercise.TranslationWord
+			if exercise.ExerciseType == enums.ExerciseTypeCharactersReversed {
+				answer = exercise.OriginalWord
+			}
+			characterBoard = services.BuildCharacterBoardForAnswer(answer)
+			if len(characterBoard.Characters) == 0 {
+				logger.L().Warnw("ignoring character exercise with an empty answer", "exercise_id", exercise.ExerciseID)
+				if markErr := services.MarkExerciseVocabularyResultWithoutProgress(exercise.ExerciseID, services.ExerciseVocabularyResultIgnored, services.ExerciseVocabularyResultReasonInvalidOptions); markErr != nil {
+					logger.L().Warnw("failed to mark invalid exercise vocabulary result", "error", markErr, "exercise_id", exercise.ExerciseID)
+				}
+				if ignoreErr := services.IgnoreExercise(exercise.ExerciseID); ignoreErr != nil {
+					logger.L().Warnw("failed to ignore invalid exercise", "error", ignoreErr, "exercise_id", exercise.ExerciseID)
+				}
+				continue
+			}
+
+			messageID, err = telegram.SendCharacterExerciseMessage(exercise.TelegramID, questionText, exercise.ExerciseID, characterBoard, texts)
+		} else if isChoiceExerciseType(exercise.ExerciseType) {
 			options, loadErr := services.GetExerciseAnswerOptions(exercise.ExerciseID, exercise.ExerciseType)
 			if loadErr != nil {
 				logger.L().Warnw("failed to load exercise options", "error", loadErr, "exercise_id", exercise.ExerciseID)
@@ -115,7 +134,12 @@ func processDueExercises() {
 
 		logger.L().Infow("exercise sent", "username", exercise.Username)
 
-		if err := services.StartTelegramExercise(exercise.ExerciseID, *messageID); err != nil {
+		if characterBoard != nil {
+			err = services.StartCharacterExercise(exercise.ExerciseID, *messageID, characterBoard.Order)
+		} else {
+			err = services.StartTelegramExercise(exercise.ExerciseID, *messageID)
+		}
+		if err != nil {
 			logger.L().Warnw("failed to mark exercise in progress", "error", err, "exercise_id", exercise.ExerciseID)
 		}
 	}
@@ -203,7 +227,18 @@ func processDueExerciseReminders(now time.Time) error {
 
 func isSupportedExerciseType(exerciseType enums.ExerciseType) bool {
 	switch exerciseType {
-	case enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed:
+	case enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed,
+		enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed,
+		enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed:
+		return true
+	default:
+		return false
+	}
+}
+
+func isCharacterExerciseType(exerciseType enums.ExerciseType) bool {
+	switch exerciseType {
+	case enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed:
 		return true
 	default:
 		return false

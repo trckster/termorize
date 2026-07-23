@@ -14,6 +14,7 @@ type Exercise struct {
 	UserID            uint                 `json:"-"`
 	TelegramMessageID *int64               `json:"-"`
 	MatchState        *string              `json:"-" gorm:"column:match_state"`
+	CharacterState    *string              `json:"-" gorm:"column:character_state"`
 
 	ScheduledFor   *time.Time `json:"-"`
 	StartedAt      *time.Time `json:"starts_at"`
