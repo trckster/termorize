@@ -287,7 +287,7 @@ function getCharacterAnswer(): string {
 }
 
 function displayCharacter(character?: string): string {
-    if (character === ' ') return '␠'
+    if (character === ' ') return '⎵'
     if (character === '\t') return '⇥'
     return character ?? ''
 }

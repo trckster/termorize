@@ -258,7 +258,7 @@ func buildCharacterKeyboard(exerciseID uuid.UUID, board *services.CharacterBoard
 func displayCharacter(character string) string {
 	switch character {
 	case " ":
-		return "␠"
+		return "⎵"
 	case "\t":
 		return "⇥"
 	default:
