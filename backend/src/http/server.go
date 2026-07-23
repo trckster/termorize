@@ -13,7 +13,6 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-// BuildRouter constructs the configured Gin engine without starting it.
 func BuildRouter() *gin.Engine {
 	if config.IsProduction() {
 		gin.SetMode(gin.ReleaseMode)

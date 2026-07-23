@@ -385,6 +385,115 @@ func TestTelegramWebhookMatchTapEditsBoard(t *testing.T) {
 	assert.Equal(t, 0, matchState.Pending)
 }
 
+func TestTelegramWebhookMatchTapRetriesFinalizationFromPersistedBoard(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+
+	const telegramID int64 = 555011
+	const messageID int64 = 102
+	user := testkit.CreateUser(t, testkit.WithTelegramID(telegramID))
+
+	vocabularyIDs := make([]uuid.UUID, 0, services.MatchPairsVocabularyCount)
+	for index := 0; index < services.MatchPairsVocabularyCount; index++ {
+		vocabulary := exerciseSeedVocabulary(
+			t, user.ID,
+			"original-"+strconv.Itoa(index), "translation-"+strconv.Itoa(index),
+			enums.LanguageEn, enums.LanguageIt,
+		)
+		vocabularyIDs = append(vocabularyIDs, vocabulary.ID)
+	}
+
+	exercise := exerciseSeedMatchPairsExercise(t, user.ID, enums.ExerciseStatusPending, vocabularyIDs)
+	require.NoError(t, services.StartMatchExercise(exercise.ID, messageID, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}))
+
+	// Persist a fully resolved board without completing the exercise, matching a
+	// transient failure between ApplyMatchTap and CompleteMatchPairsExercise.
+	for index := 0; index < services.MatchPairsVocabularyCount*2; index++ {
+		_, _, _, _, err := services.ApplyMatchTap(exercise.ID, user.ID, index)
+		require.NoError(t, err)
+	}
+
+	update := map[string]any{
+		"update_id": 51,
+		"callback_query": map[string]any{
+			"id":   "cb-match-retry-finalize",
+			"data": "exercise:mt:" + telegramCompactUUID(exercise.ID) + ":0",
+			"from": map[string]any{"id": telegramID, "is_bot": false},
+			"message": map[string]any{
+				"message_id": messageID,
+				"chat":       map[string]any{"id": telegramID, "type": "private"},
+			},
+		},
+	}
+
+	rec := telegramUpdate(t, update)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.True(t, tg.Sent("editMessageText"))
+
+	var refreshed models.Exercise
+	require.NoError(t, db.DB.Where("id = ?", exercise.ID).First(&refreshed).Error)
+	assert.Equal(t, enums.ExerciseStatusCompleted, refreshed.Status)
+}
+
+func TestTelegramWebhookCompletedMatchTapRepairsOriginalMessage(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+
+	const telegramID int64 = 555012
+	const messageID int64 = 103
+	user := testkit.CreateUser(t, testkit.WithTelegramID(telegramID))
+
+	vocabularyIDs := make([]uuid.UUID, 0, services.MatchPairsVocabularyCount)
+	for index := 0; index < services.MatchPairsVocabularyCount; index++ {
+		vocabulary := exerciseSeedVocabulary(
+			t, user.ID,
+			"original-"+strconv.Itoa(index), "translation-"+strconv.Itoa(index),
+			enums.LanguageEn, enums.LanguageIt,
+		)
+		vocabularyIDs = append(vocabularyIDs, vocabulary.ID)
+	}
+
+	exercise := exerciseSeedMatchPairsExercise(t, user.ID, enums.ExerciseStatusPending, vocabularyIDs)
+	require.NoError(t, services.StartMatchExercise(exercise.ID, messageID, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}))
+
+	var attempts []services.MatchPairAttempt
+	for index := 0; index < services.MatchPairsVocabularyCount*2; index++ {
+		_, _, _, finalizeAttempts, err := services.ApplyMatchTap(exercise.ID, user.ID, index)
+		require.NoError(t, err)
+		if len(finalizeAttempts) > 0 {
+			attempts = finalizeAttempts
+		}
+	}
+	_, err := services.CompleteMatchPairsExercise(exercise.ID, user.ID, attempts)
+	require.NoError(t, err)
+
+	update := map[string]any{
+		"update_id": 52,
+		"callback_query": map[string]any{
+			"id":   "cb-match-repair-completed",
+			"data": "exercise:mt:" + telegramCompactUUID(exercise.ID) + ":0",
+			"from": map[string]any{"id": telegramID, "is_bot": false},
+			"message": map[string]any{
+				"message_id": messageID,
+				"chat":       map[string]any{"id": telegramID, "type": "private"},
+			},
+		},
+	}
+
+	rec := telegramUpdate(t, update)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.True(t, tg.Sent("editMessageText"))
+	require.False(t, tg.Sent("sendMessage"))
+
+	var edited map[string]any
+	require.NoError(t, json.Unmarshal(tg.RequestsFor("editMessageText")[0].Body, &edited))
+	replyMarkup, ok := edited["reply_markup"].(map[string]any)
+	require.True(t, ok)
+	keyboard, ok := replyMarkup["inline_keyboard"].([]any)
+	require.True(t, ok)
+	assert.Empty(t, keyboard)
+}
+
 func TestTelegramWebhookMatchTapMarksWrongCards(t *testing.T) {
 	testkit.Truncate(t)
 	tg := testkit.MockTelegramAPI(t)

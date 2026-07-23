@@ -15,7 +15,6 @@ var ErrBlocked = errors.New("blocked")
 
 var apiBaseURL = "https://api.telegram.org"
 
-// SetAPIBaseURLForTest overrides the API URL and returns a restore function.
 func SetAPIBaseURLForTest(url string) (restore func()) {
 	previous := apiBaseURL
 	apiBaseURL = url

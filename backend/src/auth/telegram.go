@@ -120,7 +120,6 @@ func (v *telegramNumericString) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// SetTelegramOAuthEndpointsForTest overrides the OAuth URLs and returns a restore function.
 func SetTelegramOAuthEndpointsForTest(tokenURL, jwksURL string) (restore func()) {
 	previousToken, previousJWKS := telegramTokenEndpoint, telegramJWKSURL
 	telegramTokenEndpoint = tokenURL

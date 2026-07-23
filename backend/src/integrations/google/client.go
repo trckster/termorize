@@ -18,7 +18,6 @@ type translateClient struct {
 	apiKey string
 }
 
-// NewTranslateClient builds a Google Translate client.
 var NewTranslateClient = func() TranslateClient {
 	return &translateClient{
 		apiKey: config.GetGoogleApiKey(),

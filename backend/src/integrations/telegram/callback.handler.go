@@ -293,10 +293,12 @@ func handleMatchTap(callback *callbackQuery, payload []string, t BotTexts) error
 	switch exercise.Status {
 	case enums.ExerciseStatusIgnored:
 		return SendMessage(callback.From.ID, t.ExerciseOutdated)
-	case enums.ExerciseStatusCompleted:
-		return SendMessage(callback.From.ID, t.ExerciseCompleted)
-	case enums.ExerciseStatusFailed:
-		return SendMessage(callback.From.ID, t.ExerciseFailed)
+	case enums.ExerciseStatusCompleted, enums.ExerciseStatusFailed:
+		result, resultErr := services.GetCompletedMatchPairsResult(exercise.ExerciseID, exercise.UserID)
+		if resultErr != nil {
+			return resultErr
+		}
+		return EditMatchBoardMessage(callback.Message.Chat.ID, callback.Message.MessageID, buildMatchResultSummaryText(result, t), [][]inlineKeyboardButton{})
 	}
 
 	board, wasWrong, finished, finalizeAttempts, err := services.ApplyMatchTap(exercise.ExerciseID, exercise.UserID, tappedIdx)
@@ -326,8 +328,6 @@ func handleMatchTap(callback *callbackQuery, payload []string, t BotTexts) error
 		return EditMatchBoardMessage(callback.Message.Chat.ID, callback.Message.MessageID, buildMatchBoardText(board, t), buildMatchKeyboard(exercise.ExerciseID, board))
 	}
 
-	// A stale/duplicate tap can observe an already-finished board (all cards resolved)
-	// without producing new attempts. A concurrent tap already finalized it, so no-op.
 	if len(finalizeAttempts) == 0 {
 		return nil
 	}

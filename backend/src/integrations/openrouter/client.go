@@ -38,7 +38,6 @@ type client struct {
 	http   *http.Client
 }
 
-// NewClient builds an OpenRouter client.
 var NewClient = func() Client {
 	return &client{
 		apiKey: config.GetOpenRouterApiKey(),

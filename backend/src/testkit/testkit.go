@@ -1,26 +1,6 @@
-// Package testkit is the foundational integration-testing harness for the
-// termorize backend. It is an ordinary (non-_test.go) importable package so that
-// every test package can share the same router, database connection and helpers.
-//
-// Typical usage from a test package:
-//
-//	// setup_test.go
-//	func TestMain(m *testing.M) { testkit.Main(m) }
-//
-//	// some_test.go
-//	func TestSomething(t *testing.T) {
-//	    testkit.Truncate(t)
-//	    user := testkit.CreateUser(t)
-//	    rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/me", nil)
-//	    require.Equal(t, http.StatusOK, rec.Code)
-//	}
-//
-// See TESTING.md at the repo root for the full guide.
 package testkit
 
 import (
-	// Imported for its side effect of forcing the process timezone to UTC,
-	// mirroring main.go. Must be first so it runs before anything else.
 	_ "termorize/src/utils"
 
 	"database/sql"
@@ -35,40 +15,22 @@ import (
 	"termorize/src/logger"
 
 	"github.com/gin-gonic/gin"
-	_ "github.com/jackc/pgx/v5/stdlib" // registers the "pgx" database/sql driver used to create the test DB
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 var router *gin.Engine
 
-// Main is the entry point for a test package's TestMain. It performs one-time
-// global setup (env vars, config, repo-root chdir, test database creation,
-// DB connection, migrations, router build), runs the tests, and exits with the
-// resulting status code.
-//
-//	func TestMain(m *testing.M) { testkit.Main(m) }
 func Main(m *testing.M) {
 	Setup()
 	os.Exit(m.Run())
 }
 
-// Setup runs the one-time global initialization. Main calls it for you; call it
-// directly only if you need custom control over the test lifecycle.
-//
-// It is safe to call multiple times within a single process (the router and DB
-// are only built once), but it is intended to be called once per `go test`
-// binary via Main.
 func Setup() {
-	// Silence logs so they don't pollute test output. Must run before anything
-	// else touches the logger (e.g. config.LoadEnv) so initLogger never runs.
 	logger.UseNop()
-	// Gin's debug logging (route registration, etc.) also goes to stderr; TestMode
-	// suppresses it without depending on the production-only ReleaseMode branch.
 	gin.SetMode(gin.TestMode)
 
 	setTestEnv()
 
-	// db.Migrate uses a path relative to the repo root, so move the process cwd
-	// there. Test binaries run with the package directory as cwd.
 	chdirRepoRoot()
 
 	config.LoadEnv()
@@ -85,16 +47,11 @@ func Setup() {
 		panic(fmt.Sprintf("testkit: failed to run migrations: %v", err))
 	}
 
-	// Default the external clients to safe, non-network fakes so that no test can
-	// accidentally hit the real Google/OpenRouter APIs. Individual tests can
-	// override these via MockGoogleTranslate / MockOpenRouter.
 	installDefaultExternalFakes()
 
 	router = apphttp.BuildRouter()
 }
 
-// Router returns the shared, fully-configured Gin engine. It is built once
-// during Setup.
 func Router() *gin.Engine {
 	if router == nil {
 		panic("testkit: Router() called before Setup(); wire testkit.Main into TestMain")
@@ -102,9 +59,6 @@ func Router() *gin.Engine {
 	return router
 }
 
-// testDBName returns the database name used for tests. It can be overridden with
-// the TEST_DB_NAME environment variable (default "termorize_test") so concurrent
-// or isolated runs can target distinct databases.
 func testDBName() string {
 	if name := os.Getenv("TEST_DB_NAME"); name != "" {
 		return name
@@ -112,8 +66,6 @@ func testDBName() string {
 	return "termorize_test"
 }
 
-// setTestEnv populates all environment variables required by config.LoadEnv with
-// safe test values. Existing values are preserved so CI / local overrides win.
 func setTestEnv() {
 	setIfEmpty("ENV", "local")
 	setIfEmpty("SECRET", "test-secret-do-not-use-in-production")
@@ -129,9 +81,6 @@ func setTestEnv() {
 
 	setIfEmpty("GOOGLE_API_KEY", "test-google-api-key")
 
-	// DB_NAME always points at the (possibly overridden) test database. We set it
-	// unconditionally so a stray DB_NAME=termorize in the shell can never make
-	// tests touch the dev database.
 	os.Setenv("DB_NAME", testDBName())
 }
 
@@ -141,9 +90,6 @@ func setIfEmpty(key, value string) {
 	}
 }
 
-// chdirRepoRoot walks up from the current working directory until it finds the
-// directory containing go.mod and changes into it, so relative paths used by the
-// migration runner resolve correctly.
 func chdirRepoRoot() {
 	dir, err := os.Getwd()
 	if err != nil {
@@ -166,8 +112,6 @@ func chdirRepoRoot() {
 	}
 }
 
-// ensureTestDatabase connects to the default "postgres" database and creates the
-// test database if it does not already exist. It never touches the dev database.
 func ensureTestDatabase() error {
 	name := testDBName()
 
@@ -201,8 +145,6 @@ func ensureTestDatabase() error {
 		return nil
 	}
 
-	// Database names cannot be parameterized; the name is sourced from config and
-	// validated implicitly by Postgres. Quote it to be safe.
 	if _, err := sqlDB.Exec(fmt.Sprintf(`CREATE DATABASE %q`, name)); err != nil {
 		return fmt.Errorf("create database %q: %w", name, err)
 	}

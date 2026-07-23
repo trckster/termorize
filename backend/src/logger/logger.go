@@ -28,7 +28,6 @@ func L() *zap.SugaredLogger {
 	return sugar
 }
 
-// UseNop disables logging.
 func UseNop() {
 	initOnce.Do(func() {})
 	baseLogger = zap.NewNop()

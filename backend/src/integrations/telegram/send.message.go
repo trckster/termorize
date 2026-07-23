@@ -221,8 +221,6 @@ func editMessageText(request editMessageTextRequest) error {
 	return nil
 }
 
-// editMessageTextTolerant edits a message but treats Telegram's "message is not modified"
-// response as success, since re-rendering an unchanged match board is harmless.
 func editMessageTextTolerant(request editMessageTextRequest) error {
 	err := editMessageText(request)
 	if err != nil && strings.Contains(err.Error(), "message is not modified") {

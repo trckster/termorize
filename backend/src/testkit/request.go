@@ -9,16 +9,6 @@ import (
 	"testing"
 )
 
-// Request performs an in-process HTTP request against the shared router and
-// returns the recorder. No real network is used (router.ServeHTTP is called
-// directly).
-//
-// If body is non-nil it is JSON-encoded and the Content-Type header is set to
-// application/json. Any cookies provided are attached to the request (use
-// AuthCookie to authenticate).
-//
-//	rec := testkit.Request(t, http.MethodPost, "/api/translate",
-//	    map[string]string{"text": "hello"}, testkit.AuthCookie(user))
 func Request(t *testing.T, method, path string, body any, cookies ...*http.Cookie) *httptest.ResponseRecorder {
 	t.Helper()
 
@@ -46,11 +36,6 @@ func Request(t *testing.T, method, path string, body any, cookies ...*http.Cooki
 	return rec
 }
 
-// DecodeJSON unmarshals a recorder's JSON body into dst, failing the test on
-// error. dst must be a pointer.
-//
-//	var user models.User
-//	testkit.DecodeJSON(t, rec, &user)
 func DecodeJSON(t *testing.T, rec *httptest.ResponseRecorder, dst any) {
 	t.Helper()
 	if err := json.Unmarshal(rec.Body.Bytes(), dst); err != nil {

@@ -80,10 +80,8 @@ const (
 	matchPairsExerciseWeight = 10
 )
 
-// ChoiceExerciseVocabularyCount is the required number of choice options.
 const ChoiceExerciseVocabularyCount = choiceExerciseVocabularyCount
 
-// MatchPairsVocabularyCount is the required number of match pairs.
 const MatchPairsVocabularyCount = matchPairsVocabularyCount
 
 type PendingExercise struct {
@@ -358,7 +356,6 @@ func generateExercise(userID uint, vocabularyID uuid.UUID, when time.Time, inclu
 	})
 }
 
-// CreatePendingMatchExercise creates a pending match exercise.
 func CreatePendingMatchExercise(userID uint, when time.Time) (uuid.UUID, error) {
 	return generateMatchPairsExercise(userID, when)
 }
@@ -496,7 +493,6 @@ func buildCanonicalMatchCards(rows []exerciseVocabularyDetails) []ExerciseMatchC
 	return cards
 }
 
-// BuildMatchBoard builds and shuffles the cards for a match exercise.
 func BuildMatchBoard(exerciseID uuid.UUID) ([]ExerciseMatchCard, []int, error) {
 	rows, err := getExerciseVocabularyDetails([]uuid.UUID{exerciseID}, true, true)
 	if err != nil {
@@ -519,7 +515,6 @@ func BuildMatchBoard(exerciseID uuid.UUID) ([]ExerciseMatchCard, []int, error) {
 	return cards, order, nil
 }
 
-// StartMatchExercise starts a pending Telegram match exercise.
 func StartMatchExercise(exerciseID uuid.UUID, telegramMessageID int64, order []int) error {
 	stateBytes, err := json.Marshal(matchStateJSON{Order: order, Pending: -1, Attempts: [][2]int{}})
 	if err != nil {
@@ -1256,7 +1251,6 @@ type matchStateJSON struct {
 	Attempts [][2]int `json:"attempts"`
 }
 
-// MatchBoardState is the current state of a match board.
 type MatchBoardState struct {
 	Order        []int                // display permutation of canonical card indices
 	Cards        []ExerciseMatchCard  // canonical order; index == canonical card index
@@ -1678,7 +1672,40 @@ func CompleteMatchPairsExercise(exerciseID uuid.UUID, userID uint, attempts []Ma
 	}, nil
 }
 
-// ApplyMatchTap applies a card tap to a Telegram match exercise.
+func GetCompletedMatchPairsResult(exerciseID uuid.UUID, userID uint) (*MatchPairsCompleteResult, error) {
+	var exercise models.Exercise
+	if err := db.DB.
+		Where("id = ? AND user_id = ?", exerciseID, userID).
+		Take(&exercise).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrExerciseNotFound
+		}
+		return nil, err
+	}
+
+	if exercise.Type != enums.ExerciseTypeMatchPairs {
+		return nil, ErrInvalidMatchPairResults
+	}
+	if exercise.Status != enums.ExerciseStatusCompleted && exercise.Status != enums.ExerciseStatusFailed {
+		return nil, ErrExerciseNotInProgress
+	}
+
+	rows, err := getExerciseVocabularyDetails([]uuid.UUID{exerciseID}, true, false)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]ExerciseListVocabulary, 0, len(rows))
+	for _, row := range rows {
+		results = append(results, buildListVocabularyFromExerciseDetails(row))
+	}
+
+	return &MatchPairsCompleteResult{
+		Status:  exercise.Status,
+		Results: results,
+	}, nil
+}
+
 func ApplyMatchTap(exerciseID uuid.UUID, userID uint, tappedIdx int) (
 	board *MatchBoardState, wasWrong bool, finished bool, finalizeAttempts []MatchPairAttempt, err error,
 ) {
@@ -1759,6 +1786,9 @@ func ApplyMatchTap(exerciseID uuid.UUID, userID uint, tappedIdx int) (
 		if states[tappedCard.VocabularyID] != "" {
 			board = buildMatchBoardState(state.Order, cards, state.Pending, states, cardWrong)
 			finished = isMatchFinished(states)
+			if finished {
+				finalizeAttempts = attemptsToPairs(state.Attempts)
+			}
 			return nil
 		}
 
