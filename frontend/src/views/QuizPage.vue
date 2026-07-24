@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { X } from 'lucide-vue-next'
+import { TriangleAlert, X } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import {
     exercisesApi,
@@ -46,7 +46,9 @@ const emptyState = ref<'error' | 'mastered' | null>(null)
 const feedbackTimeoutId = ref<number | null>(null)
 const choiceSubmitTimeoutId = ref<number | null>(null)
 const matchResolveTimeoutId = ref<number | null>(null)
+const characterWarningTimeoutId = ref<number | null>(null)
 const answer = ref('')
+const showCharacterLanguageWarning = ref(false)
 const selectedChoiceIndex = ref<number | null>(null)
 const selectedCharacterIndices = ref<number[]>([])
 const selectedMatchCardIds = ref<string[]>([])
@@ -143,6 +145,7 @@ async function loadNextQuestion() {
     answer.value = ''
     clearChoiceSubmit()
     clearMatchResolve()
+    clearCharacterLanguageWarning()
     selectedChoiceIndex.value = null
     selectedCharacterIndices.value = []
     selectedMatchCardIds.value = []
@@ -267,6 +270,7 @@ function chooseCharacter(index: number) {
     const character = currentExercise.value.options[index]
     if (character == null) return
 
+    clearCharacterLanguageWarning()
     selectedCharacterIndices.value = [...selectedCharacterIndices.value, index]
     if (selectedCharacterIndices.value.length === currentExercise.value.options.length) {
         void submitAnswer(getCharacterAnswer())
@@ -277,6 +281,7 @@ function chooseCharacter(index: number) {
 
 function removeLastCharacter() {
     if (!isCharacterQuestion.value || state.value !== 'question' || isSubmitting.value) return
+    clearCharacterLanguageWarning()
     selectedCharacterIndices.value = selectedCharacterIndices.value.slice(0, -1)
     void nextTick(() => quizRootRef.value?.focus())
 }
@@ -300,6 +305,26 @@ function findAvailableCharacterIndex(key: string): number | null {
             !selectedCharacterIndices.value.includes(optionIndex) && character.toLocaleLowerCase() === normalizedKey
     )
     return index >= 0 ? index : null
+}
+
+function getWritingSystem(character: string): 'latin' | 'cyrillic' | 'other' | null {
+    if (!/\p{L}/u.test(character)) return null
+    if (/\p{Script=Latin}/u.test(character)) return 'latin'
+    if (/\p{Script=Cyrillic}/u.test(character)) return 'cyrillic'
+    return 'other'
+}
+
+function isDifferentAnswerWritingSystem(character: string): boolean {
+    const typedWritingSystem = getWritingSystem(character)
+    if (!typedWritingSystem) return false
+
+    const answerWritingSystems = new Set(
+        (currentExercise.value?.options ?? [])
+            .map((option) => getWritingSystem(option))
+            .filter((writingSystem): writingSystem is 'latin' | 'cyrillic' | 'other' => writingSystem != null)
+    )
+
+    return answerWritingSystems.size === 1 && !answerWritingSystems.has(typedWritingSystem)
 }
 
 function setupMatchExercise(cards: ExerciseMatchCard[]) {
@@ -469,6 +494,23 @@ function clearFeedbackAdvance() {
     }
 }
 
+function clearCharacterLanguageWarning() {
+    showCharacterLanguageWarning.value = false
+    if (characterWarningTimeoutId.value != null) {
+        window.clearTimeout(characterWarningTimeoutId.value)
+        characterWarningTimeoutId.value = null
+    }
+}
+
+function showInvalidCharacterLanguageWarning() {
+    clearCharacterLanguageWarning()
+    showCharacterLanguageWarning.value = true
+    characterWarningTimeoutId.value = window.setTimeout(() => {
+        showCharacterLanguageWarning.value = false
+        characterWarningTimeoutId.value = null
+    }, 2200)
+}
+
 function advanceFromFeedback() {
     clearFeedbackAdvance()
 
@@ -540,6 +582,9 @@ function handleKeydown(event: KeyboardEvent) {
             if (characterIndex != null) {
                 event.preventDefault()
                 chooseCharacter(characterIndex)
+            } else if (isDifferentAnswerWritingSystem(event.key)) {
+                event.preventDefault()
+                showInvalidCharacterLanguageWarning()
             }
         }
         return
@@ -766,6 +811,7 @@ onBeforeUnmount(() => {
     clearChoiceSubmit()
     clearMatchResolve()
     clearFeedbackAdvance()
+    clearCharacterLanguageWarning()
 })
 </script>
 
@@ -937,6 +983,15 @@ onBeforeUnmount(() => {
                                     <p class="text-center text-sm text-muted-foreground">
                                         {{ t.quizCharactersHint }}
                                     </p>
+                                    <div
+                                        v-if="showCharacterLanguageWarning"
+                                        class="mx-auto flex w-fit max-w-full items-center gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-left text-sm font-medium text-warning"
+                                        role="status"
+                                        aria-live="polite"
+                                    >
+                                        <TriangleAlert class="h-4 w-4 shrink-0" aria-hidden="true" />
+                                        <span>{{ t.quizCharactersLanguageWarning }}</span>
+                                    </div>
                                     <div
                                         class="flex flex-wrap justify-center gap-2"
                                         role="group"
