@@ -604,14 +604,13 @@ func handleMatchTap(callback *callbackQuery, payload []string, t BotTexts) error
 		return nil
 	}
 
-	callbackAnswered := false
+	callbackAnswerAttempted := false
 	defer func() {
-		if callback.ID == "" || callbackAnswered {
+		if callback.ID == "" || callbackAnswerAttempted {
 			return
 		}
-		if answerErr := answerTelegramCallbackQuery(callback.ID); answerErr != nil {
-			logger.L().Warnw("failed to answer match callback", "error", answerErr, "callback_id", callback.ID)
-		}
+		callbackAnswerAttempted = true
+		logCallbackAnswerError(answerTelegramCallbackQuery(callback.ID), callback.ID)
 	}()
 
 	exerciseID, tappedIdx, ok := parseExerciseMatchPayload(payload)
@@ -663,11 +662,8 @@ func handleMatchTap(callback *callbackQuery, payload []string, t BotTexts) error
 
 	if !finished {
 		if wasWrong {
-			if answerErr := answerTelegramCallbackQueryWithText(callback.ID, t.MatchNotAMatchToast); answerErr != nil {
-				logger.L().Warnw("failed to answer match callback toast", "error", answerErr, "callback_id", callback.ID)
-			} else {
-				callbackAnswered = true
-			}
+			callbackAnswerAttempted = true
+			logCallbackAnswerError(answerTelegramCallbackQueryWithText(callback.ID, t.MatchNotAMatchToast), callback.ID)
 		}
 
 		return EditMatchBoardMessage(callback.Message.Chat.ID, callback.Message.MessageID, buildMatchBoardText(board, t), buildMatchKeyboard(exercise.ExerciseID, board))
@@ -693,6 +689,25 @@ func handleMatchTap(callback *callbackQuery, payload []string, t BotTexts) error
 	}
 
 	return EditMatchBoardMessage(callback.Message.Chat.ID, callback.Message.MessageID, buildMatchResultSummaryText(result, t), [][]inlineKeyboardButton{})
+}
+
+func logCallbackAnswerError(err error, callbackID string) {
+	if err == nil {
+		return
+	}
+	if isExpiredCallbackQueryError(err) {
+		logger.L().Debugw("telegram callback query expired", "callback_id", callbackID)
+		return
+	}
+
+	logger.L().Warnw("failed to answer telegram callback query", "error", err, "callback_id", callbackID)
+}
+
+func isExpiredCallbackQueryError(err error) bool {
+	var apiErr *apiError
+	return errors.As(err, &apiErr) &&
+		apiErr.ErrorCode == 400 &&
+		strings.Contains(apiErr.Description, "query is too old")
 }
 
 func recoverPendingMatchExerciseFromCallback(callback *callbackQuery, exerciseID uuid.UUID) (*services.TelegramMessageExercise, error) {
