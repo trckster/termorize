@@ -29,7 +29,10 @@ import (
 //	go run ./cmd/test/ match      # match/pairs exercise
 //	go run ./cmd/test/ basic      # random basic/choice exercise
 //	go run ./cmd/test/ characters # character exercise, random direction
-const maxGenerationAttempts = 10
+const (
+	maxGenerationAttempts    = 10
+	testExerciseRunnerBuffer = time.Hour
+)
 
 func main() {
 	defer logger.Sync()
@@ -78,7 +81,10 @@ func main() {
 // sendMatchExercise mirrors processDueMatchExercises: create a pending match
 // exercise, build its board, send it, then mark it started.
 func sendMatchExercise(user models.User, texts telegram.BotTexts) {
-	exerciseID, err := services.CreatePendingMatchExercise(user.ID, time.Now().UTC())
+	// Keep the exercise out of the due queue while this helper sends and starts it.
+	// Otherwise, a running server can claim the same exercise first.
+	scheduledFor := time.Now().UTC().Add(testExerciseRunnerBuffer)
+	exerciseID, err := services.CreatePendingMatchExercise(user.ID, scheduledFor)
 	if err != nil {
 		fatal("failed to create match exercise (needs >=5 non-mastered words in the same language pair)", err)
 	}
@@ -108,7 +114,10 @@ func sendMatchExercise(user models.User, texts telegram.BotTexts) {
 }
 
 func sendCharacterExercise(user models.User, texts telegram.BotTexts) {
-	result, err := services.CreatePendingCharacterExercise(user.ID, time.Now().UTC())
+	// Keep the exercise out of the due queue while this helper sends and starts it.
+	// Otherwise, a running server can claim the same exercise first.
+	scheduledFor := time.Now().UTC().Add(testExerciseRunnerBuffer)
+	result, err := services.CreatePendingCharacterExercise(user.ID, scheduledFor)
 	if err != nil {
 		fatal("failed to create character exercise", err)
 	}
