@@ -27,10 +27,10 @@ import (
 //
 //	go run ./cmd/test/            # default: match/pairs exercise
 //	go run ./cmd/test/ match      # match/pairs exercise
-//	go run ./cmd/test/ basic      # random basic/choice exercise
+//	go run ./cmd/test/ basic      # basic exercise, random direction
+//	go run ./cmd/test/ choice     # choice exercise, random direction
 //	go run ./cmd/test/ characters # character exercise, random direction
 const (
-	maxGenerationAttempts    = 10
 	testExerciseRunnerBuffer = time.Hour
 )
 
@@ -69,12 +69,20 @@ func main() {
 	switch mode {
 	case "match":
 		sendMatchExercise(user, texts)
-	case "basic", "choice", "random":
-		sendBasicOrChoiceExercise(user, texts)
+	case "basic":
+		sendBasicOrChoiceExercise(user, texts,
+			enums.ExerciseTypeBasicDirect,
+			enums.ExerciseTypeBasicReversed,
+		)
+	case "choice":
+		sendBasicOrChoiceExercise(user, texts,
+			enums.ExerciseTypeChoiceDirect,
+			enums.ExerciseTypeChoiceReversed,
+		)
 	case "characters":
 		sendCharacterExercise(user, texts)
 	default:
-		fatal("unknown mode", errors.New("supported modes: match, basic, characters"))
+		fatal("unknown mode", errors.New("supported modes: match, basic, choice, characters"))
 	}
 }
 
@@ -158,12 +166,12 @@ func sendCharacterExercise(user models.User, texts telegram.BotTexts) {
 	)
 }
 
-// sendBasicOrChoiceExercise mirrors processDueExercises for the immediate
-// (in-progress) exercise created via CreateRandomExercise.
-func sendBasicOrChoiceExercise(user models.User, texts telegram.BotTexts) {
-	result, err := generateSendableExercise(user.ID)
+// sendBasicOrChoiceExercise mirrors processDueExercises for an immediate
+// (in-progress) exercise restricted to the requested direct/reversed pair.
+func sendBasicOrChoiceExercise(user models.User, texts telegram.BotTexts, exerciseTypes ...enums.ExerciseType) {
+	result, err := services.CreateRandomExerciseOfTypes(user.ID, exerciseTypes...)
 	if err != nil {
-		fatal("failed to create a sendable basic/choice exercise", err)
+		fatal("failed to create the requested exercise type", err)
 	}
 
 	questionText := buildExerciseText(result, texts)
@@ -199,30 +207,6 @@ func sendBasicOrChoiceExercise(user models.User, texts telegram.BotTexts) {
 		"telegram_id", user.TelegramID,
 		"message_id", *messageID,
 	)
-}
-
-// generateSendableExercise returns a basic/choice exercise. Match/pairs is created
-// through its own pending+runner path (see sendMatchExercise), so it is skipped here.
-func generateSendableExercise(userID uint) (*services.RandomExerciseResult, error) {
-	for attempt := 0; attempt < maxGenerationAttempts; attempt++ {
-		result, err := services.CreateRandomExercise(userID)
-		if err != nil {
-			return nil, err
-		}
-
-		if result.Type != enums.ExerciseTypeMatchPairs &&
-			result.Type != enums.ExerciseTypeCharactersDirect &&
-			result.Type != enums.ExerciseTypeCharactersReversed {
-			return result, nil
-		}
-
-		logger.L().Infow("skipping board-based result, retrying for basic/choice", "exercise_id", result.ExerciseID)
-		if ignoreErr := services.IgnoreExercise(result.ExerciseID); ignoreErr != nil {
-			logger.L().Warnw("failed to ignore unused match/pairs exercise", "error", ignoreErr, "exercise_id", result.ExerciseID)
-		}
-	}
-
-	return nil, errors.New("could not generate a basic/choice exercise within attempt limit")
 }
 
 // buildExerciseText maps RandomExerciseResult onto BuildBasicExerciseQuestion, which

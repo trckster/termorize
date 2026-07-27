@@ -24,6 +24,20 @@ type RandomExerciseResult struct {
 }
 
 func CreateRandomExercise(userID uint) (*RandomExerciseResult, error) {
+	return createRandomExerciseOfTypes(userID, nil)
+}
+
+// CreateRandomExerciseOfTypes creates an exercise using only the requested
+// concrete types. Selection between the available requested types is random.
+func CreateRandomExerciseOfTypes(userID uint, exerciseTypes ...enums.ExerciseType) (*RandomExerciseResult, error) {
+	if len(exerciseTypes) == 0 {
+		return nil, errNoExerciseTypeAvailable
+	}
+
+	return createRandomExerciseOfTypes(userID, exerciseTypes)
+}
+
+func createRandomExerciseOfTypes(userID uint, exerciseTypes []enums.ExerciseType) (*RandomExerciseResult, error) {
 	ids, err := getEligibleVocabularyIDs(userID, 64)
 	if err != nil {
 		return nil, err
@@ -43,7 +57,7 @@ func CreateRandomExercise(userID uint) (*RandomExerciseResult, error) {
 	}
 
 	for _, vocabularyID := range ids {
-		result, createErr := createRandomExerciseForVocabulary(userID, vocabularyID)
+		result, createErr := createRandomExerciseForVocabulary(userID, vocabularyID, exerciseTypes)
 		if errors.Is(createErr, errNoExerciseTypeAvailable) {
 			continue
 		}
@@ -73,13 +87,19 @@ func userHasVocabulary(userID uint) (bool, error) {
 	return count > 0, nil
 }
 
-func createRandomExerciseForVocabulary(userID uint, vocabularyID uuid.UUID) (*RandomExerciseResult, error) {
+func createRandomExerciseForVocabulary(userID uint, vocabularyID uuid.UUID, requestedTypes []enums.ExerciseType) (*RandomExerciseResult, error) {
 	vocabulary, err := loadExerciseVocabulary(vocabularyID)
 	if err != nil {
 		return nil, err
 	}
 
-	exerciseType, options, err := selectExerciseTypeAndOptions(userID, vocabulary, true)
+	var exerciseType enums.ExerciseType
+	var options []exerciseChoiceCandidate
+	if len(requestedTypes) == 0 {
+		exerciseType, options, err = selectExerciseTypeAndOptions(userID, vocabulary, true)
+	} else {
+		exerciseType, options, err = selectRequestedExerciseTypeAndOptions(userID, vocabulary, requestedTypes)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -125,6 +145,34 @@ func createRandomExerciseForVocabulary(userID uint, vocabularyID uuid.UUID) (*Ra
 		AnswerLanguage: answerLanguage,
 		Options:        resultOptions,
 	}, nil
+}
+
+func selectRequestedExerciseTypeAndOptions(userID uint, vocabulary *models.Vocabulary, requestedTypes []enums.ExerciseType) (enums.ExerciseType, []exerciseChoiceCandidate, error) {
+	includeMatchPairs := false
+	for _, exerciseType := range requestedTypes {
+		if isMatchPairsExerciseType(exerciseType) {
+			includeMatchPairs = true
+			break
+		}
+	}
+
+	availableTypes, err := buildExerciseOptionsByType(userID, vocabulary, includeMatchPairs)
+	if err != nil {
+		return "", nil, err
+	}
+
+	candidates := make([]enums.ExerciseType, 0, len(requestedTypes))
+	for _, exerciseType := range requestedTypes {
+		if isExerciseTypeAvailable(exerciseType, availableTypes[exerciseType]) {
+			candidates = append(candidates, exerciseType)
+		}
+	}
+	if len(candidates) == 0 {
+		return "", nil, errNoExerciseTypeAvailable
+	}
+
+	exerciseType := candidates[rand.Intn(len(candidates))]
+	return exerciseType, append([]exerciseChoiceCandidate(nil), availableTypes[exerciseType]...), nil
 }
 
 func createRandomMatchPairsExercise(userID uint, options []exerciseChoiceCandidate) (*RandomExerciseResult, error) {
@@ -227,9 +275,7 @@ func selectExerciseTypeAndOptions(userID uint, vocabulary *models.Vocabulary, in
 		availableTypesInGroup := make([]enums.ExerciseType, 0, len(group.types))
 		for _, exerciseType := range group.types {
 			options := availableTypes[exerciseType]
-			if (isChoiceExerciseType(exerciseType) && len(options) == choiceExerciseVocabularyCount) ||
-				(isMatchPairsExerciseType(exerciseType) && len(options) == matchPairsVocabularyCount) ||
-				(!isChoiceExerciseType(exerciseType) && !isMatchPairsExerciseType(exerciseType) && len(options) > 0) {
+			if isExerciseTypeAvailable(exerciseType, options) {
 				availableTypesInGroup = append(availableTypesInGroup, exerciseType)
 			}
 		}
@@ -256,6 +302,12 @@ func selectExerciseTypeAndOptions(userID uint, vocabulary *models.Vocabulary, in
 
 	exerciseType := selectedGroup.types[rand.Intn(len(selectedGroup.types))]
 	return exerciseType, append([]exerciseChoiceCandidate(nil), availableTypes[exerciseType]...), nil
+}
+
+func isExerciseTypeAvailable(exerciseType enums.ExerciseType, options []exerciseChoiceCandidate) bool {
+	return (isChoiceExerciseType(exerciseType) && len(options) == choiceExerciseVocabularyCount) ||
+		(isMatchPairsExerciseType(exerciseType) && len(options) == matchPairsVocabularyCount) ||
+		(!isChoiceExerciseType(exerciseType) && !isMatchPairsExerciseType(exerciseType) && len(options) > 0)
 }
 
 func buildExerciseOptionsByType(userID uint, vocabulary *models.Vocabulary, includeMatchPairs bool) (map[enums.ExerciseType][]exerciseChoiceCandidate, error) {

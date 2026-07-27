@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -301,6 +302,53 @@ func TestCreatePendingCharacterExerciseUsesRandomDirection(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, answerOptions, 1)
 	assert.Equal(t, expectedAnswer, answerOptions[0].Label)
+}
+
+func TestCreateRandomExerciseOfTypesRestrictsExerciseFamily(t *testing.T) {
+	testCases := []struct {
+		name            string
+		requestedTypes  []enums.ExerciseType
+		vocabularyCount int
+	}{
+		{
+			name: "basic",
+			requestedTypes: []enums.ExerciseType{
+				enums.ExerciseTypeBasicDirect,
+				enums.ExerciseTypeBasicReversed,
+			},
+			vocabularyCount: 1,
+		},
+		{
+			name: "choice",
+			requestedTypes: []enums.ExerciseType{
+				enums.ExerciseTypeChoiceDirect,
+				enums.ExerciseTypeChoiceReversed,
+			},
+			vocabularyCount: services.ChoiceExerciseVocabularyCount,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			testkit.Truncate(t)
+
+			user := testkit.CreateUser(t)
+			for i := 0; i < testCase.vocabularyCount; i++ {
+				exerciseSeedVocabulary(
+					t,
+					user.ID,
+					fmt.Sprintf("original-%d", i),
+					fmt.Sprintf("translated-%d", i),
+					enums.LanguageEn,
+					enums.LanguageIt,
+				)
+			}
+
+			result, err := services.CreateRandomExerciseOfTypes(user.ID, testCase.requestedTypes...)
+			require.NoError(t, err)
+			assert.Contains(t, testCase.requestedTypes, result.Type)
+		})
+	}
 }
 
 func TestIgnoreDuePendingExercisesIgnoresMatchPairsWithPartialDeletedVocabulary(t *testing.T) {
