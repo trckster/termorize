@@ -261,6 +261,48 @@ func TestGenerateExercisesUsesWeightedExerciseSelection(t *testing.T) {
 	assert.EqualValues(t, 2, generatedCount)
 }
 
+func TestCreatePendingCharacterExerciseUsesRandomDirection(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+	vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
+	scheduledFor := time.Now().UTC().Truncate(time.Microsecond)
+
+	result, err := services.CreatePendingCharacterExercise(user.ID, scheduledFor)
+	require.NoError(t, err)
+	require.Contains(t, []enums.ExerciseType{
+		enums.ExerciseTypeCharactersDirect,
+		enums.ExerciseTypeCharactersReversed,
+	}, result.Type)
+
+	expectedAnswer := "carta"
+	if result.Type == enums.ExerciseTypeCharactersReversed {
+		assert.Equal(t, "carta", result.QuestionWord)
+		assert.Equal(t, enums.LanguageIt, result.Language)
+		assert.Equal(t, enums.LanguageEn, result.AnswerLanguage)
+		expectedAnswer = "paper"
+	} else {
+		assert.Equal(t, "paper", result.QuestionWord)
+		assert.Equal(t, enums.LanguageEn, result.Language)
+		assert.Equal(t, enums.LanguageIt, result.AnswerLanguage)
+	}
+	assert.ElementsMatch(t, services.AnswerCharacters(expectedAnswer), result.Options)
+
+	stored := exerciseReload(t, result.ExerciseID)
+	assert.Equal(t, user.ID, stored.UserID)
+	assert.Equal(t, enums.ExerciseStatusPending, stored.Status)
+	require.NotNil(t, stored.ScheduledFor)
+	assert.WithinDuration(t, scheduledFor, *stored.ScheduledFor, time.Microsecond)
+
+	link := exerciseLink(t, result.ExerciseID, vocabulary.ID)
+	assert.True(t, link.IsCorrect)
+
+	answerOptions, err := services.GetExerciseAnswerOptions(result.ExerciseID, result.Type)
+	require.NoError(t, err)
+	require.Len(t, answerOptions, 1)
+	assert.Equal(t, expectedAnswer, answerOptions[0].Label)
+}
+
 func TestIgnoreDuePendingExercisesIgnoresMatchPairsWithPartialDeletedVocabulary(t *testing.T) {
 	testkit.Truncate(t)
 
@@ -617,7 +659,7 @@ func TestRandomExerciseHappyPath(t *testing.T) {
 	testkit.Truncate(t)
 
 	user := testkit.CreateUser(t)
-	// A single eligible vocabulary supports only a basic (typed) exercise type.
+	// A single eligible vocabulary supports typed and character-building exercises.
 	_ = exerciseSeedVocabulary(t, user.ID, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/exercises/random", nil)
@@ -635,9 +677,13 @@ func TestRandomExerciseHappyPath(t *testing.T) {
 	testkit.DecodeJSON(t, rec, &body)
 
 	require.NotEqual(t, uuid.Nil, body.ExerciseID)
-	// With one vocabulary only the basic types are possible.
+	// Choice and match exercises need additional vocabulary; typed and character
+	// exercises only need the correct word pair.
 	assert.Contains(t, []enums.ExerciseType{
-		enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed,
+		enums.ExerciseTypeBasicDirect,
+		enums.ExerciseTypeBasicReversed,
+		enums.ExerciseTypeCharactersDirect,
+		enums.ExerciseTypeCharactersReversed,
 	}, body.Type)
 
 	// DB side effect: the exercise exists, is in progress and belongs to user.
@@ -648,14 +694,20 @@ func TestRandomExerciseHappyPath(t *testing.T) {
 
 	// Question word matches expected direction. Words are seeded with their raw
 	// casing directly in the DB (no service-level normalization here).
-	if body.Type == enums.ExerciseTypeBasicReversed {
+	if body.Type == enums.ExerciseTypeBasicReversed || body.Type == enums.ExerciseTypeCharactersReversed {
 		assert.Equal(t, "Hund", body.QuestionWord)
 		assert.Equal(t, enums.LanguageDe, body.Language)
 		assert.Equal(t, enums.LanguageEn, body.AnswerLanguage)
+		if body.Type == enums.ExerciseTypeCharactersReversed {
+			assert.ElementsMatch(t, []string{"d", "o", "g"}, body.Options)
+		}
 	} else {
 		assert.Equal(t, "dog", body.QuestionWord)
 		assert.Equal(t, enums.LanguageEn, body.Language)
 		assert.Equal(t, enums.LanguageDe, body.AnswerLanguage)
+		if body.Type == enums.ExerciseTypeCharactersDirect {
+			assert.ElementsMatch(t, []string{"H", "u", "n", "d"}, body.Options)
+		}
 	}
 }
 
@@ -765,6 +817,105 @@ func TestVerifyExerciseCorrectAnswer(t *testing.T) {
 	require.NotNil(t, link.ProgressDelta)
 	assert.Equal(t, services.ExerciseCompleteProgressDelta, *link.ProgressDelta)
 	require.NotNil(t, link.AnsweredAt)
+}
+
+func TestVerifyCharacterExerciseDirectAndReversed(t *testing.T) {
+	for _, testCase := range []struct {
+		name          string
+		exerciseType  enums.ExerciseType
+		answer        string
+		correctAnswer string
+	}{
+		{
+			name:          "direct",
+			exerciseType:  enums.ExerciseTypeCharactersDirect,
+			answer:        "Hund",
+			correctAnswer: "Hund",
+		},
+		{
+			name:          "reversed",
+			exerciseType:  enums.ExerciseTypeCharactersReversed,
+			answer:        "dog",
+			correctAnswer: "dog",
+		},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			testkit.Truncate(t)
+
+			user := testkit.CreateUser(t)
+			vocab := exerciseSeedVocabulary(t, user.ID, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
+			exercise := exerciseSeedExercise(t, user.ID, testCase.exerciseType, enums.ExerciseStatusInProgress, vocab.ID)
+
+			result, err := services.VerifyExerciseAnswer(exercise.ID, user.ID, testCase.answer)
+			require.NoError(t, err)
+			assert.Equal(t, "correct", result.Result)
+			assert.Equal(t, testCase.correctAnswer, result.CorrectAnswer)
+
+			link := exerciseLink(t, exercise.ID, vocab.ID)
+			require.NotNil(t, link.ResultReason)
+			assert.Equal(t, services.ExerciseVocabularyResultReasonCharacterAnswer, *link.ResultReason)
+		})
+	}
+}
+
+func TestApplyCharacterTapTracksDuplicateCharacters(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+	vocab := exerciseSeedVocabulary(t, user.ID, "letter", "lettera", enums.LanguageEn, enums.LanguageIt)
+	exercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeCharactersDirect, enums.ExerciseStatusPending, vocab.ID)
+	order := []int{6, -1, 0, 5, 2, 1, 4, 3}
+	require.NoError(t, services.StartCharacterExercise(exercise.ID, 901, order))
+
+	var board *services.CharacterBoardState
+	for index := range []rune("lettera") {
+		var finished bool
+		var err error
+		board, finished, err = services.ApplyCharacterTap(exercise.ID, user.ID, index)
+		require.NoError(t, err)
+		assert.Equal(t, index == len([]rune("lettera"))-1, finished)
+	}
+
+	require.NotNil(t, board)
+	assert.Equal(t, "lettera", board.Answer)
+	assert.Equal(t, order, board.Order)
+	assert.Equal(t, []int{0, 1, 2, 3, 4, 5, 6}, board.Chosen)
+
+	stored := exerciseReload(t, exercise.ID)
+	require.NotNil(t, stored.CharacterState)
+	assert.Equal(t, enums.ExerciseStatusInProgress, stored.Status)
+}
+
+func TestBuildCharacterBoardRandomizesCharactersAndPaddingSlots(t *testing.T) {
+	board := services.BuildCharacterBoardForAnswer("letter")
+
+	assert.Equal(t, services.AnswerCharacters("letter"), board.Characters)
+	require.Len(t, board.Order, 8, "a 3x3 board reserves its bottom-right cell for Clear")
+	assert.ElementsMatch(t, []int{0, 1, 2, 3, 4, 5, -1, -1}, board.Order)
+	assert.Empty(t, board.Chosen)
+	assert.Empty(t, board.Answer)
+}
+
+func TestClearCharacterSelectionRestoresAllCharacters(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+	vocab := exerciseSeedVocabulary(t, user.ID, "letter", "lettera", enums.LanguageEn, enums.LanguageIt)
+	exercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeCharactersDirect, enums.ExerciseStatusPending, vocab.ID)
+	order := []int{6, -1, 0, 5, 2, 1, 4, 3}
+	require.NoError(t, services.StartCharacterExercise(exercise.ID, 902, order))
+
+	_, _, err := services.ApplyCharacterTap(exercise.ID, user.ID, 0)
+	require.NoError(t, err)
+	_, _, err = services.ApplyCharacterTap(exercise.ID, user.ID, 2)
+	require.NoError(t, err)
+
+	board, err := services.ClearCharacterSelection(exercise.ID, user.ID)
+	require.NoError(t, err)
+	assert.Empty(t, board.Answer)
+	assert.Empty(t, board.Chosen)
+	assert.Equal(t, order, board.Order)
+	assert.Equal(t, services.AnswerCharacters("lettera"), board.Characters)
 }
 
 func TestVerifyExerciseWrongAnswer(t *testing.T) {

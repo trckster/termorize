@@ -67,6 +67,10 @@ const getTypeLabel = (type: string) => {
             return t.value.exerciseTypeChoiceDirect
         case 'choice/reversed':
             return t.value.exerciseTypeChoiceReversed
+        case 'characters/direct':
+            return t.value.exerciseTypeCharactersDirect
+        case 'characters/reversed':
+            return t.value.exerciseTypeCharactersReversed
         case 'match/pairs':
             return t.value.exerciseTypeMatchPairs
         default:
@@ -83,6 +87,10 @@ const getTypeBadgeClass = (type: string) => {
         case 'choice/direct':
             return 'border-info/30 bg-info/10 text-info'
         case 'choice/reversed':
+            return 'border-warning/30 bg-warning/10 text-warning'
+        case 'characters/direct':
+            return 'border-primary/30 bg-primary/10 text-primary'
+        case 'characters/reversed':
             return 'border-warning/30 bg-warning/10 text-warning'
         case 'match/pairs':
             return 'border-success/30 bg-success/10 text-success'
@@ -326,7 +334,9 @@ onMounted(() => {
 
                             <div v-if="getExerciseVocabularyChanges(exercise).length > 0" class="space-y-2">
                                 <div
-                                    v-for="(vocabulary, vocabularyIndex) in getVisibleExerciseVocabularyChanges(exercise)"
+                                    v-for="(vocabulary, vocabularyIndex) in getVisibleExerciseVocabularyChanges(
+                                        exercise
+                                    )"
                                     :key="vocabulary.id"
                                     class="flex items-start gap-2"
                                 >
@@ -378,7 +388,9 @@ onMounted(() => {
                                         </div>
                                     </div>
                                     <button
-                                        v-if="vocabularyIndex === 0 && getExerciseVocabularyChanges(exercise).length > 1"
+                                        v-if="
+                                            vocabularyIndex === 0 && getExerciseVocabularyChanges(exercise).length > 1
+                                        "
                                         type="button"
                                         class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border/70 bg-muted/30 text-muted-foreground transition hover:border-border hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                         :aria-expanded="isExerciseTranslationsExpanded(exercise.id)"

@@ -15,6 +15,28 @@ var ErrBlocked = errors.New("blocked")
 
 var apiBaseURL = "https://api.telegram.org"
 
+type apiError struct {
+	StatusCode  int
+	ErrorCode   int    `json:"error_code"`
+	Description string `json:"description"`
+}
+
+func (e *apiError) Error() string {
+	if e.Description == "" {
+		return fmt.Sprintf("telegram api returned status %d", e.StatusCode)
+	}
+
+	return fmt.Sprintf("telegram api returned status %d: %s", e.StatusCode, e.Description)
+}
+
+func parseAPIError(statusCode int, body []byte) error {
+	apiErr := &apiError{StatusCode: statusCode}
+	if err := json.Unmarshal(body, apiErr); err != nil {
+		apiErr.Description = string(bytes.TrimSpace(body))
+	}
+	return apiErr
+}
+
 func SetAPIBaseURLForTest(url string) (restore func()) {
 	previous := apiBaseURL
 	apiBaseURL = url
@@ -49,12 +71,7 @@ func CallAPI[Response any](action string, requestBody any) (*Response, error) {
 
 	if resp.StatusCode >= nethttp.StatusBadRequest {
 		body, _ := io.ReadAll(resp.Body)
-		trimmedBody := string(bytes.TrimSpace(body))
-		if trimmedBody == "" {
-			return nil, fmt.Errorf("telegram api returned status %d", resp.StatusCode)
-		}
-
-		return nil, fmt.Errorf("telegram api returned status %d: %s", resp.StatusCode, trimmedBody)
+		return nil, parseAPIError(resp.StatusCode, body)
 	}
 
 	body, err := io.ReadAll(resp.Body)
