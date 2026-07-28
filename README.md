@@ -1,19 +1,51 @@
 # Termorize
 
-A vocabulary trainer that works on the web and inside Telegram.
-Translate words, build your own vocabulary, share collections of words, practice with smart exercises and track your progress — all synced across devices.
+A vocabulary trainer for the web and Telegram. Translate, save, practice, and track your progress across devices.
 
 **Bot:** [@termorize_bot](https://t.me/termorize_bot)  
 **Website:** [termorize.daniil.online](https://termorize.daniil.online)
+
+![Saved English–Italian vocabulary with mastery progress](docs/pictures/vocabulary.png)
 
 ---
 
 ## Features
 
-- **Instant translation** — Translate words and short phrases between language pairs. Save results to your vocabulary with a single shortcut.
-- **Personal vocabulary** — Searchable list of saved word pairs with per-word mastery progress.
-- **Smart exercises** — Multiple exercise types: direct & reversed translation, multiple choice, character building, and pair matching. Levenshtein-aware grading rewards "almost correct" answers.
-- **Progress tracking** — Statistics for vocabulary state and detailed exercise history.
-- **Collections** — Create themed word sets, keep them private or publish globally. Join others via invite links.
-- **Telegram bot** — Daily scheduled exercises delivered in Telegram. Configure count, timezone and active hours. Reminders for unfinished exercises.
-- **Unified account** — Log in with Telegram. One account across the bot and the website, always in sync.
+- **Personal vocabulary** — Save, search, and track mastery for every word pair.
+- **Instant translation** — Translate across eight languages and save results in one click.
+- **Smart exercises** — Practice with typed, multiple-choice, character, and matching quizzes.
+- **Progress tracking** — Review exercise history, mastery changes, and activity charts.
+- **Collections** — Build, reorder, filter, and share themed word sets.
+- **Telegram bot** — Schedule synced daily exercises by count, timezone, and active hours.
+- **Custom appearance** — Choose three green palettes, light or dark mode, and app languages.
+
+## Screenshots
+
+### Exercises
+
+<table>
+  <tr>
+    <td width="50%">
+      <img src="docs/pictures/exercise-characters.png" alt="Character exercise in progress in the Emerald dark theme">
+    </td>
+    <td width="50%">
+      <img src="docs/pictures/exercise-matching.png" alt="Matching exercise in progress in the Emerald dark theme">
+    </td>
+  </tr>
+  <tr>
+    <td align="center">Character exercise</td>
+    <td align="center">Matching exercise</td>
+  </tr>
+</table>
+
+### Translation
+
+![Translation from English to Italian in the Emerald dark theme](docs/pictures/translation.png)
+
+### Statistics
+
+![Exercise and vocabulary statistics in the Emerald dark theme](docs/pictures/statistics.png)
+
+### Settings
+
+![Appearance settings with the Emerald palette and dark mode selected](docs/pictures/settings.png)
