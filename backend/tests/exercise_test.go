@@ -173,6 +173,33 @@ func exerciseTranslationKnowledge(t *testing.T, progress models.ProgressEntries)
 	return 0
 }
 
+func exerciseSetTranslationKnowledge(t *testing.T, vocabularyID uuid.UUID, knowledge int) {
+	t.Helper()
+
+	var masteredAt *time.Time
+	if knowledge >= 100 {
+		now := time.Now().UTC()
+		masteredAt = &now
+	}
+
+	require.NoError(t, db.DB.Model(&models.Vocabulary{}).
+		Where("id = ?", vocabularyID).
+		Updates(map[string]any{
+			"progress": models.ProgressEntries{{
+				Knowledge: knowledge,
+				Type:      enums.KnowledgeTypeTranslation,
+			}},
+			"mastered_at": masteredAt,
+		}).Error)
+}
+
+func exerciseMarkKnownVocabularyRepetition(t *testing.T, exerciseID uuid.UUID) {
+	t.Helper()
+	require.NoError(t, db.DB.Model(&models.Exercise{}).
+		Where("id = ?", exerciseID).
+		Update("is_known_vocabulary_repetition", true).Error)
+}
+
 // exerciseLink loads the vocabulary_exercises link row for an exercise+vocabulary.
 func exerciseLink(t *testing.T, exerciseID, vocabularyID uuid.UUID) models.ExerciseVocabulary {
 	t.Helper()
@@ -260,6 +287,124 @@ func TestGenerateExercisesUsesWeightedExerciseSelection(t *testing.T) {
 		Where("user_id = ? AND status = ?", user.ID, enums.ExerciseStatusPending).
 		Count(&generatedCount).Error)
 	assert.EqualValues(t, 2, generatedCount)
+}
+
+func TestGenerateExercisesKnownVocabularyRepetitionRules(t *testing.T) {
+	testCases := []struct {
+		name                string
+		dailyQuestionsCount uint
+		diceRoll            int
+		includeKnownWord    bool
+		expectedGenerated   int
+		expectedRepetitions int64
+	}{
+		{
+			name:                "winning roll adds repetition",
+			dailyQuestionsCount: 3,
+			diceRoll:            6,
+			includeKnownWord:    true,
+			expectedGenerated:   4,
+			expectedRepetitions: 1,
+		},
+		{
+			name:                "fewer than three daily exercises disables repetition",
+			dailyQuestionsCount: 2,
+			diceRoll:            6,
+			includeKnownWord:    true,
+			expectedGenerated:   2,
+			expectedRepetitions: 0,
+		},
+		{
+			name:                "non-winning roll does not add repetition",
+			dailyQuestionsCount: 3,
+			diceRoll:            5,
+			includeKnownWord:    true,
+			expectedGenerated:   3,
+			expectedRepetitions: 0,
+		},
+		{
+			name:                "winning roll without a known word adds nothing",
+			dailyQuestionsCount: 3,
+			diceRoll:            6,
+			includeKnownWord:    false,
+			expectedGenerated:   3,
+			expectedRepetitions: 0,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			testkit.Truncate(t)
+
+			restoreDice := services.SetKnownVocabularyRepetitionDiceRollForTest(testCase.diceRoll)
+			defer restoreDice()
+
+			user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{
+				SystemLanguage: enums.LanguageEn,
+				TimeZone:       "UTC",
+				Telegram: models.UserTelegramSettings{
+					BotEnabled:             true,
+					DailyQuestionsEnabled:  true,
+					DailyQuestionsCount:    testCase.dailyQuestionsCount,
+					DailyQuestionsSchedule: []models.UserTelegramQuestionsScheduleItem{{From: "10:00", To: "10:30"}},
+				},
+			}))
+
+			for index := 0; index < int(testCase.dailyQuestionsCount); index++ {
+				exerciseSeedVocabulary(
+					t,
+					user.ID,
+					fmt.Sprintf("learning-%d", index),
+					fmt.Sprintf("imparare-%d", index),
+					enums.LanguageEn,
+					enums.LanguageIt,
+				)
+			}
+
+			var knownVocabulary models.Vocabulary
+			if testCase.includeKnownWord {
+				knownVocabulary = exerciseSeedVocabulary(t, user.ID, "known", "conosciuto", enums.LanguageEn, enums.LanguageIt)
+				exerciseSetTranslationKnowledge(t, knownVocabulary.ID, 100)
+			}
+
+			generated := services.GenerateExercises(user, time.Date(2026, time.June, 21, 0, 0, 0, 0, time.UTC))
+			require.Equal(t, testCase.expectedGenerated, generated)
+
+			var repetitions []models.Exercise
+			require.NoError(t, db.DB.
+				Where("user_id = ? AND is_known_vocabulary_repetition = ?", user.ID, true).
+				Find(&repetitions).Error)
+			require.Len(t, repetitions, int(testCase.expectedRepetitions))
+
+			if testCase.expectedRepetitions == 0 {
+				return
+			}
+
+			repetition := repetitions[0]
+			assert.Contains(t, []enums.ExerciseType{
+				enums.ExerciseTypeBasicDirect,
+				enums.ExerciseTypeBasicReversed,
+			}, repetition.Type)
+			assert.Equal(t, enums.ExerciseStatusPending, repetition.Status)
+			require.NotNil(t, repetition.ScheduledFor)
+
+			link := exerciseLink(t, repetition.ID, knownVocabulary.ID)
+			assert.True(t, link.IsCorrect)
+
+			due, err := services.GetDuePendingExercises(time.Date(2027, time.January, 1, 0, 0, 0, 0, time.UTC))
+			require.NoError(t, err)
+
+			var deliveredRepetition *services.PendingExercise
+			for index := range due {
+				if due[index].ExerciseID == repetition.ID {
+					deliveredRepetition = &due[index]
+					break
+				}
+			}
+			require.NotNil(t, deliveredRepetition)
+			assert.True(t, deliveredRepetition.IsKnownVocabularyRepetition)
+		})
+	}
 }
 
 func TestCreatePendingCharacterExerciseUsesRandomDirection(t *testing.T) {
@@ -1031,6 +1176,135 @@ func TestVerifyExerciseAlmostAnswer(t *testing.T) {
 
 	stored := exerciseReload(t, ex.ID)
 	assert.Equal(t, enums.ExerciseStatusCompleted, stored.Status)
+}
+
+func TestVerifyKnownVocabularyRepetitionProgress(t *testing.T) {
+	testCases := []struct {
+		name              string
+		exerciseType      enums.ExerciseType
+		currentKnowledge  int
+		answer            string
+		expectedResult    string
+		expectedDelta     int
+		expectedKnowledge int
+		expectedStatus    enums.ExerciseStatus
+	}{
+		{
+			name:              "correct keeps mastered knowledge",
+			exerciseType:      enums.ExerciseTypeBasicDirect,
+			currentKnowledge:  100,
+			answer:            "Hund",
+			expectedResult:    "correct",
+			expectedDelta:     0,
+			expectedKnowledge: 100,
+			expectedStatus:    enums.ExerciseStatusCompleted,
+		},
+		{
+			name:              "almost keeps mastered knowledge",
+			exerciseType:      enums.ExerciseTypeBasicDirect,
+			currentKnowledge:  100,
+			answer:            "Hand",
+			expectedResult:    "almost",
+			expectedDelta:     0,
+			expectedKnowledge: 100,
+			expectedStatus:    enums.ExerciseStatusCompleted,
+		},
+		{
+			name:              "wrong subtracts twenty five",
+			exerciseType:      enums.ExerciseTypeBasicReversed,
+			currentKnowledge:  100,
+			answer:            "completely wrong",
+			expectedResult:    "wrong",
+			expectedDelta:     services.KnownVocabularyRepetitionFailProgressDelta,
+			expectedKnowledge: 75,
+			expectedStatus:    enums.ExerciseStatusFailed,
+		},
+		{
+			name:              "correct restores the normal basic amount after knowledge changed",
+			exerciseType:      enums.ExerciseTypeBasicDirect,
+			currentKnowledge:  60,
+			answer:            "Hund",
+			expectedResult:    "correct",
+			expectedDelta:     services.ExerciseCompleteProgressDelta,
+			expectedKnowledge: 75,
+			expectedStatus:    enums.ExerciseStatusCompleted,
+		},
+		{
+			name:              "almost restores the partial amount after knowledge changed",
+			exerciseType:      enums.ExerciseTypeBasicReversed,
+			currentKnowledge:  60,
+			answer:            "dug",
+			expectedResult:    "almost",
+			expectedDelta:     services.ExerciseAlmostCorrectProgressDelta,
+			expectedKnowledge: 65,
+			expectedStatus:    enums.ExerciseStatusCompleted,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			testkit.Truncate(t)
+
+			user := testkit.CreateUser(t)
+			vocabulary := exerciseSeedVocabulary(t, user.ID, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
+
+			exerciseSetTranslationKnowledge(t, vocabulary.ID, 100)
+			exercise := exerciseSeedExercise(t, user.ID, testCase.exerciseType, enums.ExerciseStatusInProgress, vocabulary.ID)
+			exerciseMarkKnownVocabularyRepetition(t, exercise.ID)
+
+			// Simulate progress changing after the repetition was scheduled.
+			exerciseSetTranslationKnowledge(t, vocabulary.ID, testCase.currentKnowledge)
+
+			result, err := services.VerifyExerciseAnswer(exercise.ID, user.ID, testCase.answer)
+			require.NoError(t, err)
+			assert.Equal(t, testCase.expectedResult, result.Result)
+			assert.Equal(t, testCase.expectedDelta, result.ProgressDelta)
+			assert.Equal(t, testCase.expectedKnowledge, result.Knowledge)
+
+			storedExercise := exerciseReload(t, exercise.ID)
+			assert.Equal(t, testCase.expectedStatus, storedExercise.Status)
+
+			storedVocabulary := exerciseReloadVocabulary(t, vocabulary.ID)
+			assert.Equal(t, testCase.expectedKnowledge, exerciseTranslationKnowledge(t, storedVocabulary.Progress))
+			if testCase.expectedKnowledge == 100 {
+				assert.NotNil(t, storedVocabulary.MasteredAt)
+			} else {
+				assert.Nil(t, storedVocabulary.MasteredAt)
+			}
+
+			link := exerciseLink(t, exercise.ID, vocabulary.ID)
+			require.NotNil(t, link.ProgressDelta)
+			assert.Equal(t, testCase.expectedDelta, *link.ProgressDelta)
+			require.NotNil(t, link.KnowledgeAfter)
+			assert.Equal(t, testCase.expectedKnowledge, *link.KnowledgeAfter)
+		})
+	}
+}
+
+func TestKnownVocabularyRepetitionSkippedAnswerSubtractsTwentyFive(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+	vocabulary := exerciseSeedVocabulary(t, user.ID, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
+	exerciseSetTranslationKnowledge(t, vocabulary.ID, 100)
+
+	exercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusInProgress, vocabulary.ID)
+	exerciseMarkKnownVocabularyRepetition(t, exercise.ID)
+
+	updated, knowledge, err := services.FinishExercise(
+		exercise.ID,
+		enums.ExerciseStatusFailed,
+		services.ExerciseVocabularyResultIgnored,
+		services.ExerciseVocabularyResultReasonSkipped,
+		services.ExerciseFailProgressDelta,
+	)
+	require.NoError(t, err)
+	assert.True(t, updated)
+	assert.Equal(t, 75, knowledge)
+
+	link := exerciseLink(t, exercise.ID, vocabulary.ID)
+	require.NotNil(t, link.ProgressDelta)
+	assert.Equal(t, services.KnownVocabularyRepetitionFailProgressDelta, *link.ProgressDelta)
 }
 
 // Verifying an exercise that is not in progress returns 409 Conflict.

@@ -41,17 +41,18 @@ func almostCorrectThreshold(expected string) int {
 }
 
 const (
-	ExerciseCompleteProgressDelta       = 15
-	ExerciseAlmostCorrectProgressDelta  = 5
-	ExerciseFailProgressDelta           = -20
-	ExerciseChoiceCompleteProgressDelta = 5
-	ExerciseChoiceFailProgressDelta     = -10
-	ExerciseMatchCorrectProgressDelta   = 7
-	ExerciseMatchAlmostProgressDelta    = 2
-	ExerciseMatchFailProgressDelta      = -10
-	exerciseReminderPeriod              = 24 * time.Hour
-	telegramExerciseExpirationPeriod    = 7 * 24 * time.Hour
-	websiteExerciseExpirationPeriod     = time.Hour
+	ExerciseCompleteProgressDelta              = 15
+	ExerciseAlmostCorrectProgressDelta         = 5
+	ExerciseFailProgressDelta                  = -20
+	ExerciseChoiceCompleteProgressDelta        = 5
+	ExerciseChoiceFailProgressDelta            = -10
+	ExerciseMatchCorrectProgressDelta          = 7
+	ExerciseMatchAlmostProgressDelta           = 2
+	ExerciseMatchFailProgressDelta             = -10
+	KnownVocabularyRepetitionFailProgressDelta = -25
+	exerciseReminderPeriod                     = 24 * time.Hour
+	telegramExerciseExpirationPeriod           = 7 * 24 * time.Hour
+	websiteExerciseExpirationPeriod            = time.Hour
 )
 
 const (
@@ -80,23 +81,45 @@ const (
 	choiceExerciseWeight     = 35
 	characterExerciseWeight  = 20
 	matchPairsExerciseWeight = 10
+
+	knownVocabularyRepetitionMinimumDailyCount = 3
+	knownVocabularyRepetitionDiceSides         = 6
+	knownVocabularyRepetitionWinningRoll       = 6
 )
 
 const ChoiceExerciseVocabularyCount = choiceExerciseVocabularyCount
 
 const MatchPairsVocabularyCount = matchPairsVocabularyCount
 
+var rollKnownVocabularyRepetitionDice = func() int {
+	return rand.Intn(knownVocabularyRepetitionDiceSides) + 1
+}
+
+// SetKnownVocabularyRepetitionDiceRollForTest makes daily repetition scheduling
+// deterministic in integration tests. The returned function restores randomness.
+func SetKnownVocabularyRepetitionDiceRollForTest(roll int) func() {
+	previous := rollKnownVocabularyRepetitionDice
+	rollKnownVocabularyRepetitionDice = func() int {
+		return roll
+	}
+
+	return func() {
+		rollKnownVocabularyRepetitionDice = previous
+	}
+}
+
 type PendingExercise struct {
-	ExerciseID          uuid.UUID          `gorm:"column:exercise_id"`
-	ExerciseType        enums.ExerciseType `gorm:"column:exercise_type"`
-	UserID              uint               `gorm:"column:user_id"`
-	Username            string             `gorm:"column:username"`
-	TelegramID          int64              `gorm:"column:telegram_id"`
-	OriginalWord        string             `gorm:"column:original_word"`
-	OriginalLanguage    enums.Language     `gorm:"column:original_language"`
-	TranslationWord     string             `gorm:"column:translation_word"`
-	TranslationLanguage enums.Language     `gorm:"column:translation_language"`
-	SystemLanguage      enums.Language     `gorm:"column:system_language"`
+	ExerciseID                  uuid.UUID          `gorm:"column:exercise_id"`
+	ExerciseType                enums.ExerciseType `gorm:"column:exercise_type"`
+	IsKnownVocabularyRepetition bool               `gorm:"column:is_known_vocabulary_repetition"`
+	UserID                      uint               `gorm:"column:user_id"`
+	Username                    string             `gorm:"column:username"`
+	TelegramID                  int64              `gorm:"column:telegram_id"`
+	OriginalWord                string             `gorm:"column:original_word"`
+	OriginalLanguage            enums.Language     `gorm:"column:original_language"`
+	TranslationWord             string             `gorm:"column:translation_word"`
+	TranslationLanguage         enums.Language     `gorm:"column:translation_language"`
+	SystemLanguage              enums.Language     `gorm:"column:system_language"`
 }
 
 type PendingMatchExercise struct {
@@ -311,7 +334,103 @@ func GenerateExercises(user models.User, targetDate time.Time) int {
 		generatedCount++
 	}
 
+	if shouldScheduleKnownVocabularyRepetition(requestedExercisesCount) {
+		midnightOffset := rand.Intn(totalMinutes)
+		realOffsetInMinutes := MapOffsetOnSchedule(user.Settings.Telegram.DailyQuestionsSchedule, midnightOffset)
+		exerciseScheduleTime := targetMidnight.Add(time.Duration(realOffsetInMinutes) * time.Minute).UTC()
+
+		if err := generateKnownVocabularyRepetitionExercise(user.ID, exerciseScheduleTime); err != nil {
+			if !errors.Is(err, ErrNoVocabularyForExercise) {
+				logger.L().Errorw("failed to generate known vocabulary repetition", "user_id", user.ID, "scheduled_for", exerciseScheduleTime, "error", err)
+			}
+		} else {
+			generatedCount++
+		}
+	}
+
 	return generatedCount
+}
+
+func shouldScheduleKnownVocabularyRepetition(dailyQuestionsCount uint) bool {
+	return dailyQuestionsCount >= knownVocabularyRepetitionMinimumDailyCount &&
+		rollKnownVocabularyRepetitionDice() == knownVocabularyRepetitionWinningRoll
+}
+
+func generateKnownVocabularyRepetitionExercise(userID uint, when time.Time) error {
+	vocabularyID, err := getKnownVocabularyID(userID)
+	if err != nil {
+		return err
+	}
+	if vocabularyID == uuid.Nil {
+		return ErrNoVocabularyForExercise
+	}
+
+	vocabulary, err := loadExerciseVocabulary(vocabularyID)
+	if err != nil {
+		return err
+	}
+
+	exerciseTypes := []enums.ExerciseType{
+		enums.ExerciseTypeBasicDirect,
+		enums.ExerciseTypeBasicReversed,
+	}
+	exerciseType := exerciseTypes[rand.Intn(len(exerciseTypes))]
+
+	_, _, _, err = buildExerciseQuestionData(vocabulary, exerciseType)
+	if err != nil {
+		return err
+	}
+
+	answerWord := vocabulary.Translation.Translation.Word
+	if isReversedExerciseType(exerciseType) {
+		answerWord = vocabulary.Translation.Original.Word
+	}
+
+	exercise := models.Exercise{
+		Type:                        exerciseType,
+		Status:                      enums.ExerciseStatusPending,
+		UserID:                      userID,
+		ScheduledFor:                &when,
+		IsKnownVocabularyRepetition: true,
+	}
+	options := []exerciseChoiceCandidate{{
+		VocabularyID: vocabularyID,
+		AnswerWord:   answerWord,
+	}}
+
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&exercise).Error; err != nil {
+			return err
+		}
+
+		return createExerciseVocabularyLinks(tx, exercise.ID, vocabularyID, options)
+	})
+}
+
+func getKnownVocabularyID(userID uint) (uuid.UUID, error) {
+	var vocabularyIDs []uuid.UUID
+
+	err := db.DB.
+		Model(&models.Vocabulary{}).
+		Select("id").
+		Where("user_id = ?", userID).
+		Where("deleted_at IS NULL").
+		Where(`EXISTS (
+			SELECT 1
+			FROM jsonb_array_elements(progress) AS p
+			WHERE p->>'type' = ? AND (p->>'knowledge')::int = ?
+		)`, enums.KnowledgeTypeTranslation, 100).
+		Order("RANDOM()").
+		Limit(1).
+		Pluck("id", &vocabularyIDs).Error
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if len(vocabularyIDs) == 0 {
+		return uuid.Nil, nil
+	}
+
+	return vocabularyIDs[0], nil
 }
 
 func getEligibleVocabularyIDs(userID uint, limit uint) ([]uuid.UUID, error) {
@@ -493,8 +612,9 @@ func GetDuePendingExercises(now time.Time) ([]PendingExercise, error) {
 
 	err := db.DB.Raw(`
 		SELECT
-		e.id AS exercise_id,
+			e.id AS exercise_id,
 			e.type AS exercise_type,
+			e.is_known_vocabulary_repetition AS is_known_vocabulary_repetition,
 			e.user_id AS user_id,
 			u.username AS username,
 			u.telegram_id AS telegram_id,
@@ -779,15 +899,15 @@ func VerifyExerciseAnswer(exerciseID uuid.UUID, userID uint, answer string) (*Ve
 
 		if normalizedAnswer == normalizedExpectedAnswer {
 			progressDelta = exerciseProgressDelta(exercise, ExerciseChoiceCompleteProgressDelta)
-			updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusCompleted, ExerciseVocabularyResultCorrect, ExerciseVocabularyResultReasonChoiceAnswer, progressDelta)
+			updated, knowledge, progressDelta, err = FinishExerciseWithProgressDelta(exerciseID, enums.ExerciseStatusCompleted, ExerciseVocabularyResultCorrect, ExerciseVocabularyResultReasonChoiceAnswer, progressDelta)
 			resultType = "correct"
 		} else if exerciseOptionsContainAnswer(options, normalizedAnswer) {
 			progressDelta = exerciseProgressDelta(exercise, ExerciseChoiceFailProgressDelta)
-			updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusFailed, ExerciseVocabularyResultWrong, ExerciseVocabularyResultReasonChoiceAnswer, progressDelta)
+			updated, knowledge, progressDelta, err = FinishExerciseWithProgressDelta(exerciseID, enums.ExerciseStatusFailed, ExerciseVocabularyResultWrong, ExerciseVocabularyResultReasonChoiceAnswer, progressDelta)
 			resultType = "wrong"
 		} else {
 			progressDelta = exerciseProgressDelta(exercise, ExerciseChoiceFailProgressDelta)
-			updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusFailed, ExerciseVocabularyResultWrong, ExerciseVocabularyResultReasonChoiceAnswer, progressDelta)
+			updated, knowledge, progressDelta, err = FinishExerciseWithProgressDelta(exerciseID, enums.ExerciseStatusFailed, ExerciseVocabularyResultWrong, ExerciseVocabularyResultReasonChoiceAnswer, progressDelta)
 			resultType = "wrong"
 		}
 	} else {
@@ -798,18 +918,18 @@ func VerifyExerciseAnswer(exerciseID uuid.UUID, userID uint, answer string) (*Ve
 
 		if normalizedAnswer == normalizedExpectedAnswer {
 			progressDelta = exerciseProgressDelta(exercise, ExerciseCompleteProgressDelta)
-			updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusCompleted, ExerciseVocabularyResultCorrect, answerReason, progressDelta)
+			updated, knowledge, progressDelta, err = FinishExerciseWithProgressDelta(exerciseID, enums.ExerciseStatusCompleted, ExerciseVocabularyResultCorrect, answerReason, progressDelta)
 			resultType = "correct"
 		} else {
 			distance := utils.LevenshteinDistance(normalizedAnswer, normalizedExpectedAnswer)
 			threshold := almostCorrectThreshold(normalizedExpectedAnswer)
 			if distance <= threshold {
 				progressDelta = exerciseProgressDelta(exercise, ExerciseAlmostCorrectProgressDelta)
-				updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusCompleted, ExerciseVocabularyResultAlmost, answerReason, progressDelta)
+				updated, knowledge, progressDelta, err = FinishExerciseWithProgressDelta(exerciseID, enums.ExerciseStatusCompleted, ExerciseVocabularyResultAlmost, answerReason, progressDelta)
 				resultType = "almost"
 			} else {
 				progressDelta = exerciseProgressDelta(exercise, ExerciseFailProgressDelta)
-				updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusFailed, ExerciseVocabularyResultWrong, answerReason, progressDelta)
+				updated, knowledge, progressDelta, err = FinishExerciseWithProgressDelta(exerciseID, enums.ExerciseStatusFailed, ExerciseVocabularyResultWrong, answerReason, progressDelta)
 				resultType = "wrong"
 			}
 		}
@@ -873,11 +993,11 @@ func VerifyExerciseChoice(exerciseID uuid.UUID, userID uint, selectedVocabularyI
 
 	if selectedVocabularyID == correctVocabulary.VocabularyID {
 		progressDelta = exerciseProgressDelta(exercise, ExerciseChoiceCompleteProgressDelta)
-		updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusCompleted, ExerciseVocabularyResultCorrect, ExerciseVocabularyResultReasonChoiceAnswer, progressDelta)
+		updated, knowledge, progressDelta, err = FinishExerciseWithProgressDelta(exerciseID, enums.ExerciseStatusCompleted, ExerciseVocabularyResultCorrect, ExerciseVocabularyResultReasonChoiceAnswer, progressDelta)
 		resultType = "correct"
 	} else {
 		progressDelta = exerciseProgressDelta(exercise, ExerciseChoiceFailProgressDelta)
-		updated, knowledge, err = FinishExercise(exerciseID, enums.ExerciseStatusFailed, ExerciseVocabularyResultWrong, ExerciseVocabularyResultReasonChoiceAnswer, progressDelta)
+		updated, knowledge, progressDelta, err = FinishExerciseWithProgressDelta(exerciseID, enums.ExerciseStatusFailed, ExerciseVocabularyResultWrong, ExerciseVocabularyResultReasonChoiceAnswer, progressDelta)
 		resultType = "wrong"
 	}
 

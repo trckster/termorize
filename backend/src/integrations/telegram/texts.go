@@ -32,6 +32,7 @@ type BotTexts struct {
 	ExerciseAnswerPairFormat               string
 	ExerciseTranslationKnowledgeUpFormat   string
 	ExerciseTranslationKnowledgeDownFormat string
+	KnownVocabularyRepetitionIntro         string
 
 	MatchExerciseTitle          string
 	MatchProgressFormat         string
@@ -132,6 +133,7 @@ var botTextsEn = BotTexts{
 	ExerciseAnswerPairFormat:               "%s %s — %s %s",
 	ExerciseTranslationKnowledgeUpFormat:   "Translation knowledge: *%d%%* 📈",
 	ExerciseTranslationKnowledgeDownFormat: "Translation knowledge: *%d%%* 📉",
+	KnownVocabularyRepetitionIntro:         "🎓 *Known vocabulary check*\n\nThis is an additional but mandatory review. A wrong answer lowers this word's knowledge by 25 points.",
 
 	MatchExerciseTitle:          "🧩 *Match the pairs*",
 	MatchProgressFormat:         "Matched %d/%d",
@@ -256,6 +258,7 @@ var botTextsRu = BotTexts{
 	ExerciseAnswerPairFormat:               "%s %s — %s %s",
 	ExerciseTranslationKnowledgeUpFormat:   "Знание перевода: *%d%%* 📈",
 	ExerciseTranslationKnowledgeDownFormat: "Знание перевода: *%d%%* 📉",
+	KnownVocabularyRepetitionIntro:         "🎓 *Проверка изученного слова*\n\nЭто дополнительное, но обязательное повторение. Неправильный ответ снизит знание слова на 25 пунктов.",
 
 	MatchExerciseTitle:          "🧩 *Сопоставь пары*",
 	MatchProgressFormat:         "Сопоставлено %d/%d",
@@ -373,6 +376,10 @@ func BuildBasicExerciseQuestion(
 	}
 
 	return buildTranslateQuestionText(originalWord, translationLanguage.DisplayNameWithFlag(), exerciseType, texts)
+}
+
+func BuildKnownVocabularyRepetitionQuestion(question string, texts BotTexts) string {
+	return texts.KnownVocabularyRepetitionIntro + "\n\n" + question
 }
 
 func buildTranslateQuestionText(word string, language string, exerciseType enums.ExerciseType, texts BotTexts) string {
