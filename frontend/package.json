@@ -4,7 +4,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test src/lib/translationAutofill.test.mjs"
   },
   "dependencies": {
     "@sentry/vue": "^10.55.0",
