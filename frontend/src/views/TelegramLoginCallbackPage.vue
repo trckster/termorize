@@ -72,13 +72,15 @@ const goToLogin = () => {
 
 <template>
     <div class="flex min-h-screen items-center justify-center px-4 py-10">
-        <Card class="w-full max-w-md border-border/70 bg-card/95 shadow-xl backdrop-blur-sm">
+        <Card class="w-full max-w-md border-border bg-card shadow-md">
             <CardHeader class="space-y-2 text-center">
                 <CardTitle class="text-2xl font-bold text-foreground">
                     {{ isLoading ? 'Finishing Telegram login' : 'Telegram login' }}
                 </CardTitle>
                 <CardDescription class="text-muted-foreground">
-                    {{ isLoading ? 'We are verifying your Telegram session.' : 'Something interrupted the login flow.' }}
+                    {{
+                        isLoading ? 'We are verifying your Telegram session.' : 'Something interrupted the login flow.'
+                    }}
                 </CardDescription>
             </CardHeader>
             <CardContent class="flex flex-col items-center gap-4 py-6">

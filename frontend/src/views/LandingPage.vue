@@ -15,28 +15,7 @@ const menuOpen = ref(false)
 const originalTitle = document.title
 
 onMounted(() => {
-    document.title = 'Termorize — Vocabulary trainer with Telegram support'
-
-    // scroll reveal
-    const io = new IntersectionObserver(
-        (entries) => {
-            entries.forEach((e) => {
-                if (e.isIntersecting) {
-                    e.target.classList.add('in')
-                    io.unobserve(e.target)
-                }
-            })
-        },
-        { threshold: 0.12, rootMargin: '0px 0px -40px 0px' }
-    )
-
-    document.querySelectorAll('.reveal').forEach((el) => io.observe(el))
-
-    document.querySelectorAll('.feat-grid, .steps, .showcase-grid').forEach((grid) => {
-        ;[...grid.querySelectorAll('.reveal')].forEach((el, i) => {
-            ;(el as HTMLElement).style.transitionDelay = i * 90 + 'ms'
-        })
-    })
+    document.title = 'Termorize: Vocabulary trainer with Telegram support'
 
     // demo Run button
     const runBtn = document.querySelector('.run-demo') as HTMLElement | null
@@ -150,13 +129,20 @@ function getErrorMessage(err: unknown): string {
                     </span>
                     Termorize
                 </a>
-                <div class="nav-links" :class="{ open: menuOpen }">
+                <div id="landing-navigation" class="nav-links" :class="{ open: menuOpen }">
                     <a href="#features" @click="menuOpen = false">Features</a>
                     <a href="#showcase" @click="menuOpen = false">Showcase</a>
                     <a href="#how" @click="menuOpen = false">How it works</a>
                     <a href="#telegram" @click="menuOpen = false">Telegram</a>
                 </div>
-                <button class="nav-toggle" aria-label="Toggle menu" @click="menuOpen = !menuOpen">
+                <button
+                    class="nav-toggle"
+                    aria-label="Toggle menu"
+                    aria-controls="landing-navigation"
+                    :aria-expanded="menuOpen"
+                    @click="menuOpen = !menuOpen"
+                    @keydown.esc="menuOpen = false"
+                >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                         <path v-if="!menuOpen" d="M4 6h16M4 12h16M4 18h16" />
                         <path v-else d="M6 6l12 12M6 18L18 6" />
@@ -185,11 +171,11 @@ function getErrorMessage(err: unknown): string {
                         VOCABULARY TRAINER &middot; TELEGRAM SUPPORT
                     </div>
                     <h1 class="hero-title">
-                        Learn words faster on the <span class="accent">web</span> — and in Telegram.
+                        Learn words faster on the <span class="accent">web</span> and in Telegram.
                     </h1>
                     <p class="hero-sub">
                         Termorize brings translation, your personal vocabulary, practice and statistics together in one
-                        site — with a Telegram bot that keeps you learning on the go.
+                        site, with a Telegram bot that keeps you learning on the go.
                     </p>
                     <div class="hero-actions">
                         <button class="btn btn-tg btn-lg" :disabled="isLoading" @click="startTelegramLogin">
@@ -219,9 +205,7 @@ function getErrorMessage(err: unknown): string {
                         <div class="mock-top"><span></span><span></span><span></span></div>
                         <div class="mock-panes">
                             <div>
-                                <div class="pane-label">
-                                    From <span class="lang-pill">🇬🇧 English</span>
-                                </div>
+                                <div class="pane-label">From <span class="lang-pill">🇬🇧 English</span></div>
                                 <div class="pane-box filled"><span class="typed">resilience</span></div>
                             </div>
                             <div class="swap-btn">
@@ -230,9 +214,7 @@ function getErrorMessage(err: unknown): string {
                                 </svg>
                             </div>
                             <div>
-                                <div class="pane-label">
-                                    To <span class="lang-pill">🇷🇺 Russian</span>
-                                </div>
+                                <div class="pane-label">To <span class="lang-pill">🇷🇺 Russian</span></div>
                                 <div class="pane-box filled"><span class="typed">устойчивость</span></div>
                             </div>
                         </div>
@@ -258,7 +240,7 @@ function getErrorMessage(err: unknown): string {
         <section id="features" class="block">
             <div class="wrap">
                 <div class="sec-head reveal">
-                    <h2 class="sec-title">Translate, save, practice — then automate it.</h2>
+                    <h2 class="sec-title">Translate, save, practice, then automate it.</h2>
                     <p class="sec-desc">
                         Four tools working together so a word you look up today becomes a word you actually remember.
                     </p>
@@ -273,18 +255,26 @@ function getErrorMessage(err: unknown): string {
                             </div>
                             <h3>Translate instantly</h3>
                         </div>
-                        <p>Translate words and short phrases with your selected language pair, with keyboard shortcuts for everything.</p>
+                        <p>
+                            Translate words and short phrases with your selected language pair, with keyboard shortcuts
+                            for everything.
+                        </p>
                     </div>
                     <div class="feat reveal">
                         <div class="feat-head">
                             <div class="feat-ico">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M12 6c-2-1.3-5-1.3-8 0v13c3-1.3 6-1.3 8 0M12 6c2-1.3 5-1.3 8 0v13c-3-1.3-6-1.3-8 0M12 6v13" />
+                                    <path
+                                        d="M12 6c-2-1.3-5-1.3-8 0v13c3-1.3 6-1.3 8 0M12 6c2-1.3 5-1.3 8 0v13c-3-1.3-6-1.3-8 0M12 6v13"
+                                    />
                                 </svg>
                             </div>
                             <h3>Build your vocabulary</h3>
                         </div>
-                        <p>Save your own word pairs and keep everything in one personal, searchable list across devices.</p>
+                        <p>
+                            Save your own word pairs and keep everything in one personal, searchable list across
+                            devices.
+                        </p>
                     </div>
                     <div class="feat reveal">
                         <div class="feat-head">
@@ -301,12 +291,17 @@ function getErrorMessage(err: unknown): string {
                         <div class="feat-head">
                             <div class="feat-ico">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M21.5 4.5 2.5 11.8c-1 .4-1 .9-.2 1.1l4.7 1.5 1.8 5.6c.2.6.4.8 1 .8l3-2.3M21.5 4.5l-3.4 15.9c-.2.7-.6.9-1.2.6L9 16M21.5 4.5 9 16" />
+                                    <path
+                                        d="M21.5 4.5 2.5 11.8c-1 .4-1 .9-.2 1.1l4.7 1.5 1.8 5.6c.2.6.4.8 1 .8l3-2.3M21.5 4.5l-3.4 15.9c-.2.7-.6.9-1.2.6L9 16M21.5 4.5 9 16"
+                                    />
                                 </svg>
                             </div>
                             <h3>Automate in Telegram</h3>
                         </div>
-                        <p>Enable daily exercises, control the schedule and keep learning without ever leaving Telegram.</p>
+                        <p>
+                            Enable daily exercises, control the schedule and keep learning without ever leaving
+                            Telegram.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -317,7 +312,7 @@ function getErrorMessage(err: unknown): string {
                 <div class="sec-head reveal">
                     <h2 class="sec-title">Your words, organised the way you learn.</h2>
                     <p class="sec-desc">
-                        Build and share your own collections, or start from ready-made sets curated by Termorize — then
+                        Build and share your own collections, or start from ready-made sets curated by Termorize. Then
                         watch each word climb toward mastery.
                     </p>
                 </div>
@@ -368,9 +363,7 @@ function getErrorMessage(err: unknown): string {
                         <div class="vocab-list">
                             <div class="vocab-item">
                                 <div class="vi-top">
-                                    <span class="vi-word"
-                                        >🇫🇷 le bonheur<span class="ar">:</span> happiness 🇬🇧</span
-                                    >
+                                    <span class="vi-word">🇫🇷 le bonheur<span class="ar">:</span> happiness 🇬🇧</span>
                                     <span class="vi-pct">10%</span>
                                 </div>
                                 <div class="bar"><i style="width: 10%"></i></div>
@@ -386,18 +379,14 @@ function getErrorMessage(err: unknown): string {
                             </div>
                             <div class="vocab-item">
                                 <div class="vi-top">
-                                    <span class="vi-word"
-                                        >🇮🇹 la libreria<span class="ar">:</span> bookshop 🇬🇧</span
-                                    >
+                                    <span class="vi-word">🇮🇹 la libreria<span class="ar">:</span> bookshop 🇬🇧</span>
                                     <span class="vi-pct">55%</span>
                                 </div>
                                 <div class="bar"><i style="width: 55%"></i></div>
                             </div>
                             <div class="vocab-item">
                                 <div class="vi-top">
-                                    <span class="vi-word"
-                                        >🇷🇺 свобода<span class="ar">:</span> die Freiheit 🇩🇪</span
-                                    >
+                                    <span class="vi-word">🇷🇺 свобода<span class="ar">:</span> die Freiheit 🇩🇪</span>
                                     <span class="vi-pct">80%</span>
                                 </div>
                                 <div class="bar"><i style="width: 80%"></i></div>
@@ -481,7 +470,12 @@ function getErrorMessage(err: unknown): string {
                         </div>
                         <h4>Login with Telegram</h4>
                         <p>Sign in once and keep the same account across the bot and website.</p>
-                        <button class="btn btn-tg" style="width: 100%" :disabled="isLoading" @click="startTelegramLogin">
+                        <button
+                            class="btn btn-tg"
+                            style="width: 100%"
+                            :disabled="isLoading"
+                            @click="startTelegramLogin"
+                        >
                             <svg viewBox="0 0 24 24" fill="none">
                                 <path
                                     d="M21.5 4.5 2.5 11.8c-1 .4-1 .9-.2 1.1l4.7 1.5 1.8 5.6c.2.6.4.8 1 .8l3-2.3 4.7 3.5c.6.3 1 .1 1.2-.6l3.4-15.9c.2-.9-.3-1.3-1.4-.9z"
@@ -499,7 +493,10 @@ function getErrorMessage(err: unknown): string {
         <section class="final">
             <div class="wrap reveal">
                 <h2><span class="block">Start remembering</span><span class="block">the words that matter.</span></h2>
-                <p>Translate, build your vocabulary and practice on the web, with a Telegram bot for daily learning. One account.</p>
+                <p>
+                    Translate, build your vocabulary and practice on the web, with a Telegram bot for daily learning.
+                    One account.
+                </p>
                 <div class="final-actions">
                     <button class="btn btn-tg btn-lg" :disabled="isLoading" @click="startTelegramLogin">
                         <svg viewBox="0 0 24 24" fill="none">

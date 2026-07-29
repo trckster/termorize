@@ -194,20 +194,22 @@ watch(
         </CardHeader>
         <CardContent class="relative" :disabled="!props.settings?.telegram.bot_enabled">
             <template v-slot:disable-reason>
-                <Card class="p-5 flex flex-col items-center">
+                <div
+                    class="flex max-w-sm flex-col items-center rounded-lg border border-border bg-card p-5 text-center shadow-sm"
+                >
                     <span> {{ t.settingsTelegramEnableBotNote }} </span>
                     <a
                         href="https://t.me/termorize_bot"
                         target="_blank"
                         rel="noopener noreferrer"
-                        class="text-info underline"
+                        class="inline-flex min-h-11 items-center text-info underline underline-offset-4"
                     >
                         @termorize_bot
                     </a>
-                </Card>
+                </div>
             </template>
 
-            <div class="grid grid-cols-1 gap-4 p-4 md:grid-cols-2">
+            <div class="grid grid-cols-1 gap-6 sm:p-4 md:grid-cols-2 md:gap-4">
                 <div class="space-y-2">
                     <p class="text-sm font-semibold text-foreground">{{ t.settingsTelegramSendDailyTitle }}</p>
                     <div class="min-h-11 flex items-center">
@@ -226,6 +228,7 @@ watch(
                     <div class="min-h-11 flex items-center">
                         <InputNumber
                             v-model="dailyQuestionsCount"
+                            name="telegram-exercise-count"
                             min="1"
                             max="100"
                             step="1"
@@ -249,9 +252,11 @@ watch(
                 </div>
             </div>
 
-            <div class="p-4" :class="dailyQuestionsEnabled ? '' : 'opacity-60'">
+            <div class="pt-6 sm:p-4" :class="dailyQuestionsEnabled ? '' : 'opacity-60'">
                 <div class="space-y-2">
-                    <div class="flex items-center justify-between gap-4">
+                    <div
+                        class="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+                    >
                         <p class="text-sm font-semibold text-foreground">{{ t.settingsTelegramScheduleTitle }}</p>
                         <p class="text-xs text-muted-foreground">
                             {{ t.settingsTelegramScheduleTimezonePrefix }} {{ timezoneLabel }}
@@ -281,7 +286,7 @@ watch(
                                 "
                                 :aria-invalid="scheduleValidationError ? 'true' : 'false'"
                                 :disabled="isSaving || !dailyQuestionsEnabled"
-                                class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                                class="min-h-11 w-full rounded-md border border-border bg-background px-3 py-2 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
                                 @input="setScheduleTime(index, 'from', ($event.target as HTMLInputElement).value)"
                             />
                             <label :for="`schedule-to-${index}`" class="text-muted-foreground">{{
@@ -301,12 +306,13 @@ watch(
                                 "
                                 :aria-invalid="scheduleValidationError ? 'true' : 'false'"
                                 :disabled="isSaving || !dailyQuestionsEnabled"
-                                class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                                class="min-h-11 w-full rounded-md border border-border bg-background px-3 py-2 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
                                 @input="setScheduleTime(index, 'to', ($event.target as HTMLInputElement).value)"
                             />
                             <Button
                                 variant="outline"
                                 size="sm"
+                                class="w-full sm:w-auto"
                                 :disabled="isSaving || !dailyQuestionsEnabled"
                                 @click="removeScheduleItem(index)"
                             >
@@ -318,6 +324,7 @@ watch(
                     <Button
                         variant="outline"
                         size="sm"
+                        class="w-full sm:w-auto"
                         :disabled="isSaving || !dailyQuestionsEnabled"
                         @click="addScheduleItem"
                     >
@@ -333,8 +340,8 @@ watch(
                 </div>
             </div>
 
-            <div v-if="hasChanged" class="px-4">
-                <Button :disabled="isSaving || !isValid" @click="saveTelegramSettings">
+            <div v-if="hasChanged" class="pt-4 sm:px-4">
+                <Button class="w-full sm:w-auto" :disabled="isSaving || !isValid" @click="saveTelegramSettings">
                     {{ isSaving ? t.saving : t.save }}
                 </Button>
             </div>

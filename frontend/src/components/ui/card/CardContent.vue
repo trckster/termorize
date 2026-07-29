@@ -9,7 +9,7 @@ const props = defineProps<{
 </script>
 
 <template>
-    <div :class="cn('p-6 pt-0', props.class)">
+    <div :class="cn('p-4 pt-0 sm:p-6 sm:pt-0', props.class)">
         <div class="disable-message flex justify-center items-center inset-0 z-10" v-if="disabled">
             <slot name="disable-reason" />
         </div>
@@ -26,22 +26,8 @@ const props = defineProps<{
 
 <style lang="postcss" scoped>
 .disabled-area {
-    filter: blur(2px);
-    opacity: 0.6;
+    opacity: 0.45;
     pointer-events: none;
-}
-
-.disabled-area::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: repeating-linear-gradient(
-        45deg,
-        rgba(0, 0, 0, 0.1) 0,
-        rgba(0, 0, 0, 0.1) 10px,
-        transparent 10px,
-        transparent 20px
-    );
 }
 
 .disable-message {

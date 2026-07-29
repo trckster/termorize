@@ -83,25 +83,27 @@ watch(
         </CardHeader>
         <CardContent class="space-y-4">
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div class="space-y-2 rounded-lg p-4">
+                <div class="space-y-2 sm:rounded-lg sm:p-4">
                     <p class="text-sm font-semibold text-foreground">{{ t.settingsSystemLanguageTitle }}</p>
                     <LanguageSelector
                         v-model="systemLanguage"
                         :allowed-values="supportedSystemLanguages"
                         :placeholder="t.settingsSystemLanguagePlaceholder"
                         :aria-label="t.settingsSystemLanguageTitle"
+                        name="system-language"
                     />
                     <p class="text-xs text-muted-foreground">
                         {{ t.settingsSystemLanguageNote }}
                     </p>
                 </div>
 
-                <div class="space-y-2 rounded-lg p-4">
+                <div class="space-y-2 sm:rounded-lg sm:p-4">
                     <p class="text-sm font-semibold text-foreground">{{ t.settingsMainLearningLanguageTitle }}</p>
                     <LanguageSelector
                         v-model="mainLearningLanguage"
                         :placeholder="t.settingsMainLearningLanguagePlaceholder"
                         :aria-label="t.settingsMainLearningLanguageTitle"
+                        name="main-learning-language"
                     />
                     <p class="text-xs text-muted-foreground">
                         {{ t.settingsMainLearningLanguageNote }}
@@ -109,8 +111,8 @@ watch(
                 </div>
             </div>
 
-            <div class="px-4" v-if="hasLanguageSettingsChanged">
-                <Button :disabled="isSaving" @click="saveLanguageSettings">
+            <div v-if="hasLanguageSettingsChanged" class="sm:px-4">
+                <Button class="w-full sm:w-auto" :disabled="isSaving" @click="saveLanguageSettings">
                     {{ isSaving ? t.saving : t.save }}
                 </Button>
             </div>

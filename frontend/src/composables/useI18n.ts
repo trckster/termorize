@@ -500,7 +500,7 @@ const ru: typeof en = {
     settingsAppearanceThemeLabel: 'Цветовая палитра',
     settingsAppearanceThemeExplanation: 'Выберите зелёную палитру. Выбор сохраняется на этом устройстве.',
     settingsAppearanceModeLabel: 'Тёмная тема',
-    settingsAppearanceModeExplanation: 'Переключение светлой и тёмной темы. По умолчанию — как в системе.',
+    settingsAppearanceModeExplanation: 'Переключение светлой и тёмной темы. По умолчанию используется системная тема.',
     settingsAppearanceModeLight: 'Светлая',
     settingsAppearanceModeDark: 'Тёмная',
     themeDescEvergreen: 'Глубокий изумруд на прохладных нейтральных поверхностях.',

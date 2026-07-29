@@ -119,17 +119,22 @@ const fields = computed(() => [
         </CardHeader>
         <CardContent class="space-y-4">
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div v-for="field in fields" :key="field.key" class="space-y-2 rounded-lg p-4">
-                    <p class="text-sm font-semibold text-foreground">{{ field.label }}</p>
+                <div v-for="field in fields" :key="field.key" class="space-y-2 sm:rounded-lg sm:p-4">
+                    <label :for="`settings-${field.key}`" class="text-sm font-semibold text-foreground">
+                        {{ field.label }}
+                    </label>
                     <input
+                        :id="`settings-${field.key}`"
+                        :name="field.key"
                         :value="field.value"
+                        autocomplete="off"
                         disabled
-                        class="w-full rounded-md border border-border bg-muted px-3 py-2 text-sm text-muted-foreground"
+                        class="min-h-11 w-full rounded-md border border-border bg-muted px-3 py-2 text-base text-muted-foreground sm:text-sm"
                     />
                     <p class="text-xs text-muted-foreground">{{ field.explanation }}</p>
                 </div>
 
-                <div class="space-y-2 rounded-lg p-4">
+                <div class="space-y-2 sm:rounded-lg sm:p-4">
                     <p class="text-sm font-semibold text-foreground">{{ t.settingsCommonFieldTimezone }}</p>
                     <Combobox
                         v-model="timezone"
@@ -138,14 +143,15 @@ const fields = computed(() => [
                         :search-placeholder="t.settingsCommonTimezoneSearchPlaceholder"
                         :empty-text="t.settingsCommonTimezoneNotFound"
                         :aria-label="t.settingsCommonFieldTimezone"
+                        name="time-zone"
                     />
                     <p class="text-xs text-muted-foreground">
                         {{ t.settingsCommonFieldTimezoneExplanation }}
                     </p>
                 </div>
             </div>
-            <div class="px-4" v-if="hasTimezoneChanged">
-                <Button v-if="hasTimezoneChanged" :disabled="isSaving" @click="saveTimezone">
+            <div v-if="hasTimezoneChanged" class="sm:px-4">
+                <Button class="w-full sm:w-auto" :disabled="isSaving" @click="saveTimezone">
                     {{ isSaving ? t.saving : t.save }}
                 </Button>
             </div>

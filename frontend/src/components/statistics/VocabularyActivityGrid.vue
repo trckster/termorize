@@ -56,7 +56,9 @@ const formatDate = (date: string) => dateFormatter.value.format(new Date(`${date
 
 <template>
     <div class="overflow-x-auto pb-2">
-        <div class="grid w-full grid-cols-2 gap-3 md:flex md:min-w-[990px] md:justify-between md:gap-6">
+        <div
+            class="grid w-full grid-cols-1 gap-5 min-[360px]:grid-cols-2 min-[360px]:gap-3 md:flex md:min-w-[990px] md:justify-between md:gap-6"
+        >
             <section
                 v-for="month in months"
                 :key="month.key"
@@ -65,19 +67,19 @@ const formatDate = (date: string) => dateFormatter.value.format(new Date(`${date
             >
                 <h3 class="mb-3 text-center text-sm font-medium capitalize text-foreground">{{ month.label }}</h3>
                 <div
-                    class="grid grid-flow-col auto-cols-4 grid-rows-7 justify-center gap-1 min-[360px]:auto-cols-[18px] md:auto-cols-5 md:gap-[5px]"
+                    class="grid grid-flow-col auto-cols-6 grid-rows-7 justify-center gap-1 min-[360px]:auto-cols-[22px] md:auto-cols-5 md:gap-[5px]"
                 >
                     <template v-for="(day, index) in month.days" :key="day?.date ?? `blank-${index}`">
                         <span
                             v-if="!day"
                             aria-hidden="true"
-                            class="h-4 w-4 min-[360px]:h-[18px] min-[360px]:w-[18px] md:h-5 md:w-5"
+                            class="h-6 w-6 min-[360px]:h-[22px] min-[360px]:w-[22px] md:h-5 md:w-5"
                         />
                         <Tooltip v-else :delay-duration="100">
                             <TooltipTrigger as-child>
                                 <button
                                     type="button"
-                                    class="h-4 w-4 rounded-[4px] border outline-none transition-[transform,box-shadow] duration-200 hover:scale-110 focus-visible:scale-110 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background min-[360px]:h-[18px] min-[360px]:w-[18px] md:h-5 md:w-5 md:rounded-[5px]"
+                                    class="h-6 w-6 rounded-[5px] border outline-none transition-[transform,box-shadow] duration-200 hover:scale-110 focus-visible:scale-110 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background min-[360px]:h-[22px] min-[360px]:w-[22px] md:h-5 md:w-5"
                                     :class="intensityClass(day.count)"
                                     :aria-label="`${formatDate(day.date)}: ${day.count} ${vocabularyLabel}`"
                                 />
