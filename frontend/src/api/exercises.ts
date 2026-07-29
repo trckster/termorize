@@ -68,6 +68,10 @@ export type Exercise = {
         translation?: ExerciseTranslation | null
     } | null
     vocabularies?: ExerciseVocabulary[]
+    collection_practice?: {
+        id: string
+        title: string
+    } | null
 }
 
 export type RandomExercise = {
@@ -124,6 +128,17 @@ export const exercisesApi = {
 
     async getRandomExercise(): Promise<RandomExercise> {
         return apiCall<RandomExercise>('/exercises/random', 'POST').then(unwrapBody)
+    },
+
+    async getCollectionPracticeExercise(
+        collectionId: string,
+        targetVocabularyId: string,
+        matching: boolean
+    ): Promise<RandomExercise> {
+        return apiCall<RandomExercise>(`/collections/${collectionId}/practice/exercises`, 'POST', {
+            target_vocabulary_id: targetVocabularyId,
+            matching,
+        }).then(unwrapBody)
     },
 
     async verifyExercise(exerciseId: string, answer: string): Promise<VerifyResult> {

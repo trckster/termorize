@@ -220,7 +220,7 @@ const getResultBadgeClass = (result?: string | null) => {
 }
 
 const formatProgressDelta = (delta?: number | null) => {
-    if (delta == null) {
+    if (delta == null || delta === 0) {
         return t.value.exerciseNoProgressChange
     }
 
@@ -232,7 +232,7 @@ const formatProgressDelta = (delta?: number | null) => {
 }
 
 const getProgressDeltaClass = (delta?: number | null) => {
-    if (delta == null) {
+    if (delta == null || delta === 0) {
         return 'text-muted-foreground'
     }
 
@@ -331,6 +331,14 @@ onMounted(() => {
                                     {{ getTypeLabel(exercise.type) }}
                                 </span>
                             </div>
+                            <span
+                                v-if="exercise.collection_practice"
+                                class="inline-flex w-fit max-w-full items-center rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary"
+                            >
+                                <span class="truncate">
+                                    {{ t.collectionPracticeHistory }} · {{ exercise.collection_practice.title }}
+                                </span>
+                            </span>
 
                             <div v-if="getExerciseVocabularyChanges(exercise).length > 0" class="space-y-2">
                                 <div
@@ -496,12 +504,24 @@ onMounted(() => {
                                     {{ getWhereLabel(exercise) }}
                                 </td>
                                 <td class="px-4 py-3 text-center text-muted-foreground">
-                                    <span
-                                        class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold"
-                                        :class="getTypeBadgeClass(exercise.type)"
-                                    >
-                                        {{ getTypeLabel(exercise.type) }}
-                                    </span>
+                                    <div class="flex flex-col items-center gap-1.5">
+                                        <span
+                                            class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold"
+                                            :class="getTypeBadgeClass(exercise.type)"
+                                        >
+                                            {{ getTypeLabel(exercise.type) }}
+                                        </span>
+                                        <span
+                                            v-if="exercise.collection_practice"
+                                            class="inline-flex max-w-48 items-center rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary"
+                                            :title="exercise.collection_practice.title"
+                                        >
+                                            <span class="truncate">
+                                                {{ t.collectionPracticeHistory }} ·
+                                                {{ exercise.collection_practice.title }}
+                                            </span>
+                                        </span>
+                                    </div>
                                 </td>
                                 <td class="px-4 py-3 text-muted-foreground">
                                     <div

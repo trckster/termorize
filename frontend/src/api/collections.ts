@@ -25,6 +25,7 @@ export type CollectionSummary = {
     owner_username?: string
     languages: string[]
     translation_count: number
+    vocabulary_count: number
     user_add_count: number
     created_at: string
 }
@@ -40,6 +41,12 @@ export type AddCollectionToVocabularyResult = {
     skipped: number
     total: number
     user_add_count: number
+}
+
+export type CollectionPracticeRound = {
+    collection_id: string
+    collection_title: string
+    vocabulary_ids: string[]
 }
 
 export const collectionsApi = {
@@ -105,6 +112,10 @@ export const collectionsApi = {
         ).then(unwrapBody)
     },
 
+    async startPractice(id: string): Promise<CollectionPracticeRound> {
+        return apiCall<CollectionPracticeRound>(`/collections/${id}/practice`, 'POST').then(unwrapBody)
+    },
+
     async joinByToken(token: string): Promise<CollectionDetail> {
         return apiCall<CollectionDetail>(`/collection-invites/${token}`, 'POST').then(unwrapBody)
     },
@@ -114,7 +125,9 @@ export const collectionsApi = {
     },
 
     async setPublished(id: string, published: boolean): Promise<CollectionDetail> {
-        return apiCall<CollectionDetail>(`/collections/${id}/publish`, 'POST', { is_published: published }).then(unwrapBody)
+        return apiCall<CollectionDetail>(`/collections/${id}/publish`, 'POST', { is_published: published }).then(
+            unwrapBody
+        )
     },
 
     async updateTitle(id: string, title: string): Promise<CollectionDetail> {

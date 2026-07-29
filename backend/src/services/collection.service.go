@@ -41,6 +41,7 @@ type CollectionSummary struct {
 	OwnerUsername    string           `json:"owner_username,omitempty"`
 	Languages        []enums.Language `json:"languages"`
 	TranslationCount int              `json:"translation_count"`
+	VocabularyCount  int              `json:"vocabulary_count"`
 	UserAddCount     int              `json:"user_add_count"`
 	CreatedAt        time.Time        `json:"created_at"`
 }
@@ -59,6 +60,7 @@ type CollectionDetail struct {
 	OwnerUsername    string               `json:"owner_username,omitempty"`
 	Languages        []enums.Language     `json:"languages"`
 	TranslationCount int                  `json:"translation_count"`
+	VocabularyCount  int                  `json:"vocabulary_count"`
 	UserAddCount     int                  `json:"user_add_count"`
 	CreatedAt        time.Time            `json:"created_at"`
 	InviteToken      string               `json:"invite_token,omitempty"`
@@ -281,6 +283,36 @@ func countByCollection(conn *gorm.DB, table string, collectionIDs []uuid.UUID) (
 	return result, nil
 }
 
+func countCollectionVocabulary(conn *gorm.DB, userID uint, collectionIDs []uuid.UUID) (map[uuid.UUID]int, error) {
+	result := make(map[uuid.UUID]int)
+	if len(collectionIDs) == 0 {
+		return result, nil
+	}
+
+	type row struct {
+		CollectionID uuid.UUID
+		Count        int
+	}
+
+	var rows []row
+	err := conn.
+		Table("collection_translations AS ct").
+		Select("ct.collection_id, COUNT(DISTINCT v.id) AS count").
+		Joins("JOIN vocabulary AS v ON v.translation_id = ct.translation_id AND v.user_id = ? AND v.deleted_at IS NULL", userID).
+		Where("ct.collection_id IN ?", collectionIDs).
+		Group("ct.collection_id").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	for _, item := range rows {
+		result[item.CollectionID] = item.Count
+	}
+
+	return result, nil
+}
+
 func ListCollections(userID uint, page, pageSize int, search string, languageFilter []enums.Language) (*CollectionListResponse, error) {
 	if page <= 0 {
 		return nil, ErrInvalidPage
@@ -378,6 +410,11 @@ func ListCollections(userID uint, page, pageSize int, search string, languageFil
 		return nil, err
 	}
 
+	vocabularyCounts, err := countCollectionVocabulary(db.DB, userID, ids)
+	if err != nil {
+		return nil, err
+	}
+
 	summaries := make([]CollectionSummary, 0, len(collections))
 	for i := range collections {
 		collection := collections[i]
@@ -394,6 +431,7 @@ func ListCollections(userID uint, page, pageSize int, search string, languageFil
 			IsPublished:      collection.IsPublished,
 			Languages:        langs,
 			TranslationCount: counts[collection.Collection.ID],
+			VocabularyCount:  vocabularyCounts[collection.Collection.ID],
 			UserAddCount:     userAddCounts[collection.Collection.ID],
 			CreatedAt:        collection.CreatedAt,
 		}
@@ -456,6 +494,11 @@ func GetCollection(userID uint, collectionID uuid.UUID) (*CollectionDetail, erro
 	var userAddCount int64
 	db.DB.Model(&models.CollectionUserAdd{}).Where("collection_id = ?", collectionID).Count(&userAddCount)
 
+	vocabularyCounts, err := countCollectionVocabulary(db.DB, userID, []uuid.UUID{collectionID})
+	if err != nil {
+		return nil, err
+	}
+
 	detail := &CollectionDetail{
 		ID:               collection.ID,
 		Title:            collection.Title,
@@ -464,6 +507,7 @@ func GetCollection(userID uint, collectionID uuid.UUID) (*CollectionDetail, erro
 		IsPublished:      collection.IsPublished,
 		Languages:        languages,
 		TranslationCount: len(translations),
+		VocabularyCount:  vocabularyCounts[collectionID],
 		UserAddCount:     int(userAddCount),
 		CreatedAt:        collection.CreatedAt,
 		Translations:     translations,

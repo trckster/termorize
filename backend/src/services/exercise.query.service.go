@@ -188,6 +188,12 @@ func GetExercises(userID uint, page, pageSize int) (*ExerciseListResponse, error
 			FinishedAt:        exerciseModel.FinishedAt,
 			TelegramMessageID: exerciseModel.TelegramMessageID,
 		}
+		if exerciseModel.PracticeCollectionTitle != nil {
+			exercise.CollectionPractice = &ExerciseCollectionPractice{Title: *exerciseModel.PracticeCollectionTitle}
+			if exerciseModel.PracticeCollectionID != nil {
+				exercise.CollectionPractice.ID = *exerciseModel.PracticeCollectionID
+			}
+		}
 
 		if vocabulary, ok := vocabularyByExerciseID[exerciseModel.ID]; ok {
 			exercise.Vocabulary = vocabulary
@@ -243,6 +249,12 @@ func GetExercisesByIDs(userID uint, ids []uuid.UUID) ([]ExerciseListExercise, er
 			StartedAt:         exercise.StartedAt,
 			FinishedAt:        exercise.FinishedAt,
 			TelegramMessageID: exercise.TelegramMessageID,
+		}
+		if exercise.PracticeCollectionTitle != nil {
+			response.CollectionPractice = &ExerciseCollectionPractice{Title: *exercise.PracticeCollectionTitle}
+			if exercise.PracticeCollectionID != nil {
+				response.CollectionPractice.ID = *exercise.PracticeCollectionID
+			}
 		}
 
 		if vocabulary, ok := vocabularyByExerciseID[exercise.ID]; ok {

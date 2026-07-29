@@ -28,6 +28,12 @@ const router = createRouter({
             meta: { requiresAuth: true },
         },
         {
+            path: '/collections/:collectionId/practice',
+            name: 'collection-practice',
+            component: () => import('@/views/QuizPage.vue'),
+            meta: { requiresAuth: true },
+        },
+        {
             path: '/',
             component: () => import('@/layouts/MainLayout.vue'),
             meta: { requiresAuth: true },

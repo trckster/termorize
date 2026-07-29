@@ -90,6 +90,15 @@
                     </div>
 
                     <div class="flex flex-wrap items-center gap-2">
+                        <div class="flex flex-col items-start gap-1">
+                            <Button :disabled="collection.vocabulary_count === 0" @click="startPractice">
+                                <Play class="mr-2 h-4 w-4" />
+                                {{ t.collectionPracticeStart }}
+                            </Button>
+                            <p v-if="collection.vocabulary_count === 0" class="max-w-64 text-xs text-muted-foreground">
+                                {{ t.collectionPracticeUnavailable }}
+                            </p>
+                        </div>
                         <Button
                             v-if="canManage && collection.is_admin"
                             :variant="collection.is_published ? 'outline' : 'default'"
@@ -184,7 +193,11 @@
 
                 <div class="mb-6 flex flex-wrap items-center gap-3">
                     <Button
-                        :disabled="isAddingToVocabulary || collection.translation_count === 0 || (isSelecting && selectedCount === 0)"
+                        :disabled="
+                            isAddingToVocabulary ||
+                            collection.translation_count === 0 ||
+                            (isSelecting && selectedCount === 0)
+                        "
                         @click="handleAddToVocabulary"
                     >
                         <Loader2 v-if="isAddingToVocabulary" class="mr-2 h-4 w-4 animate-spin" />
@@ -431,6 +444,7 @@ import {
     ListChecks,
     Loader2,
     Pencil,
+    Play,
     Plus,
     Share2,
     Trash2,
@@ -442,6 +456,11 @@ const router = useRouter()
 const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
 const { addToast } = useToast()
+
+const startPractice = () => {
+    if (!collection.value || collection.value.vocabulary_count === 0) return
+    void router.push({ name: 'collection-practice', params: { collectionId: collection.value.id } })
+}
 
 const collection = ref<CollectionDetail | null>(null)
 const isLoading = ref(false)
@@ -595,6 +614,7 @@ const handleAddToVocabulary = async () => {
         const result = await collectionsApi.addToVocabulary(collection.value.id, translationIds)
         if (collection.value) {
             collection.value.user_add_count = result.user_add_count
+            collection.value.vocabulary_count += result.added
         }
         cancelSelecting()
         addToast({
