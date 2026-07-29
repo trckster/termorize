@@ -5,6 +5,7 @@ import { exercisesApi, type Exercise } from '@/api/exercises.ts'
 import type { PaginationData } from '@/api/pagination.ts'
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem } from '@/components/ui/pagination'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useI18n } from '@/composables/useI18n'
 import { useSettingsStore } from '@/stores/settings.ts'
 import { formatDate, formatNumber } from '@/lib/utils.ts'
@@ -220,7 +221,7 @@ const getResultBadgeClass = (result?: string | null) => {
 }
 
 const formatProgressDelta = (delta?: number | null) => {
-    if (delta == null) {
+    if (delta == null || delta === 0) {
         return t.value.exerciseNoProgressChange
     }
 
@@ -232,7 +233,7 @@ const formatProgressDelta = (delta?: number | null) => {
 }
 
 const getProgressDeltaClass = (delta?: number | null) => {
-    if (delta == null) {
+    if (delta == null || delta === 0) {
         return 'text-muted-foreground'
     }
 
@@ -242,6 +243,9 @@ const getProgressDeltaClass = (delta?: number | null) => {
 
     return 'text-rose-700 dark:text-rose-300'
 }
+
+const isCollectionPracticeProgressUnchanged = (exercise: Exercise, delta?: number | null) =>
+    Boolean(exercise.collection_practice) && delta === 0
 
 const getLanguageBadge = (language: string) => {
     if (!language) {
@@ -331,6 +335,14 @@ onMounted(() => {
                                     {{ getTypeLabel(exercise.type) }}
                                 </span>
                             </div>
+                            <span
+                                v-if="exercise.collection_practice"
+                                class="inline-flex w-fit max-w-full items-center rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary"
+                            >
+                                <span class="truncate">
+                                    {{ t.collectionPracticeHistory }} · {{ exercise.collection_practice.title }}
+                                </span>
+                            </span>
 
                             <div v-if="getExerciseVocabularyChanges(exercise).length > 0" class="space-y-2">
                                 <div
@@ -378,8 +390,31 @@ onMounted(() => {
                                             >
                                                 {{ getResultLabel(vocabulary.exercise_result) }}
                                             </span>
+                                            <Tooltip
+                                                v-if="
+                                                    isCollectionPracticeProgressUnchanged(
+                                                        exercise,
+                                                        vocabulary.progress_delta
+                                                    )
+                                                "
+                                            >
+                                                <TooltipTrigger as-child>
+                                                    <button
+                                                        type="button"
+                                                        class="cursor-help rounded-sm text-xs font-semibold text-muted-foreground underline decoration-dotted underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                                        :aria-label="t.collectionPracticePointsUnchangedHint"
+                                                    >
+                                                        {{ t.collectionPracticePointsUnchanged }}
+                                                    </button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top" class="max-w-64 text-center">
+                                                    {{ t.collectionPracticePointsUnchangedHint }}
+                                                </TooltipContent>
+                                            </Tooltip>
                                             <span
-                                                v-if="vocabulary.exercise_result || vocabulary.progress_delta != null"
+                                                v-else-if="
+                                                    vocabulary.exercise_result || vocabulary.progress_delta != null
+                                                "
                                                 class="text-xs font-semibold"
                                                 :class="getProgressDeltaClass(vocabulary.progress_delta)"
                                             >
@@ -496,12 +531,24 @@ onMounted(() => {
                                     {{ getWhereLabel(exercise) }}
                                 </td>
                                 <td class="px-4 py-3 text-center text-muted-foreground">
-                                    <span
-                                        class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold"
-                                        :class="getTypeBadgeClass(exercise.type)"
-                                    >
-                                        {{ getTypeLabel(exercise.type) }}
-                                    </span>
+                                    <div class="flex flex-col items-center gap-1.5">
+                                        <span
+                                            class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold"
+                                            :class="getTypeBadgeClass(exercise.type)"
+                                        >
+                                            {{ getTypeLabel(exercise.type) }}
+                                        </span>
+                                        <span
+                                            v-if="exercise.collection_practice"
+                                            class="inline-flex max-w-48 items-center rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary"
+                                            :title="exercise.collection_practice.title"
+                                        >
+                                            <span class="truncate">
+                                                {{ t.collectionPracticeHistory }} ·
+                                                {{ exercise.collection_practice.title }}
+                                            </span>
+                                        </span>
+                                    </div>
                                 </td>
                                 <td class="px-4 py-3 text-muted-foreground">
                                     <div
@@ -573,8 +620,29 @@ onMounted(() => {
                                                     >
                                                         {{ getResultLabel(vocabulary.exercise_result) }}
                                                     </span>
-                                                    <span
+                                                    <Tooltip
                                                         v-if="
+                                                            isCollectionPracticeProgressUnchanged(
+                                                                exercise,
+                                                                vocabulary.progress_delta
+                                                            )
+                                                        "
+                                                    >
+                                                        <TooltipTrigger as-child>
+                                                            <button
+                                                                type="button"
+                                                                class="cursor-help rounded-sm text-xs font-semibold text-muted-foreground underline decoration-dotted underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                                                :aria-label="t.collectionPracticePointsUnchangedHint"
+                                                            >
+                                                                {{ t.collectionPracticePointsUnchanged }}
+                                                            </button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top" class="max-w-64 text-center">
+                                                            {{ t.collectionPracticePointsUnchangedHint }}
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                    <span
+                                                        v-else-if="
                                                             vocabulary.exercise_result ||
                                                             vocabulary.progress_delta != null
                                                         "

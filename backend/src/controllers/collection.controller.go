@@ -40,6 +40,10 @@ func respondCollectionError(c *gin.Context, err error) {
 		c.JSON(nethttp.StatusServiceUnavailable, gin.H{"error": err.Error()})
 	case services.AIGenerationFailedError(err):
 		ServerError(c, errors.New("request to OpenRouter failed"))
+	case errors.Is(err, services.ErrNoCollectionPracticeVocabulary):
+		c.JSON(nethttp.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+	case errors.Is(err, services.ErrCollectionPracticeVocabularyUnavailable):
+		c.JSON(nethttp.StatusConflict, gin.H{"error": err.Error()})
 	default:
 		c.JSON(nethttp.StatusBadRequest, gin.H{"error": err.Error()})
 	}
@@ -216,6 +220,61 @@ func AddCollectionToVocabulary(c *gin.Context) {
 	}
 
 	c.JSON(nethttp.StatusOK, result)
+}
+
+func StartCollectionPractice(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+
+	collectionID, ok := parseUUIDParam(c, "id", "invalid collection ID")
+	if !ok {
+		return
+	}
+
+	round, err := services.StartCollectionPracticeRound(userID, collectionID)
+	if err != nil {
+		respondCollectionError(c, err)
+		return
+	}
+
+	c.JSON(nethttp.StatusOK, round)
+}
+
+func CreateCollectionPracticeExercise(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+
+	collectionID, ok := parseUUIDParam(c, "id", "invalid collection ID")
+	if !ok {
+		return
+	}
+
+	var req struct {
+		TargetVocabularyID uuid.UUID `json:"target_vocabulary_id" binding:"required"`
+		Matching           bool      `json:"matching"`
+	}
+	if !validators.BindJSONWithErrors(c, &req) {
+		return
+	}
+
+	result, err := services.CreateCollectionPracticeExercise(
+		userID,
+		collectionID,
+		req.TargetVocabularyID,
+		req.Matching,
+	)
+	if err != nil {
+		respondCollectionError(c, err)
+		return
+	}
+
+	c.JSON(nethttp.StatusOK, gin.H{
+		"exercise_id":     result.ExerciseID,
+		"type":            result.Type,
+		"question_word":   result.QuestionWord,
+		"language":        result.Language,
+		"answer_language": result.AnswerLanguage,
+		"options":         result.Options,
+		"cards":           result.Cards,
+	})
 }
 
 func GenerateCollection(c *gin.Context) {

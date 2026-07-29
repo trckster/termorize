@@ -62,7 +62,9 @@
             <div class="mb-6 flex flex-col gap-3">
                 <div class="relative max-w-md">
                     <input
+                        id="collection-search"
                         v-model="searchInput"
+                        name="collection-search"
                         type="text"
                         :placeholder="t.collectionsSearchPlaceholder"
                         :aria-label="t.collectionsSearchPlaceholder"
@@ -102,63 +104,97 @@
             </div>
 
             <div v-if="collections.length > 0" class="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <router-link
-                    v-for="collection in collections"
-                    :key="collection.id"
-                    :to="`/collections/${collection.id}`"
-                    class="group block"
-                >
-                    <Card class="h-full transition-colors hover:bg-accent/50">
-                        <CardHeader>
-                            <div class="flex items-start justify-between gap-2">
-                                <CardTitle class="min-w-0 break-words text-lg">{{ collection.title }}</CardTitle>
-                                <span v-if="collection.is_admin">
-                                    <span
-                                        v-if="!collection.is_published && isAdmin"
-                                        class="shrink-0 rounded bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning"
-                                    >
-                                        {{ t.collectionsDraftBadge }}
+                <div v-for="collection in collections" :key="collection.id" class="group relative">
+                    <Card class="h-full transition-colors group-hover:bg-accent/50">
+                        <router-link
+                            :to="`/collections/${collection.id}`"
+                            class="block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        >
+                            <CardHeader>
+                                <div class="flex items-start justify-between gap-2">
+                                    <CardTitle class="min-w-0 break-words text-lg">{{ collection.title }}</CardTitle>
+                                    <span v-if="collection.is_admin">
+                                        <span
+                                            v-if="!collection.is_published && isAdmin"
+                                            class="shrink-0 rounded bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning"
+                                        >
+                                            {{ t.collectionsDraftBadge }}
+                                        </span>
+                                        <span
+                                            v-else-if="isAdmin"
+                                            class="shrink-0 rounded border border-primary/30 bg-primary/30 px-2 py-0.5 text-xs font-medium text-primary"
+                                        >
+                                            {{ t.collectionsGlobalBadge }}
+                                        </span>
                                     </span>
                                     <span
-                                        v-else-if="isAdmin"
-                                        class="shrink-0 rounded border border-primary/30 bg-primary/30 px-2 py-0.5 text-xs font-medium text-primary"
+                                        v-else-if="collection.is_owner"
+                                        class="shrink-0 rounded bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
                                     >
-                                        {{ t.collectionsGlobalBadge }}
+                                        {{ t.collectionsPrivateBadge }}
                                     </span>
+                                    <span
+                                        v-else-if="collection.owner_username"
+                                        class="shrink-0 rounded bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
+                                    >
+                                        @{{ collection.owner_username }}
+                                    </span>
+                                </div>
+                            </CardHeader>
+                            <CardContent class="space-y-3 pb-14">
+                                <div v-if="collection.languages.length > 0" class="flex flex-wrap gap-1 text-xl">
+                                    <span
+                                        v-for="lang in collection.languages"
+                                        :key="lang"
+                                        role="img"
+                                        :aria-label="getLanguageName(lang)"
+                                        >{{ settingsStore.getFlag(lang) }}</span
+                                    >
+                                </div>
+                                <p class="text-sm text-muted-foreground">
+                                    {{ formatNumber(collection.translation_count) }}
+                                    {{ t.collectionsTranslationsLabel }}
+                                    <template v-if="collection.user_add_count > 0">
+                                        · {{ saves(collection.user_add_count) }}
+                                    </template>
+                                </p>
+                            </CardContent>
+                        </router-link>
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <span class="absolute bottom-2 right-2 inline-flex">
+                                    <Button
+                                        type="button"
+                                        size="icon"
+                                        variant="ghost"
+                                        class="rounded-full border"
+                                        :class="
+                                            collection.vocabulary_count === 0
+                                                ? 'border-border/60 bg-muted/20 text-muted-foreground'
+                                                : 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/15'
+                                        "
+                                        :disabled="collection.vocabulary_count === 0"
+                                        :aria-label="
+                                            collection.vocabulary_count === 0
+                                                ? t.collectionPracticeUnavailable
+                                                : `${t.collectionPracticeStart}: ${collection.title}`
+                                        "
+                                        @click="startPractice(collection.id)"
+                                    >
+                                        <Play class="h-4 w-4 translate-x-px" />
+                                    </Button>
                                 </span>
-                                <span
-                                    v-else-if="collection.is_owner"
-                                    class="shrink-0 rounded bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
-                                >
-                                    {{ t.collectionsPrivateBadge }}
-                                </span>
-                                <span
-                                    v-else-if="collection.owner_username"
-                                    class="shrink-0 rounded bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
-                                >
-                                    @{{ collection.owner_username }}
-                                </span>
-                            </div>
-                        </CardHeader>
-                        <CardContent class="space-y-3">
-                            <div v-if="collection.languages.length > 0" class="flex flex-wrap gap-1 text-xl">
-                                <span
-                                    v-for="lang in collection.languages"
-                                    :key="lang"
-                                    role="img"
-                                    :aria-label="getLanguageName(lang)"
-                                    >{{ settingsStore.getFlag(lang) }}</span
-                                >
-                            </div>
-                            <p class="text-sm text-muted-foreground">
-                                {{ formatNumber(collection.translation_count) }} {{ t.collectionsTranslationsLabel }}
-                                <template v-if="collection.user_add_count > 0">
-                                    · {{ saves(collection.user_add_count) }}
-                                </template>
-                            </p>
-                        </CardContent>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                {{
+                                    collection.vocabulary_count === 0
+                                        ? t.collectionPracticeUnavailable
+                                        : t.collectionPracticeStart
+                                }}
+                            </TooltipContent>
+                        </Tooltip>
                     </Card>
-                </router-link>
+                </div>
             </div>
 
             <div
@@ -223,6 +259,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Pagination, PaginationContent, PaginationItem, PaginationEllipsis } from '@/components/ui/pagination'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
     Dialog,
     DialogContent,
@@ -232,13 +269,17 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog'
-import { Loader2, Plus, Sparkles } from 'lucide-vue-next'
+import { Loader2, Play, Plus, Sparkles } from 'lucide-vue-next'
 
 const { t, saves } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
 const { addToast } = useToast()
+
+const startPractice = (collectionId: string) => {
+    void router.push({ name: 'collection-practice', params: { collectionId } })
+}
 
 const collections = ref<CollectionSummary[]>([])
 const currentPage = ref(1)

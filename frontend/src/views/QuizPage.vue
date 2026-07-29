@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { TriangleAlert, X } from 'lucide-vue-next'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
     exercisesApi,
     type Exercise,
@@ -12,6 +12,7 @@ import {
     type RandomExercise,
     type VerifyResult,
 } from '@/api/exercises.ts'
+import { collectionsApi, type CollectionPracticeRound } from '@/api/collections.ts'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import { Progress } from '@/components/ui/progress'
@@ -20,7 +21,7 @@ import { useI18n } from '@/composables/useI18n'
 import { useSettingsStore } from '@/stores/settings.ts'
 import { formatNumber } from '@/lib/utils.ts'
 
-const QUIZ_SIZE = 10
+const NORMAL_QUIZ_SIZE = 10
 const FEEDBACK_ADVANCE_DELAY_MS = 1800
 const MATCH_FEEDBACK_ADVANCE_DELAY_MS = FEEDBACK_ADVANCE_DELAY_MS * 2
 type QuizState = 'loading' | 'question' | 'feedback' | 'results'
@@ -29,6 +30,7 @@ type MatchVocabularyState = {
     result: MatchVocabularyResult
 }
 
+const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const settingsStore = useSettingsStore()
@@ -38,7 +40,11 @@ const currentExercise = ref<RandomExercise | null>(null)
 const verifyResult = ref<VerifyResult | null>(null)
 const matchCompleteResult = ref<MatchPairsCompleteResult | null>(null)
 const exerciseIds = ref<string[]>([])
+const targetExerciseIds = ref<string[]>([])
 const results = ref<Exercise[]>([])
+const practiceRound = ref<CollectionPracticeRound | null>(null)
+const practiceVocabularyIndex = ref(0)
+const matchingOffered = ref(false)
 const isSubmitting = ref(false)
 const isLoadingResults = ref(false)
 const error = ref<string | null>(null)
@@ -58,6 +64,12 @@ const matchCardWrongAttempts = ref<Record<string, number>>({})
 const answerInputRef = ref<HTMLInputElement | null>(null)
 const quizRootRef = ref<HTMLElement | null>(null)
 
+const collectionId = computed(() => (typeof route.params.collectionId === 'string' ? route.params.collectionId : null))
+const isCollectionPractice = computed(() => collectionId.value != null)
+const quizSize = computed(() =>
+    isCollectionPractice.value ? (practiceRound.value?.vocabulary_ids.length ?? 0) : NORMAL_QUIZ_SIZE
+)
+const pageTitle = computed(() => (isCollectionPractice.value ? t.value.collectionPracticeTitle : t.value.quizTitle))
 const isMatchQuestion = computed(() => currentExercise.value?.type === 'match/pairs')
 const isChoiceQuestion = computed(
     () => currentExercise.value?.type === 'choice/direct' || currentExercise.value?.type === 'choice/reversed'
@@ -89,9 +101,18 @@ const questionHint = computed(() => {
 })
 
 const questionNumber = computed(() =>
-    Math.min(exerciseIds.value.length + (state.value === 'question' || state.value === 'feedback' ? 1 : 0), QUIZ_SIZE)
+    isCollectionPractice.value
+        ? Math.min(
+              practiceVocabularyIndex.value +
+                  (state.value === 'question' || state.value === 'feedback' ? (isMatchQuestion.value ? 0 : 1) : 0),
+              quizSize.value
+          )
+        : Math.min(
+              exerciseIds.value.length + (state.value === 'question' || state.value === 'feedback' ? 1 : 0),
+              quizSize.value
+          )
 )
-const quizProgress = computed(() => (questionNumber.value / QUIZ_SIZE) * 100)
+const quizProgress = computed(() => (quizSize.value > 0 ? (questionNumber.value / quizSize.value) * 100 : 0))
 const quizShortcuts = computed(() => {
     if (state.value === 'question') {
         if (isMatchQuestion.value) {
@@ -119,8 +140,14 @@ const quizShortcuts = computed(() => {
 
     if (state.value === 'results') {
         return [
-            { label: t.value.quizShortcutMore, keys: 'Enter' },
-            { label: t.value.quizShortcutClose, keys: 'Esc' },
+            {
+                label: isCollectionPractice.value ? t.value.collectionPracticeAgain : t.value.quizShortcutMore,
+                keys: 'Enter',
+            },
+            {
+                label: isCollectionPractice.value ? t.value.collectionPracticeStop : t.value.quizShortcutClose,
+                keys: 'Esc',
+            },
         ]
     }
 
@@ -132,9 +159,24 @@ async function startQuiz() {
     error.value = null
     emptyState.value = null
     exerciseIds.value = []
+    targetExerciseIds.value = []
     results.value = []
     verifyResult.value = null
     matchCompleteResult.value = null
+
+    if (isCollectionPractice.value && collectionId.value) {
+        try {
+            practiceRound.value = await collectionsApi.startPractice(collectionId.value)
+            practiceVocabularyIndex.value = 0
+            matchingOffered.value = false
+        } catch (err: unknown) {
+            const apiErr = err as { status?: number }
+            emptyState.value = 'error'
+            error.value = apiErr?.status === 422 ? t.value.collectionPracticeEmpty : t.value.collectionPracticeLoadError
+            return
+        }
+    }
+
     await loadNextQuestion()
 }
 
@@ -154,7 +196,25 @@ async function loadNextQuestion() {
     matchCardWrongAttempts.value = {}
 
     try {
-        currentExercise.value = await exercisesApi.getRandomExercise()
+        if (isCollectionPractice.value && collectionId.value) {
+            const targetVocabularyId = practiceRound.value?.vocabulary_ids[practiceVocabularyIndex.value]
+            if (!targetVocabularyId) {
+                await showResults()
+                return
+            }
+
+            const requestMatching = !matchingOffered.value && Math.random() < 0.1
+            if (requestMatching) {
+                matchingOffered.value = true
+            }
+            currentExercise.value = await exercisesApi.getCollectionPracticeExercise(
+                collectionId.value,
+                targetVocabularyId,
+                requestMatching
+            )
+        } else {
+            currentExercise.value = await exercisesApi.getRandomExercise()
+        }
         verifyResult.value = null
         matchCompleteResult.value = null
         if (isMatchQuestion.value) {
@@ -170,6 +230,19 @@ async function loadNextQuestion() {
         }
     } catch (err: unknown) {
         const apiErr = err as { status?: number; body?: { error?: string } }
+        if (
+            isCollectionPractice.value &&
+            apiErr?.status === 409 &&
+            apiErr.body?.error === 'collection practice word is no longer available'
+        ) {
+            practiceVocabularyIndex.value++
+            if (practiceVocabularyIndex.value >= quizSize.value) {
+                await showResults()
+            } else {
+                await loadNextQuestion()
+            }
+            return
+        }
         if (apiErr?.status === 422) {
             const isMastered = apiErr.body?.error === 'all vocabulary is already mastered'
             emptyState.value = isMastered ? 'mastered' : 'error'
@@ -190,6 +263,9 @@ async function submitAnswer(answer: string) {
     try {
         verifyResult.value = await exercisesApi.verifyExercise(currentExercise.value.exercise_id, answer)
         exerciseIds.value = [...exerciseIds.value, currentExercise.value.exercise_id]
+        if (isCollectionPractice.value) {
+            targetExerciseIds.value = [...targetExerciseIds.value, currentExercise.value.exercise_id]
+        }
         state.value = 'feedback'
         await nextTick()
         quizRootRef.value?.focus()
@@ -228,6 +304,9 @@ async function skipAnswer() {
     try {
         verifyResult.value = await exercisesApi.verifyExercise(currentExercise.value.exercise_id, getSkipAnswer())
         exerciseIds.value = [...exerciseIds.value, currentExercise.value.exercise_id]
+        if (isCollectionPractice.value) {
+            targetExerciseIds.value = [...targetExerciseIds.value, currentExercise.value.exercise_id]
+        }
         state.value = 'feedback'
         await nextTick()
         quizRootRef.value?.focus()
@@ -514,7 +593,21 @@ function showInvalidCharacterLanguageWarning() {
 function advanceFromFeedback() {
     clearFeedbackAdvance()
 
-    if (exerciseIds.value.length >= QUIZ_SIZE) {
+    if (isCollectionPractice.value) {
+        if (!isMatchQuestion.value) {
+            practiceVocabularyIndex.value++
+        }
+
+        if (practiceVocabularyIndex.value >= quizSize.value) {
+            void showResults()
+            return
+        }
+
+        void loadNextQuestion()
+        return
+    }
+
+    if (exerciseIds.value.length >= quizSize.value) {
         void showResults()
         return
     }
@@ -666,11 +759,21 @@ async function closeQuiz() {
         }
     }
 
+    if (isCollectionPractice.value && collectionId.value) {
+        void router.push({ name: 'collection-detail', params: { id: collectionId.value } })
+        return
+    }
+
     void router.push({ name: 'translation' })
 }
 
-const correctResults = computed(() => results.value.filter((e) => e.status === 'completed'))
-const wrongResults = computed(() => results.value.filter((e) => e.status === 'failed'))
+const scoredResults = computed(() =>
+    isCollectionPractice.value
+        ? results.value.filter((exercise) => targetExerciseIds.value.includes(exercise.id))
+        : results.value
+)
+const correctResults = computed(() => scoredResults.value.filter((e) => e.status === 'completed'))
+const wrongResults = computed(() => scoredResults.value.filter((e) => e.status === 'failed'))
 const score = computed(() => correctResults.value.length)
 const matchResolvedCount = computed(
     () => Object.values(matchVocabularyStates.value).filter((state) => state.result != null).length
@@ -822,15 +925,27 @@ onBeforeUnmount(() => {
         tabindex="-1"
         @keydown.capture="handleKeydown"
     >
-        <h1 class="sr-only">{{ t.quizTitle }}</h1>
+        <h1 class="sr-only">{{ pageTitle }}</h1>
         <div class="border-b border-border px-4 py-3 sm:px-6">
             <div class="flex items-center justify-between gap-3">
-                <span class="text-sm font-medium text-muted-foreground">{{ t.quizTitle }}</span>
+                <div class="min-w-0">
+                    <span class="block text-sm font-medium text-muted-foreground">{{ pageTitle }}</span>
+                    <span
+                        v-if="isCollectionPractice && practiceRound"
+                        class="block truncate text-xs text-muted-foreground/80"
+                    >
+                        {{ practiceRound.collection_title }}
+                    </span>
+                </div>
                 <span
                     v-if="state === 'question' || state === 'feedback'"
                     class="text-sm tabular-nums text-muted-foreground"
                 >
-                    {{ questionNumber }} / {{ QUIZ_SIZE }}
+                    {{
+                        isCollectionPractice && isMatchQuestion
+                            ? t.collectionPracticeMatching
+                            : `${questionNumber} / ${quizSize}`
+                    }}
                 </span>
                 <span v-else class="h-11 w-11" aria-hidden="true"></span>
                 <button
@@ -1023,9 +1138,12 @@ onBeforeUnmount(() => {
                             </div>
 
                             <form v-else class="space-y-3" @submit.prevent="submitAnswer(answer)">
+                                <label for="quiz-answer" class="sr-only">{{ t.quizAnswerPlaceholder }}</label>
                                 <input
+                                    id="quiz-answer"
                                     ref="answerInputRef"
                                     v-model="answer"
+                                    name="answer"
                                     :placeholder="t.quizAnswerPlaceholder"
                                     :disabled="isSubmitting"
                                     class="w-full rounded-md border border-input bg-background px-4 py-3 text-base shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
@@ -1080,8 +1198,11 @@ onBeforeUnmount(() => {
                     <div class="space-y-6 text-center">
                         <div class="space-y-2">
                             <p class="text-3xl font-bold" :class="resultClass">{{ resultLabel }}</p>
+                            <p v-if="isCollectionPractice" class="text-sm font-medium text-muted-foreground">
+                                {{ t.collectionPracticeKnowledgeUnchanged }}
+                            </p>
                             <p
-                                v-if="feedbackPointDeltas.length > 0 && !matchCompleteResult"
+                                v-else-if="feedbackPointDeltas.length > 0 && !matchCompleteResult"
                                 class="text-sm font-medium text-muted-foreground"
                             >
                                 {{ t.quizPoints }}: {{ feedbackPointsSummary }}
@@ -1094,7 +1215,10 @@ onBeforeUnmount(() => {
                                         {{ matchFinalCounts.correct }}
                                     </p>
                                     <p class="text-muted-foreground">{{ t.exerciseResultCorrect }}</p>
-                                    <p class="mt-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                                    <p
+                                        v-if="!isCollectionPractice"
+                                        class="mt-1 text-xs font-medium text-emerald-700 dark:text-emerald-300"
+                                    >
                                         {{ matchFinalPointSummaries.correct }}
                                     </p>
                                 </div>
@@ -1103,7 +1227,10 @@ onBeforeUnmount(() => {
                                         {{ matchFinalCounts.almost }}
                                     </p>
                                     <p class="text-muted-foreground">{{ t.exerciseResultAlmost }}</p>
-                                    <p class="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+                                    <p
+                                        v-if="!isCollectionPractice"
+                                        class="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300"
+                                    >
                                         {{ matchFinalPointSummaries.almost }}
                                     </p>
                                 </div>
@@ -1112,7 +1239,10 @@ onBeforeUnmount(() => {
                                         {{ matchFinalCounts.wrong }}
                                     </p>
                                     <p class="text-muted-foreground">{{ t.exerciseResultWrong }}</p>
-                                    <p class="mt-1 text-xs font-medium text-rose-700 dark:text-rose-300">
+                                    <p
+                                        v-if="!isCollectionPractice"
+                                        class="mt-1 text-xs font-medium text-rose-700 dark:text-rose-300"
+                                    >
                                         {{ matchFinalPointSummaries.wrong }}
                                     </p>
                                 </div>
@@ -1123,7 +1253,7 @@ onBeforeUnmount(() => {
                                 <p class="text-sm text-muted-foreground">{{ t.quizCorrectAnswer }}</p>
                                 <p class="text-xl font-medium">{{ verifyResult?.correct_answer }}</p>
                             </div>
-                            <p class="text-sm text-muted-foreground">
+                            <p v-if="!isCollectionPractice" class="text-sm text-muted-foreground">
                                 {{ t.quizKnowledge }}: {{ verifyResult?.knowledge }}%
                             </p>
                         </template>
@@ -1137,10 +1267,14 @@ onBeforeUnmount(() => {
 
                     <div v-else class="space-y-6">
                         <p class="text-center text-4xl font-bold">
-                            {{ formatNumber(score) }} / {{ formatNumber(QUIZ_SIZE) }}
+                            {{ formatNumber(score) }} / {{ formatNumber(quizSize) }}
                         </p>
                         <p class="text-center text-sm font-medium text-muted-foreground">
-                            {{ t.quizPoints }}: {{ quizPointsSummary }}
+                            {{
+                                isCollectionPractice
+                                    ? t.collectionPracticeKnowledgeUnchanged
+                                    : `${t.quizPoints}: ${quizPointsSummary}`
+                            }}
                         </p>
 
                         <div class="grid gap-8 sm:grid-cols-2">
@@ -1183,9 +1317,11 @@ onBeforeUnmount(() => {
                         </div>
 
                         <div class="flex flex-col gap-3 pt-2 sm:flex-row">
-                            <Button class="w-full sm:flex-1" size="lg" @click="startQuiz">{{ t.quizMore }}</Button>
+                            <Button class="w-full sm:flex-1" size="lg" @click="startQuiz">{{
+                                isCollectionPractice ? t.collectionPracticeAgain : t.quizMore
+                            }}</Button>
                             <Button class="w-full sm:flex-1" size="lg" variant="outline" @click="closeQuiz">{{
-                                t.quizEnough
+                                isCollectionPractice ? t.collectionPracticeStop : t.quizEnough
                             }}</Button>
                         </div>
                     </div>
