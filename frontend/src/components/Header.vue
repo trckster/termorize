@@ -1,7 +1,12 @@
 <template>
-    <header class="border-b border-border bg-background">
-        <div class="flex items-center justify-between px-6 py-4">
-            <span class="text-sm font-semibold tracking-tight md:hidden">Termorize</span>
+    <header class="pt-safe border-b border-border bg-background">
+        <div class="flex min-h-[3.75rem] items-center justify-between px-4 py-2 sm:min-h-0 sm:px-6 sm:py-4">
+            <router-link
+                to="/translation"
+                class="-ml-2 inline-flex min-h-11 items-center rounded-md px-2 text-sm font-semibold tracking-tight transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:hidden"
+            >
+                Termorize
+            </router-link>
             <nav class="hidden md:flex gap-8">
                 <router-link
                     to="/translation"
@@ -60,18 +65,19 @@
                     <button
                         ref="profileMenuButtonRef"
                         @click.stop="toggleProfileMenu"
-                        class="inline-flex min-w-0 items-center gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-accent focus:outline-none"
+                        class="inline-flex h-11 w-11 min-w-0 items-center justify-center rounded-md text-left transition-colors hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 min-[480px]:h-auto min-[480px]:w-auto min-[480px]:max-w-[11rem] min-[480px]:gap-2 min-[480px]:px-2 min-[480px]:py-2 sm:max-w-none sm:gap-3"
                         aria-haspopup="menu"
                         :aria-label="t.headerOpenProfileMenu"
                         :aria-expanded="isProfileMenuOpen"
                         :aria-controls="profileMenuId"
                     >
-                        <div class="min-w-0 text-right">
+                        <UserRound class="h-5 w-5 text-muted-foreground min-[480px]:hidden" />
+                        <div class="hidden min-w-0 text-right min-[480px]:block">
                             <p class="truncate text-sm font-medium text-foreground">{{ user?.name }}</p>
                             <p class="truncate text-xs text-muted-foreground">@{{ user?.username }}</p>
                         </div>
                         <ChevronDown
-                            class="h-4 w-4 text-muted-foreground transition-transform"
+                            class="hidden h-4 w-4 text-muted-foreground transition-transform min-[480px]:block"
                             :class="isProfileMenuOpen ? 'rotate-180' : ''"
                         />
                     </button>
@@ -84,6 +90,10 @@
                         :aria-label="t.headerOpenProfileMenu"
                         @keydown.esc.prevent="closeProfileMenu(true)"
                     >
+                        <div class="border-b border-border px-2 py-2 min-[480px]:hidden">
+                            <p class="truncate text-sm font-medium text-foreground">{{ user?.name }}</p>
+                            <p class="truncate text-xs text-muted-foreground">@{{ user?.username }}</p>
+                        </div>
                         <div class="flex items-center justify-between rounded-sm px-2 py-2">
                             <div :id="themeSwitchLabelId" class="flex items-center gap-2 text-sm font-medium">
                                 <Sun v-if="isDark" class="h-4 w-4" />
@@ -102,7 +112,7 @@
                             ref="firstMenuActionRef"
                             @click="goToSettings"
                             role="menuitem"
-                            class="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium transition-colors hover:bg-accent focus:outline-none"
+                            class="flex min-h-11 w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium transition-colors hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
                             <Settings class="h-4 w-4" />
                             <span>{{ t.headerSettings }}</span>
@@ -114,7 +124,7 @@
                             v-if="!isMiniApp"
                             @click="handleLogout"
                             role="menuitem"
-                            class="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive hover:text-primary-foreground focus:outline-none"
+                            class="mt-1 flex min-h-11 w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive hover:text-destructive-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
                             <LogOut class="h-4 w-4" />
                             <span>{{ t.headerLogout }}</span>
@@ -124,7 +134,7 @@
                             v-if="isMiniApp"
                             @click="handleLogout"
                             role="menuitem"
-                            class="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive hover:text-primary-foreground focus:outline-none"
+                            class="mt-1 flex min-h-11 w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive hover:text-destructive-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
                             <LogOut class="h-4 w-4" />
                             <span>{{ t.headerRelogin }}</span>
@@ -140,7 +150,7 @@
 import { computed, nextTick, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { Sun, Moon, ChevronDown, Settings, LogOut } from 'lucide-vue-next'
+import { Sun, Moon, ChevronDown, Settings, LogOut, UserRound } from 'lucide-vue-next'
 import { ToggleSwitch } from '@/components/ui/toggle-switch'
 import { isTelegramWebApp } from '@/lib/telegram.ts'
 import { useI18n } from '@/composables/useI18n'

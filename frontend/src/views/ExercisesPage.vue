@@ -293,7 +293,9 @@ onMounted(() => {
 <template>
     <main class="px-4 py-4 sm:px-6 sm:py-8">
         <div class="mx-auto max-w-6xl space-y-6">
-            <h1 class="sr-only">{{ t.exercisesHeading }}</h1>
+            <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                {{ t.exercisesHeading }}
+            </h1>
             <div
                 v-if="errorMessage"
                 class="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
@@ -301,8 +303,8 @@ onMounted(() => {
                 {{ errorMessage }}
             </div>
 
-            <section class="overflow-hidden rounded-2xl border border-border bg-card">
-                <div class="space-y-3 p-3 lg:hidden">
+            <section class="overflow-hidden lg:rounded-2xl lg:border lg:border-border lg:bg-card">
+                <div class="space-y-3 lg:hidden">
                     <div
                         v-if="isLoading"
                         class="rounded-xl border border-border/70 bg-background px-4 py-8 text-center text-sm text-muted-foreground"
@@ -319,7 +321,7 @@ onMounted(() => {
                         <article
                             v-for="exercise in exercises"
                             :key="exercise.id"
-                            class="space-y-4 rounded-xl border border-border/70 bg-background px-4 py-4"
+                            class="space-y-4 rounded-xl border border-border bg-card px-4 py-4"
                         >
                             <div class="flex flex-wrap items-start justify-between gap-2">
                                 <span
@@ -355,14 +357,17 @@ onMounted(() => {
                                     <div class="min-w-0 flex-1 space-y-1.5">
                                         <div
                                             v-if="vocabulary.translation"
-                                            class="flex flex-wrap items-center gap-2 text-sm text-foreground"
+                                            class="grid gap-1.5 text-sm text-foreground sm:flex sm:flex-wrap sm:items-center sm:gap-2"
                                         >
                                             <span
                                                 class="inline-flex min-w-0 max-w-full rounded-full bg-muted/50 px-3 py-1.5 font-medium"
                                             >
                                                 <span class="truncate">{{ vocabulary.translation.original.word }}</span>
                                             </span>
-                                            <span class="text-muted-foreground">→</span>
+                                            <span class="pl-3 text-muted-foreground sm:pl-0" aria-hidden="true">
+                                                <span class="sm:hidden">↓</span>
+                                                <span class="hidden sm:inline">→</span>
+                                            </span>
                                             <span
                                                 class="inline-flex min-w-0 max-w-full rounded-full bg-muted/50 px-3 py-1.5 font-medium"
                                             >
@@ -427,7 +432,7 @@ onMounted(() => {
                                             vocabularyIndex === 0 && getExerciseVocabularyChanges(exercise).length > 1
                                         "
                                         type="button"
-                                        class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border/70 bg-muted/30 text-muted-foreground transition hover:border-border hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                        class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border/70 bg-muted/30 text-muted-foreground transition hover:border-border hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                         :aria-expanded="isExerciseTranslationsExpanded(exercise.id)"
                                         :aria-label="
                                             isExerciseTranslationsExpanded(exercise.id)
@@ -448,9 +453,9 @@ onMounted(() => {
                             </p>
 
                             <dl class="grid grid-cols-1 gap-3 text-sm text-muted-foreground">
-                                <div class="flex items-start justify-between gap-3">
+                                <div class="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3">
                                     <dt>{{ t.exercisesColumnStartedAt }}</dt>
-                                    <dd class="text-right text-foreground">
+                                    <dd class="min-w-0 break-words text-right text-foreground">
                                         {{
                                             getStartedAt(exercise)
                                                 ? formatDate(getStartedAt(exercise) as string)
@@ -458,9 +463,9 @@ onMounted(() => {
                                         }}
                                     </dd>
                                 </div>
-                                <div class="flex items-start justify-between gap-3">
+                                <div class="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3">
                                     <dt>{{ t.exercisesColumnFinishedAt }}</dt>
-                                    <dd class="text-right text-foreground">
+                                    <dd class="min-w-0 break-words text-right text-foreground">
                                         {{
                                             getFinishedAt(exercise)
                                                 ? formatDate(getFinishedAt(exercise) as string)
@@ -468,9 +473,11 @@ onMounted(() => {
                                         }}
                                     </dd>
                                 </div>
-                                <div class="flex items-start justify-between gap-3">
+                                <div class="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3">
                                     <dt>{{ t.exercisesColumnWhere }}</dt>
-                                    <dd class="text-right text-foreground">{{ getWhereLabel(exercise) }}</dd>
+                                    <dd class="min-w-0 break-words text-right text-foreground">
+                                        {{ getWhereLabel(exercise) }}
+                                    </dd>
                                 </div>
                             </dl>
                         </article>

@@ -86,7 +86,7 @@ function getErrorMessage(err: unknown, fallback: string): string {
 </script>
 
 <template>
-    <div class="min-h-screen bg-background px-4 py-10 sm:px-6 lg:px-8">
+    <div class="min-h-screen bg-background px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
         <div
             class="mx-auto grid min-h-[calc(100vh-5rem)] max-w-6xl items-center gap-8 lg:grid-cols-[minmax(0,1fr)_26rem]"
         >
@@ -94,7 +94,7 @@ function getErrorMessage(err: unknown, fallback: string): string {
                 <div class="space-y-4">
                     <p class="text-sm font-medium uppercase tracking-[0.25em] text-primary/80">{{ t.loginEyebrow }}</p>
                     <div class="space-y-3">
-                        <h1 class="max-w-3xl text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
+                        <h1 class="max-w-3xl text-3xl font-semibold tracking-tight text-foreground sm:text-5xl">
                             {{ t.loginHeroTitle }}
                         </h1>
                         <p class="max-w-2xl text-base text-muted-foreground sm:text-lg">
@@ -103,14 +103,16 @@ function getErrorMessage(err: unknown, fallback: string): string {
                     </div>
                 </div>
 
-                <div class="grid gap-4 sm:grid-cols-2">
+                <div
+                    class="divide-y divide-border border-y border-border sm:grid sm:grid-cols-2 sm:gap-4 sm:divide-y-0 sm:border-0"
+                >
                     <article
                         v-for="item in featureItems"
                         :key="item.key"
-                        class="rounded-2xl border border-border/70 bg-card/70 p-5 shadow-sm"
+                        class="py-4 sm:rounded-xl sm:border sm:border-border sm:bg-card sm:p-5 sm:shadow-sm"
                     >
                         <div
-                            class="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary"
+                            class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary sm:mb-4 sm:h-11 sm:w-11"
                         >
                             <component :is="item.icon" class="h-5 w-5" />
                         </div>
@@ -120,7 +122,7 @@ function getErrorMessage(err: unknown, fallback: string): string {
                 </div>
             </section>
 
-            <Card class="w-full border-border/70 bg-card/95 shadow-xl backdrop-blur-sm">
+            <Card class="order-first w-full border-border bg-card shadow-md lg:order-none">
                 <CardHeader class="space-y-3 text-center">
                     <CardTitle class="text-2xl font-bold text-foreground">{{ t.loginTitle }}</CardTitle>
                     <CardDescription class="text-muted-foreground">
@@ -128,9 +130,7 @@ function getErrorMessage(err: unknown, fallback: string): string {
                     </CardDescription>
                 </CardHeader>
                 <CardContent class="flex flex-col items-center gap-4 pt-2">
-                    <div
-                        class="rounded-2xl border border-border/70 bg-muted/30 px-4 py-3 text-sm text-muted-foreground"
-                    >
+                    <div class="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
                         {{ t.loginCardNote }}
                     </div>
                     <TelegramLogin

@@ -21,7 +21,7 @@ const descriptions = computed<Record<PaletteId, string>>(() => ({
             <CardTitle>{{ t.settingsAppearanceTitle }}</CardTitle>
             <CardDescription>{{ t.settingsAppearanceDescription }}</CardDescription>
         </CardHeader>
-        <CardContent class="space-y-8">
+        <CardContent class="space-y-6 sm:space-y-8">
             <!-- Palette -->
             <fieldset class="space-y-3">
                 <legend class="text-sm font-semibold text-foreground">{{ t.settingsAppearanceThemeLabel }}</legend>
@@ -31,8 +31,12 @@ const descriptions = computed<Record<PaletteId, string>>(() => ({
                         :key="option.id"
                         type="button"
                         :aria-pressed="palette === option.id"
-                        class="group relative flex flex-col gap-3 rounded-xl border bg-card p-4 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                        :class="palette === option.id ? 'border-primary ring-1 ring-primary' : 'border-border hover:bg-accent/40'"
+                        class="group relative flex min-h-11 flex-col gap-3 rounded-xl border bg-card p-4 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                        :class="
+                            palette === option.id
+                                ? 'border-primary ring-1 ring-primary'
+                                : 'border-border hover:bg-accent/40'
+                        "
                         @click="setPalette(option.id)"
                     >
                         <span
@@ -67,8 +71,12 @@ const descriptions = computed<Record<PaletteId, string>>(() => ({
                     <button
                         type="button"
                         :aria-pressed="!isDark"
-                        class="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        :class="!isDark ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'"
+                        class="inline-flex min-h-11 items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        :class="
+                            !isDark
+                                ? 'bg-primary text-primary-foreground'
+                                : 'text-muted-foreground hover:text-foreground'
+                        "
                         @click="setDark(false)"
                     >
                         <Sun class="h-4 w-4" />
@@ -77,8 +85,12 @@ const descriptions = computed<Record<PaletteId, string>>(() => ({
                     <button
                         type="button"
                         :aria-pressed="isDark"
-                        class="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        :class="isDark ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'"
+                        class="inline-flex min-h-11 items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        :class="
+                            isDark
+                                ? 'bg-primary text-primary-foreground'
+                                : 'text-muted-foreground hover:text-foreground'
+                        "
                         @click="setDark(true)"
                     >
                         <Moon class="h-4 w-4" />

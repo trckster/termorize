@@ -3,7 +3,7 @@
         <div class="mx-auto max-w-4xl">
             <router-link
                 to="/collections"
-                class="mb-6 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                class="-ml-2 mb-4 inline-flex min-h-11 items-center gap-1 rounded-md px-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:mb-6"
             >
                 <ArrowLeft class="h-4 w-4" />
                 {{ t.collectionBack }}
@@ -28,12 +28,16 @@
                 <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div class="min-w-0">
                         <div class="flex flex-wrap items-center gap-2">
-                            <h1 class="break-words text-3xl font-bold text-foreground">{{ collection.title }}</h1>
+                            <h1
+                                class="break-words text-2xl font-semibold tracking-tight text-foreground sm:text-3xl sm:font-bold"
+                            >
+                                {{ collection.title }}
+                            </h1>
                             <Button
                                 v-if="canManage"
                                 variant="ghost"
                                 size="icon"
-                                class="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                class="text-muted-foreground hover:text-foreground"
                                 :aria-label="t.collectionEditTitle"
                                 @click="isEditTitleOpen = true"
                             >
@@ -89,9 +93,13 @@
                         </div>
                     </div>
 
-                    <div class="flex flex-wrap items-center gap-2">
-                        <div class="flex flex-col items-start gap-1">
-                            <Button :disabled="collection.vocabulary_count === 0" @click="startPractice">
+                    <div class="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
+                        <div class="flex min-w-0 flex-col items-start gap-1">
+                            <Button
+                                class="w-full sm:w-auto"
+                                :disabled="collection.vocabulary_count === 0"
+                                @click="startPractice"
+                            >
                                 <Play class="mr-2 h-4 w-4" />
                                 {{ t.collectionPracticeStart }}
                             </Button>
@@ -103,6 +111,7 @@
                             v-if="canManage && collection.is_admin"
                             :variant="collection.is_published ? 'outline' : 'default'"
                             size="sm"
+                            class="w-full sm:w-auto"
                             :disabled="isPublishing"
                             @click="handleTogglePublish"
                         >
@@ -113,13 +122,23 @@
                             </template>
                             {{ collection.is_published ? t.collectionUnpublish : t.collectionPublish }}
                         </Button>
-                        <Button v-if="inviteLink" variant="outline" size="sm" @click="isShareDialogOpen = true">
+                        <Button
+                            v-if="inviteLink"
+                            variant="outline"
+                            size="sm"
+                            class="w-full sm:w-auto"
+                            @click="isShareDialogOpen = true"
+                        >
                             <Share2 class="mr-2 h-4 w-4" />
                             {{ t.collectionShare }}
                         </Button>
                         <Dialog v-if="canManage">
                             <DialogTrigger as-child>
-                                <Button variant="outline" size="sm" class="text-destructive hover:bg-destructive/10">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    class="w-full text-destructive hover:bg-destructive/10 sm:w-auto"
+                                >
                                     <Trash2 class="mr-2 h-4 w-4" />
                                     {{ t.collectionDelete }}
                                 </Button>
@@ -171,7 +190,7 @@
                                     type="text"
                                     :placeholder="t.collectionsTitlePlaceholder"
                                     maxlength="255"
-                                    class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                    class="min-h-11 w-full rounded-md border border-border bg-background px-3 py-2 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm"
                                 />
                             </div>
                             <DialogFooter class="justify-center sm:justify-center pt-2">
@@ -191,8 +210,9 @@
                     {{ t.collectionDraftNotice }}
                 </div>
 
-                <div class="mb-6 flex flex-wrap items-center gap-3">
+                <div class="mb-6 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
                     <Button
+                        class="w-full sm:w-auto"
                         :disabled="
                             isAddingToVocabulary ||
                             collection.translation_count === 0 ||
@@ -207,13 +227,20 @@
                     <Button
                         v-if="!isSelecting"
                         variant="outline"
+                        class="w-full sm:w-auto"
                         :disabled="isAddingToVocabulary || collection.translation_count === 0"
                         @click="startSelecting"
                     >
                         <ListChecks class="mr-2 h-4 w-4" />
                         {{ t.collectionAddSelectButton }}
                     </Button>
-                    <Button v-else variant="ghost" :disabled="isAddingToVocabulary" @click="cancelSelecting">
+                    <Button
+                        v-else
+                        variant="ghost"
+                        class="w-full sm:w-auto"
+                        :disabled="isAddingToVocabulary"
+                        @click="cancelSelecting"
+                    >
                         {{ t.collectionSelectCancel }}
                     </Button>
                 </div>
@@ -237,7 +264,7 @@
                                         type="text"
                                         :placeholder="t.vocabularyWord1Placeholder"
                                         maxlength="500"
-                                        class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                        class="min-h-11 w-full rounded-md border border-border bg-background px-3 py-2 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm"
                                     />
                                 </div>
                                 <div class="space-y-2">
@@ -250,7 +277,7 @@
                                         type="text"
                                         :placeholder="t.vocabularyWord2Placeholder"
                                         maxlength="500"
-                                        class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                        class="min-h-11 w-full rounded-md border border-border bg-background px-3 py-2 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm"
                                     />
                                 </div>
                             </div>
@@ -276,11 +303,11 @@
                                     />
                                 </div>
                             </div>
-                            <label class="flex items-center gap-2 text-sm font-medium text-foreground">
+                            <label class="flex min-h-11 items-center gap-2 text-sm font-medium text-foreground">
                                 <input
                                     v-model="openAddTranslationAgain"
                                     type="checkbox"
-                                    class="h-4 w-4 rounded border-border text-primary accent-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                    class="h-5 w-5 rounded border-border text-primary accent-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                                 />
                                 {{ t.collectionOpenAddTranslationAgain }}
                             </label>
@@ -308,40 +335,72 @@
                         <div
                             v-for="item in orderedTranslations"
                             :key="item.id"
-                            class="group flex items-center justify-between gap-4 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent/50"
+                            class="group grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2 rounded-lg border border-border bg-card p-3 transition-colors hover:bg-accent/50 sm:items-center sm:gap-4 sm:p-4"
                         >
-                            <div class="flex min-w-0 items-center gap-2">
-                                <span
-                                    v-if="canManage"
-                                    class="collection-drag-handle shrink-0 cursor-grab touch-none text-muted-foreground transition-colors hover:text-foreground active:cursor-grabbing"
-                                    role="button"
-                                    :aria-label="t.collectionReorderTranslationLabel"
-                                >
-                                    <GripVertical class="h-4 w-4" />
-                                </span>
-                                <h3 class="flex min-w-0 items-center gap-2 font-semibold text-foreground">
+                            <button
+                                v-if="canManage"
+                                type="button"
+                                class="collection-drag-handle -ml-2 inline-flex h-11 w-11 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                :aria-label="t.collectionReorderTranslationLabel"
+                            >
+                                <GripVertical class="h-4 w-4" />
+                            </button>
+                            <span v-else aria-hidden="true" />
+                            <div class="min-w-0 py-1.5 sm:py-0">
+                                <h3 class="grid min-w-0 gap-1.5 font-semibold text-foreground md:hidden">
+                                    <span class="flex min-w-0 items-start gap-2">
+                                        <span
+                                            class="shrink-0 text-xl"
+                                            role="img"
+                                            :aria-label="getLanguageName(item.original.language)"
+                                            >{{ settingsStore.getFlag(item.original.language) }}</span
+                                        >
+                                        <span
+                                            class="min-w-0 break-words text-base leading-snug [overflow-wrap:anywhere]"
+                                            >{{ item.original.word }}</span
+                                        >
+                                    </span>
+                                    <span class="pl-7 text-muted-foreground" aria-hidden="true">↓</span>
+                                    <span class="flex min-w-0 items-start gap-2">
+                                        <span
+                                            class="shrink-0 text-xl"
+                                            role="img"
+                                            :aria-label="getLanguageName(item.translation.language)"
+                                            >{{ settingsStore.getFlag(item.translation.language) }}</span
+                                        >
+                                        <span
+                                            class="min-w-0 break-words text-base leading-snug [overflow-wrap:anywhere]"
+                                            >{{ item.translation.word }}</span
+                                        >
+                                    </span>
+                                </h3>
+                                <h3 class="hidden min-w-0 items-center gap-2 font-semibold text-foreground md:flex">
                                     <span
-                                        class="text-xl"
+                                        class="shrink-0 text-xl"
                                         role="img"
                                         :aria-label="getLanguageName(item.original.language)"
                                         >{{ settingsStore.getFlag(item.original.language) }}</span
                                     >
-                                    <span class="min-w-0 break-words text-lg">{{ item.original.word }}</span>
-                                    <span class="text-muted-foreground">-</span>
-                                    <span class="min-w-0 break-words text-lg">{{ item.translation.word }}</span>
+                                    <span class="min-w-0 break-words text-lg [overflow-wrap:anywhere]">{{
+                                        item.original.word
+                                    }}</span>
+                                    <span class="text-muted-foreground">→</span>
                                     <span
-                                        class="text-xl"
+                                        class="shrink-0 text-xl"
                                         role="img"
                                         :aria-label="getLanguageName(item.translation.language)"
                                         >{{ settingsStore.getFlag(item.translation.language) }}</span
                                     >
+                                    <span class="min-w-0 break-words text-lg [overflow-wrap:anywhere]">{{
+                                        item.translation.word
+                                    }}</span>
                                 </h3>
                             </div>
-                            <div class="flex shrink-0 items-center gap-2">
+                            <div class="flex shrink-0 items-center gap-1">
                                 <input
                                     v-if="isSelecting"
                                     type="checkbox"
-                                    class="h-5 w-5 shrink-0 cursor-pointer rounded border-border text-primary accent-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                    class="m-3 h-5 w-5 shrink-0 cursor-pointer rounded border-border text-primary accent-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                                     :checked="selectedIds.has(item.id)"
                                     :disabled="isAddingToVocabulary"
                                     :aria-label="t.collectionSelectTranslationLabel"
@@ -388,7 +447,7 @@
         </div>
 
         <Dialog v-if="collection && inviteLink" v-model:open="isShareDialogOpen">
-            <DialogContent class="w-max max-w-[95vw]">
+            <DialogContent class="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>{{ t.collectionShareDialogTitle }}</DialogTitle>
                     <DialogDescription>{{ t.collectionShareDialogDescription }}</DialogDescription>
@@ -396,7 +455,7 @@
                 <div class="flex flex-col gap-3 py-2">
                     <div
                         ref="linkRef"
-                        class="w-max whitespace-nowrap select-all rounded-md border border-border bg-muted px-3 py-2 text-sm font-mono text-foreground"
+                        class="w-full overflow-x-auto whitespace-nowrap rounded-md border border-border bg-muted px-3 py-3 text-sm font-mono text-foreground"
                     >
                         {{ inviteLink }}
                     </div>

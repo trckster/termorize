@@ -3,13 +3,20 @@
         class="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background md:hidden"
         aria-label="Main navigation"
     >
-        <div class="flex items-stretch" style="padding-bottom: env(safe-area-inset-bottom)">
+        <div
+            class="flex items-stretch"
+            style="
+                padding-right: env(safe-area-inset-right);
+                padding-bottom: env(safe-area-inset-bottom);
+                padding-left: env(safe-area-inset-left);
+            "
+        >
             <router-link
                 v-for="item in navItems"
                 :key="item.to"
                 :to="item.to"
                 :aria-current="isActive(item.to) ? 'page' : undefined"
-                class="flex flex-1 flex-col items-center gap-1 px-2 py-3 text-[12px] font-medium transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+                class="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-sm px-1 py-3 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset min-[360px]:px-2 min-[360px]:text-[11px] sm:text-xs"
                 :class="isActive(item.to) ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'"
             >
                 <div class="relative flex items-center justify-center">
@@ -19,7 +26,7 @@
                     />
                     <component :is="item.icon" class="h-5 w-5" />
                 </div>
-                <span>{{ item.label }}</span>
+                <span class="max-w-full truncate">{{ item.label }}</span>
             </router-link>
         </div>
     </nav>

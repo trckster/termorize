@@ -865,15 +865,15 @@ function getFlag(lang?: string | null): string {
 
 function getVocabularyLabel(exercise: Exercise): string {
     const vocabularies = exercise.vocabularies
-    if (!vocabularies?.length) return '—'
+    if (!vocabularies?.length) return '–'
     const first = vocabularies[0]
-    if (!first?.translation) return '—'
+    if (!first?.translation) return '–'
     const orig = first.translation.original
     const trans = first.translation.translation
-    if (!orig && !trans) return '—'
+    if (!orig && !trans) return '–'
     const origFlag = getFlag(orig?.language)
     const transFlag = getFlag(trans?.language)
-    let label = `${origFlag} ${orig?.word ?? ''} — ${trans?.word ?? ''} ${transFlag}`.trim()
+    let label = `${origFlag} ${orig?.word ?? ''} → ${trans?.word ?? ''} ${transFlag}`.trim()
     if (vocabularies.length > 1) {
         label += ` (+${vocabularies.length - 1} more)`
     }
@@ -964,7 +964,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div
-            class="flex min-h-[calc(100vh-83px)] flex-col items-center justify-center px-4 py-8 sm:px-6 sm:py-12"
+            class="flex min-h-[calc(100dvh-83px)] flex-col items-center justify-start px-4 py-6 sm:px-6 sm:py-8 lg:justify-center lg:py-12"
             @click="handleQuizBodyClick"
         >
             <div :class="quizContentClass">
@@ -1043,7 +1043,7 @@ onBeforeUnmount(() => {
                                             ? 'quiz-choice-button--selected'
                                             : 'quiz-choice-button--idle'
                                     "
-                                    class="quiz-choice-button flex min-h-16 w-full items-center gap-3 rounded-lg border px-3.5 py-3 text-left text-primary-foreground transition-[border-color,box-shadow,filter,transform] duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-90 sm:min-h-24 sm:items-center sm:gap-4 sm:px-4 sm:py-4"
+                                    class="quiz-choice-button flex min-h-16 w-full items-center gap-3 rounded-lg border px-3.5 py-3 text-left transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-90 sm:min-h-24 sm:items-center sm:gap-4 sm:px-4 sm:py-4"
                                     @click="chooseOption(option, index)"
                                 >
                                     <span
@@ -1292,7 +1292,7 @@ onBeforeUnmount(() => {
                                         v-if="correctResults.length === 0"
                                         class="text-base italic text-muted-foreground sm:text-lg"
                                     >
-                                        —
+                                        –
                                     </li>
                                 </ul>
                             </div>
@@ -1310,7 +1310,7 @@ onBeforeUnmount(() => {
                                         v-if="wrongResults.length === 0"
                                         class="text-base italic text-muted-foreground sm:text-lg"
                                     >
-                                        —
+                                        –
                                     </li>
                                 </ul>
                             </div>
@@ -1344,42 +1344,43 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .quiz-choice-button {
-    background: hsl(var(--primary));
-    border-color: color-mix(in oklab, hsl(var(--primary-foreground)) 18%, hsl(var(--primary)));
-    box-shadow:
-        inset 0 1px 0 color-mix(in oklab, hsl(var(--primary-foreground)) 16%, transparent),
-        0 10px 24px -22px hsl(var(--primary));
+    background: hsl(var(--card));
+    border-color: hsl(var(--border));
+    color: hsl(var(--foreground));
+    box-shadow: 0 4px 14px -14px hsl(var(--overlay) / 0.35);
 }
 
 .quiz-choice-button--idle:hover:not(:disabled) {
-    filter: brightness(1.06) saturate(1.02);
-    box-shadow:
-        inset 0 1px 0 color-mix(in oklab, hsl(var(--primary-foreground)) 18%, transparent),
-        0 16px 30px -22px hsl(var(--primary));
+    background: hsl(var(--accent) / 0.55);
+    border-color: hsl(var(--primary) / 0.45);
+    box-shadow: 0 8px 18px -16px hsl(var(--primary) / 0.6);
     transform: translateY(-1px);
 }
 
 .quiz-choice-button--selected {
-    filter: brightness(1.03) saturate(1.02);
-    border-color: color-mix(in oklab, hsl(var(--primary-foreground)) 35%, hsl(var(--primary)));
+    background: hsl(var(--primary));
+    border-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
     box-shadow:
-        inset 0 1px 0 color-mix(in oklab, hsl(var(--primary-foreground)) 18%, transparent),
-        0 0 0 2px color-mix(in oklab, hsl(var(--primary-foreground)) 18%, transparent),
-        0 14px 28px -22px hsl(var(--primary));
+        inset 0 1px 0 hsl(var(--primary-foreground) / 0.16),
+        0 12px 24px -20px hsl(var(--primary));
 }
 
 .quiz-choice-button:active:not(:disabled) {
-    filter: brightness(0.96) saturate(1.01);
     transform: translateY(1px);
-    box-shadow:
-        inset 0 2px 3px color-mix(in oklab, hsl(var(--primary)) 38%, transparent),
-        0 4px 14px -18px hsl(var(--primary));
+    box-shadow: inset 0 1px 2px hsl(var(--overlay) / 0.12);
 }
 
 .quiz-choice-index {
-    background: color-mix(in oklab, hsl(var(--primary-foreground)) 14%, transparent);
-    color: color-mix(in oklab, hsl(var(--primary-foreground)) 88%, hsl(var(--primary)));
-    box-shadow: inset 0 0 0 1px color-mix(in oklab, hsl(var(--primary-foreground)) 16%, transparent);
+    background: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+    box-shadow: inset 0 0 0 1px hsl(var(--border));
+}
+
+.quiz-choice-button--selected .quiz-choice-index {
+    background: hsl(var(--primary-foreground) / 0.14);
+    color: hsl(var(--primary-foreground));
+    box-shadow: inset 0 0 0 1px hsl(var(--primary-foreground) / 0.18);
 }
 
 .quiz-inline-spinner {

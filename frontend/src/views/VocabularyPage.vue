@@ -2,7 +2,9 @@
     <main class="px-4 py-4 sm:px-6 sm:py-8">
         <div class="max-w-6xl mx-auto">
             <div class="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
-                <h1 class="text-3xl font-bold text-foreground">{{ t.vocabularyTitle }}</h1>
+                <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl sm:font-bold">
+                    {{ t.vocabularyTitle }}
+                </h1>
                 <Dialog v-model:open="isAddDialogOpen">
                     <DialogTrigger as-child>
                         <Button class="min-h-11 w-full sm:w-auto">
@@ -20,6 +22,17 @@
                         <form @submit.prevent="handleAdd" class="space-y-4 py-4">
                             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div class="space-y-2">
+                                    <label for="vocab-word1" class="text-sm font-medium">{{ t.vocabularyWord1 }}</label>
+                                    <input
+                                        id="vocab-word1"
+                                        v-model="newTranslation.word1"
+                                        type="text"
+                                        :placeholder="t.vocabularyWord1Placeholder"
+                                        maxlength="500"
+                                        class="min-h-11 w-full rounded-md border border-border bg-background px-3 py-2 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm"
+                                    />
+                                </div>
+                                <div class="space-y-2">
                                     <label class="text-sm font-medium">{{ t.vocabularyLanguage1 }}</label>
                                     <LanguageSelector
                                         v-model="newTranslation.language1"
@@ -29,29 +42,8 @@
                                         :empty-text="t.languageSelectorNoResults"
                                     />
                                 </div>
-                                <div class="space-y-2">
-                                    <label for="vocab-word1" class="text-sm font-medium">{{ t.vocabularyWord1 }}</label>
-                                    <input
-                                        id="vocab-word1"
-                                        v-model="newTranslation.word1"
-                                        type="text"
-                                        :placeholder="t.vocabularyWord1Placeholder"
-                                        maxlength="500"
-                                        class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                                    />
-                                </div>
                             </div>
                             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                <div class="space-y-2">
-                                    <label class="text-sm font-medium">{{ t.vocabularyLanguage2 }}</label>
-                                    <LanguageSelector
-                                        v-model="newTranslation.language2"
-                                        :placeholder="t.vocabularySelectLanguagePlaceholder"
-                                        :disabled-values="[newTranslation.language1]"
-                                        :aria-label="t.vocabularyLanguage2"
-                                        :empty-text="t.languageSelectorNoResults"
-                                    />
-                                </div>
                                 <div class="space-y-2">
                                     <label for="vocab-word2" class="text-sm font-medium">{{ t.vocabularyWord2 }}</label>
                                     <input
@@ -60,7 +52,17 @@
                                         type="text"
                                         :placeholder="t.vocabularyWord2Placeholder"
                                         maxlength="500"
-                                        class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                        class="min-h-11 w-full rounded-md border border-border bg-background px-3 py-2 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm"
+                                    />
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-sm font-medium">{{ t.vocabularyLanguage2 }}</label>
+                                    <LanguageSelector
+                                        v-model="newTranslation.language2"
+                                        :placeholder="t.vocabularySelectLanguagePlaceholder"
+                                        :disabled-values="[newTranslation.language1]"
+                                        :aria-label="t.vocabularyLanguage2"
+                                        :empty-text="t.languageSelectorNoResults"
                                     />
                                 </div>
                             </div>
@@ -77,11 +79,13 @@
 
             <div class="relative mb-6 max-w-md">
                 <input
+                    id="vocabulary-search"
                     v-model="searchInput"
+                    name="vocabulary-search"
                     type="text"
                     :placeholder="t.vocabularySearchPlaceholder"
                     :aria-label="t.vocabularySearchPlaceholder"
-                    class="w-full rounded-md border border-border bg-background px-3 py-2 pr-9 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm"
+                    class="min-h-11 w-full rounded-md border border-border bg-background px-3 py-2 pr-9 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm"
                 />
                 <span
                     v-if="isLoadingVocabulary"
@@ -112,22 +116,37 @@
                     <div class="grid min-w-0 grid-cols-1 gap-4 items-center md:grid-cols-12">
                         <!-- Part 1: Words -->
                         <div class="min-w-0 md:col-span-4">
-                            <h3 class="flex min-w-0 items-center gap-2 font-semibold text-foreground">
-                                <span
-                                    class="text-xl"
-                                    role="img"
-                                    :aria-label="getLanguageName(item.translation.original.language)"
-                                    >{{ settingsStore.getFlag(item.translation.original.language) }}</span
-                                >
-                                <span class="min-w-0 break-words text-lg">{{ item.translation.original.word }}</span>
-                                <span class="text-muted-foreground">-</span>
-                                <span class="min-w-0 break-words text-lg">{{ item.translation.translation.word }}</span>
-                                <span
-                                    class="text-xl"
-                                    role="img"
-                                    :aria-label="getLanguageName(item.translation.translation.language)"
-                                    >{{ settingsStore.getFlag(item.translation.translation.language) }}</span
-                                >
+                            <h3
+                                class="grid min-w-0 gap-2 font-semibold text-foreground sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-start"
+                            >
+                                <span class="flex min-w-0 items-start gap-2">
+                                    <span
+                                        class="shrink-0 text-xl"
+                                        role="img"
+                                        :aria-label="getLanguageName(item.translation.original.language)"
+                                        >{{ settingsStore.getFlag(item.translation.original.language) }}</span
+                                    >
+                                    <span
+                                        class="min-w-0 break-words text-base leading-snug [overflow-wrap:anywhere] sm:text-lg"
+                                        >{{ item.translation.original.word }}</span
+                                    >
+                                </span>
+                                <span class="pl-7 text-muted-foreground sm:pl-0" aria-hidden="true">
+                                    <span class="sm:hidden">↓</span>
+                                    <span class="hidden sm:inline">→</span>
+                                </span>
+                                <span class="flex min-w-0 items-start gap-2">
+                                    <span
+                                        class="shrink-0 text-xl"
+                                        role="img"
+                                        :aria-label="getLanguageName(item.translation.translation.language)"
+                                        >{{ settingsStore.getFlag(item.translation.translation.language) }}</span
+                                    >
+                                    <span
+                                        class="min-w-0 break-words text-base leading-snug [overflow-wrap:anywhere] sm:text-lg"
+                                        >{{ item.translation.translation.word }}</span
+                                    >
+                                </span>
                             </h3>
                         </div>
 
@@ -150,7 +169,9 @@
                         </div>
 
                         <!-- Part 3: Date and Delete -->
-                        <div class="min-w-0 md:col-span-3 flex flex-wrap items-center justify-end gap-2">
+                        <div
+                            class="flex min-w-0 flex-wrap items-center justify-between gap-2 md:col-span-3 md:justify-end"
+                        >
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <span
@@ -172,7 +193,7 @@
                                         variant="ghost"
                                         size="icon"
                                         class="text-muted-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition-opacity hover:text-destructive hover:bg-destructive/10"
-                                        :aria-label="`Delete ${item.translation.original.word} — ${item.translation.translation.word}`"
+                                        :aria-label="`Delete ${item.translation.original.word} to ${item.translation.translation.word}`"
                                         @click.stop
                                     >
                                         <Trash2 class="h-4 w-4" />
