@@ -1,5 +1,5 @@
 <template>
-    <header class="border-b border-border bg-background">
+    <header class="pt-safe border-b border-border bg-background">
         <div class="flex min-h-[3.75rem] items-center justify-between px-4 py-2 sm:min-h-0 sm:px-6 sm:py-4">
             <router-link
                 to="/translation"

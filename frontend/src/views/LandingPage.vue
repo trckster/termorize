@@ -110,7 +110,7 @@ function getErrorMessage(err: unknown): string {
             </defs>
         </svg>
 
-        <nav>
+        <nav class="pt-safe">
             <div class="wrap nav-inner">
                 <a class="brand" href="#top">
                     <span class="mark">

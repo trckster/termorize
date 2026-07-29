@@ -260,6 +260,10 @@
         min-height: 100dvh;
     }
 
+    .pt-safe {
+        padding-top: env(safe-area-inset-top);
+    }
+
     /* Bottom nav content clearance: nav height (4rem) + iOS home indicator */
     .pb-safe-nav {
         padding-bottom: calc(4rem + env(safe-area-inset-bottom));
