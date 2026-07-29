@@ -15,10 +15,12 @@ const userSettings = computed(() => user.value?.settings)
 </script>
 
 <template>
-    <main class="px-6 py-8">
+    <main class="px-4 py-4 sm:px-6 sm:py-8">
         <div class="max-w-5xl mx-auto space-y-6">
             <div>
-                <h1 class="text-3xl font-bold text-foreground">{{ t.settingsTitle }}</h1>
+                <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl sm:font-bold">
+                    {{ t.settingsTitle }}
+                </h1>
                 <p class="text-sm text-muted-foreground mt-2">
                     {{ t.settingsDescription }}
                 </p>

@@ -28,7 +28,11 @@
                 <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div class="min-w-0">
                         <div class="flex flex-wrap items-center gap-2">
-                            <h1 class="break-words text-3xl font-bold text-foreground">{{ collection.title }}</h1>
+                            <h1
+                                class="break-words text-2xl font-semibold tracking-tight text-foreground sm:text-3xl sm:font-bold"
+                            >
+                                {{ collection.title }}
+                            </h1>
                             <Button
                                 v-if="canManage"
                                 variant="ghost"

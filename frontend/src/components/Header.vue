@@ -1,7 +1,12 @@
 <template>
     <header class="border-b border-border bg-background">
-        <div class="flex items-center justify-between px-6 py-4">
-            <span class="text-sm font-semibold tracking-tight md:hidden">Termorize</span>
+        <div class="flex items-center justify-between px-4 py-4 sm:px-6">
+            <router-link
+                to="/translation"
+                class="-ml-2 inline-flex min-h-11 items-center rounded-md px-2 text-sm font-semibold tracking-tight transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:hidden"
+            >
+                Termorize
+            </router-link>
             <nav class="hidden md:flex gap-8">
                 <router-link
                     to="/translation"
@@ -60,7 +65,7 @@
                     <button
                         ref="profileMenuButtonRef"
                         @click.stop="toggleProfileMenu"
-                        class="inline-flex min-w-0 items-center gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-accent focus:outline-none"
+                        class="inline-flex min-w-0 max-w-[11rem] items-center gap-2 rounded-md px-2 py-2 text-left transition-colors hover:bg-accent focus:outline-none sm:max-w-none sm:gap-3"
                         aria-haspopup="menu"
                         :aria-label="t.headerOpenProfileMenu"
                         :aria-expanded="isProfileMenuOpen"

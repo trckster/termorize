@@ -220,6 +220,8 @@
         background-attachment: fixed;
         background-repeat: no-repeat;
         background-size: cover;
+        padding-right: env(safe-area-inset-right);
+        padding-left: env(safe-area-inset-left);
     }
 }
 

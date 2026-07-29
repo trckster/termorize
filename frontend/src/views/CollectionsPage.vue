@@ -2,11 +2,18 @@
     <main class="px-4 py-4 sm:px-6 sm:py-8">
         <div class="max-w-6xl mx-auto">
             <div class="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
-                <h1 class="text-3xl font-bold text-foreground">{{ t.collectionsTitle }}</h1>
-                <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl sm:font-bold">
+                    {{ t.collectionsTitle }}
+                </h1>
+                <div
+                    class="relative grid grid-cols-2 overflow-hidden rounded-md border border-input bg-background sm:flex sm:items-center sm:overflow-visible sm:border-0 sm:bg-transparent"
+                >
                     <Dialog v-model:open="isGenerateDialogOpen">
                         <DialogTrigger as-child>
-                            <Button variant="outline" class="min-h-11 w-full sm:w-auto">
+                            <Button
+                                variant="outline"
+                                class="min-h-11 w-full rounded-none border-0 px-3 sm:w-auto sm:rounded-md sm:border"
+                            >
                                 <Sparkles class="h-4 w-4 mr-2" />
                                 {{ t.collectionsGenerateButton }}
                             </Button>
@@ -51,7 +58,16 @@
                         </DialogContent>
                     </Dialog>
 
-                    <Button class="min-h-11 w-full sm:w-auto" :disabled="isCreating" @click="handleCreate">
+                    <span
+                        aria-hidden="true"
+                        class="pointer-events-none absolute left-1/2 top-1/2 z-10 h-14 w-px -translate-x-1/2 -translate-y-1/2 rotate-[18deg] bg-border sm:hidden"
+                    />
+
+                    <Button
+                        class="min-h-11 w-full rounded-none px-3 sm:ml-2 sm:w-auto sm:rounded-md"
+                        :disabled="isCreating"
+                        @click="handleCreate"
+                    >
                         <Loader2 v-if="isCreating" class="mr-2 h-4 w-4 animate-spin" />
                         <Plus v-else class="h-4 w-4 mr-2" />
                         {{ t.collectionsCreateButton }}

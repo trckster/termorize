@@ -2,7 +2,9 @@
     <main class="px-4 py-4 sm:px-6 sm:py-8">
         <div class="max-w-6xl mx-auto">
             <div class="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
-                <h1 class="text-3xl font-bold text-foreground">{{ t.vocabularyTitle }}</h1>
+                <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl sm:font-bold">
+                    {{ t.vocabularyTitle }}
+                </h1>
                 <Dialog v-model:open="isAddDialogOpen">
                     <DialogTrigger as-child>
                         <Button class="min-h-11 w-full sm:w-auto">

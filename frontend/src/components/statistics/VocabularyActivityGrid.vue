@@ -23,15 +23,17 @@ const months = computed(() => {
         grouped.set(monthKey, [...(grouped.get(monthKey) ?? []), day])
     }
 
-    return Array.from(grouped.entries()).map(([key, days]) => {
-        const firstDate = new Date(`${key}-01T00:00:00`)
-        const mondayOffset = (firstDate.getDay() + 6) % 7
-        return {
-            key,
-            label: monthFormatter.value.format(firstDate),
-            days: [...Array.from({ length: mondayOffset }, () => null), ...days],
-        }
-    })
+    return Array.from(grouped.entries())
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, days]) => {
+            const firstDate = new Date(`${key}-01T00:00:00`)
+            const mondayOffset = (firstDate.getDay() + 6) % 7
+            return {
+                key,
+                label: monthFormatter.value.format(firstDate),
+                days: [...Array.from({ length: mondayOffset }, () => null), ...days],
+            }
+        })
 })
 
 const maximum = computed(() => Math.max(0, ...props.activity.map((day) => day.count)))
@@ -54,17 +56,28 @@ const formatDate = (date: string) => dateFormatter.value.format(new Date(`${date
 
 <template>
     <div class="overflow-x-auto pb-2">
-        <div class="flex w-full min-w-[990px] justify-between gap-6">
-            <section v-for="month in months" :key="month.key" class="w-[145px] shrink-0" :aria-label="month.label">
+        <div class="grid w-full grid-cols-2 gap-3 md:flex md:min-w-[990px] md:justify-between md:gap-6">
+            <section
+                v-for="month in months"
+                :key="month.key"
+                class="min-w-0 max-md:[&:nth-last-child(n+3)]:hidden md:w-[145px] md:shrink-0"
+                :aria-label="month.label"
+            >
                 <h3 class="mb-3 text-center text-sm font-medium capitalize text-foreground">{{ month.label }}</h3>
-                <div class="grid grid-flow-col auto-cols-5 grid-rows-7 justify-center gap-[5px]">
+                <div
+                    class="grid grid-flow-col auto-cols-4 grid-rows-7 justify-center gap-1 min-[360px]:auto-cols-[18px] md:auto-cols-5 md:gap-[5px]"
+                >
                     <template v-for="(day, index) in month.days" :key="day?.date ?? `blank-${index}`">
-                        <span v-if="!day" aria-hidden="true" class="h-5 w-5" />
+                        <span
+                            v-if="!day"
+                            aria-hidden="true"
+                            class="h-4 w-4 min-[360px]:h-[18px] min-[360px]:w-[18px] md:h-5 md:w-5"
+                        />
                         <Tooltip v-else :delay-duration="100">
                             <TooltipTrigger as-child>
                                 <button
                                     type="button"
-                                    class="h-5 w-5 rounded-[5px] border outline-none transition-[transform,box-shadow] duration-200 hover:scale-110 focus-visible:scale-110 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                                    class="h-4 w-4 rounded-[4px] border outline-none transition-[transform,box-shadow] duration-200 hover:scale-110 focus-visible:scale-110 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background min-[360px]:h-[18px] min-[360px]:w-[18px] md:h-5 md:w-5 md:rounded-[5px]"
                                     :class="intensityClass(day.count)"
                                     :aria-label="`${formatDate(day.date)}: ${day.count} ${vocabularyLabel}`"
                                 />
