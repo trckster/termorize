@@ -32,13 +32,13 @@ const (
 	menuActionSetTargetLang        = "set_target_lang"
 	menuActionSetSystemLang        = "set_system_lang"
 
-	exerciseActionAnswer         = "answer"
-	exerciseActionIDK            = "idk"
-	exerciseActionMatchTap       = "mt"
-	exerciseActionMatchNoop      = "mn"
-	exerciseActionCharacterTap   = "ct"
-	exerciseActionCharacterNoop  = "cn"
-	exerciseActionCharacterClear = "cc"
+	exerciseActionAnswer             = "answer"
+	exerciseActionIDK                = "idk"
+	exerciseActionMatchTap           = "mt"
+	exerciseActionMatchNoop          = "mn"
+	exerciseActionCharacterTap       = "ct"
+	exerciseActionCharacterNoop      = "cn"
+	exerciseActionCharacterBackspace = "cc"
 
 	vocabularyActionAdd    = "add"
 	vocabularyActionDelete = "delete"
@@ -212,7 +212,7 @@ func buildMatchKeyboard(exerciseID uuid.UUID, board *services.MatchBoardState) [
 	return rows
 }
 
-func buildCharacterKeyboard(exerciseID uuid.UUID, board *services.CharacterBoardState, texts BotTexts) [][]inlineKeyboardButton {
+func buildCharacterKeyboard(exerciseID uuid.UUID, board *services.CharacterBoardState) [][]inlineKeyboardButton {
 	if board == nil || len(board.Characters) == 0 {
 		return [][]inlineKeyboardButton{}
 	}
@@ -232,8 +232,8 @@ func buildCharacterKeyboard(exerciseID uuid.UUID, board *services.CharacterBoard
 			slot := rowIndex*side + columnIndex
 			if slot == side*side-1 {
 				rows[rowIndex] = append(rows[rowIndex], inlineKeyboardButton{
-					Text:         texts.ButtonExerciseClear,
-					CallbackData: callbackTypeExercise + ":" + exerciseActionCharacterClear + ":" + compactExerciseID,
+					Text:         "⌫",
+					CallbackData: callbackTypeExercise + ":" + exerciseActionCharacterBackspace + ":" + compactExerciseID,
 				})
 				continue
 			}

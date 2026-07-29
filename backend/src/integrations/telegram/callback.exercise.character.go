@@ -29,8 +29,8 @@ func parseExerciseCharacterPayload(payload []string) (uuid.UUID, int, bool) {
 	return exerciseID, tappedIndex, true
 }
 
-func parseExerciseCharacterClearPayload(payload []string) (uuid.UUID, bool) {
-	if len(payload) != 2 || payload[0] != exerciseActionCharacterClear {
+func parseExerciseCharacterBackspacePayload(payload []string) (uuid.UUID, bool) {
+	if len(payload) != 2 || payload[0] != exerciseActionCharacterBackspace {
 		return uuid.Nil, false
 	}
 
@@ -112,7 +112,7 @@ func handleCharacterTap(callback *callbackQuery, payload []string, t BotTexts) e
 			callback.Message.Chat.ID,
 			callback.Message.MessageID,
 			buildCharacterBoardText(questionText, board),
-			buildCharacterKeyboard(exercise.ExerciseID, board, t),
+			buildCharacterKeyboard(exercise.ExerciseID, board),
 		)
 	}
 
@@ -160,12 +160,12 @@ func handleCharacterTap(callback *callbackQuery, payload []string, t BotTexts) e
 	}
 }
 
-func handleCharacterClear(callback *callbackQuery, payload []string, t BotTexts) error {
+func handleCharacterBackspace(callback *callbackQuery, payload []string, t BotTexts) error {
 	if callback.Message == nil {
 		return nil
 	}
 
-	exerciseID, ok := parseExerciseCharacterClearPayload(payload)
+	exerciseID, ok := parseExerciseCharacterBackspacePayload(payload)
 	if !ok {
 		return nil
 	}
@@ -205,7 +205,7 @@ func handleCharacterClear(callback *callbackQuery, payload []string, t BotTexts)
 		)
 	}
 
-	board, err := services.ClearCharacterSelection(exercise.ExerciseID, exercise.UserID)
+	board, err := services.RemoveLastCharacterSelection(exercise.ExerciseID, exercise.UserID)
 	if err != nil {
 		if errors.Is(err, services.ErrExerciseNotInProgress) {
 			return nil
@@ -231,7 +231,7 @@ func handleCharacterClear(callback *callbackQuery, payload []string, t BotTexts)
 		callback.Message.Chat.ID,
 		callback.Message.MessageID,
 		buildCharacterBoardText(questionText, board),
-		buildCharacterKeyboard(exercise.ExerciseID, board, t),
+		buildCharacterKeyboard(exercise.ExerciseID, board),
 	)
 }
 
@@ -281,7 +281,7 @@ func extractCharacterOrderFromReplyMarkup(markup *inlineKeyboardMarkup, exercise
 
 	order := make([]int, 0, side*side-1)
 	seen := make(map[int]bool, characterCount)
-	clearSeen := false
+	backspaceSeen := false
 	for rowIndex, row := range markup.InlineKeyboard {
 		if len(row) != side {
 			return nil, false
@@ -295,16 +295,16 @@ func extractCharacterOrderFromReplyMarkup(markup *inlineKeyboardMarkup, exercise
 				order = append(order, -1)
 				continue
 			}
-			if payload[0] == exerciseActionCharacterClear {
-				buttonExerciseID, ok := parseExerciseCharacterClearPayload(payload)
+			if payload[0] == exerciseActionCharacterBackspace {
+				buttonExerciseID, ok := parseExerciseCharacterBackspacePayload(payload)
 				if !ok ||
 					buttonExerciseID != exerciseID ||
-					clearSeen ||
+					backspaceSeen ||
 					rowIndex != side-1 ||
 					columnIndex != side-1 {
 					return nil, false
 				}
-				clearSeen = true
+				backspaceSeen = true
 				continue
 			}
 
@@ -317,7 +317,7 @@ func extractCharacterOrderFromReplyMarkup(markup *inlineKeyboardMarkup, exercise
 		}
 	}
 
-	if !clearSeen || len(order) != side*side-1 || len(seen) != characterCount {
+	if !backspaceSeen || len(order) != side*side-1 || len(seen) != characterCount {
 		return nil, false
 	}
 	return order, true

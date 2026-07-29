@@ -169,7 +169,7 @@ func ApplyCharacterTap(exerciseID uuid.UUID, userID uint, tappedIndex int) (*Cha
 	return board, finished, nil
 }
 
-func ClearCharacterSelection(exerciseID uuid.UUID, userID uint) (*CharacterBoardState, error) {
+func RemoveLastCharacterSelection(exerciseID uuid.UUID, userID uint) (*CharacterBoardState, error) {
 	var board *CharacterBoardState
 	var vocabularyDeleted bool
 
@@ -217,7 +217,9 @@ func ClearCharacterSelection(exerciseID uuid.UUID, userID uint) (*CharacterBoard
 			return ErrInvalidCharacterResults
 		}
 
-		state.Chosen = []int{}
+		if len(state.Chosen) > 0 {
+			state.Chosen = state.Chosen[:len(state.Chosen)-1]
+		}
 		stateBytes, marshalErr := json.Marshal(state)
 		if marshalErr != nil {
 			return marshalErr

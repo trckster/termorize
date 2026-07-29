@@ -938,13 +938,13 @@ func TestBuildCharacterBoardRandomizesCharactersAndPaddingSlots(t *testing.T) {
 	board := services.BuildCharacterBoardForAnswer("letter")
 
 	assert.Equal(t, services.AnswerCharacters("letter"), board.Characters)
-	require.Len(t, board.Order, 8, "a 3x3 board reserves its bottom-right cell for Clear")
+	require.Len(t, board.Order, 8, "a 3x3 board reserves its bottom-right cell for backspace")
 	assert.ElementsMatch(t, []int{0, 1, 2, 3, 4, 5, -1, -1}, board.Order)
 	assert.Empty(t, board.Chosen)
 	assert.Empty(t, board.Answer)
 }
 
-func TestClearCharacterSelectionRestoresAllCharacters(t *testing.T) {
+func TestRemoveLastCharacterSelectionRestoresOnlyLastCharacter(t *testing.T) {
 	testkit.Truncate(t)
 
 	user := testkit.CreateUser(t)
@@ -958,12 +958,22 @@ func TestClearCharacterSelectionRestoresAllCharacters(t *testing.T) {
 	_, _, err = services.ApplyCharacterTap(exercise.ID, user.ID, 2)
 	require.NoError(t, err)
 
-	board, err := services.ClearCharacterSelection(exercise.ID, user.ID)
+	board, err := services.RemoveLastCharacterSelection(exercise.ID, user.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "l", board.Answer)
+	assert.Equal(t, []int{0}, board.Chosen)
+	assert.Equal(t, order, board.Order)
+	assert.Equal(t, services.AnswerCharacters("lettera"), board.Characters)
+
+	board, err = services.RemoveLastCharacterSelection(exercise.ID, user.ID)
 	require.NoError(t, err)
 	assert.Empty(t, board.Answer)
 	assert.Empty(t, board.Chosen)
-	assert.Equal(t, order, board.Order)
-	assert.Equal(t, services.AnswerCharacters("lettera"), board.Characters)
+
+	board, err = services.RemoveLastCharacterSelection(exercise.ID, user.ID)
+	require.NoError(t, err)
+	assert.Empty(t, board.Answer)
+	assert.Empty(t, board.Chosen)
 }
 
 func TestVerifyExerciseWrongAnswer(t *testing.T) {
