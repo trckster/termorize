@@ -417,7 +417,9 @@ onBeforeUnmount(() => {
     <main class="px-4 py-4 sm:px-6 sm:py-8">
         <div class="mx-auto max-w-6xl">
             <h1 class="sr-only">{{ t.navHome }}</h1>
-            <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-5 xl:gap-6">
+            <div
+                class="grid grid-cols-1 gap-1 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-5 xl:gap-6"
+            >
                 <div class="space-y-3">
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <label for="source-text" class="text-sm font-medium text-foreground">{{
