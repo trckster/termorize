@@ -5,6 +5,7 @@ import { exercisesApi, type Exercise } from '@/api/exercises.ts'
 import type { PaginationData } from '@/api/pagination.ts'
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem } from '@/components/ui/pagination'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useI18n } from '@/composables/useI18n'
 import { useSettingsStore } from '@/stores/settings.ts'
 import { formatDate, formatNumber } from '@/lib/utils.ts'
@@ -243,6 +244,9 @@ const getProgressDeltaClass = (delta?: number | null) => {
     return 'text-rose-700 dark:text-rose-300'
 }
 
+const isCollectionPracticeProgressUnchanged = (exercise: Exercise, delta?: number | null) =>
+    Boolean(exercise.collection_practice) && delta === 0
+
 const getLanguageBadge = (language: string) => {
     if (!language) {
         return ''
@@ -386,8 +390,31 @@ onMounted(() => {
                                             >
                                                 {{ getResultLabel(vocabulary.exercise_result) }}
                                             </span>
+                                            <Tooltip
+                                                v-if="
+                                                    isCollectionPracticeProgressUnchanged(
+                                                        exercise,
+                                                        vocabulary.progress_delta
+                                                    )
+                                                "
+                                            >
+                                                <TooltipTrigger as-child>
+                                                    <button
+                                                        type="button"
+                                                        class="cursor-help rounded-sm text-xs font-semibold text-muted-foreground underline decoration-dotted underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                                        :aria-label="t.collectionPracticePointsUnchangedHint"
+                                                    >
+                                                        {{ t.collectionPracticePointsUnchanged }}
+                                                    </button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top" class="max-w-64 text-center">
+                                                    {{ t.collectionPracticePointsUnchangedHint }}
+                                                </TooltipContent>
+                                            </Tooltip>
                                             <span
-                                                v-if="vocabulary.exercise_result || vocabulary.progress_delta != null"
+                                                v-else-if="
+                                                    vocabulary.exercise_result || vocabulary.progress_delta != null
+                                                "
                                                 class="text-xs font-semibold"
                                                 :class="getProgressDeltaClass(vocabulary.progress_delta)"
                                             >
@@ -593,8 +620,29 @@ onMounted(() => {
                                                     >
                                                         {{ getResultLabel(vocabulary.exercise_result) }}
                                                     </span>
-                                                    <span
+                                                    <Tooltip
                                                         v-if="
+                                                            isCollectionPracticeProgressUnchanged(
+                                                                exercise,
+                                                                vocabulary.progress_delta
+                                                            )
+                                                        "
+                                                    >
+                                                        <TooltipTrigger as-child>
+                                                            <button
+                                                                type="button"
+                                                                class="cursor-help rounded-sm text-xs font-semibold text-muted-foreground underline decoration-dotted underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                                                :aria-label="t.collectionPracticePointsUnchangedHint"
+                                                            >
+                                                                {{ t.collectionPracticePointsUnchanged }}
+                                                            </button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top" class="max-w-64 text-center">
+                                                            {{ t.collectionPracticePointsUnchangedHint }}
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                    <span
+                                                        v-else-if="
                                                             vocabulary.exercise_result ||
                                                             vocabulary.progress_delta != null
                                                         "
