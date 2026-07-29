@@ -244,14 +244,22 @@
                                     <label for="collection-word2" class="text-sm font-medium">{{
                                         t.vocabularyWord2
                                     }}</label>
-                                    <input
-                                        id="collection-word2"
-                                        v-model="newTranslation.word2"
-                                        type="text"
-                                        :placeholder="t.vocabularyWord2Placeholder"
-                                        maxlength="500"
-                                        class="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                                    />
+                                    <div class="relative">
+                                        <input
+                                            id="collection-word2"
+                                            v-model="newTranslation.word2"
+                                            type="text"
+                                            :placeholder="t.vocabularyWord2Placeholder"
+                                            :aria-busy="isSuggestingTranslation"
+                                            maxlength="500"
+                                            class="w-full px-3 py-2 pr-9 text-sm rounded-md border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                            @input="handleTranslationTargetInput"
+                                        />
+                                        <Loader2
+                                            v-if="isSuggestingTranslation"
+                                            class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -413,8 +421,9 @@
 
 <script setup lang="ts">
 import { collectionsApi, type CollectionDetail, type CollectionTranslation } from '@/api/collections.ts'
+import { translationApi } from '@/api/translation.ts'
 import { VueDraggable } from 'vue-draggable-plus'
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.ts'
 import { useSettingsStore } from '@/stores/settings.ts'
@@ -433,6 +442,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog'
 import { formatNumber } from '@/lib/utils.ts'
+import { createTranslationAutofill } from '@/lib/translationAutofill.ts'
 import {
     ArrowLeft,
     BookmarkPlus,
@@ -478,6 +488,7 @@ let copyTimeoutId: ReturnType<typeof setTimeout> | null = null
 
 const isAddTranslationOpen = ref(false)
 const isAddingTranslation = ref(false)
+const isSuggestingTranslation = ref(false)
 const openAddTranslationAgain = ref(false)
 const isEditTitleOpen = ref(false)
 const isSavingTitle = ref(false)
@@ -505,6 +516,26 @@ const defaultNewTranslation = (): NewTranslationForm => ({
 })
 
 const newTranslation = ref<NewTranslationForm>(defaultNewTranslation())
+
+const translationAutofill = createTranslationAutofill({
+    translate: async ({ text, sourceLanguage, targetLanguage }) => {
+        const result = await translationApi.translate({
+            from_word: text,
+            from_language: sourceLanguage,
+            to_language: targetLanguage,
+        })
+        return result.translation
+    },
+    onSuggestion: (suggestion) => {
+        newTranslation.value.word2 = suggestion
+    },
+    onLoadingChange: (isLoading) => {
+        isSuggestingTranslation.value = isLoading
+    },
+    onError: (error) => {
+        console.error('Failed to suggest a collection translation:', error)
+    },
+})
 
 const isTranslationFormValid = computed(
     () => newTranslation.value.word1.trim().length > 0 && newTranslation.value.word2.trim().length > 0
@@ -561,6 +592,7 @@ const focusNewTranslationWord1 = async () => {
 }
 
 const clearNewTranslationWords = () => {
+    translationAutofill.activate()
     newTranslation.value = {
         ...newTranslation.value,
         word1: '',
@@ -572,9 +604,23 @@ watch(isAddTranslationOpen, (isOpen) => {
     if (isOpen) {
         newTranslation.value = defaultNewTranslation()
         openAddTranslationAgain.value = false
+        translationAutofill.activate()
         void focusNewTranslationWord1()
+    } else {
+        translationAutofill.deactivate()
     }
 })
+
+watch(
+    [() => newTranslation.value.word1, () => newTranslation.value.language1, () => newTranslation.value.language2],
+    ([text, sourceLanguage, targetLanguage]) => {
+        translationAutofill.queue({ text, sourceLanguage, targetLanguage })
+    }
+)
+
+const handleTranslationTargetInput = () => {
+    translationAutofill.markTargetEdited()
+}
 
 watch(isEditTitleOpen, (isOpen) => {
     if (isOpen && collection.value) {
@@ -860,5 +906,9 @@ onMounted(async () => {
     if (typeof id === 'string' && id) {
         await fetchCollection(id)
     }
+})
+
+onBeforeUnmount(() => {
+    translationAutofill.deactivate()
 })
 </script>
