@@ -365,7 +365,7 @@ func TestTelegramWebhookCharacterExerciseUsesSquareBoardAndCompletes(t *testing.
 	require.True(t, ok)
 	keyboard, ok := replyMarkup["inline_keyboard"].([]any)
 	require.True(t, ok)
-	require.Len(t, keyboard, 3, "six characters plus Clear should use a 3x3 board")
+	require.Len(t, keyboard, 3, "six characters plus backspace should use a 3x3 board")
 	for _, rowValue := range keyboard {
 		row, ok := rowValue.([]any)
 		require.True(t, ok)
@@ -375,17 +375,17 @@ func TestTelegramWebhookCharacterExerciseUsesSquareBoardAndCompletes(t *testing.
 	firstRowMiddle := firstRow[1].(map[string]any)
 	assert.Equal(t, "exercise:cn", firstRowMiddle["callback_data"], "empty cells should be distributed inside the board")
 	lastRow := keyboard[2].([]any)
-	clearButton := lastRow[2].(map[string]any)
-	assert.Equal(t, telegram.GetBotTexts(enums.LanguageRu).ButtonExerciseClear, clearButton["text"])
-	assert.Equal(t, "exercise:cc:"+compactExerciseID, clearButton["callback_data"])
+	backspaceButton := lastRow[2].(map[string]any)
+	assert.Equal(t, "⌫", backspaceButton["text"])
+	assert.Equal(t, "exercise:cc:"+compactExerciseID, backspaceButton["callback_data"])
 	assert.Contains(t, edited["text"], "l ＿ ＿ ＿ ＿ ＿")
 
-	sendCharacterCallback("cb-character-clear", "cc:"+compactExerciseID, 71)
-	clearEdits := tg.RequestsFor("editMessageText")
-	require.Len(t, clearEdits, 2)
-	var cleared map[string]any
-	require.NoError(t, json.Unmarshal(clearEdits[1].Body, &cleared))
-	assert.Contains(t, cleared["text"], "＿ ＿ ＿ ＿ ＿ ＿")
+	sendCharacterCallback("cb-character-backspace", "cc:"+compactExerciseID, 71)
+	backspaceEdits := tg.RequestsFor("editMessageText")
+	require.Len(t, backspaceEdits, 2)
+	var backedUp map[string]any
+	require.NoError(t, json.Unmarshal(backspaceEdits[1].Body, &backedUp))
+	assert.Contains(t, backedUp["text"], "＿ ＿ ＿ ＿ ＿ ＿")
 
 	for tappedIndex := range []rune("letter") {
 		sendCharacterCallback(
@@ -443,7 +443,7 @@ func TestTelegramWebhookCharacterExerciseUsesSquareBoardAndCompletes(t *testing.
 	assert.Contains(t, retryEdit["text"], "l e t t e r")
 }
 
-func TestTelegramWebhookCharacterClearRecoversPendingMessage(t *testing.T) {
+func TestTelegramWebhookCharacterBackspaceRecoversPendingMessage(t *testing.T) {
 	testkit.Truncate(t)
 	tg := testkit.MockTelegramAPI(t)
 
@@ -477,14 +477,14 @@ func TestTelegramWebhookCharacterClearRecoversPendingMessage(t *testing.T) {
 		{
 			{"text": "t", "callback_data": tap(3)},
 			{"text": "t", "callback_data": tap(2)},
-			{"text": "Clear", "callback_data": "exercise:cc:" + compactExerciseID},
+			{"text": "⌫", "callback_data": "exercise:cc:" + compactExerciseID},
 		},
 	}
 
 	update := map[string]any{
 		"update_id": 100,
 		"callback_query": map[string]any{
-			"id":   "cb-character-pending-clear",
+			"id":   "cb-character-pending-backspace",
 			"data": "exercise:cc:" + compactExerciseID,
 			"from": map[string]any{
 				"id":     telegramID,

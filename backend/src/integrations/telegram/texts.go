@@ -94,7 +94,6 @@ type BotTexts struct {
 	ButtonBack                  string
 	ButtonCancel                string
 	ButtonExerciseIDK           string
-	ButtonExerciseClear         string
 	ButtonVocabularyAdd         string
 	ButtonVocabularyDelete      string
 
@@ -206,7 +205,6 @@ var botTextsEn = BotTexts{
 	ButtonBack:                  "Back",
 	ButtonCancel:                "Cancel",
 	ButtonExerciseIDK:           "Don't know",
-	ButtonExerciseClear:         "Clear",
 	ButtonVocabularyAdd:         "Add to vocabulary",
 	ButtonVocabularyDelete:      "Delete from vocabulary",
 
@@ -331,7 +329,6 @@ var botTextsRu = BotTexts{
 	ButtonBack:                  "Назад",
 	ButtonCancel:                "Отмена",
 	ButtonExerciseIDK:           "Не знаю",
-	ButtonExerciseClear:         "Очистить",
 	ButtonVocabularyAdd:         "Добавить в словарь",
 	ButtonVocabularyDelete:      "Удалить из словаря",
 

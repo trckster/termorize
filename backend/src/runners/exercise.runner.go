@@ -100,7 +100,7 @@ func processDueExercises() {
 				continue
 			}
 
-			messageID, err = telegram.SendCharacterExerciseMessage(exercise.TelegramID, questionText, exercise.ExerciseID, characterBoard, texts)
+			messageID, err = telegram.SendCharacterExerciseMessage(exercise.TelegramID, questionText, exercise.ExerciseID, characterBoard)
 		} else if isChoiceExerciseType(exercise.ExerciseType) {
 			options, loadErr := services.GetExerciseAnswerOptions(exercise.ExerciseID, exercise.ExerciseType)
 			if loadErr != nil {

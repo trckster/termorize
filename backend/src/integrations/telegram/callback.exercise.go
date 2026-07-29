@@ -59,8 +59,8 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 	if len(payload) >= 2 && payload[0] == exerciseActionCharacterTap {
 		return handleCharacterTap(callback, payload, t)
 	}
-	if len(payload) >= 2 && payload[0] == exerciseActionCharacterClear {
-		return handleCharacterClear(callback, payload, t)
+	if len(payload) >= 2 && payload[0] == exerciseActionCharacterBackspace {
+		return handleCharacterBackspace(callback, payload, t)
 	}
 
 	exerciseID, selectedVocabularyID, hasAnswer := parseExerciseAnswerPayload(payload)
