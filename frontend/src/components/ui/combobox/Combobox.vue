@@ -29,6 +29,7 @@ const props = withDefaults(
         searchPlaceholder?: string
         emptyText?: string
         ariaLabel?: string
+        name?: string
         class?: HTMLAttributes['class']
     }>(),
     {
@@ -58,11 +59,12 @@ const getLabel = (value: string) => props.options.find((option) => option.value 
                 :display-value="(value) => getLabel(value as string)"
                 :placeholder="selectedValue ? searchPlaceholder : placeholder"
                 :aria-label="ariaLabel"
-                class="min-h-11 w-full rounded-md border border-border bg-background px-3 py-2 pr-10 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                :name="name || ariaLabel || placeholder"
+                class="min-h-11 w-full rounded-md border border-border bg-background px-3 py-2 pr-10 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm"
             />
             <ComboboxTrigger
                 :aria-label="ariaLabel || placeholder"
-                class="absolute right-0 top-0 h-full px-3 text-muted-foreground transition-colors hover:text-foreground"
+                class="absolute right-0 top-0 flex h-full w-11 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
             >
                 <ChevronsUpDown class="h-4 w-4" />
             </ComboboxTrigger>
@@ -88,7 +90,7 @@ const getLabel = (value: string) => props.options.find((option) => option.value 
                         :key="option.value"
                         :value="option.value"
                         :text-value="option.label"
-                        class="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none data-[disabled]:pointer-events-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
+                        class="relative flex min-h-11 w-full cursor-default select-none items-center rounded-sm py-2.5 pl-8 pr-2 text-base outline-none data-[disabled]:pointer-events-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground sm:min-h-0 sm:py-1.5 sm:text-sm"
                     >
                         <ComboboxItemIndicator class="absolute left-2 inline-flex h-4 w-4 items-center justify-center">
                             <Check class="h-4 w-4" />

@@ -394,10 +394,12 @@ const handleShortcut = (event: KeyboardEvent) => {
 
 onMounted(() => {
     window.addEventListener('keydown', handleShortcut)
-    void nextTick(() => {
-        sourceTextareaRef.value?.focus()
-        activeField.value = 'source'
-    })
+    if (!isPhoneViewport.value) {
+        void nextTick(() => {
+            sourceTextareaRef.value?.focus()
+            activeField.value = 'source'
+        })
+    }
 })
 
 onBeforeUnmount(() => {
@@ -441,7 +443,7 @@ onBeforeUnmount(() => {
                             @keydown.tab="handleTextareaTab('source', $event)"
                             :placeholder="t.translationFromPlaceholder"
                             maxlength="5000"
-                            class="h-40 w-full resize-none rounded-lg border border-border bg-background p-4 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm lg:h-72"
+                            class="h-32 w-full resize-none rounded-lg border border-border bg-background p-4 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary min-[360px]:h-40 sm:text-sm lg:h-72"
                         />
                         <div
                             v-if="isLoadingSource"
@@ -494,7 +496,7 @@ onBeforeUnmount(() => {
                             @keydown.tab="handleTextareaTab('target', $event)"
                             :placeholder="t.translationToPlaceholder"
                             maxlength="5000"
-                            class="h-40 w-full resize-none rounded-lg border border-border bg-background p-4 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm lg:h-72"
+                            class="h-32 w-full resize-none rounded-lg border border-border bg-background p-4 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary min-[360px]:h-40 sm:text-sm lg:h-72"
                         />
                         <div
                             v-if="isLoadingTarget"
@@ -548,30 +550,22 @@ onBeforeUnmount(() => {
                 </div>
             </div>
 
-            <Card class="mt-8 border-primary/20 bg-gradient-to-r from-primary/8 via-background to-background sm:mt-10">
-                <CardContent class="p-3 sm:p-4">
-                    <div
-                        class="flex min-h-[220px] w-full max-w-full flex-col items-center justify-center rounded-2xl border border-primary/20 bg-background/90 px-5 py-6 text-center shadow-sm backdrop-blur-sm sm:min-h-[260px] lg:mx-auto lg:max-w-[320px]"
-                    >
-                        <div class="space-y-2">
-                            <p class="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-                                {{ t.quizCardTitle }}
-                            </p>
-                            <p class="mx-auto max-w-[24ch] text-sm leading-6 text-muted-foreground">
-                                {{ t.quizCardDescription }}
-                            </p>
-                        </div>
-                        <Button
-                            size="lg"
-                            class="mt-7 h-12 rounded-full border border-primary/20 bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-[0_10px_30px_-12px_hsl(var(--primary)/0.8)] transition-transform duration-200 hover:-translate-y-0.5 hover:bg-primary/90"
-                            @click="router.push({ name: 'quiz' })"
-                        >
-                            <Play class="size-4 fill-current" />
-                            {{ t.quizRun }}
-                        </Button>
+            <section class="mt-8 border-t border-border py-8 text-center sm:mt-10 sm:py-10">
+                <div class="mx-auto flex max-w-sm flex-col items-center">
+                    <div class="space-y-2">
+                        <h2 class="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                            {{ t.quizCardTitle }}
+                        </h2>
+                        <p class="mx-auto max-w-[30ch] text-sm leading-6 text-muted-foreground">
+                            {{ t.quizCardDescription }}
+                        </p>
                     </div>
-                </CardContent>
-            </Card>
+                    <Button size="lg" class="mt-6 w-full sm:w-auto" @click="router.push({ name: 'quiz' })">
+                        <Play class="size-4 fill-current" />
+                        {{ t.quizRun }}
+                    </Button>
+                </div>
+            </section>
         </div>
     </main>
 </template>

@@ -25,6 +25,7 @@ const props = withDefaults(
         disabledValues?: string[]
         disabled?: boolean
         ariaLabel?: string
+        name?: string
         emptyText?: string
     }>(),
     {
@@ -34,6 +35,7 @@ const props = withDefaults(
         disabledValues: () => [],
         disabled: false,
         ariaLabel: undefined,
+        name: undefined,
         emptyText: undefined,
     }
 )
@@ -122,12 +124,13 @@ defineExpose({
                     :placeholder="placeholder"
                     :disabled="disabled"
                     :aria-label="ariaLabel"
-                    class="min-h-11 w-full rounded-md border border-input bg-background px-3 py-2 pr-10 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    :name="name || ariaLabel || placeholder"
+                    class="min-h-11 w-full rounded-md border border-input bg-background px-3 py-2 pr-10 text-base ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
                 />
                 <ComboboxTrigger
                     :disabled="disabled"
                     :aria-label="ariaLabel || placeholder"
-                    class="absolute right-0 top-0 flex h-full px-3 items-center text-muted-foreground transition-colors hover:text-foreground"
+                    class="absolute right-0 top-0 flex h-full w-11 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
                 >
                     <ChevronsUpDown class="h-4 w-4" />
                 </ComboboxTrigger>
@@ -154,7 +157,7 @@ defineExpose({
                             :value="option.value"
                             :text-value="option.label"
                             :disabled="option.disabled"
-                            class="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
+                            class="relative flex min-h-11 w-full cursor-default select-none items-center rounded-sm py-2.5 pl-8 pr-2 text-base outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground sm:min-h-0 sm:py-1.5 sm:text-sm"
                         >
                             <ComboboxItemIndicator
                                 class="absolute left-2 inline-flex h-4 w-4 items-center justify-center"

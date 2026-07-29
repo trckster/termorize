@@ -179,7 +179,10 @@ onMounted(() => {
             <section class="overflow-hidden rounded-xl border border-border bg-card">
                 <header class="px-4 py-4 sm:px-5">
                     <h2 class="text-base font-semibold text-foreground">{{ t.statisticsVocabularyTitle }}</h2>
-                    <p class="mt-1 max-w-2xl text-sm leading-5 text-muted-foreground">
+                    <p class="mt-1 max-w-2xl text-sm leading-5 text-muted-foreground md:hidden">
+                        {{ t.statisticsVocabularyDescriptionMobile }}
+                    </p>
+                    <p class="mt-1 hidden max-w-2xl text-sm leading-5 text-muted-foreground md:block">
                         {{ t.statisticsVocabularyDescription }}
                     </p>
                 </header>

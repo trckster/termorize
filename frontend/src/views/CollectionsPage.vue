@@ -2,11 +2,13 @@
     <main class="px-4 py-4 sm:px-6 sm:py-8">
         <div class="max-w-6xl mx-auto">
             <div class="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
-                <h1 class="text-3xl font-bold text-foreground">{{ t.collectionsTitle }}</h1>
-                <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl sm:font-bold">
+                    {{ t.collectionsTitle }}
+                </h1>
+                <div class="grid gap-2 min-[480px]:grid-cols-2 sm:flex sm:items-center">
                     <Dialog v-model:open="isGenerateDialogOpen">
                         <DialogTrigger as-child>
-                            <Button variant="outline" class="min-h-11 w-full sm:w-auto">
+                            <Button variant="outline" class="min-h-11 w-full px-3 sm:w-auto">
                                 <Sparkles class="h-4 w-4 mr-2" />
                                 {{ t.collectionsGenerateButton }}
                             </Button>
@@ -31,7 +33,7 @@
                                         rows="3"
                                         :placeholder="t.collectionsGeneratePromptPlaceholder"
                                         maxlength="500"
-                                        class="w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                        class="min-h-24 w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm"
                                         @keydown.enter.shift.prevent="handleGenerate"
                                     ></textarea>
                                 </div>
@@ -41,7 +43,11 @@
                                 <DialogFooter
                                     class="flex-col items-center justify-center gap-2 pt-2 sm:flex-col sm:justify-center"
                                 >
-                                    <Button type="submit" :disabled="isGenerating || !isGenerateValid">
+                                    <Button
+                                        type="submit"
+                                        class="w-full sm:w-auto"
+                                        :disabled="isGenerating || !isGenerateValid"
+                                    >
                                         <Loader2 v-if="isGenerating" class="mr-2 h-4 w-4 animate-spin" />
                                         {{ isGenerating ? t.collectionsGenerating : t.collectionsGenerateSubmit }}
                                     </Button>
@@ -51,7 +57,7 @@
                         </DialogContent>
                     </Dialog>
 
-                    <Button class="min-h-11 w-full sm:w-auto" :disabled="isCreating" @click="handleCreate">
+                    <Button class="min-h-11 w-full px-3 sm:ml-2 sm:w-auto" :disabled="isCreating" @click="handleCreate">
                         <Loader2 v-if="isCreating" class="mr-2 h-4 w-4 animate-spin" />
                         <Plus v-else class="h-4 w-4 mr-2" />
                         {{ t.collectionsCreateButton }}
@@ -68,7 +74,7 @@
                         type="text"
                         :placeholder="t.collectionsSearchPlaceholder"
                         :aria-label="t.collectionsSearchPlaceholder"
-                        class="w-full rounded-md border border-border bg-background px-3 py-2 pr-9 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm"
+                        class="min-h-11 w-full rounded-md border border-border bg-background px-3 py-2 pr-9 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm"
                     />
                     <span
                         v-if="isLoading"
@@ -111,9 +117,9 @@
                             class="block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                         >
                             <CardHeader>
-                                <div class="flex items-start justify-between gap-2">
+                                <div class="flex flex-col items-start gap-2 sm:flex-row sm:justify-between">
                                     <CardTitle class="min-w-0 break-words text-lg">{{ collection.title }}</CardTitle>
-                                    <span v-if="collection.is_admin">
+                                    <span v-if="collection.is_admin" class="w-fit max-w-full">
                                         <span
                                             v-if="!collection.is_published && isAdmin"
                                             class="shrink-0 rounded bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning"
@@ -129,13 +135,13 @@
                                     </span>
                                     <span
                                         v-else-if="collection.is_owner"
-                                        class="shrink-0 rounded bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
+                                        class="w-fit max-w-full shrink-0 rounded bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
                                     >
                                         {{ t.collectionsPrivateBadge }}
                                     </span>
                                     <span
                                         v-else-if="collection.owner_username"
-                                        class="shrink-0 rounded bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
+                                        class="block w-fit max-w-full truncate rounded bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
                                     >
                                         @{{ collection.owner_username }}
                                     </span>

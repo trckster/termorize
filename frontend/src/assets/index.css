@@ -45,7 +45,12 @@
         --info-foreground: 208 60% 98%;
         --overlay: 160 30% 8%;
         --radius: 0.625rem;
-        --app-gradient: linear-gradient(150deg, hsl(150, 28%, 99%) 0%, hsl(150, 34%, 96.5%) 55%, hsl(150, 28%, 99%) 100%);
+        --app-gradient: linear-gradient(
+            150deg,
+            hsl(150, 28%, 99%) 0%,
+            hsl(150, 34%, 96.5%) 55%,
+            hsl(150, 28%, 99%) 100%
+        );
     }
 
     [data-theme='evergreen'].dark {
@@ -109,7 +114,12 @@
         --info-foreground: 198 50% 98%;
         --overlay: 120 20% 9%;
         --radius: 0.625rem;
-        --app-gradient: linear-gradient(150deg, hsl(95, 28%, 97.5%) 0%, hsl(102, 34%, 94.5%) 55%, hsl(95, 28%, 97.5%) 100%);
+        --app-gradient: linear-gradient(
+            150deg,
+            hsl(95, 28%, 97.5%) 0%,
+            hsl(102, 34%, 94.5%) 55%,
+            hsl(95, 28%, 97.5%) 100%
+        );
     }
 
     [data-theme='sage'].dark {
@@ -173,7 +183,12 @@
         --info-foreground: 214 60% 98%;
         --overlay: 213 30% 8%;
         --radius: 0.625rem;
-        --app-gradient: linear-gradient(150deg, hsl(200, 26%, 99%) 0%, hsl(172, 44%, 95.5%) 55%, hsl(200, 26%, 99%) 100%);
+        --app-gradient: linear-gradient(
+            150deg,
+            hsl(200, 26%, 99%) 0%,
+            hsl(172, 44%, 95.5%) 55%,
+            hsl(200, 26%, 99%) 100%
+        );
     }
 
     [data-theme='emerald'].dark {
@@ -216,14 +231,39 @@
 
     body {
         @apply bg-background text-foreground;
+        min-height: 100dvh;
         background-image: var(--app-gradient);
         background-attachment: fixed;
         background-repeat: no-repeat;
         background-size: cover;
+        padding-right: env(safe-area-inset-right);
+        padding-left: env(safe-area-inset-left);
+    }
+
+    button,
+    a,
+    input,
+    textarea,
+    select {
+        touch-action: manipulation;
+    }
+
+    @media (max-width: 767px) {
+        body {
+            background-attachment: scroll;
+        }
     }
 }
 
 @layer utilities {
+    .min-h-screen {
+        min-height: 100dvh;
+    }
+
+    .pt-safe {
+        padding-top: env(safe-area-inset-top);
+    }
+
     /* Bottom nav content clearance: nav height (4rem) + iOS home indicator */
     .pb-safe-nav {
         padding-bottom: calc(4rem + env(safe-area-inset-bottom));

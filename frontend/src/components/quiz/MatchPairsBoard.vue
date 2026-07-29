@@ -417,6 +417,30 @@ onBeforeUnmount(() => {
     }
 }
 
+@media (max-width: 639px) {
+    .quiz-match-board {
+        display: grid;
+        aspect-ratio: auto;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.5rem;
+        max-width: none;
+    }
+
+    .quiz-match-card {
+        position: static !important;
+        width: 100% !important;
+        min-height: 4rem;
+        padding: 0.625rem 0.5rem;
+        transform: none !important;
+    }
+
+    .quiz-match-board > div {
+        position: static;
+        grid-column: 1 / -1;
+        margin-top: 0.5rem;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .quiz-match-card {
         transition: none;
