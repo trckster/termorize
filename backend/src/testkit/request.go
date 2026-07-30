@@ -73,13 +73,13 @@ func serveRequest(
 	t.Helper()
 
 	req := httptest.NewRequest(method, path, body)
-	if hasBody {
-		req.Header.Set("Content-Type", "application/json")
-	}
 	for key, values := range headers {
 		for _, value := range values {
 			req.Header.Add(key, value)
 		}
+	}
+	if hasBody && req.Header.Get("Content-Type") == "" {
+		req.Header.Set("Content-Type", "application/json")
 	}
 	for _, c := range cookies {
 		if c != nil {
@@ -117,7 +117,7 @@ func RequireStatus(t *testing.T, rec *httptest.ResponseRecorder, expected int, c
 func DecodeJSON(t *testing.T, rec *httptest.ResponseRecorder, dst any) {
 	t.Helper()
 
-	contentType := rec.Header().Get("Content-Type")
+	contentType := finalizedContentType(rec)
 	mediaType, _, err := mime.ParseMediaType(contentType)
 	if err != nil || mediaType != "application/json" {
 		t.Fatalf("testkit.DecodeJSON: response Content-Type = %q, want application/json", contentType)
@@ -126,4 +126,8 @@ func DecodeJSON(t *testing.T, rec *httptest.ResponseRecorder, dst any) {
 	if err := json.Unmarshal(rec.Body.Bytes(), dst); err != nil {
 		t.Fatalf("testkit.DecodeJSON: failed to decode response body %q: %v", rec.Body.String(), err)
 	}
+}
+
+func finalizedContentType(rec *httptest.ResponseRecorder) string {
+	return rec.Result().Header.Get("Content-Type")
 }
