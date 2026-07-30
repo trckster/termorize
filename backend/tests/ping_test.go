@@ -8,14 +8,13 @@ import (
 	"termorize/src/testkit"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // TestPing proves the router is wired and serves the public health endpoint.
 func TestPing(t *testing.T) {
 	rec := testkit.Request(t, http.MethodGet, "/api/ping", nil)
 
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body map[string]string
 	testkit.DecodeJSON(t, rec, &body)
@@ -28,7 +27,7 @@ func TestMeRequiresAuth(t *testing.T) {
 
 	rec := testkit.Request(t, http.MethodGet, "/api/me", nil)
 
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 // TestMeWithAuth proves DB + router + auth + truncation work together: a user is
@@ -40,7 +39,7 @@ func TestMeWithAuth(t *testing.T) {
 	user := testkit.CreateUser(t, testkit.WithName("Ada Lovelace"))
 
 	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/me", nil)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var got models.User
 	testkit.DecodeJSON(t, rec, &got)

@@ -72,3 +72,15 @@ func AuthedRequest(t *testing.T, user models.User, method, path string, body any
 	t.Helper()
 	return Request(t, method, path, body, AuthCookie(user))
 }
+
+func AuthedRawRequest(
+	t *testing.T,
+	user models.User,
+	method,
+	path,
+	body string,
+	headers http.Header,
+) *httptest.ResponseRecorder {
+	t.Helper()
+	return RawRequest(t, method, path, body, headers, AuthCookie(user))
+}

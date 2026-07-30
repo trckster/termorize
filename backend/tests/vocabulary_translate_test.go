@@ -2,8 +2,6 @@ package tests
 
 import (
 	"net/http"
-	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"termorize/src/data/db"
@@ -40,21 +38,6 @@ func vocabTranslatePayload() map[string]any {
 	}
 }
 
-// vocabRawAuthedRequest issues an in-process request with a raw (possibly
-// invalid) JSON body and the given user's auth cookie, so bind-level
-// (non-validation) errors can be exercised.
-func vocabRawAuthedRequest(t *testing.T, user models.User, method, path, rawBody string) *httptest.ResponseRecorder {
-	t.Helper()
-
-	req := httptest.NewRequest(method, path, strings.NewReader(rawBody))
-	req.Header.Set("Content-Type", "application/json")
-	req.AddCookie(testkit.AuthCookie(user))
-
-	rec := httptest.NewRecorder()
-	testkit.Router().ServeHTTP(rec, req)
-	return rec
-}
-
 // vocabCountForUser returns the number of non-soft-deleted vocabulary rows for a
 // user, queried directly against the DB.
 func vocabCountForUser(t *testing.T, userID uint) int64 {
@@ -82,7 +65,7 @@ func vocabFindByID(t *testing.T, id uuid.UUID) models.Vocabulary {
 func vocabCreateForUser(t *testing.T, user models.User, payload map[string]any) uuid.UUID {
 	t.Helper()
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/vocabulary", payload)
-	require.Equal(t, http.StatusCreated, rec.Code, "vocabCreateForUser body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusCreated)
 
 	var v models.Vocabulary
 	testkit.DecodeJSON(t, rec, &v)
@@ -119,7 +102,7 @@ func TestGetVocabularyRequiresAuth(t *testing.T) {
 	testkit.Truncate(t)
 
 	rec := testkit.Request(t, http.MethodGet, "/api/vocabulary", nil)
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestGetVocabularyEmpty(t *testing.T) {
@@ -128,7 +111,7 @@ func TestGetVocabularyEmpty(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/vocabulary", nil)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		Data       []models.Vocabulary `json:"data"`
@@ -155,7 +138,7 @@ func TestGetVocabularyReturnsItems(t *testing.T) {
 	vocabCreateForUser(t, user, vocabCreatePayload())
 
 	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/vocabulary", nil)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		Data       []models.Vocabulary `json:"data"`
@@ -188,7 +171,7 @@ func TestGetVocabularySearchFiltersResults(t *testing.T) {
 	})
 
 	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/vocabulary?search=cat", nil)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		Data []models.Vocabulary `json:"data"`
@@ -206,7 +189,7 @@ func TestGetVocabularyInvalidPagination(t *testing.T) {
 
 	// page_size > 1000 triggers ErrInvalidPageSize → 400.
 	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/vocabulary?page_size=5000", nil)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -222,7 +205,7 @@ func TestGetVocabularyOwnershipIsolation(t *testing.T) {
 	vocabCreateForUser(t, userB, vocabCreatePayload()) // belongs to B only
 
 	rec := testkit.AuthedRequest(t, userA, http.MethodGet, "/api/vocabulary", nil)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		Data []models.Vocabulary `json:"data"`
@@ -239,7 +222,7 @@ func TestCreateVocabularyRequiresAuth(t *testing.T) {
 	testkit.Truncate(t)
 
 	rec := testkit.Request(t, http.MethodPost, "/api/vocabulary", vocabCreatePayload())
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestCreateVocabularyHappyPath(t *testing.T) {
@@ -248,7 +231,7 @@ func TestCreateVocabularyHappyPath(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/vocabulary", vocabCreatePayload())
-	require.Equal(t, http.StatusCreated, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusCreated)
 
 	var v models.Vocabulary
 	testkit.DecodeJSON(t, rec, &v)
@@ -281,7 +264,7 @@ func TestCreateVocabularyDuplicateConflicts(t *testing.T) {
 
 	// Creating the same pair again → 409 Conflict.
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/vocabulary", vocabCreatePayload())
-	require.Equal(t, http.StatusConflict, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusConflict)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -296,64 +279,65 @@ func TestCreateVocabularyInvalidJSON(t *testing.T) {
 
 	user := testkit.CreateUser(t)
 
-	rec := vocabRawAuthedRequest(t, user, http.MethodPost, "/api/vocabulary", "}{ not json")
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	rec := testkit.AuthedRawRequest(t, user, http.MethodPost, "/api/vocabulary", "}{ not json", nil)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
 	assert.Contains(t, body, "error")
 }
 
-func TestCreateVocabularyMissingFields(t *testing.T) {
-	testkit.Truncate(t)
-
-	user := testkit.CreateUser(t)
-
-	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/vocabulary", map[string]any{})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
-
-	var body struct {
-		Errors map[string]string `json:"errors"`
+func TestCreateVocabularyRejectsInvalidFields(t *testing.T) {
+	tests := []struct {
+		name      string
+		payload   func() map[string]any
+		wantField string
+		wantTag   string
+	}{
+		{
+			name:      "missing required fields",
+			payload:   func() map[string]any { return map[string]any{} },
+			wantField: "Original",
+			wantTag:   "required",
+		},
+		{
+			name: "unknown source language",
+			payload: func() map[string]any {
+				payload := vocabCreatePayload()
+				payload["original_language"] = "xx"
+				return payload
+			},
+			wantField: "OriginalLanguage",
+			wantTag:   "enum",
+		},
+		{
+			name: "same source and target language",
+			payload: func() map[string]any {
+				payload := vocabCreatePayload()
+				payload["translation_language"] = "en"
+				return payload
+			},
+			wantField: "TranslationLanguage",
+			wantTag:   "nefield",
+		},
 	}
-	testkit.DecodeJSON(t, rec, &body)
-	require.NotEmpty(t, body.Errors)
-	assert.Equal(t, "required", body.Errors["Original"])
-}
 
-func TestCreateVocabularyInvalidLanguageEnum(t *testing.T) {
-	testkit.Truncate(t)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testkit.Truncate(t)
+			user := testkit.CreateUser(t)
 
-	user := testkit.CreateUser(t)
+			rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/vocabulary", tt.payload())
+			testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
-	payload := vocabCreatePayload()
-	payload["original_language"] = "xx" // not a valid Language
-
-	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/vocabulary", payload)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
-
-	var body struct {
-		Errors map[string]string `json:"errors"`
+			var body struct {
+				Errors map[string]string `json:"errors"`
+			}
+			testkit.DecodeJSON(t, rec, &body)
+			assert.Equal(t, tt.wantTag, body.Errors[tt.wantField])
+			assert.Equal(t, int64(0), vocabCountForUser(t, user.ID))
+		})
 	}
-	testkit.DecodeJSON(t, rec, &body)
-	assert.Equal(t, "enum", body.Errors["OriginalLanguage"])
-}
-
-func TestCreateVocabularySameSourceAndTargetLanguage(t *testing.T) {
-	testkit.Truncate(t)
-
-	user := testkit.CreateUser(t)
-
-	payload := vocabCreatePayload()
-	payload["translation_language"] = "en" // equals original_language → nefield violation
-
-	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/vocabulary", payload)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
-
-	var body struct {
-		Errors map[string]string `json:"errors"`
-	}
-	testkit.DecodeJSON(t, rec, &body)
-	assert.Equal(t, "nefield", body.Errors["TranslationLanguage"])
 }
 
 // ===========================================================================
@@ -366,7 +350,7 @@ func TestCreateVocabularyByTranslationRequiresAuth(t *testing.T) {
 	rec := testkit.Request(t, http.MethodPost, "/api/vocabulary/translation", map[string]any{
 		"translation_id": uuid.New().String(),
 	})
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestCreateVocabularyByTranslationHappyPath(t *testing.T) {
@@ -382,7 +366,7 @@ func TestCreateVocabularyByTranslationHappyPath(t *testing.T) {
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/vocabulary/translation", map[string]any{
 		"translation_id": translationID.String(),
 	})
-	require.Equal(t, http.StatusCreated, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusCreated)
 
 	var v models.Vocabulary
 	testkit.DecodeJSON(t, rec, &v)
@@ -407,16 +391,55 @@ func TestCreateVocabularyByTranslationDuplicateConflicts(t *testing.T) {
 	first := testkit.AuthedRequest(t, user, http.MethodPost, "/api/vocabulary/translation", map[string]any{
 		"translation_id": translationID.String(),
 	})
-	require.Equal(t, http.StatusCreated, first.Code)
+	testkit.RequireStatus(t, first, http.StatusCreated)
 
 	second := testkit.AuthedRequest(t, user, http.MethodPost, "/api/vocabulary/translation", map[string]any{
 		"translation_id": translationID.String(),
 	})
-	require.Equal(t, http.StatusConflict, second.Code)
+	testkit.RequireStatus(t, second, http.StatusConflict)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, second, &body)
 	assert.Equal(t, "vocabulary already exists", body["error"])
+}
+
+func TestCreateVocabularyByTranslationRestoresSoftDeletedItem(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+	translationID := vocabSeedTranslation(t, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
+
+	create := func() models.Vocabulary {
+		rec := testkit.AuthedRequest(
+			t,
+			user,
+			http.MethodPost,
+			"/api/vocabulary/translation",
+			map[string]any{"translation_id": translationID},
+		)
+		testkit.RequireStatus(t, rec, http.StatusCreated)
+		var vocabulary models.Vocabulary
+		testkit.DecodeJSON(t, rec, &vocabulary)
+		return vocabulary
+	}
+
+	original := create()
+	deleteRec := testkit.AuthedRequest(
+		t,
+		user,
+		http.MethodDelete,
+		"/api/vocabulary/"+original.ID.String(),
+		nil,
+	)
+	testkit.RequireStatus(t, deleteRec, http.StatusOK)
+	assert.NotNil(t, vocabFindByID(t, original.ID).DeletedAt)
+
+	restored := create()
+	assert.Equal(t, original.ID, restored.ID)
+	assert.Nil(t, restored.DeletedAt)
+	assert.Nil(t, restored.MasteredAt)
+	assert.Equal(t, models.BuildDefaultProgress(), restored.Progress)
+	assert.Equal(t, int64(1), vocabCountForUser(t, user.ID))
 }
 
 // TestCreateVocabularyByTranslationNotFound verifies that a non-existent
@@ -431,7 +454,7 @@ func TestCreateVocabularyByTranslationNotFound(t *testing.T) {
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/vocabulary/translation", map[string]any{
 		"translation_id": uuid.New().String(),
 	})
-	require.Equal(t, http.StatusNotFound, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusNotFound)
 }
 
 func TestCreateVocabularyByTranslationInvalidJSON(t *testing.T) {
@@ -439,8 +462,15 @@ func TestCreateVocabularyByTranslationInvalidJSON(t *testing.T) {
 
 	user := testkit.CreateUser(t)
 
-	rec := vocabRawAuthedRequest(t, user, http.MethodPost, "/api/vocabulary/translation", "}{ not json")
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	rec := testkit.AuthedRawRequest(
+		t,
+		user,
+		http.MethodPost,
+		"/api/vocabulary/translation",
+		"}{ not json",
+		nil,
+	)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -453,7 +483,7 @@ func TestCreateVocabularyByTranslationMissingID(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/vocabulary/translation", map[string]any{})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body struct {
 		Errors map[string]string `json:"errors"`
@@ -470,7 +500,7 @@ func TestDeleteVocabularyRequiresAuth(t *testing.T) {
 	testkit.Truncate(t)
 
 	rec := testkit.Request(t, http.MethodDelete, "/api/vocabulary/"+uuid.New().String(), nil)
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestDeleteVocabularyHappyPath(t *testing.T) {
@@ -480,7 +510,7 @@ func TestDeleteVocabularyHappyPath(t *testing.T) {
 	id := vocabCreateForUser(t, user, vocabCreatePayload())
 
 	rec := testkit.AuthedRequest(t, user, http.MethodDelete, "/api/vocabulary/"+id.String(), nil)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	// Soft-delete semantics: row still exists but deleted_at is set; it no longer
 	// counts as active and disappears from GET.
@@ -489,7 +519,7 @@ func TestDeleteVocabularyHappyPath(t *testing.T) {
 	assert.NotNil(t, stored.DeletedAt, "vocabulary should be soft-deleted")
 
 	listRec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/vocabulary", nil)
-	require.Equal(t, http.StatusOK, listRec.Code)
+	testkit.RequireStatus(t, listRec, http.StatusOK)
 	var body struct {
 		Data []models.Vocabulary `json:"data"`
 	}
@@ -503,7 +533,7 @@ func TestDeleteVocabularyInvalidID(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodDelete, "/api/vocabulary/not-a-uuid", nil)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -516,7 +546,7 @@ func TestDeleteVocabularyNotFound(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodDelete, "/api/vocabulary/"+uuid.New().String(), nil)
-	require.Equal(t, http.StatusNotFound, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusNotFound)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -534,7 +564,7 @@ func TestDeleteVocabularyOwnershipIsolation(t *testing.T) {
 
 	// A tries to delete B's item → 404 (scoped by user_id), and B's item survives.
 	rec := testkit.AuthedRequest(t, userA, http.MethodDelete, "/api/vocabulary/"+id.String(), nil)
-	require.Equal(t, http.StatusNotFound, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusNotFound)
 
 	assert.Equal(t, int64(1), vocabCountForUser(t, userB.ID))
 	stored := vocabFindByID(t, id)
@@ -549,10 +579,10 @@ func TestTranslateRequiresAuth(t *testing.T) {
 	testkit.Truncate(t)
 
 	rec := testkit.Request(t, http.MethodPost, "/api/translate", vocabTranslatePayload())
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
-func TestTranslateHappyPath(t *testing.T) {
+func TestTranslateUserPathSavesAndListsVocabulary(t *testing.T) {
 	testkit.Truncate(t)
 
 	testkit.MockGoogleTranslate(t, &testkit.FakeGoogleTranslate{
@@ -567,7 +597,7 @@ func TestTranslateHappyPath(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/translate", vocabTranslatePayload())
-	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		ID          uuid.UUID               `json:"id"`
@@ -584,6 +614,31 @@ func TestTranslateHappyPath(t *testing.T) {
 	var translation models.Translation
 	require.NoError(t, db.DB.Where("id = ?", body.ID).First(&translation).Error)
 	assert.Equal(t, enums.TranslationSourceGoogle, translation.Source)
+
+	createRec := testkit.AuthedRequest(
+		t,
+		user,
+		http.MethodPost,
+		"/api/vocabulary/translation",
+		map[string]any{"translation_id": body.ID},
+	)
+	testkit.RequireStatus(t, createRec, http.StatusCreated)
+
+	var vocabulary models.Vocabulary
+	testkit.DecodeJSON(t, createRec, &vocabulary)
+	require.NotEqual(t, uuid.Nil, vocabulary.ID)
+	require.NotNil(t, vocabulary.Translation)
+	assert.Equal(t, body.ID, vocabulary.Translation.ID)
+	assert.Equal(t, int64(1), vocabCountForUser(t, user.ID))
+
+	listRec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/vocabulary?search=dog", nil)
+	testkit.RequireStatus(t, listRec, http.StatusOK)
+	var list struct {
+		Data []models.Vocabulary `json:"data"`
+	}
+	testkit.DecodeJSON(t, listRec, &list)
+	require.Len(t, list.Data, 1)
+	assert.Equal(t, vocabulary.ID, list.Data[0].ID)
 }
 
 func TestTranslateUsesExistingTranslation(t *testing.T) {
@@ -603,7 +658,7 @@ func TestTranslateUsesExistingTranslation(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/translate", vocabTranslatePayload())
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		ID          uuid.UUID `json:"id"`
@@ -626,11 +681,17 @@ func TestTranslateGoogleFailure(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/translate", vocabTranslatePayload())
-	require.Equal(t, http.StatusInternalServerError, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusInternalServerError)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
 	assert.Equal(t, "Internal error", body["error"])
+
+	var wordCount, translationCount int64
+	require.NoError(t, db.DB.Model(&models.Word{}).Count(&wordCount).Error)
+	require.NoError(t, db.DB.Model(&models.Translation{}).Count(&translationCount).Error)
+	assert.Equal(t, int64(0), wordCount, "failed translation must roll back the source word")
+	assert.Equal(t, int64(0), translationCount, "failed translation must not persist a translation")
 }
 
 func TestTranslateInvalidJSON(t *testing.T) {
@@ -638,8 +699,8 @@ func TestTranslateInvalidJSON(t *testing.T) {
 
 	user := testkit.CreateUser(t)
 
-	rec := vocabRawAuthedRequest(t, user, http.MethodPost, "/api/translate", "}{ not json")
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	rec := testkit.AuthedRawRequest(t, user, http.MethodPost, "/api/translate", "}{ not json", nil)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -652,7 +713,7 @@ func TestTranslateMissingFields(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/translate", map[string]any{})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body struct {
 		Errors map[string]string `json:"errors"`
@@ -671,7 +732,7 @@ func TestTranslateInvalidLanguageEnum(t *testing.T) {
 	payload["from_language"] = "xx"
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/translate", payload)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body struct {
 		Errors map[string]string `json:"errors"`
@@ -689,7 +750,7 @@ func TestTranslateSameSourceAndTargetLanguage(t *testing.T) {
 	payload["to_language"] = "en" // equals from_language → nefield violation
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/translate", payload)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body struct {
 		Errors map[string]string `json:"errors"`

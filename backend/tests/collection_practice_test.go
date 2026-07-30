@@ -56,7 +56,66 @@ func TestStartCollectionPracticeRequiresAuth(t *testing.T) {
 	testkit.Truncate(t)
 
 	rec := testkit.Request(t, http.MethodPost, "/api/collections/"+uuid.NewString()+"/practice", nil)
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
+}
+
+func TestStartCollectionPracticeRejectsInvalidCollectionID(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+
+	rec := testkit.AuthedRequest(
+		t,
+		user,
+		http.MethodPost,
+		"/api/collections/not-a-uuid/practice",
+		nil,
+	)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
+
+	var body map[string]string
+	testkit.DecodeJSON(t, rec, &body)
+	assert.Equal(t, "invalid collection ID", body["error"])
+}
+
+func TestStartCollectionPracticeReturnsNotFoundForMissingCollection(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+
+	rec := testkit.AuthedRequest(
+		t,
+		user,
+		http.MethodPost,
+		"/api/collections/"+uuid.NewString()+"/practice",
+		nil,
+	)
+	testkit.RequireStatus(t, rec, http.StatusNotFound)
+
+	var body map[string]string
+	testkit.DecodeJSON(t, rec, &body)
+	assert.Equal(t, "collection not found", body["error"])
+}
+
+func TestStartCollectionPracticeHidesInaccessibleCollection(t *testing.T) {
+	testkit.Truncate(t)
+
+	owner := testkit.CreateUser(t, testkit.WithName("Owner"))
+	viewer := testkit.CreateUser(t, testkit.WithName("Viewer"))
+	collection := collectionSeed(t, "Private", uintPtr(owner.ID), false, false)
+
+	rec := testkit.AuthedRequest(
+		t,
+		viewer,
+		http.MethodPost,
+		"/api/collections/"+collection.ID.String()+"/practice",
+		nil,
+	)
+	testkit.RequireStatus(t, rec, http.StatusNotFound)
+
+	var body map[string]string
+	testkit.DecodeJSON(t, rec, &body)
+	assert.Equal(t, "collection not found", body["error"])
 }
 
 func TestStartCollectionPracticeRejectsEmptyIntersection(t *testing.T) {
@@ -74,7 +133,7 @@ func TestStartCollectionPracticeRejectsEmptyIntersection(t *testing.T) {
 		"/api/collections/"+collection.ID.String()+"/practice",
 		nil,
 	)
-	require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnprocessableEntity)
 	assert.Contains(t, rec.Body.String(), services.ErrNoCollectionPracticeVocabulary.Error())
 }
 
@@ -108,7 +167,7 @@ func TestStartCollectionPracticeIncludesMasteredAndReportsCounts(t *testing.T) {
 		"/api/collections/"+collection.ID.String()+"/practice",
 		nil,
 	)
-	require.Equal(t, http.StatusOK, startRec.Code)
+	testkit.RequireStatus(t, startRec, http.StatusOK)
 
 	var round services.CollectionPracticeRound
 	testkit.DecodeJSON(t, startRec, &round)
@@ -123,13 +182,13 @@ func TestStartCollectionPracticeIncludesMasteredAndReportsCounts(t *testing.T) {
 		"/api/collections/"+collection.ID.String(),
 		nil,
 	)
-	require.Equal(t, http.StatusOK, detailRec.Code)
+	testkit.RequireStatus(t, detailRec, http.StatusOK)
 	var detail services.CollectionDetail
 	testkit.DecodeJSON(t, detailRec, &detail)
 	assert.Equal(t, 1, detail.VocabularyCount)
 
 	listRec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/collections", nil)
-	require.Equal(t, http.StatusOK, listRec.Code)
+	testkit.RequireStatus(t, listRec, http.StatusOK)
 	var list services.CollectionListResponse
 	testkit.DecodeJSON(t, listRec, &list)
 	require.Len(t, list.Data, 1)
@@ -170,7 +229,7 @@ func TestCollectionPracticeAnswerKeepsKnowledgeAndAppearsInHistory(t *testing.T)
 			"matching":             false,
 		},
 	)
-	require.Equal(t, http.StatusOK, exerciseRec.Code)
+	testkit.RequireStatus(t, exerciseRec, http.StatusOK)
 
 	var exercise struct {
 		ExerciseID uuid.UUID          `json:"exercise_id"`
@@ -192,7 +251,7 @@ func TestCollectionPracticeAnswerKeepsKnowledgeAndAppearsInHistory(t *testing.T)
 		"/api/exercises/"+exercise.ExerciseID.String()+"/verify",
 		map[string]any{"answer": answer},
 	)
-	require.Equal(t, http.StatusOK, verifyRec.Code)
+	testkit.RequireStatus(t, verifyRec, http.StatusOK)
 
 	var verify struct {
 		Result        string `json:"result"`
@@ -206,7 +265,7 @@ func TestCollectionPracticeAnswerKeepsKnowledgeAndAppearsInHistory(t *testing.T)
 	assert.Equal(t, 45, collectionPracticeKnowledge(t, target.ID))
 
 	historyRec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/exercises", nil)
-	require.Equal(t, http.StatusOK, historyRec.Code)
+	testkit.RequireStatus(t, historyRec, http.StatusOK)
 	var history services.ExerciseListResponse
 	testkit.DecodeJSON(t, historyRec, &history)
 	require.Len(t, history.Data, 1)
@@ -246,7 +305,7 @@ func TestCollectionPracticeWrongAnswerDoesNotSubtractKnowledge(t *testing.T) {
 			"matching":             false,
 		},
 	)
-	require.Equal(t, http.StatusOK, exerciseRec.Code)
+	testkit.RequireStatus(t, exerciseRec, http.StatusOK)
 
 	var exercise struct {
 		ExerciseID uuid.UUID `json:"exercise_id"`
@@ -260,7 +319,7 @@ func TestCollectionPracticeWrongAnswerDoesNotSubtractKnowledge(t *testing.T) {
 		"/api/exercises/"+exercise.ExerciseID.String()+"/verify",
 		map[string]any{"answer": "intentionally wrong answer"},
 	)
-	require.Equal(t, http.StatusOK, verifyRec.Code)
+	testkit.RequireStatus(t, verifyRec, http.StatusOK)
 
 	var verify struct {
 		Result        string `json:"result"`
@@ -314,7 +373,7 @@ func TestCollectionPracticeMatchingUsesOnlyCollectionWordsAndKeepsKnowledge(t *t
 			"matching":             true,
 		},
 	)
-	require.Equal(t, http.StatusOK, exerciseRec.Code)
+	testkit.RequireStatus(t, exerciseRec, http.StatusOK)
 
 	var exercise struct {
 		ExerciseID uuid.UUID                    `json:"exercise_id"`
@@ -353,7 +412,7 @@ func TestCollectionPracticeMatchingUsesOnlyCollectionWordsAndKeepsKnowledge(t *t
 		"/api/exercises/"+exercise.ExerciseID.String()+"/match-pairs/complete",
 		map[string]any{"attempts": attempts},
 	)
-	require.Equal(t, http.StatusOK, completeRec.Code, completeRec.Body.String())
+	testkit.RequireStatus(t, completeRec, http.StatusOK)
 
 	var result services.MatchPairsCompleteResult
 	testkit.DecodeJSON(t, completeRec, &result)
@@ -425,7 +484,7 @@ func TestCollectionPracticeChoicePrefersCollectionDistractorsThenFallsBack(t *te
 						"matching":             false,
 					},
 				)
-				require.Equal(t, http.StatusOK, rec.Code)
+				testkit.RequireStatus(t, rec, http.StatusOK)
 
 				var exercise struct {
 					ExerciseID uuid.UUID          `json:"exercise_id"`
@@ -479,6 +538,146 @@ func TestCollectionPracticeRejectsVocabularyOutsideCollection(t *testing.T) {
 			"matching":             false,
 		},
 	)
-	require.Equal(t, http.StatusConflict, rec.Code, fmt.Sprintf("body: %s", rec.Body.String()))
+	testkit.RequireStatus(t, rec, http.StatusConflict)
 	assert.Contains(t, rec.Body.String(), services.ErrCollectionPracticeVocabularyUnavailable.Error())
+}
+
+func TestCollectionPracticeUserPathCompletesThroughPublicEndpoints(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+
+	createRec := testkit.AuthedRequest(
+		t,
+		user,
+		http.MethodPost,
+		"/api/collections",
+		map[string]any{"title": "Travel essentials"},
+	)
+	testkit.RequireStatus(t, createRec, http.StatusCreated)
+	var collection services.CollectionDetail
+	testkit.DecodeJSON(t, createRec, &collection)
+	require.NotEqual(t, uuid.Nil, collection.ID)
+
+	pairs := [][2]string{
+		{"train", "treno"},
+		{"plane", "aereo"},
+		{"ship", "nave"},
+		{"car", "auto"},
+	}
+	for _, pair := range pairs {
+		addRec := testkit.AuthedRequest(
+			t,
+			user,
+			http.MethodPost,
+			"/api/collections/"+collection.ID.String()+"/translations",
+			map[string]any{
+				"original":             pair[0],
+				"translation":          pair[1],
+				"original_language":    "en",
+				"translation_language": "it",
+			},
+		)
+		testkit.RequireStatus(t, addRec, http.StatusCreated)
+	}
+
+	addVocabularyRec := testkit.AuthedRequest(
+		t,
+		user,
+		http.MethodPost,
+		"/api/collections/"+collection.ID.String()+"/add-to-vocabulary",
+		map[string]any{},
+	)
+	testkit.RequireStatus(t, addVocabularyRec, http.StatusOK)
+	var added services.AddCollectionToVocabularyResult
+	testkit.DecodeJSON(t, addVocabularyRec, &added)
+	assert.Equal(t, len(pairs), added.Total)
+	assert.Equal(t, len(pairs), added.Added)
+	assert.Equal(t, 0, added.Skipped)
+
+	startRec := testkit.AuthedRequest(
+		t,
+		user,
+		http.MethodPost,
+		"/api/collections/"+collection.ID.String()+"/practice",
+		nil,
+	)
+	testkit.RequireStatus(t, startRec, http.StatusOK)
+	var round services.CollectionPracticeRound
+	testkit.DecodeJSON(t, startRec, &round)
+	assert.Equal(t, collection.ID, round.CollectionID)
+	assert.Equal(t, "Travel essentials", round.CollectionTitle)
+	require.Len(t, round.VocabularyIDs, len(pairs))
+
+	targetID := round.VocabularyIDs[0]
+	exerciseRec := testkit.AuthedRequest(
+		t,
+		user,
+		http.MethodPost,
+		"/api/collections/"+collection.ID.String()+"/practice/exercises",
+		map[string]any{
+			"target_vocabulary_id": targetID,
+			"matching":             false,
+		},
+	)
+	testkit.RequireStatus(t, exerciseRec, http.StatusOK)
+	var exercise struct {
+		ExerciseID     uuid.UUID          `json:"exercise_id"`
+		Type           enums.ExerciseType `json:"type"`
+		QuestionWord   string             `json:"question_word"`
+		AnswerLanguage enums.Language     `json:"answer_language"`
+	}
+	testkit.DecodeJSON(t, exerciseRec, &exercise)
+	require.NotEqual(t, uuid.Nil, exercise.ExerciseID)
+	assert.NotEmpty(t, exercise.QuestionWord)
+
+	var target models.Vocabulary
+	require.NoError(t, db.DB.
+		Preload("Translation.Original").
+		Preload("Translation.Translation").
+		Where("id = ? AND user_id = ?", targetID, user.ID).
+		First(&target).Error)
+	require.NotNil(t, target.Translation)
+	require.NotNil(t, target.Translation.Original)
+	require.NotNil(t, target.Translation.Translation)
+
+	answer := target.Translation.Translation.Word
+	if exercise.AnswerLanguage == target.Translation.Original.Language {
+		answer = target.Translation.Original.Word
+	}
+
+	verifyRec := testkit.AuthedRequest(
+		t,
+		user,
+		http.MethodPost,
+		"/api/exercises/"+exercise.ExerciseID.String()+"/verify",
+		map[string]any{"answer": answer},
+	)
+	testkit.RequireStatus(t, verifyRec, http.StatusOK)
+	var verified struct {
+		Result        string `json:"result"`
+		Knowledge     int    `json:"knowledge"`
+		ProgressDelta int    `json:"progress_delta"`
+	}
+	testkit.DecodeJSON(t, verifyRec, &verified)
+	assert.Equal(t, services.ExerciseVocabularyResultCorrect, verified.Result)
+	assert.Equal(t, 0, verified.Knowledge)
+	assert.Equal(t, 0, verified.ProgressDelta)
+
+	var storedExercise models.Exercise
+	require.NoError(t, db.DB.
+		Where("id = ? AND user_id = ?", exercise.ExerciseID, user.ID).
+		First(&storedExercise).Error)
+	assert.Equal(t, enums.ExerciseStatusCompleted, storedExercise.Status)
+	require.NotNil(t, storedExercise.PracticeCollectionID)
+	assert.Equal(t, collection.ID, *storedExercise.PracticeCollectionID)
+
+	historyRec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/exercises", nil)
+	testkit.RequireStatus(t, historyRec, http.StatusOK)
+	var history services.ExerciseListResponse
+	testkit.DecodeJSON(t, historyRec, &history)
+	require.Len(t, history.Data, 1)
+	require.NotNil(t, history.Data[0].CollectionPractice)
+	assert.Equal(t, collection.ID, history.Data[0].CollectionPractice.ID)
+	assert.Equal(t, "Travel essentials", history.Data[0].CollectionPractice.Title)
 }

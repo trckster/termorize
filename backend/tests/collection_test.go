@@ -2,8 +2,6 @@ package tests
 
 import (
 	"net/http"
-	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
@@ -22,21 +20,6 @@ import (
 // Local helpers (unexported, prefixed `collection` to avoid clashes with other
 // test files in the shared `tests` package).
 // ---------------------------------------------------------------------------
-
-// collectionRawAuthedRequest issues an in-process request with a raw (possibly
-// invalid) JSON body and the given user's auth cookie, so bind-level errors can
-// be exercised.
-func collectionRawAuthedRequest(t *testing.T, user models.User, method, path, rawBody string) *httptest.ResponseRecorder {
-	t.Helper()
-
-	req := httptest.NewRequest(method, path, strings.NewReader(rawBody))
-	req.Header.Set("Content-Type", "application/json")
-	req.AddCookie(testkit.AuthCookie(user))
-
-	rec := httptest.NewRecorder()
-	testkit.Router().ServeHTTP(rec, req)
-	return rec
-}
 
 // collectionSeed inserts a collection row directly via db.DB and returns it.
 func collectionSeed(t *testing.T, title string, ownerID *uint, isAdmin, isPublished bool) models.Collection {
@@ -136,7 +119,7 @@ func TestGetCollectionsRequiresAuth(t *testing.T) {
 	testkit.Truncate(t)
 
 	rec := testkit.Request(t, http.MethodGet, "/api/collections", nil)
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestGetCollectionsEmpty(t *testing.T) {
@@ -145,7 +128,7 @@ func TestGetCollectionsEmpty(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/collections", nil)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		Data       []map[string]any `json:"data"`
@@ -177,7 +160,7 @@ func TestGetCollectionsReturnsOwnedAndPublishedAdmin(t *testing.T) {
 	collectionSeed(t, "GlobalDraft", nil, true, false)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/collections", nil)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		Data []struct {
@@ -209,7 +192,7 @@ func TestGetCollectionsAdminViewerSeesAll(t *testing.T) {
 	collectionSeed(t, "GlobalDraft", nil, true, false)
 
 	rec := testkit.AuthedRequest(t, admin, http.MethodGet, "/api/collections", nil)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		Pagination struct {
@@ -228,7 +211,7 @@ func TestGetCollectionsSearchFilters(t *testing.T) {
 	collectionSeed(t, "Food", uintPtr(user.ID), false, true)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/collections?search=anim", nil)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		Data []struct {
@@ -246,7 +229,7 @@ func TestGetCollectionsInvalidPagination(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/collections?page_size=5000", nil)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -267,7 +250,7 @@ func TestGetCollectionsLanguageFilter(t *testing.T) {
 	collectionLink(t, enFr.ID, tr2, 0)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/collections?languages=de", nil)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		Data []struct {
@@ -287,7 +270,7 @@ func TestCreateCollectionRequiresAuth(t *testing.T) {
 	testkit.Truncate(t)
 
 	rec := testkit.Request(t, http.MethodPost, "/api/collections", map[string]any{"title": "X"})
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestCreateCollectionHappyPath(t *testing.T) {
@@ -296,7 +279,7 @@ func TestCreateCollectionHappyPath(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collections", map[string]any{"title": "  My Collection  "})
-	require.Equal(t, http.StatusCreated, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusCreated)
 
 	var body struct {
 		ID          uuid.UUID `json:"id"`
@@ -326,7 +309,7 @@ func TestCreateCollectionMissingTitle(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collections", map[string]any{})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body struct {
 		Errors map[string]string `json:"errors"`
@@ -343,7 +326,7 @@ func TestCreateCollectionBlankTitle(t *testing.T) {
 	// A whitespace-only title passes the binding:required check but is rejected by
 	// the service with ErrCollectionTitleRequired → 400.
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collections", map[string]any{"title": "   "})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -355,8 +338,8 @@ func TestCreateCollectionInvalidJSON(t *testing.T) {
 
 	user := testkit.CreateUser(t)
 
-	rec := collectionRawAuthedRequest(t, user, http.MethodPost, "/api/collections", "}{ not json")
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	rec := testkit.AuthedRawRequest(t, user, http.MethodPost, "/api/collections", "}{ not json", nil)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -372,7 +355,7 @@ func TestCreateCollectionAdminByNonAdminForbidden(t *testing.T) {
 		"title":    "Global",
 		"is_admin": true,
 	})
-	require.Equal(t, http.StatusForbidden, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusForbidden)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -388,7 +371,7 @@ func TestCreateCollectionAdminByAdmin(t *testing.T) {
 		"title":    "Global",
 		"is_admin": true,
 	})
-	require.Equal(t, http.StatusCreated, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusCreated)
 
 	var body struct {
 		ID          uuid.UUID `json:"id"`
@@ -411,7 +394,7 @@ func TestGetCollectionRequiresAuth(t *testing.T) {
 	testkit.Truncate(t)
 
 	rec := testkit.Request(t, http.MethodGet, "/api/collections/"+uuid.New().String(), nil)
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestGetCollectionInvalidID(t *testing.T) {
@@ -420,7 +403,7 @@ func TestGetCollectionInvalidID(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/collections/not-a-uuid", nil)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -433,7 +416,7 @@ func TestGetCollectionNotFound(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/collections/"+uuid.New().String(), nil)
-	require.Equal(t, http.StatusNotFound, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusNotFound)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -452,7 +435,7 @@ func TestGetCollectionHappyPathWithTranslations(t *testing.T) {
 	collectionLink(t, collection.ID, tr2, 1)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/collections/"+collection.ID.String(), nil)
-	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		ID               uuid.UUID `json:"id"`
@@ -487,7 +470,7 @@ func TestGetCollectionUnpublishedAdminHidden(t *testing.T) {
 	collection := collectionSeed(t, "Draft", nil, true, false)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/collections/"+collection.ID.String(), nil)
-	require.Equal(t, http.StatusNotFound, rec.Code, "unpublished admin collection is not accessible to a normal user")
+	testkit.RequireStatus(t, rec, http.StatusNotFound, "unpublished admin collection is not accessible to a normal user")
 }
 
 func TestGetCollectionMemberCanAccess(t *testing.T) {
@@ -503,7 +486,7 @@ func TestGetCollectionMemberCanAccess(t *testing.T) {
 	}).Error)
 
 	rec := testkit.AuthedRequest(t, member, http.MethodGet, "/api/collections/"+collection.ID.String(), nil)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		IsOwner     bool   `json:"is_owner"`
@@ -522,7 +505,7 @@ func TestUpdateCollectionRequiresAuth(t *testing.T) {
 	testkit.Truncate(t)
 
 	rec := testkit.Request(t, http.MethodPut, "/api/collections/"+uuid.New().String(), map[string]any{"title": "X"})
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestUpdateCollectionHappyPath(t *testing.T) {
@@ -533,7 +516,7 @@ func TestUpdateCollectionHappyPath(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/collections/"+collection.ID.String(),
 		map[string]any{"title": "New Title"})
-	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		Title string `json:"title"`
@@ -551,7 +534,7 @@ func TestUpdateCollectionInvalidID(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/collections/not-a-uuid", map[string]any{"title": "X"})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -565,7 +548,7 @@ func TestUpdateCollectionMissingTitle(t *testing.T) {
 	collection := collectionSeed(t, "Old", uintPtr(user.ID), false, true)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/collections/"+collection.ID.String(), map[string]any{})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body struct {
 		Errors map[string]string `json:"errors"`
@@ -581,7 +564,7 @@ func TestUpdateCollectionNotFound(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/collections/"+uuid.New().String(),
 		map[string]any{"title": "X"})
-	require.Equal(t, http.StatusNotFound, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusNotFound)
 }
 
 func TestUpdateCollectionForbiddenForNonOwner(t *testing.T) {
@@ -599,7 +582,7 @@ func TestUpdateCollectionForbiddenForNonOwner(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, member, http.MethodPut, "/api/collections/"+collection.ID.String(),
 		map[string]any{"title": "Hijacked"})
-	require.Equal(t, http.StatusForbidden, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusForbidden)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -617,7 +600,7 @@ func TestDeleteCollectionRequiresAuth(t *testing.T) {
 	testkit.Truncate(t)
 
 	rec := testkit.Request(t, http.MethodDelete, "/api/collections/"+uuid.New().String(), nil)
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestDeleteCollectionHappyPath(t *testing.T) {
@@ -627,14 +610,14 @@ func TestDeleteCollectionHappyPath(t *testing.T) {
 	collection := collectionSeed(t, "ToDelete", uintPtr(user.ID), false, true)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodDelete, "/api/collections/"+collection.ID.String(), nil)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	// Soft-deleted: deleted_at set, no longer accessible.
 	stored := collectionFindByID(t, collection.ID)
 	assert.NotNil(t, stored.DeletedAt)
 
 	getRec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/collections/"+collection.ID.String(), nil)
-	assert.Equal(t, http.StatusNotFound, getRec.Code)
+	testkit.RequireStatus(t, getRec, http.StatusNotFound)
 }
 
 func TestDeleteCollectionInvalidID(t *testing.T) {
@@ -643,7 +626,7 @@ func TestDeleteCollectionInvalidID(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodDelete, "/api/collections/not-a-uuid", nil)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 }
 
 func TestDeleteCollectionNotFound(t *testing.T) {
@@ -652,7 +635,7 @@ func TestDeleteCollectionNotFound(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodDelete, "/api/collections/"+uuid.New().String(), nil)
-	require.Equal(t, http.StatusNotFound, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusNotFound)
 }
 
 func TestDeleteCollectionForbiddenForNonOwner(t *testing.T) {
@@ -667,7 +650,7 @@ func TestDeleteCollectionForbiddenForNonOwner(t *testing.T) {
 	}).Error)
 
 	rec := testkit.AuthedRequest(t, member, http.MethodDelete, "/api/collections/"+collection.ID.String(), nil)
-	require.Equal(t, http.StatusForbidden, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusForbidden)
 
 	stored := collectionFindByID(t, collection.ID)
 	assert.Nil(t, stored.DeletedAt, "non-owner must not delete")
@@ -691,7 +674,7 @@ func TestAddCollectionTranslationRequiresAuth(t *testing.T) {
 
 	rec := testkit.Request(t, http.MethodPost, "/api/collections/"+uuid.New().String()+"/translations",
 		collectionAddTranslationPayload())
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestAddCollectionTranslationHappyPath(t *testing.T) {
@@ -702,7 +685,7 @@ func TestAddCollectionTranslationHappyPath(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collections/"+collection.ID.String()+"/translations",
 		collectionAddTranslationPayload())
-	require.Equal(t, http.StatusCreated, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusCreated)
 
 	var body struct {
 		TranslationCount int `json:"translation_count"`
@@ -728,7 +711,7 @@ func TestAddCollectionTranslationAssignsIncreasingPositions(t *testing.T) {
 
 	first := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collections/"+collection.ID.String()+"/translations",
 		collectionAddTranslationPayload())
-	require.Equal(t, http.StatusCreated, first.Code)
+	testkit.RequireStatus(t, first, http.StatusCreated)
 
 	second := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collections/"+collection.ID.String()+"/translations",
 		map[string]any{
@@ -737,7 +720,7 @@ func TestAddCollectionTranslationAssignsIncreasingPositions(t *testing.T) {
 			"original_language":    "en",
 			"translation_language": "de",
 		})
-	require.Equal(t, http.StatusCreated, second.Code)
+	testkit.RequireStatus(t, second, http.StatusCreated)
 
 	var body struct {
 		Translations []struct {
@@ -759,7 +742,7 @@ func TestAddCollectionTranslationInvalidID(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collections/not-a-uuid/translations",
 		collectionAddTranslationPayload())
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -774,7 +757,7 @@ func TestAddCollectionTranslationMissingFields(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collections/"+collection.ID.String()+"/translations",
 		map[string]any{})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body struct {
 		Errors map[string]string `json:"errors"`
@@ -793,7 +776,7 @@ func TestAddCollectionTranslationSameLanguage(t *testing.T) {
 	payload["translation_language"] = "en" // equals original_language → nefield
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collections/"+collection.ID.String()+"/translations", payload)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body struct {
 		Errors map[string]string `json:"errors"`
@@ -809,7 +792,7 @@ func TestAddCollectionTranslationNotFound(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collections/"+uuid.New().String()+"/translations",
 		collectionAddTranslationPayload())
-	require.Equal(t, http.StatusNotFound, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusNotFound)
 }
 
 func TestAddCollectionTranslationForbiddenForNonOwner(t *testing.T) {
@@ -825,7 +808,7 @@ func TestAddCollectionTranslationForbiddenForNonOwner(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, member, http.MethodPost, "/api/collections/"+collection.ID.String()+"/translations",
 		collectionAddTranslationPayload())
-	require.Equal(t, http.StatusForbidden, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusForbidden)
 	assert.Equal(t, int64(0), collectionTranslationCount(t, collection.ID))
 }
 
@@ -838,7 +821,7 @@ func TestRemoveCollectionTranslationRequiresAuth(t *testing.T) {
 
 	rec := testkit.Request(t, http.MethodDelete,
 		"/api/collections/"+uuid.New().String()+"/translations/"+uuid.New().String(), nil)
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestRemoveCollectionTranslationHappyPath(t *testing.T) {
@@ -852,7 +835,7 @@ func TestRemoveCollectionTranslationHappyPath(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodDelete,
 		"/api/collections/"+collection.ID.String()+"/translations/"+tr.String(), nil)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	assert.Equal(t, int64(0), collectionTranslationCount(t, collection.ID))
 }
@@ -864,7 +847,7 @@ func TestRemoveCollectionTranslationInvalidCollectionID(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodDelete,
 		"/api/collections/not-a-uuid/translations/"+uuid.New().String(), nil)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -879,7 +862,7 @@ func TestRemoveCollectionTranslationInvalidTranslationID(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodDelete,
 		"/api/collections/"+collection.ID.String()+"/translations/not-a-uuid", nil)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -893,7 +876,7 @@ func TestRemoveCollectionTranslationNotFoundCollection(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodDelete,
 		"/api/collections/"+uuid.New().String()+"/translations/"+uuid.New().String(), nil)
-	require.Equal(t, http.StatusNotFound, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusNotFound)
 }
 
 func TestRemoveCollectionTranslationForbiddenForNonOwner(t *testing.T) {
@@ -911,7 +894,7 @@ func TestRemoveCollectionTranslationForbiddenForNonOwner(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, member, http.MethodDelete,
 		"/api/collections/"+collection.ID.String()+"/translations/"+tr.String(), nil)
-	require.Equal(t, http.StatusForbidden, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusForbidden)
 	assert.Equal(t, int64(1), collectionTranslationCount(t, collection.ID), "link must survive")
 }
 
@@ -924,7 +907,7 @@ func TestReorderCollectionTranslationsRequiresAuth(t *testing.T) {
 
 	rec := testkit.Request(t, http.MethodPut, "/api/collections/"+uuid.New().String()+"/translations/order",
 		map[string]any{"translation_ids": []string{uuid.New().String()}})
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestReorderCollectionTranslationsHappyPath(t *testing.T) {
@@ -943,7 +926,7 @@ func TestReorderCollectionTranslationsHappyPath(t *testing.T) {
 	// New order: tr3, tr1, tr2.
 	rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/collections/"+collection.ID.String()+"/translations/order",
 		map[string]any{"translation_ids": []string{tr3.String(), tr1.String(), tr2.String()}})
-	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	// DB positions reflect the new order.
 	assert.Equal(t, 0, collectionPosition(t, collection.ID, tr3))
@@ -963,7 +946,7 @@ func TestReorderCollectionTranslationsHappyPath(t *testing.T) {
 	assert.Equal(t, tr2, body.Translations[2].ID)
 
 	getRec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/collections/"+collection.ID.String(), nil)
-	require.Equal(t, http.StatusOK, getRec.Code)
+	testkit.RequireStatus(t, getRec, http.StatusOK)
 	var getBody struct {
 		Translations []struct {
 			ID uuid.UUID `json:"id"`
@@ -983,7 +966,7 @@ func TestReorderCollectionTranslationsInvalidID(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/collections/not-a-uuid/translations/order",
 		map[string]any{"translation_ids": []string{uuid.New().String()}})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -998,7 +981,7 @@ func TestReorderCollectionTranslationsMissingIDs(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/collections/"+collection.ID.String()+"/translations/order",
 		map[string]any{})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body struct {
 		Errors map[string]string `json:"errors"`
@@ -1014,7 +997,7 @@ func TestReorderCollectionTranslationsNotFound(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/collections/"+uuid.New().String()+"/translations/order",
 		map[string]any{"translation_ids": []string{uuid.New().String()}})
-	require.Equal(t, http.StatusNotFound, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusNotFound)
 }
 
 func TestReorderCollectionTranslationsForbiddenForNonOwner(t *testing.T) {
@@ -1032,7 +1015,7 @@ func TestReorderCollectionTranslationsForbiddenForNonOwner(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, member, http.MethodPut, "/api/collections/"+collection.ID.String()+"/translations/order",
 		map[string]any{"translation_ids": []string{tr.String()}})
-	require.Equal(t, http.StatusForbidden, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusForbidden)
 }
 
 // ===========================================================================
@@ -1043,7 +1026,7 @@ func TestAddCollectionToVocabularyRequiresAuth(t *testing.T) {
 	testkit.Truncate(t)
 
 	rec := testkit.Request(t, http.MethodPost, "/api/collections/"+uuid.New().String()+"/add-to-vocabulary", nil)
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestAddCollectionToVocabularyAllTranslations(t *testing.T) {
@@ -1058,7 +1041,7 @@ func TestAddCollectionToVocabularyAllTranslations(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost,
 		"/api/collections/"+collection.ID.String()+"/add-to-vocabulary", map[string]any{})
-	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		Added        int `json:"added"`
@@ -1098,13 +1081,13 @@ func TestAddCollectionToVocabularySelectedAndSkips(t *testing.T) {
 	first := testkit.AuthedRequest(t, user, http.MethodPost,
 		"/api/collections/"+collection.ID.String()+"/add-to-vocabulary",
 		map[string]any{"translation_ids": []string{tr1.String()}})
-	require.Equal(t, http.StatusOK, first.Code)
+	testkit.RequireStatus(t, first, http.StatusOK)
 
 	// Now add both: tr1 skipped, tr2 added.
 	rec := testkit.AuthedRequest(t, user, http.MethodPost,
 		"/api/collections/"+collection.ID.String()+"/add-to-vocabulary",
 		map[string]any{"translation_ids": []string{tr1.String(), tr2.String()}})
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		Added   int `json:"added"`
@@ -1123,7 +1106,7 @@ func TestAddCollectionToVocabularyInvalidID(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collections/not-a-uuid/add-to-vocabulary", map[string]any{})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -1137,7 +1120,7 @@ func TestAddCollectionToVocabularyNotFound(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost,
 		"/api/collections/"+uuid.New().String()+"/add-to-vocabulary", map[string]any{})
-	require.Equal(t, http.StatusNotFound, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusNotFound)
 }
 
 func TestAddCollectionToVocabularyAccessForbidden(t *testing.T) {
@@ -1153,7 +1136,7 @@ func TestAddCollectionToVocabularyAccessForbidden(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, stranger, http.MethodPost,
 		"/api/collections/"+collection.ID.String()+"/add-to-vocabulary", map[string]any{})
-	require.Equal(t, http.StatusNotFound, rec.Code, "stranger cannot access a private user collection")
+	testkit.RequireStatus(t, rec, http.StatusNotFound, "stranger cannot access a private user collection")
 }
 
 // ===========================================================================
@@ -1165,7 +1148,7 @@ func TestPublishCollectionRequiresAuth(t *testing.T) {
 
 	rec := testkit.Request(t, http.MethodPost, "/api/collections/"+uuid.New().String()+"/publish",
 		map[string]any{"is_published": true})
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestPublishCollectionUnpublishThenPublish(t *testing.T) {
@@ -1177,7 +1160,7 @@ func TestPublishCollectionUnpublishThenPublish(t *testing.T) {
 	// Unpublish.
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collections/"+collection.ID.String()+"/publish",
 		map[string]any{"is_published": false})
-	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		IsPublished bool `json:"is_published"`
@@ -1189,7 +1172,7 @@ func TestPublishCollectionUnpublishThenPublish(t *testing.T) {
 	// Re-publish.
 	rec2 := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collections/"+collection.ID.String()+"/publish",
 		map[string]any{"is_published": true})
-	require.Equal(t, http.StatusOK, rec2.Code)
+	testkit.RequireStatus(t, rec2, http.StatusOK)
 	assert.True(t, collectionFindByID(t, collection.ID).IsPublished)
 }
 
@@ -1200,7 +1183,7 @@ func TestPublishCollectionInvalidID(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collections/not-a-uuid/publish",
 		map[string]any{"is_published": true})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -1214,7 +1197,7 @@ func TestPublishCollectionNotFound(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collections/"+uuid.New().String()+"/publish",
 		map[string]any{"is_published": true})
-	require.Equal(t, http.StatusNotFound, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusNotFound)
 }
 
 func TestPublishCollectionForbiddenForNonOwner(t *testing.T) {
@@ -1230,7 +1213,7 @@ func TestPublishCollectionForbiddenForNonOwner(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, member, http.MethodPost, "/api/collections/"+collection.ID.String()+"/publish",
 		map[string]any{"is_published": false})
-	require.Equal(t, http.StatusForbidden, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusForbidden)
 	assert.True(t, collectionFindByID(t, collection.ID).IsPublished, "state unchanged")
 }
 
@@ -1243,7 +1226,7 @@ func TestPublishCollectionAdminCanEditGlobal(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, admin, http.MethodPost, "/api/collections/"+collection.ID.String()+"/publish",
 		map[string]any{"is_published": true})
-	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusOK)
 	assert.True(t, collectionFindByID(t, collection.ID).IsPublished)
 }
 
@@ -1255,7 +1238,7 @@ func TestGenerateCollectionRequiresAuth(t *testing.T) {
 	testkit.Truncate(t)
 
 	rec := testkit.Request(t, http.MethodPost, "/api/collection-generate", map[string]any{"prompt": "animals"})
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestGenerateCollectionHappyPath(t *testing.T) {
@@ -1278,7 +1261,7 @@ func TestGenerateCollectionHappyPath(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collection-generate",
 		map[string]any{"prompt": "animals in german"})
-	require.Equal(t, http.StatusCreated, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusCreated)
 
 	var body struct {
 		ID               uuid.UUID `json:"id"`
@@ -1318,7 +1301,7 @@ func TestGenerateCollectionAdminProducesUnpublishedGlobal(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, admin, http.MethodPost, "/api/collection-generate",
 		map[string]any{"prompt": "animals"})
-	require.Equal(t, http.StatusCreated, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusCreated)
 
 	var body struct {
 		ID          uuid.UUID `json:"id"`
@@ -1341,7 +1324,7 @@ func TestGenerateCollectionMissingPrompt(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collection-generate", map[string]any{})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body struct {
 		Errors map[string]string `json:"errors"`
@@ -1357,7 +1340,7 @@ func TestGenerateCollectionBlankPrompt(t *testing.T) {
 
 	// Whitespace-only prompt passes binding:required but is rejected by the service.
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collection-generate", map[string]any{"prompt": "   "})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -1378,7 +1361,7 @@ func TestGenerateCollectionOpenRouterFailure(t *testing.T) {
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collection-generate",
 		map[string]any{"prompt": "animals"})
 	// AIGenerationFailed → ServerError → 500.
-	require.Equal(t, http.StatusInternalServerError, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusInternalServerError)
 }
 
 func TestGenerateCollectionNotConfigured(t *testing.T) {
@@ -1395,7 +1378,7 @@ func TestGenerateCollectionNotConfigured(t *testing.T) {
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collection-generate",
 		map[string]any{"prompt": "animals"})
 	// ErrNotConfigured → AIGenerationUnavailable → 503.
-	require.Equal(t, http.StatusServiceUnavailable, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusServiceUnavailable)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -1422,7 +1405,7 @@ func TestGenerateCollectionNoUsablePairs(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collection-generate",
 		map[string]any{"prompt": "animals"})
-	require.Equal(t, http.StatusInternalServerError, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusInternalServerError)
 }
 
 // ===========================================================================
@@ -1433,7 +1416,7 @@ func TestJoinCollectionRequiresAuth(t *testing.T) {
 	testkit.Truncate(t)
 
 	rec := testkit.Request(t, http.MethodPost, "/api/collection-invites/sometoken", nil)
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestJoinCollectionHappyPath(t *testing.T) {
@@ -1444,7 +1427,7 @@ func TestJoinCollectionHappyPath(t *testing.T) {
 	collection := collectionSeed(t, "Shared", uintPtr(owner.ID), false, true)
 
 	rec := testkit.AuthedRequest(t, joiner, http.MethodPost, "/api/collection-invites/"+collection.InviteToken, nil)
-	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		ID      uuid.UUID `json:"id"`
@@ -1459,7 +1442,7 @@ func TestJoinCollectionHappyPath(t *testing.T) {
 
 	// Joiner now sees the collection in their list.
 	listRec := testkit.AuthedRequest(t, joiner, http.MethodGet, "/api/collections", nil)
-	require.Equal(t, http.StatusOK, listRec.Code)
+	testkit.RequireStatus(t, listRec, http.StatusOK)
 	var list struct {
 		Data []struct {
 			ID uuid.UUID `json:"id"`
@@ -1483,9 +1466,9 @@ func TestJoinCollectionIdempotent(t *testing.T) {
 	collection := collectionSeed(t, "Shared", uintPtr(owner.ID), false, true)
 
 	first := testkit.AuthedRequest(t, joiner, http.MethodPost, "/api/collection-invites/"+collection.InviteToken, nil)
-	require.Equal(t, http.StatusOK, first.Code)
+	testkit.RequireStatus(t, first, http.StatusOK)
 	second := testkit.AuthedRequest(t, joiner, http.MethodPost, "/api/collection-invites/"+collection.InviteToken, nil)
-	require.Equal(t, http.StatusOK, second.Code)
+	testkit.RequireStatus(t, second, http.StatusOK)
 
 	// Still only one membership row (OnConflict DoNothing).
 	assert.Equal(t, int64(1), collectionMemberCount(t, collection.ID))
@@ -1498,7 +1481,7 @@ func TestJoinCollectionOwnerDoesNotCreateMembership(t *testing.T) {
 	collection := collectionSeed(t, "Shared", uintPtr(owner.ID), false, true)
 
 	rec := testkit.AuthedRequest(t, owner, http.MethodPost, "/api/collection-invites/"+collection.InviteToken, nil)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		IsOwner bool `json:"is_owner"`
@@ -1514,7 +1497,7 @@ func TestJoinCollectionInvalidToken(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collection-invites/does-not-exist", nil)
-	require.Equal(t, http.StatusNotFound, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusNotFound)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -1533,5 +1516,5 @@ func TestJoinCollectionDeletedCollectionToken(t *testing.T) {
 		Where("id = ?", collection.ID).Update("deleted_at", now).Error)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collection-invites/"+collection.InviteToken, nil)
-	require.Equal(t, http.StatusNotFound, rec.Code, "token of a deleted collection is invalid")
+	testkit.RequireStatus(t, rec, http.StatusNotFound, "token of a deleted collection is invalid")
 }
