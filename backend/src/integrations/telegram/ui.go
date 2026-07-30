@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"math"
 	"strconv"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 
@@ -42,6 +43,10 @@ const (
 
 	vocabularyActionAdd    = "add"
 	vocabularyActionDelete = "delete"
+
+	// Telegram clients elide inline-button labels by rendered width. Twelve
+	// runes is the heuristic cutoff for keeping two exercise buttons per row.
+	exerciseCompactButtonMaxRunes = 12
 )
 
 func getMenuKeyboard(t BotTexts) [][]inlineKeyboardButton {
@@ -149,30 +154,28 @@ func buildSystemLanguageSelectionKeyboard(t BotTexts) [][]inlineKeyboardButton {
 }
 
 func buildExerciseKeyboard(exerciseID uuid.UUID, options []services.ExerciseOption) [][]inlineKeyboardButton {
-	rows := make([][]inlineKeyboardButton, 0, 2)
 	compactExerciseID := compactCallbackUUID(exerciseID)
+	buttons := make([]inlineKeyboardButton, 0, len(options))
+	labels := make([]string, 0, len(options))
 
-	for index, option := range options {
-		rowIndex := index / 2
-		if len(rows) <= rowIndex {
-			rows = append(rows, []inlineKeyboardButton{})
-		}
-
-		rows[rowIndex] = append(rows[rowIndex], inlineKeyboardButton{
+	for _, option := range options {
+		buttons = append(buttons, inlineKeyboardButton{
 			Text:         option.Label,
 			CallbackData: callbackTypeExercise + ":" + exerciseActionAnswer + ":" + compactExerciseID + ":" + compactCallbackUUID(option.VocabularyID),
 		})
+		labels = append(labels, option.Label)
 	}
 
-	return rows
+	return groupExerciseButtons(buttons, exerciseButtonsPerRow(labels))
 }
 
 func buildMatchKeyboard(exerciseID uuid.UUID, board *services.MatchBoardState) [][]inlineKeyboardButton {
 	compactExerciseID := compactCallbackUUID(exerciseID)
 	noopCallback := callbackTypeExercise + ":" + exerciseActionMatchNoop
 
-	rows := make([][]inlineKeyboardButton, 0, len(board.Order)/2)
-	for slot, canonical := range board.Order {
+	buttons := make([]inlineKeyboardButton, 0, len(board.Order))
+	labels := make([]string, 0, len(board.Order))
+	for _, canonical := range board.Order {
 		if canonical < 0 || canonical >= len(board.Cards) {
 			continue
 		}
@@ -202,9 +205,29 @@ func buildMatchKeyboard(exerciseID uuid.UUID, board *services.MatchBoardState) [
 			}
 		}
 
-		rowIndex := slot / 2
+		buttons = append(buttons, button)
+		labels = append(labels, card.Word)
+	}
+
+	return groupExerciseButtons(buttons, exerciseButtonsPerRow(labels))
+}
+
+func exerciseButtonsPerRow(labels []string) int {
+	for _, label := range labels {
+		if utf8.RuneCountInString(label) > exerciseCompactButtonMaxRunes {
+			return 1
+		}
+	}
+
+	return 2
+}
+
+func groupExerciseButtons(buttons []inlineKeyboardButton, buttonsPerRow int) [][]inlineKeyboardButton {
+	rows := make([][]inlineKeyboardButton, 0, (len(buttons)+buttonsPerRow-1)/buttonsPerRow)
+	for index, button := range buttons {
+		rowIndex := index / buttonsPerRow
 		if len(rows) <= rowIndex {
-			rows = append(rows, []inlineKeyboardButton{})
+			rows = append(rows, make([]inlineKeyboardButton, 0, buttonsPerRow))
 		}
 		rows[rowIndex] = append(rows[rowIndex], button)
 	}
