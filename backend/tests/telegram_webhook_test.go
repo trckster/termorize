@@ -311,6 +311,80 @@ func TestTelegramWebhookCallbackDeleteTranslationSetsState(t *testing.T) {
 	require.True(t, tg.Sent("editMessageText"))
 }
 
+func TestTelegramWebhookVocabularyAddCallbackIsReplaySafe(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+
+	const telegramID int64 = 555006
+	const chatID int64 = 88006
+	const messageID int64 = 99
+	const originalText = "dog → Hund"
+
+	user := testkit.CreateUser(t,
+		testkit.WithTelegramID(telegramID),
+		testkit.WithSettings(models.UserSettings{SystemLanguage: enums.LanguageEn}),
+	)
+	translationID := vocabSeedTranslation(t, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
+
+	update := map[string]any{
+		"update_id": 4,
+		"callback_query": map[string]any{
+			"id":   "cb-vocabulary-add",
+			"data": "vocabulary:add:" + translationID.String(),
+			"from": map[string]any{
+				"id":     telegramID,
+				"is_bot": false,
+			},
+			"message": map[string]any{
+				"message_id": messageID,
+				"text":       originalText,
+				"chat": map[string]any{
+					"id":   chatID,
+					"type": "private",
+				},
+			},
+		},
+	}
+
+	rec := telegramUpdate(t, update)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	assert.Equal(t, int64(1), vocabCountForUser(t, user.ID))
+	var stored models.Vocabulary
+	require.NoError(t, db.DB.
+		Where("user_id = ? AND translation_id = ?", user.ID, translationID).
+		First(&stored).Error)
+
+	require.Len(t, tg.RequestsFor("answerCallbackQuery"), 1)
+	var answerRequest map[string]any
+	require.NoError(t, json.Unmarshal(tg.RequestsFor("answerCallbackQuery")[0].Body, &answerRequest))
+	assert.Equal(t, "cb-vocabulary-add", answerRequest["callback_query_id"])
+
+	require.Len(t, tg.RequestsFor("editMessageText"), 1)
+	var editRequest struct {
+		ChatID      int64  `json:"chat_id"`
+		MessageID   int64  `json:"message_id"`
+		Text        string `json:"text"`
+		ReplyMarkup struct {
+			InlineKeyboard []any `json:"inline_keyboard"`
+		} `json:"reply_markup"`
+	}
+	require.NoError(t, json.Unmarshal(tg.RequestsFor("editMessageText")[0].Body, &editRequest))
+	assert.Equal(t, chatID, editRequest.ChatID)
+	assert.Equal(t, messageID, editRequest.MessageID)
+	assert.Equal(t, originalText+"\n\nSuccessfully added to your vocabulary", editRequest.Text)
+	assert.Empty(t, editRequest.ReplyMarkup.InlineKeyboard, "the consumed button must be removed")
+	assert.False(t, tg.Sent("sendMessage"), "the callback should edit, not send, the message")
+
+	// Telegram may redeliver an update. The service treats an existing vocabulary
+	// item as success, so replaying this callback must not create a duplicate.
+	replayed := telegramUpdate(t, update)
+	require.Equal(t, http.StatusOK, replayed.Code)
+	assert.Equal(t, int64(1), vocabCountForUser(t, user.ID))
+	assert.Equal(t, 2, tg.Count("answerCallbackQuery"))
+	assert.Equal(t, 2, tg.Count("editMessageText"))
+}
+
 func TestTelegramWebhookCharacterExerciseUsesSquareBoardAndCompletes(t *testing.T) {
 	testkit.Truncate(t)
 	tg := testkit.MockTelegramAPI(t)

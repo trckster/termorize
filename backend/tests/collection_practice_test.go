@@ -59,6 +59,65 @@ func TestStartCollectionPracticeRequiresAuth(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 }
 
+func TestStartCollectionPracticeRejectsInvalidCollectionID(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+
+	rec := testkit.AuthedRequest(
+		t,
+		user,
+		http.MethodPost,
+		"/api/collections/not-a-uuid/practice",
+		nil,
+	)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+
+	var body map[string]string
+	testkit.DecodeJSON(t, rec, &body)
+	assert.Equal(t, "invalid collection ID", body["error"])
+}
+
+func TestStartCollectionPracticeReturnsNotFoundForMissingCollection(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+
+	rec := testkit.AuthedRequest(
+		t,
+		user,
+		http.MethodPost,
+		"/api/collections/"+uuid.NewString()+"/practice",
+		nil,
+	)
+	require.Equal(t, http.StatusNotFound, rec.Code)
+
+	var body map[string]string
+	testkit.DecodeJSON(t, rec, &body)
+	assert.Equal(t, "collection not found", body["error"])
+}
+
+func TestStartCollectionPracticeHidesInaccessibleCollection(t *testing.T) {
+	testkit.Truncate(t)
+
+	owner := testkit.CreateUser(t, testkit.WithName("Owner"))
+	viewer := testkit.CreateUser(t, testkit.WithName("Viewer"))
+	collection := collectionSeed(t, "Private", uintPtr(owner.ID), false, false)
+
+	rec := testkit.AuthedRequest(
+		t,
+		viewer,
+		http.MethodPost,
+		"/api/collections/"+collection.ID.String()+"/practice",
+		nil,
+	)
+	require.Equal(t, http.StatusNotFound, rec.Code)
+
+	var body map[string]string
+	testkit.DecodeJSON(t, rec, &body)
+	assert.Equal(t, "collection not found", body["error"])
+}
+
 func TestStartCollectionPracticeRejectsEmptyIntersection(t *testing.T) {
 	testkit.Truncate(t)
 
