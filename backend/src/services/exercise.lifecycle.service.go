@@ -39,31 +39,75 @@ func IgnoreExercise(exerciseID uuid.UUID) error {
 }
 
 func IgnoreUserExercise(exerciseID uuid.UUID, userID uint) error {
-	result := db.DB.Model(&models.Exercise{}).
-		Where("id = ? AND user_id = ?", exerciseID, userID).
-		Where("status IN ?", []enums.ExerciseStatus{enums.ExerciseStatusPending, enums.ExerciseStatusInProgress}).
-		Updates(map[string]any{
-			"status":      enums.ExerciseStatusIgnored,
-			"finished_at": time.Now().UTC(),
-		})
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected > 0 {
-		return nil
-	}
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var exercise models.Exercise
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ? AND user_id = ?", exerciseID, userID).
+			Take(&exercise).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrExerciseNotFound
+			}
+			return err
+		}
 
-	var count int64
-	if err := db.DB.Model(&models.Exercise{}).
-		Where("id = ? AND user_id = ?", exerciseID, userID).
-		Count(&count).Error; err != nil {
+		if exercise.Status != enums.ExerciseStatusPending && exercise.Status != enums.ExerciseStatusInProgress {
+			return ErrExerciseNotInProgress
+		}
+
+		result := tx.Model(&models.Exercise{}).
+			Where("id = ? AND user_id = ?", exerciseID, userID).
+			Where("status IN ?", []enums.ExerciseStatus{enums.ExerciseStatusPending, enums.ExerciseStatusInProgress}).
+			Updates(map[string]any{
+				"status":      enums.ExerciseStatusIgnored,
+				"finished_at": time.Now().UTC(),
+			})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return ErrExerciseNotInProgress
+		}
+
+		progressDelta := ExerciseFailProgressDelta
+		if isChoiceExerciseType(exercise.Type) || isMatchPairsExerciseType(exercise.Type) {
+			progressDelta = ExerciseChoiceFailProgressDelta
+		}
+		progressDelta = exerciseProgressDelta(&exercise, progressDelta)
+
+		if isMatchPairsExerciseType(exercise.Type) {
+			var vocabularyIDs []uuid.UUID
+			if err := tx.Table("vocabulary_exercises").
+				Where("exercise_id = ? AND is_correct = ?", exerciseID, true).
+				Pluck("vocabulary_id", &vocabularyIDs).Error; err != nil {
+				return err
+			}
+
+			for _, vocabularyID := range vocabularyIDs {
+				if _, _, err := updateVocabularyProgressByID(
+					tx,
+					exerciseID,
+					vocabularyID,
+					ExerciseVocabularyResultIgnored,
+					ExerciseVocabularyResultReasonSkipped,
+					progressDelta,
+					exercise.IsKnownVocabularyRepetition,
+				); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+
+		_, _, err := updateVocabularyProgressByExercise(
+			tx,
+			exerciseID,
+			ExerciseVocabularyResultIgnored,
+			ExerciseVocabularyResultReasonSkipped,
+			progressDelta,
+			exercise.IsKnownVocabularyRepetition,
+		)
 		return err
-	}
-	if count == 0 {
-		return ErrExerciseNotFound
-	}
-
-	return ErrExerciseNotInProgress
+	})
 }
 
 func IgnoreDuePendingExercisesWithoutActiveVocabulary(now time.Time) error {

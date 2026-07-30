@@ -1457,6 +1457,7 @@ func TestIgnoreExerciseHappyPath(t *testing.T) {
 
 	user := testkit.CreateUser(t)
 	vocab := exerciseSeedVocabulary(t, user.ID, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
+	exerciseSetTranslationKnowledge(t, vocab.ID, 50)
 	ex := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusInProgress, vocab.ID)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/exercises/"+ex.ID.String()+"/ignore", nil)
@@ -1469,6 +1470,51 @@ func TestIgnoreExerciseHappyPath(t *testing.T) {
 	stored := exerciseReload(t, ex.ID)
 	assert.Equal(t, enums.ExerciseStatusIgnored, stored.Status)
 	require.NotNil(t, stored.FinishedAt)
+
+	updatedVocabulary := exerciseReloadVocabulary(t, vocab.ID)
+	assert.Equal(t, 30, exerciseTranslationKnowledge(t, updatedVocabulary.Progress))
+
+	link := exerciseLink(t, ex.ID, vocab.ID)
+	require.NotNil(t, link.Result)
+	assert.Equal(t, services.ExerciseVocabularyResultIgnored, *link.Result)
+	require.NotNil(t, link.ResultReason)
+	assert.Equal(t, services.ExerciseVocabularyResultReasonSkipped, *link.ResultReason)
+	require.NotNil(t, link.ProgressDelta)
+	assert.Equal(t, services.ExerciseFailProgressDelta, *link.ProgressDelta)
+	require.NotNil(t, link.KnowledgeAfter)
+	assert.Equal(t, 30, *link.KnowledgeAfter)
+	require.NotNil(t, link.AnsweredAt)
+}
+
+func TestIgnoreKnownVocabularyRepetitionSubtractsTwentyFive(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+	vocabulary := exerciseSeedVocabulary(t, user.ID, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
+	exerciseSetTranslationKnowledge(t, vocabulary.ID, 100)
+
+	exercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusInProgress, vocabulary.ID)
+	exerciseMarkKnownVocabularyRepetition(t, exercise.ID)
+
+	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/exercises/"+exercise.ID.String()+"/ignore", nil)
+	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
+
+	storedExercise := exerciseReload(t, exercise.ID)
+	assert.Equal(t, enums.ExerciseStatusIgnored, storedExercise.Status)
+
+	storedVocabulary := exerciseReloadVocabulary(t, vocabulary.ID)
+	assert.Equal(t, 75, exerciseTranslationKnowledge(t, storedVocabulary.Progress))
+	assert.Nil(t, storedVocabulary.MasteredAt)
+
+	link := exerciseLink(t, exercise.ID, vocabulary.ID)
+	require.NotNil(t, link.Result)
+	assert.Equal(t, services.ExerciseVocabularyResultIgnored, *link.Result)
+	require.NotNil(t, link.ResultReason)
+	assert.Equal(t, services.ExerciseVocabularyResultReasonSkipped, *link.ResultReason)
+	require.NotNil(t, link.ProgressDelta)
+	assert.Equal(t, services.KnownVocabularyRepetitionFailProgressDelta, *link.ProgressDelta)
+	require.NotNil(t, link.KnowledgeAfter)
+	assert.Equal(t, 75, *link.KnowledgeAfter)
 }
 
 // Ignoring an already-finished exercise → 409 Conflict.
