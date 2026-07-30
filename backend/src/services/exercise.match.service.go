@@ -205,7 +205,7 @@ func CompleteMatchPairsExercise(exerciseID uuid.UUID, userID uint, attempts []Ma
 			}
 			delta = exerciseProgressDelta(&exercise, delta)
 
-			if _, updateErr := updateVocabularyProgressByID(tx, exerciseID, vocabularyID, result, ExerciseVocabularyResultReasonMatchPairs, delta); updateErr != nil {
+			if _, _, updateErr := updateVocabularyProgressByID(tx, exerciseID, vocabularyID, result, ExerciseVocabularyResultReasonMatchPairs, delta, false); updateErr != nil {
 				return updateErr
 			}
 		}

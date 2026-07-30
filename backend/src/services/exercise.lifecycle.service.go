@@ -39,31 +39,75 @@ func IgnoreExercise(exerciseID uuid.UUID) error {
 }
 
 func IgnoreUserExercise(exerciseID uuid.UUID, userID uint) error {
-	result := db.DB.Model(&models.Exercise{}).
-		Where("id = ? AND user_id = ?", exerciseID, userID).
-		Where("status IN ?", []enums.ExerciseStatus{enums.ExerciseStatusPending, enums.ExerciseStatusInProgress}).
-		Updates(map[string]any{
-			"status":      enums.ExerciseStatusIgnored,
-			"finished_at": time.Now().UTC(),
-		})
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected > 0 {
-		return nil
-	}
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var exercise models.Exercise
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ? AND user_id = ?", exerciseID, userID).
+			Take(&exercise).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrExerciseNotFound
+			}
+			return err
+		}
 
-	var count int64
-	if err := db.DB.Model(&models.Exercise{}).
-		Where("id = ? AND user_id = ?", exerciseID, userID).
-		Count(&count).Error; err != nil {
+		if exercise.Status != enums.ExerciseStatusPending && exercise.Status != enums.ExerciseStatusInProgress {
+			return ErrExerciseNotInProgress
+		}
+
+		result := tx.Model(&models.Exercise{}).
+			Where("id = ? AND user_id = ?", exerciseID, userID).
+			Where("status IN ?", []enums.ExerciseStatus{enums.ExerciseStatusPending, enums.ExerciseStatusInProgress}).
+			Updates(map[string]any{
+				"status":      enums.ExerciseStatusIgnored,
+				"finished_at": time.Now().UTC(),
+			})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return ErrExerciseNotInProgress
+		}
+
+		progressDelta := ExerciseFailProgressDelta
+		if isChoiceExerciseType(exercise.Type) || isMatchPairsExerciseType(exercise.Type) {
+			progressDelta = ExerciseChoiceFailProgressDelta
+		}
+		progressDelta = exerciseProgressDelta(&exercise, progressDelta)
+
+		if isMatchPairsExerciseType(exercise.Type) {
+			var vocabularyIDs []uuid.UUID
+			if err := tx.Table("vocabulary_exercises").
+				Where("exercise_id = ? AND is_correct = ?", exerciseID, true).
+				Pluck("vocabulary_id", &vocabularyIDs).Error; err != nil {
+				return err
+			}
+
+			for _, vocabularyID := range vocabularyIDs {
+				if _, _, err := updateVocabularyProgressByID(
+					tx,
+					exerciseID,
+					vocabularyID,
+					ExerciseVocabularyResultIgnored,
+					ExerciseVocabularyResultReasonSkipped,
+					progressDelta,
+					exercise.IsKnownVocabularyRepetition,
+				); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+
+		_, _, err := updateVocabularyProgressByExercise(
+			tx,
+			exerciseID,
+			ExerciseVocabularyResultIgnored,
+			ExerciseVocabularyResultReasonSkipped,
+			progressDelta,
+			exercise.IsKnownVocabularyRepetition,
+		)
 		return err
-	}
-	if count == 0 {
-		return ErrExerciseNotFound
-	}
-
-	return ErrExerciseNotInProgress
+	})
 }
 
 func IgnoreDuePendingExercisesWithoutActiveVocabulary(now time.Time) error {
@@ -235,8 +279,14 @@ func CompleteExercise(exerciseID uuid.UUID) (bool, int, error) {
 }
 
 func FinishExercise(exerciseID uuid.UUID, status enums.ExerciseStatus, result string, reason string, progressDelta int) (bool, int, error) {
+	updated, translationKnowledge, _, err := FinishExerciseWithProgressDelta(exerciseID, status, result, reason, progressDelta)
+	return updated, translationKnowledge, err
+}
+
+func FinishExerciseWithProgressDelta(exerciseID uuid.UUID, status enums.ExerciseStatus, result string, reason string, progressDelta int) (bool, int, int, error) {
 	updated := false
 	translationKnowledge := 0
+	appliedProgressDelta := progressDelta
 
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
 		dbResult := tx.Model(&models.Exercise{}).
@@ -256,19 +306,33 @@ func FinishExercise(exerciseID uuid.UUID, status enums.ExerciseStatus, result st
 
 		updated = true
 
+		var exercise models.Exercise
+		if err := tx.Select("is_known_vocabulary_repetition").
+			Where("id = ?", exerciseID).
+			Take(&exercise).Error; err != nil {
+			return err
+		}
+
 		var updateErr error
-		translationKnowledge, updateErr = updateVocabularyProgressByExercise(tx, exerciseID, result, reason, progressDelta)
+		translationKnowledge, appliedProgressDelta, updateErr = updateVocabularyProgressByExercise(
+			tx,
+			exerciseID,
+			result,
+			reason,
+			progressDelta,
+			exercise.IsKnownVocabularyRepetition,
+		)
 		return updateErr
 	})
 
 	if err != nil {
-		return false, 0, err
+		return false, 0, 0, err
 	}
 
-	return updated, translationKnowledge, nil
+	return updated, translationKnowledge, appliedProgressDelta, nil
 }
 
-func updateVocabularyProgressByExercise(tx *gorm.DB, exerciseID uuid.UUID, result string, reason string, delta int) (int, error) {
+func updateVocabularyProgressByExercise(tx *gorm.DB, exerciseID uuid.UUID, result string, reason string, delta int, isKnownVocabularyRepetition bool) (int, int, error) {
 	var exerciseLink struct {
 		VocabularyID uuid.UUID `gorm:"column:vocabulary_id"`
 	}
@@ -279,26 +343,26 @@ func updateVocabularyProgressByExercise(tx *gorm.DB, exerciseID uuid.UUID, resul
 		Where("is_correct = ?", true).
 		Take(&exerciseLink).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return 0, nil
+			return 0, delta, nil
 		}
 
-		return 0, err
+		return 0, 0, err
 	}
 
-	return updateVocabularyProgressByID(tx, exerciseID, exerciseLink.VocabularyID, result, reason, delta)
+	return updateVocabularyProgressByID(tx, exerciseID, exerciseLink.VocabularyID, result, reason, delta, isKnownVocabularyRepetition)
 }
 
-func updateVocabularyProgressByID(tx *gorm.DB, exerciseID uuid.UUID, vocabularyID uuid.UUID, result string, reason string, delta int) (int, error) {
+func updateVocabularyProgressByID(tx *gorm.DB, exerciseID uuid.UUID, vocabularyID uuid.UUID, result string, reason string, delta int, isKnownVocabularyRepetition bool) (int, int, error) {
 	var vocabulary models.Vocabulary
 	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where("id = ?", vocabularyID).
 		Where("deleted_at IS NULL").
 		Take(&vocabulary).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return 0, nil
+			return 0, delta, nil
 		}
 
-		return 0, err
+		return 0, 0, err
 	}
 
 	translationKnowledge := 0
@@ -308,6 +372,9 @@ func updateVocabularyProgressByID(tx *gorm.DB, exerciseID uuid.UUID, vocabularyI
 			continue
 		}
 
+		if isKnownVocabularyRepetition {
+			delta = knownVocabularyRepetitionProgressDelta(vocabulary.Progress[index].Knowledge, delta)
+		}
 		vocabulary.Progress[index].Knowledge = clampProgress(vocabulary.Progress[index].Knowledge + delta)
 		translationKnowledge = vocabulary.Progress[index].Knowledge
 		found = true
@@ -315,6 +382,9 @@ func updateVocabularyProgressByID(tx *gorm.DB, exerciseID uuid.UUID, vocabularyI
 	}
 
 	if !found {
+		if isKnownVocabularyRepetition {
+			delta = knownVocabularyRepetitionProgressDelta(0, delta)
+		}
 		translationKnowledge = clampProgress(delta)
 		vocabulary.Progress = append(vocabulary.Progress, models.ProgressEntry{
 			Knowledge: translationKnowledge,
@@ -339,7 +409,7 @@ func updateVocabularyProgressByID(tx *gorm.DB, exerciseID uuid.UUID, vocabularyI
 			"mastered_at": masteredAt,
 		}).Error
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 
 	now := time.Now().UTC()
@@ -353,10 +423,21 @@ func updateVocabularyProgressByID(tx *gorm.DB, exerciseID uuid.UUID, vocabularyI
 			"knowledge_after": translationKnowledge,
 			"answered_at":     now,
 		}).Error; err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 
-	return translationKnowledge, nil
+	return translationKnowledge, delta, nil
+}
+
+func knownVocabularyRepetitionProgressDelta(currentKnowledge int, defaultDelta int) int {
+	if defaultDelta < 0 {
+		return KnownVocabularyRepetitionFailProgressDelta
+	}
+	if currentKnowledge >= 100 {
+		return 0
+	}
+
+	return defaultDelta
 }
 
 func MarkExerciseVocabularyResultWithoutProgress(exerciseID uuid.UUID, result string, reason string) error {

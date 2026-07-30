@@ -1,0 +1,2 @@
+ALTER TABLE exercises
+ADD COLUMN IF NOT EXISTS is_known_vocabulary_repetition BOOLEAN NOT NULL DEFAULT FALSE;

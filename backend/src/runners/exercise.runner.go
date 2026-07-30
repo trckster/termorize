@@ -76,6 +76,9 @@ func processDueExercises() {
 			exercise.ExerciseType,
 			texts,
 		)
+		if exercise.IsKnownVocabularyRepetition {
+			questionText = telegram.BuildKnownVocabularyRepetitionQuestion(questionText, texts)
+		}
 
 		var (
 			messageID      *int64

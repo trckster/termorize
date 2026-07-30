@@ -8,15 +8,16 @@ import (
 )
 
 type Exercise struct {
-	ID                      uuid.UUID            `json:"id" gorm:"default:gen_random_uuid()"`
-	Type                    enums.ExerciseType   `json:"type"`
-	Status                  enums.ExerciseStatus `json:"status"`
-	UserID                  uint                 `json:"-"`
-	TelegramMessageID       *int64               `json:"-"`
-	MatchState              *string              `json:"-" gorm:"column:match_state"`
-	CharacterState          *string              `json:"-" gorm:"column:character_state"`
-	PracticeCollectionID    *uuid.UUID           `json:"-" gorm:"column:practice_collection_id"`
-	PracticeCollectionTitle *string              `json:"-" gorm:"column:practice_collection_title"`
+	ID                          uuid.UUID            `json:"id" gorm:"default:gen_random_uuid()"`
+	Type                        enums.ExerciseType   `json:"type"`
+	Status                      enums.ExerciseStatus `json:"status"`
+	UserID                      uint                 `json:"-"`
+	TelegramMessageID           *int64               `json:"-"`
+	MatchState                  *string              `json:"-" gorm:"column:match_state"`
+	CharacterState              *string              `json:"-" gorm:"column:character_state"`
+	PracticeCollectionID        *uuid.UUID           `json:"-" gorm:"column:practice_collection_id"`
+	PracticeCollectionTitle     *string              `json:"-" gorm:"column:practice_collection_title"`
+	IsKnownVocabularyRepetition bool                 `json:"-" gorm:"column:is_known_vocabulary_repetition"`
 
 	ScheduledFor   *time.Time `json:"-"`
 	StartedAt      *time.Time `json:"starts_at"`
