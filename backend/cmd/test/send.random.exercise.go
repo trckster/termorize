@@ -30,6 +30,7 @@ import (
 //	go run ./cmd/test/ basic      # basic exercise, random direction
 //	go run ./cmd/test/ choice     # choice exercise, random direction
 //	go run ./cmd/test/ characters # character exercise, random direction
+//	go run ./cmd/test/ repeat     # known-vocabulary repetition, random direction
 const (
 	testExerciseRunnerBuffer = time.Hour
 )
@@ -81,8 +82,10 @@ func main() {
 		)
 	case "characters":
 		sendCharacterExercise(user, texts)
+	case "repeat":
+		sendRepetitionExercise(user, texts)
 	default:
-		fatal("unknown mode", errors.New("supported modes: match, basic, choice, characters"))
+		fatal("unknown mode", errors.New("supported modes: match, basic, choice, characters, repeat"))
 	}
 }
 
@@ -160,6 +163,51 @@ func sendCharacterExercise(user models.User, texts telegram.BotTexts) {
 	logger.L().Infow("character exercise sent to telegram",
 		"exercise_id", result.ExerciseID,
 		"exercise_type", result.Type,
+		"telegram_id", user.TelegramID,
+		"message_id", *messageID,
+	)
+}
+
+func sendRepetitionExercise(user models.User, texts telegram.BotTexts) {
+	scheduledFor := time.Now().UTC().Add(testExerciseRunnerBuffer)
+	exerciseID, err := services.CreatePendingKnownVocabularyRepetition(user.ID, scheduledFor)
+	if err != nil {
+		fatal("failed to create repetition exercise (needs a word with 100% knowledge)", err)
+	}
+
+	exercise, err := services.GetExerciseByTelegramExerciseID(exerciseID, user.TelegramID)
+	if err != nil {
+		fatal("failed to load repetition exercise", err)
+	}
+	if exercise == nil || len(exercise.Vocabulary) != 1 {
+		fatal("repetition exercise has invalid vocabulary", errors.New("expected exactly one known word"))
+	}
+
+	questionText := telegram.BuildBasicExerciseQuestion(
+		exercise.OriginalWord,
+		exercise.TranslationWord,
+		exercise.OriginalLanguage,
+		exercise.TranslationLanguage,
+		exercise.ExerciseType,
+		texts,
+	)
+	questionText = telegram.BuildKnownVocabularyRepetitionQuestion(questionText, texts)
+
+	messageID, err := telegram.SendBasicExerciseMessage(user.TelegramID, questionText, exerciseID, texts)
+	if err != nil {
+		fatal("failed to send repetition exercise to telegram", err)
+	}
+	if messageID == nil {
+		fatal("telegram did not return a message id", errors.New("user may have blocked the bot or disabled it"))
+	}
+
+	if err := services.StartTelegramExercise(exerciseID, *messageID); err != nil {
+		fatal("failed to mark repetition exercise as started", err)
+	}
+
+	logger.L().Infow("repetition exercise sent to telegram",
+		"exercise_id", exerciseID,
+		"exercise_type", exercise.ExerciseType,
 		"telegram_id", user.TelegramID,
 		"message_id", *messageID,
 	)

@@ -133,7 +133,7 @@ var botTextsEn = BotTexts{
 	ExerciseAnswerPairFormat:               "%s %s — %s %s",
 	ExerciseTranslationKnowledgeUpFormat:   "Translation knowledge: *%d%%* 📈",
 	ExerciseTranslationKnowledgeDownFormat: "Translation knowledge: *%d%%* 📉",
-	KnownVocabularyRepetitionIntro:         "🎓 *Known vocabulary check*\n\nThis is an additional but mandatory review. A wrong answer lowers this word's knowledge by 25 points.",
+	KnownVocabularyRepetitionIntro:         "Repetition!",
 
 	MatchExerciseTitle:          "🧩 *Match the pairs*",
 	MatchProgressFormat:         "Matched %d/%d",
@@ -258,7 +258,7 @@ var botTextsRu = BotTexts{
 	ExerciseAnswerPairFormat:               "%s %s — %s %s",
 	ExerciseTranslationKnowledgeUpFormat:   "Знание перевода: *%d%%* 📈",
 	ExerciseTranslationKnowledgeDownFormat: "Знание перевода: *%d%%* 📉",
-	KnownVocabularyRepetitionIntro:         "🎓 *Проверка изученного слова*\n\nЭто дополнительное, но обязательное повторение. Неправильный ответ снизит знание слова на 25 пунктов.",
+	KnownVocabularyRepetitionIntro:         "Повторение!",
 
 	MatchExerciseTitle:          "🧩 *Сопоставь пары*",
 	MatchProgressFormat:         "Сопоставлено %d/%d",

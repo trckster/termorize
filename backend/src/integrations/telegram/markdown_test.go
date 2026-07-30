@@ -45,13 +45,15 @@ func TestBuildCharacterBoardTextEscapesSelectedCharacters(t *testing.T) {
 	require.Equal(t, "Question\n\n\\_ \\* \\` \\[ \\\\", buildCharacterBoardText("Question", board))
 }
 
-func TestBuildKnownVocabularyRepetitionQuestionExplainsExtraMandatoryReview(t *testing.T) {
+func TestBuildKnownVocabularyRepetitionQuestionAddsLocalizedIntro(t *testing.T) {
 	for _, language := range []enums.Language{enums.LanguageEn, enums.LanguageRu} {
 		texts := GetBotTexts(language)
 		question := BuildKnownVocabularyRepetitionQuestion("Question", texts)
 
 		require.Contains(t, question, texts.KnownVocabularyRepetitionIntro)
 		require.Contains(t, question, "Question")
-		require.Contains(t, question, "25")
 	}
+
+	require.Equal(t, "Repetition!", GetBotTexts(enums.LanguageEn).KnownVocabularyRepetitionIntro)
+	require.Equal(t, "Повторение!", GetBotTexts(enums.LanguageRu).KnownVocabularyRepetitionIntro)
 }

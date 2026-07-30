@@ -1252,7 +1252,6 @@ func TestVerifyKnownVocabularyRepetitionProgress(t *testing.T) {
 			exercise := exerciseSeedExercise(t, user.ID, testCase.exerciseType, enums.ExerciseStatusInProgress, vocabulary.ID)
 			exerciseMarkKnownVocabularyRepetition(t, exercise.ID)
 
-			// Simulate progress changing after the repetition was scheduled.
 			exerciseSetTranslationKnowledge(t, vocabulary.ID, testCase.currentKnowledge)
 
 			result, err := services.VerifyExerciseAnswer(exercise.ID, user.ID, testCase.answer)

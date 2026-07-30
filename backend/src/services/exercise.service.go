@@ -95,8 +95,6 @@ var rollKnownVocabularyRepetitionDice = func() int {
 	return rand.Intn(knownVocabularyRepetitionDiceSides) + 1
 }
 
-// SetKnownVocabularyRepetitionDiceRollForTest makes daily repetition scheduling
-// deterministic in integration tests. The returned function restores randomness.
 func SetKnownVocabularyRepetitionDiceRollForTest(roll int) func() {
 	previous := rollKnownVocabularyRepetitionDice
 	rollKnownVocabularyRepetitionDice = func() int {
@@ -339,7 +337,7 @@ func GenerateExercises(user models.User, targetDate time.Time) int {
 		realOffsetInMinutes := MapOffsetOnSchedule(user.Settings.Telegram.DailyQuestionsSchedule, midnightOffset)
 		exerciseScheduleTime := targetMidnight.Add(time.Duration(realOffsetInMinutes) * time.Minute).UTC()
 
-		if err := generateKnownVocabularyRepetitionExercise(user.ID, exerciseScheduleTime); err != nil {
+		if _, err := CreatePendingKnownVocabularyRepetition(user.ID, exerciseScheduleTime); err != nil {
 			if !errors.Is(err, ErrNoVocabularyForExercise) {
 				logger.L().Errorw("failed to generate known vocabulary repetition", "user_id", user.ID, "scheduled_for", exerciseScheduleTime, "error", err)
 			}
@@ -356,18 +354,18 @@ func shouldScheduleKnownVocabularyRepetition(dailyQuestionsCount uint) bool {
 		rollKnownVocabularyRepetitionDice() == knownVocabularyRepetitionWinningRoll
 }
 
-func generateKnownVocabularyRepetitionExercise(userID uint, when time.Time) error {
+func CreatePendingKnownVocabularyRepetition(userID uint, when time.Time) (uuid.UUID, error) {
 	vocabularyID, err := getKnownVocabularyID(userID)
 	if err != nil {
-		return err
+		return uuid.Nil, err
 	}
 	if vocabularyID == uuid.Nil {
-		return ErrNoVocabularyForExercise
+		return uuid.Nil, ErrNoVocabularyForExercise
 	}
 
 	vocabulary, err := loadExerciseVocabulary(vocabularyID)
 	if err != nil {
-		return err
+		return uuid.Nil, err
 	}
 
 	exerciseTypes := []enums.ExerciseType{
@@ -378,7 +376,7 @@ func generateKnownVocabularyRepetitionExercise(userID uint, when time.Time) erro
 
 	_, _, _, err = buildExerciseQuestionData(vocabulary, exerciseType)
 	if err != nil {
-		return err
+		return uuid.Nil, err
 	}
 
 	answerWord := vocabulary.Translation.Translation.Word
@@ -398,13 +396,18 @@ func generateKnownVocabularyRepetitionExercise(userID uint, when time.Time) erro
 		AnswerWord:   answerWord,
 	}}
 
-	return db.DB.Transaction(func(tx *gorm.DB) error {
+	err = db.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&exercise).Error; err != nil {
 			return err
 		}
 
 		return createExerciseVocabularyLinks(tx, exercise.ID, vocabularyID, options)
 	})
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	return exercise.ID, nil
 }
 
 func getKnownVocabularyID(userID uint) (uuid.UUID, error) {
