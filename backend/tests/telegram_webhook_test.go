@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
@@ -30,15 +29,12 @@ const telegramSecretHeader = "X-Telegram-Bot-Api-Secret-Token"
 func telegramRequest(t *testing.T, rawBody, secret string) *httptest.ResponseRecorder {
 	t.Helper()
 
-	req := httptest.NewRequest(http.MethodPost, telegramWebhookPath, bytes.NewReader([]byte(rawBody)))
-	req.Header.Set("Content-Type", "application/json")
+	headers := make(http.Header)
 	if secret != "" {
-		req.Header.Set(telegramSecretHeader, secret)
+		headers.Set(telegramSecretHeader, secret)
 	}
 
-	rec := httptest.NewRecorder()
-	testkit.Router().ServeHTTP(rec, req)
-	return rec
+	return testkit.RawRequest(t, http.MethodPost, telegramWebhookPath, rawBody, headers)
 }
 
 // telegramUpdate marshals an update payload and posts it with the correct secret.
@@ -84,30 +80,27 @@ func telegramPrivateMessage(telegramID int64, text string) map[string]any {
 // Middleware auth
 // -----------------------------------------------------------------------------
 
-func TestTelegramWebhookMissingSecret(t *testing.T) {
-	testkit.Truncate(t)
-	testkit.MockTelegramAPI(t)
+func TestTelegramWebhookAuthenticatesSecretToken(t *testing.T) {
+	tests := []struct {
+		name       string
+		secret     string
+		wantStatus int
+	}{
+		{name: "missing", secret: "", wantStatus: http.StatusUnauthorized},
+		{name: "incorrect", secret: "definitely-not-the-secret", wantStatus: http.StatusUnauthorized},
+		{name: "valid", secret: telegram.BuildWebhookSecret(), wantStatus: http.StatusOK},
+	}
 
-	rec := telegramRequest(t, `{"update_id":1}`, "")
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testkit.Truncate(t)
+			tg := testkit.MockTelegramAPI(t)
 
-func TestTelegramWebhookWrongSecret(t *testing.T) {
-	testkit.Truncate(t)
-	testkit.MockTelegramAPI(t)
-
-	rec := telegramRequest(t, `{"update_id":1}`, "definitely-not-the-secret")
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
-}
-
-func TestTelegramWebhookCorrectSecretPassesMiddleware(t *testing.T) {
-	testkit.Truncate(t)
-	testkit.MockTelegramAPI(t)
-
-	// An empty update (no message/callback/chat_member) is a valid no-op; it proves
-	// the middleware let the request through with the computed secret.
-	rec := telegramRequest(t, `{"update_id":1}`, telegram.BuildWebhookSecret())
-	assert.Equal(t, http.StatusOK, rec.Code)
+			rec := telegramRequest(t, `{"update_id":1}`, tt.secret)
+			testkit.RequireStatus(t, rec, tt.wantStatus)
+			assert.Empty(t, tg.Requests(), "authentication checks must not call the Telegram API")
+		})
+	}
 }
 
 // -----------------------------------------------------------------------------
@@ -119,7 +112,7 @@ func TestTelegramWebhookMalformedBody(t *testing.T) {
 	testkit.MockTelegramAPI(t)
 
 	rec := telegramRequest(t, "this is not json", telegram.BuildWebhookSecret())
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -132,7 +125,7 @@ func TestTelegramWebhookUnknownUpdateNoOp(t *testing.T) {
 
 	// A well-formed update with none of message/callback_query/my_chat_member set.
 	rec := telegramUpdate(t, map[string]any{"update_id": 42})
-	assert.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 	assert.Empty(t, tg.Requests(), "no outbound telegram call expected for an empty update")
 }
 
@@ -147,7 +140,7 @@ func TestTelegramWebhookStartCommandCreatesUserAndReplies(t *testing.T) {
 	const telegramID int64 = 555001
 
 	rec := telegramUpdate(t, telegramPrivateMessage(telegramID, "/start"))
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	// Side effect 1: a user row was created for the new telegram id, with the bot
 	// marked enabled by ensurePrivateMessageUser.
@@ -178,7 +171,7 @@ func TestTelegramWebhookPlainTextTranslatesAndReplies(t *testing.T) {
 	const telegramID int64 = 555002
 
 	rec := telegramUpdate(t, telegramPrivateMessage(telegramID, "dog"))
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	// New user ensured.
 	var user models.User
@@ -208,7 +201,7 @@ func TestTelegramWebhookCancelCommandClearsState(t *testing.T) {
 		Update("telegram_state", enums.TelegramStateAddingVocabulary).Error)
 
 	rec := telegramUpdate(t, telegramPrivateMessage(telegramID, "/cancel"))
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	// State reset to none.
 	var refreshed models.User
@@ -255,7 +248,7 @@ func TestTelegramWebhookCallbackAnswersAndEdits(t *testing.T) {
 	}
 
 	rec := telegramUpdate(t, update)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	// Every callback is acknowledged first.
 	require.True(t, tg.Sent("answerCallbackQuery"), "callback queries must be answered")
@@ -300,7 +293,7 @@ func TestTelegramWebhookCallbackDeleteTranslationSetsState(t *testing.T) {
 	}
 
 	rec := telegramUpdate(t, update)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	// DB side effect: the user's telegram state moves to deletingVocabulary.
 	var refreshed models.User
@@ -347,7 +340,7 @@ func TestTelegramWebhookVocabularyAddCallbackIsReplaySafe(t *testing.T) {
 	}
 
 	rec := telegramUpdate(t, update)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	assert.Equal(t, int64(1), vocabCountForUser(t, user.ID))
 	var stored models.Vocabulary
@@ -379,7 +372,7 @@ func TestTelegramWebhookVocabularyAddCallbackIsReplaySafe(t *testing.T) {
 	// Telegram may redeliver an update. The service treats an existing vocabulary
 	// item as success, so replaying this callback must not create a duplicate.
 	replayed := telegramUpdate(t, update)
-	require.Equal(t, http.StatusOK, replayed.Code)
+	testkit.RequireStatus(t, replayed, http.StatusOK)
 	assert.Equal(t, int64(1), vocabCountForUser(t, user.ID))
 	assert.Equal(t, 2, tg.Count("answerCallbackQuery"))
 	assert.Equal(t, 2, tg.Count("editMessageText"))
@@ -424,7 +417,7 @@ func TestTelegramWebhookCharacterExerciseUsesSquareBoardAndCompletes(t *testing.
 		}
 
 		rec := telegramUpdate(t, update)
-		require.Equal(t, http.StatusOK, rec.Code)
+		testkit.RequireStatus(t, rec, http.StatusOK)
 	}
 
 	compactExerciseID := telegramCompactUUID(exercise.ID)
@@ -507,7 +500,7 @@ func TestTelegramWebhookCharacterExerciseUsesSquareBoardAndCompletes(t *testing.
 		},
 	}
 	rec := telegramUpdate(t, retry)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 	assert.Len(t, tg.RequestsFor("sendMessage"), feedbackCount, "a retried callback must not duplicate feedback")
 
 	retryEdits := tg.RequestsFor("editMessageText")
@@ -578,7 +571,7 @@ func TestTelegramWebhookCharacterBackspaceRecoversPendingMessage(t *testing.T) {
 	}
 
 	rec := telegramUpdate(t, update)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 	require.True(t, tg.Sent("editMessageText"))
 
 	stored := exerciseReload(t, exercise.ID)
@@ -639,7 +632,7 @@ func TestTelegramWebhookMatchTapEditsBoard(t *testing.T) {
 	}
 
 	rec := telegramUpdate(t, update)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	require.True(t, tg.Sent("answerCallbackQuery"))
 	require.True(t, tg.Sent("editMessageText"), "match tap should re-render the board")
@@ -712,7 +705,7 @@ func TestTelegramWebhookMatchTapRetriesFinalizationFromPersistedBoard(t *testing
 	}
 
 	rec := telegramUpdate(t, update)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 	require.True(t, tg.Sent("editMessageText"))
 
 	var refreshed models.Exercise
@@ -766,7 +759,7 @@ func TestTelegramWebhookCompletedMatchTapRepairsOriginalMessage(t *testing.T) {
 	}
 
 	rec := telegramUpdate(t, update)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 	require.True(t, tg.Sent("editMessageText"))
 	require.False(t, tg.Sent("sendMessage"))
 
@@ -823,7 +816,7 @@ func TestTelegramWebhookMatchTapMarksWrongCards(t *testing.T) {
 		}
 
 		rec := telegramUpdate(t, update)
-		require.Equal(t, http.StatusOK, rec.Code)
+		testkit.RequireStatus(t, rec, http.StatusOK)
 	}
 
 	editRequests := tg.RequestsFor("editMessageText")
@@ -926,7 +919,7 @@ func TestTelegramWebhookMatchTapRecoversPendingMessage(t *testing.T) {
 	}
 
 	rec := telegramUpdate(t, update)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	require.True(t, tg.Sent("answerCallbackQuery"))
 	require.True(t, tg.Sent("editMessageText"), "pending match callback should be recovered and re-rendered")
@@ -965,7 +958,7 @@ func TestTelegramWebhookBlockBotDisablesUser(t *testing.T) {
 	update := telegramMyChatMember(telegramID, telegram.Member, telegram.Kicked)
 
 	rec := telegramUpdate(t, update)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var refreshed models.User
 	require.NoError(t, db.DB.Where("id = ?", user.ID).First(&refreshed).Error)
@@ -986,7 +979,7 @@ func TestTelegramWebhookUnblockBotEnablesUser(t *testing.T) {
 	update := telegramMyChatMember(telegramID, telegram.Kicked, telegram.Member)
 
 	rec := telegramUpdate(t, update)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var refreshed models.User
 	require.NoError(t, db.DB.Where("id = ?", user.ID).First(&refreshed).Error)

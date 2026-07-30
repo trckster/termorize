@@ -3,8 +3,6 @@ package tests
 import (
 	"fmt"
 	"net/http"
-	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
@@ -210,20 +208,6 @@ func exerciseLink(t *testing.T, exerciseID, vocabularyID uuid.UUID) models.Exerc
 	return link
 }
 
-// exerciseRawAuthedRequest issues an in-process request with a raw (possibly
-// malformed) JSON body, carrying the user's auth cookie.
-func exerciseRawAuthedRequest(t *testing.T, user models.User, method, path, rawBody string) *httptest.ResponseRecorder {
-	t.Helper()
-
-	req := httptest.NewRequest(method, path, strings.NewReader(rawBody))
-	req.Header.Set("Content-Type", "application/json")
-	req.AddCookie(testkit.AuthCookie(user))
-
-	rec := httptest.NewRecorder()
-	testkit.Router().ServeHTTP(rec, req)
-	return rec
-}
-
 // ===========================================================================
 // GET /api/exercises (GetExercises)
 // ===========================================================================
@@ -232,7 +216,7 @@ func TestGetExercisesRequiresAuth(t *testing.T) {
 	testkit.Truncate(t)
 
 	rec := testkit.Request(t, http.MethodGet, "/api/exercises", nil)
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestGetExercisesEmpty(t *testing.T) {
@@ -241,7 +225,7 @@ func TestGetExercisesEmpty(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/exercises", nil)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body services.ExerciseListResponse
 	testkit.DecodeJSON(t, rec, &body)
@@ -558,7 +542,7 @@ func TestGetExercisesReturnsStartedExercises(t *testing.T) {
 	exercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusInProgress, vocab.ID)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/exercises", nil)
-	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body services.ExerciseListResponse
 	testkit.DecodeJSON(t, rec, &body)
@@ -596,7 +580,7 @@ func TestGetExercisesExcludesNotStarted(t *testing.T) {
 	}).Error)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/exercises", nil)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body services.ExerciseListResponse
 	testkit.DecodeJSON(t, rec, &body)
@@ -610,7 +594,7 @@ func TestGetExercisesInvalidPagination(t *testing.T) {
 
 	// page_size > 1000 triggers ErrInvalidPageSize → 400.
 	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/exercises?page_size=5000", nil)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -627,7 +611,7 @@ func TestGetExercisesOwnershipIsolation(t *testing.T) {
 	exerciseSeedExercise(t, userB.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusInProgress, vocab.ID)
 
 	rec := testkit.AuthedRequest(t, userA, http.MethodGet, "/api/exercises", nil)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body services.ExerciseListResponse
 	testkit.DecodeJSON(t, rec, &body)
@@ -642,7 +626,7 @@ func TestGetExercisesByIDsRequiresAuth(t *testing.T) {
 	testkit.Truncate(t)
 
 	rec := testkit.Request(t, http.MethodGet, "/api/exercises/by-ids?ids="+uuid.New().String(), nil)
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestGetExercisesByIDsHappyPath(t *testing.T) {
@@ -655,7 +639,7 @@ func TestGetExercisesByIDsHappyPath(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodGet,
 		"/api/exercises/by-ids?ids="+ex1.ID.String()+","+ex2.ID.String(), nil)
-	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body []services.ExerciseListExercise
 	testkit.DecodeJSON(t, rec, &body)
@@ -675,7 +659,7 @@ func TestGetExercisesByIDsMissingParam(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/exercises/by-ids", nil)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -688,7 +672,7 @@ func TestGetExercisesByIDsInvalidUUID(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/exercises/by-ids?ids=not-a-uuid", nil)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -706,7 +690,7 @@ func TestGetExercisesByIDsOwnershipIsolation(t *testing.T) {
 	ex := exerciseSeedExercise(t, userB.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusCompleted, vocab.ID)
 
 	rec := testkit.AuthedRequest(t, userA, http.MethodGet, "/api/exercises/by-ids?ids="+ex.ID.String(), nil)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body []services.ExerciseListExercise
 	testkit.DecodeJSON(t, rec, &body)
@@ -721,7 +705,7 @@ func TestGetExerciseStatisticsRequiresAuth(t *testing.T) {
 	testkit.Truncate(t)
 
 	rec := testkit.Request(t, http.MethodGet, "/api/exercises/statistics", nil)
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestGetExerciseStatisticsCounts(t *testing.T) {
@@ -737,7 +721,7 @@ func TestGetExerciseStatisticsCounts(t *testing.T) {
 	exerciseSeedExercise(t, user.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusIgnored, vocab.ID)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/exercises/statistics", nil)
-	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body services.ExerciseStatistics
 	testkit.DecodeJSON(t, rec, &body)
@@ -758,7 +742,7 @@ func TestGetExerciseStatisticsOwnershipIsolation(t *testing.T) {
 	exerciseSeedExercise(t, userB.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusCompleted, vocab.ID)
 
 	rec := testkit.AuthedRequest(t, userA, http.MethodGet, "/api/exercises/statistics", nil)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body services.ExerciseStatistics
 	testkit.DecodeJSON(t, rec, &body)
@@ -785,7 +769,7 @@ func TestGetExerciseStatisticsDailyActivityUsesUserTimezone(t *testing.T) {
 	require.NoError(t, db.DB.Model(&vocab).UpdateColumn("created_at", today.UTC()).Error)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/exercises/statistics", nil)
-	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body services.ExerciseStatistics
 	testkit.DecodeJSON(t, rec, &body)
@@ -809,7 +793,7 @@ func TestRandomExerciseRequiresAuth(t *testing.T) {
 	testkit.Truncate(t)
 
 	rec := testkit.Request(t, http.MethodPost, "/api/exercises/random", nil)
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestRandomExerciseNoVocabulary(t *testing.T) {
@@ -818,7 +802,7 @@ func TestRandomExerciseNoVocabulary(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/exercises/random", nil)
-	require.Equal(t, http.StatusUnprocessableEntity, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusUnprocessableEntity)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -841,14 +825,14 @@ func TestRandomExerciseAllMastered(t *testing.T) {
 		}).Error)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/exercises/random", nil)
-	require.Equal(t, http.StatusUnprocessableEntity, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusUnprocessableEntity)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
 	assert.Equal(t, services.ErrAllVocabularyMastered.Error(), body["error"])
 }
 
-func TestRandomExerciseHappyPath(t *testing.T) {
+func TestRandomExerciseUserPathCompletesAndAppearsInHistory(t *testing.T) {
 	testkit.Truncate(t)
 
 	user := testkit.CreateUser(t)
@@ -856,7 +840,7 @@ func TestRandomExerciseHappyPath(t *testing.T) {
 	_ = exerciseSeedVocabulary(t, user.ID, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/exercises/random", nil)
-	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		ExerciseID     uuid.UUID                    `json:"exercise_id"`
@@ -902,6 +886,49 @@ func TestRandomExerciseHappyPath(t *testing.T) {
 			assert.ElementsMatch(t, []string{"H", "u", "n", "d"}, body.Options)
 		}
 	}
+
+	answer := "Hund"
+	if body.AnswerLanguage == enums.LanguageEn {
+		answer = "dog"
+	}
+	verifyRec := testkit.AuthedRequest(
+		t,
+		user,
+		http.MethodPost,
+		"/api/exercises/"+body.ExerciseID.String()+"/verify",
+		map[string]any{"answer": answer},
+	)
+	testkit.RequireStatus(t, verifyRec, http.StatusOK)
+	var verification struct {
+		Result        string `json:"result"`
+		CorrectAnswer string `json:"correct_answer"`
+		Knowledge     int    `json:"knowledge"`
+		ProgressDelta int    `json:"progress_delta"`
+	}
+	testkit.DecodeJSON(t, verifyRec, &verification)
+	assert.Equal(t, services.ExerciseVocabularyResultCorrect, verification.Result)
+	assert.Equal(t, answer, verification.CorrectAnswer)
+	assert.Equal(t, services.ExerciseCompleteProgressDelta, verification.ProgressDelta)
+	assert.Equal(t, services.ExerciseCompleteProgressDelta, verification.Knowledge)
+
+	completed := exerciseReload(t, body.ExerciseID)
+	assert.Equal(t, enums.ExerciseStatusCompleted, completed.Status)
+	require.NotNil(t, completed.FinishedAt)
+
+	historyRec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/exercises", nil)
+	testkit.RequireStatus(t, historyRec, http.StatusOK)
+	var history services.ExerciseListResponse
+	testkit.DecodeJSON(t, historyRec, &history)
+	require.Len(t, history.Data, 1)
+	assert.Equal(t, body.ExerciseID, history.Data[0].ID)
+	assert.Equal(t, enums.ExerciseStatusCompleted, history.Data[0].Status)
+
+	statisticsRec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/exercises/statistics", nil)
+	testkit.RequireStatus(t, statisticsRec, http.StatusOK)
+	var statistics services.ExerciseStatistics
+	testkit.DecodeJSON(t, statisticsRec, &statistics)
+	assert.Equal(t, int64(1), statistics.Done)
+	assert.Equal(t, int64(0), statistics.InProgress)
 }
 
 // ===========================================================================
@@ -913,7 +940,7 @@ func TestVerifyExerciseRequiresAuth(t *testing.T) {
 
 	rec := testkit.Request(t, http.MethodPost, "/api/exercises/"+uuid.New().String()+"/verify",
 		map[string]any{"answer": "Hund"})
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestVerifyExerciseInvalidID(t *testing.T) {
@@ -923,7 +950,7 @@ func TestVerifyExerciseInvalidID(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/exercises/not-a-uuid/verify",
 		map[string]any{"answer": "Hund"})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -939,7 +966,7 @@ func TestVerifyExerciseMissingBody(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/exercises/"+ex.ID.String()+"/verify",
 		map[string]any{})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -953,9 +980,15 @@ func TestVerifyExerciseMalformedJSON(t *testing.T) {
 	vocab := exerciseSeedVocabulary(t, user.ID, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
 	ex := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusInProgress, vocab.ID)
 
-	rec := exerciseRawAuthedRequest(t, user, http.MethodPost,
-		"/api/exercises/"+ex.ID.String()+"/verify", "}{ not json")
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	rec := testkit.AuthedRawRequest(
+		t,
+		user,
+		http.MethodPost,
+		"/api/exercises/"+ex.ID.String()+"/verify",
+		"}{ not json",
+		nil,
+	)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 }
 
 func TestVerifyExerciseNotFound(t *testing.T) {
@@ -965,7 +998,7 @@ func TestVerifyExerciseNotFound(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost,
 		"/api/exercises/"+uuid.New().String()+"/verify", map[string]any{"answer": "Hund"})
-	require.Equal(t, http.StatusNotFound, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusNotFound)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -981,7 +1014,7 @@ func TestVerifyExerciseCorrectAnswer(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost,
 		"/api/exercises/"+ex.ID.String()+"/verify", map[string]any{"answer": "Hund"})
-	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		Result        string `json:"result"`
@@ -1130,7 +1163,7 @@ func TestVerifyExerciseWrongAnswer(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost,
 		"/api/exercises/"+ex.ID.String()+"/verify", map[string]any{"answer": "completely-wrong"})
-	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		Result        string `json:"result"`
@@ -1163,7 +1196,7 @@ func TestVerifyExerciseAlmostAnswer(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost,
 		"/api/exercises/"+ex.ID.String()+"/verify", map[string]any{"answer": "Hand"}) // 1 edit from "hund"
-	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		Result        string `json:"result"`
@@ -1316,7 +1349,7 @@ func TestVerifyExerciseNotInProgress(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost,
 		"/api/exercises/"+ex.ID.String()+"/verify", map[string]any{"answer": "Hund"})
-	require.Equal(t, http.StatusConflict, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusConflict)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -1333,7 +1366,7 @@ func TestVerifyExerciseMatchPairsRejected(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost,
 		"/api/exercises/"+ex.ID.String()+"/verify", map[string]any{"answer": "A"})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -1352,7 +1385,7 @@ func TestVerifyExerciseOwnershipIsolation(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, userA, http.MethodPost,
 		"/api/exercises/"+ex.ID.String()+"/verify", map[string]any{"answer": "Hund"})
-	require.Equal(t, http.StatusNotFound, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusNotFound)
 
 	// B's exercise is untouched.
 	stored := exerciseReload(t, ex.ID)
@@ -1373,7 +1406,7 @@ func TestVerifyExerciseChoiceCorrect(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost,
 		"/api/exercises/"+ex.ID.String()+"/verify", map[string]any{"answer": "Hund"})
-	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		Result        string `json:"result"`
@@ -1401,7 +1434,7 @@ func TestVerifyExerciseChoiceWrong(t *testing.T) {
 	// "Katze" is a valid option but not the correct one.
 	rec := testkit.AuthedRequest(t, user, http.MethodPost,
 		"/api/exercises/"+ex.ID.String()+"/verify", map[string]any{"answer": "Katze"})
-	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		Result        string `json:"result"`
@@ -1423,7 +1456,7 @@ func TestIgnoreExerciseRequiresAuth(t *testing.T) {
 	testkit.Truncate(t)
 
 	rec := testkit.Request(t, http.MethodPost, "/api/exercises/"+uuid.New().String()+"/ignore", nil)
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestIgnoreExerciseInvalidID(t *testing.T) {
@@ -1432,7 +1465,7 @@ func TestIgnoreExerciseInvalidID(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/exercises/not-a-uuid/ignore", nil)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -1445,7 +1478,7 @@ func TestIgnoreExerciseNotFound(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/exercises/"+uuid.New().String()+"/ignore", nil)
-	require.Equal(t, http.StatusNotFound, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusNotFound)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -1461,7 +1494,7 @@ func TestIgnoreExerciseHappyPath(t *testing.T) {
 	ex := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusInProgress, vocab.ID)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/exercises/"+ex.ID.String()+"/ignore", nil)
-	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -1497,7 +1530,7 @@ func TestIgnoreKnownVocabularyRepetitionSubtractsTwentyFive(t *testing.T) {
 	exerciseMarkKnownVocabularyRepetition(t, exercise.ID)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/exercises/"+exercise.ID.String()+"/ignore", nil)
-	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	storedExercise := exerciseReload(t, exercise.ID)
 	assert.Equal(t, enums.ExerciseStatusIgnored, storedExercise.Status)
@@ -1526,7 +1559,7 @@ func TestIgnoreExerciseNotInProgress(t *testing.T) {
 	ex := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusCompleted, vocab.ID)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/exercises/"+ex.ID.String()+"/ignore", nil)
-	require.Equal(t, http.StatusConflict, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusConflict)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -1543,7 +1576,7 @@ func TestIgnoreExerciseOwnershipIsolation(t *testing.T) {
 	ex := exerciseSeedExercise(t, userB.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusInProgress, vocab.ID)
 
 	rec := testkit.AuthedRequest(t, userA, http.MethodPost, "/api/exercises/"+ex.ID.String()+"/ignore", nil)
-	require.Equal(t, http.StatusNotFound, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusNotFound)
 
 	stored := exerciseReload(t, ex.ID)
 	assert.Equal(t, enums.ExerciseStatusInProgress, stored.Status, "B's exercise must be untouched")
@@ -1572,7 +1605,7 @@ func TestCompleteMatchPairsRequiresAuth(t *testing.T) {
 	rec := testkit.Request(t, http.MethodPost,
 		"/api/exercises/"+uuid.New().String()+"/match-pairs/complete",
 		map[string]any{"attempts": []any{map[string]any{"first_card_id": "a", "second_card_id": "b"}}})
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestCompleteMatchPairsInvalidID(t *testing.T) {
@@ -1583,7 +1616,7 @@ func TestCompleteMatchPairsInvalidID(t *testing.T) {
 	rec := testkit.AuthedRequest(t, user, http.MethodPost,
 		"/api/exercises/not-a-uuid/match-pairs/complete",
 		map[string]any{"attempts": []any{map[string]any{"first_card_id": "a", "second_card_id": "b"}}})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -1597,7 +1630,7 @@ func TestCompleteMatchPairsMissingBody(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost,
 		"/api/exercises/"+uuid.New().String()+"/match-pairs/complete", map[string]any{})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -1612,7 +1645,7 @@ func TestCompleteMatchPairsNotFound(t *testing.T) {
 	rec := testkit.AuthedRequest(t, user, http.MethodPost,
 		"/api/exercises/"+uuid.New().String()+"/match-pairs/complete",
 		map[string]any{"attempts": []any{map[string]any{"first_card_id": "a", "second_card_id": "b"}}})
-	require.Equal(t, http.StatusNotFound, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusNotFound)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -1630,7 +1663,7 @@ func TestCompleteMatchPairsWrongType(t *testing.T) {
 	rec := testkit.AuthedRequest(t, user, http.MethodPost,
 		"/api/exercises/"+ex.ID.String()+"/match-pairs/complete",
 		map[string]any{"attempts": []any{map[string]any{"first_card_id": "a", "second_card_id": "b"}}})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -1658,7 +1691,7 @@ func TestCompleteMatchPairsAllCorrect(t *testing.T) {
 	rec := testkit.AuthedRequest(t, user, http.MethodPost,
 		"/api/exercises/"+ex.ID.String()+"/match-pairs/complete",
 		map[string]any{"attempts": exerciseMatchAttempts(vocabs)})
-	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body services.MatchPairsCompleteResult
 	testkit.DecodeJSON(t, rec, &body)
@@ -1698,7 +1731,7 @@ func TestCompleteMatchPairsWithWrong(t *testing.T) {
 	rec := testkit.AuthedRequest(t, user, http.MethodPost,
 		"/api/exercises/"+ex.ID.String()+"/match-pairs/complete",
 		map[string]any{"attempts": attempts})
-	require.Equal(t, http.StatusOK, rec.Code, "body=%s", rec.Body.String())
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body services.MatchPairsCompleteResult
 	testkit.DecodeJSON(t, rec, &body)
@@ -1728,7 +1761,7 @@ func TestCompleteMatchPairsEmptyAttempts(t *testing.T) {
 	rec := testkit.AuthedRequest(t, user, http.MethodPost,
 		"/api/exercises/"+ex.ID.String()+"/match-pairs/complete",
 		map[string]any{"attempts": []any{}})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 }
 
 // Not in progress → 409.
@@ -1742,7 +1775,7 @@ func TestCompleteMatchPairsNotInProgress(t *testing.T) {
 	rec := testkit.AuthedRequest(t, user, http.MethodPost,
 		"/api/exercises/"+ex.ID.String()+"/match-pairs/complete",
 		map[string]any{"attempts": exerciseMatchAttempts(vocabs)})
-	require.Equal(t, http.StatusConflict, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusConflict)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -1761,7 +1794,7 @@ func TestCompleteMatchPairsOwnershipIsolation(t *testing.T) {
 	rec := testkit.AuthedRequest(t, userA, http.MethodPost,
 		"/api/exercises/"+ex.ID.String()+"/match-pairs/complete",
 		map[string]any{"attempts": exerciseMatchAttempts(vocabs)})
-	require.Equal(t, http.StatusNotFound, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusNotFound)
 
 	stored := exerciseReload(t, ex.ID)
 	assert.Equal(t, enums.ExerciseStatusInProgress, stored.Status, "B's exercise must be untouched")

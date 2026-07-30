@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -31,12 +32,48 @@ type TelegramLoginProfile struct {
 	Name     string
 }
 
-func MockTelegramLogin(t *testing.T, profile TelegramLoginProfile) {
+type TelegramTokenRequest struct {
+	BasicUsername string
+	BasicPassword string
+	ContentType   string
+	Form          url.Values
+}
+
+type FakeTelegramLogin struct {
+	mu                 sync.Mutex
+	tokenRequests      []TelegramTokenRequest
+	tokenFailureStatus int
+	jwksRequests       int
+}
+
+func (f *FakeTelegramLogin) TokenRequests() []TelegramTokenRequest {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	requests := make([]TelegramTokenRequest, len(f.tokenRequests))
+	copy(requests, f.tokenRequests)
+	return requests
+}
+
+func (f *FakeTelegramLogin) JWKSRequestCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.jwksRequests
+}
+
+func (f *FakeTelegramLogin) FailTokenExchange(status int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.tokenFailureStatus = status
+}
+
+func MockTelegramLogin(t *testing.T, profile TelegramLoginProfile) *FakeTelegramLogin {
 	t.Helper()
 
 	if profile.ID == 0 {
 		profile.ID = 777000
 	}
+	fake := &FakeTelegramLogin{}
 
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
@@ -49,7 +86,24 @@ func MockTelegramLogin(t *testing.T, profile TelegramLoginProfile) {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
+		_ = r.ParseForm()
+		basicUsername, basicPassword, _ := r.BasicAuth()
+		fake.mu.Lock()
+		fake.tokenRequests = append(fake.tokenRequests, TelegramTokenRequest{
+			BasicUsername: basicUsername,
+			BasicPassword: basicPassword,
+			ContentType:   r.Header.Get("Content-Type"),
+			Form:          r.PostForm,
+		})
+		failureStatus := fake.tokenFailureStatus
+		fake.mu.Unlock()
+
 		w.Header().Set("Content-Type", "application/json")
+		if failureStatus != 0 {
+			w.WriteHeader(failureStatus)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "token exchange failed"})
+			return
+		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"access_token": "fake-access-token",
 			"token_type":   "Bearer",
@@ -58,6 +112,10 @@ func MockTelegramLogin(t *testing.T, profile TelegramLoginProfile) {
 		})
 	})
 	mux.HandleFunc("/jwks", func(w http.ResponseWriter, r *http.Request) {
+		fake.mu.Lock()
+		fake.jwksRequests++
+		fake.mu.Unlock()
+
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(jwks)
 	})
@@ -69,6 +127,8 @@ func MockTelegramLogin(t *testing.T, profile TelegramLoginProfile) {
 		restore()
 		server.Close()
 	})
+
+	return fake
 }
 
 func signTelegramIDToken(t *testing.T, key *rsa.PrivateKey, kid string, profile TelegramLoginProfile) string {

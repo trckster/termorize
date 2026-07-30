@@ -379,6 +379,47 @@ Its end-to-end webhook test proves:
 - no new message is sent;
 - replay creates no duplicate while still following the callback protocol.
 
+## Five critical user paths
+
+These are the backend's highest-priority regression paths. They are selected by
+user impact and by the amount of state or external protocol they coordinate.
+When behavior in one of these paths changes, its contract inventory and tests
+must change together.
+
+1. **Enter an authenticated account.**
+   `POST /api/telegram/login/start` and `POST /api/telegram/login/callback`
+   must validate local input, exchange OAuth data only with the fake Telegram
+   endpoints, persist or update one user, issue the protected auth cookie, and
+   make that cookie usable at `GET /api/me`. OAuth and WebApp init-data variants,
+   tampering, malformed input, timezone defaults, and stale users are covered in
+   `auth_settings_test.go` and `telegram_login_test.go`.
+2. **Translate and save vocabulary.**
+   `POST /api/translate`, `POST /api/vocabulary/translation`, and
+   `GET /api/vocabulary` form one acquisition path. Tests cover auth, validation,
+   dependency input/failure, cached translations, response shape, per-user
+   uniqueness, persistence, search, soft deletion, and ownership in
+   `vocabulary_translate_test.go`.
+3. **Complete daily practice.**
+   `POST /api/exercises/random` followed by
+   `POST /api/exercises/:id/verify` is the core learning loop. Tests cover empty
+   and mastered vocabularies, every supported answer family, invalid and foreign
+   exercises, conflicts, progress updates, history, and statistics in
+   `exercise_test.go`.
+4. **Practice a curated collection.**
+   Collection creation, translation insertion, add-to-vocabulary,
+   `POST /api/collections/:id/practice`, practice-exercise creation, verification,
+   and history form this path. Tests cover access, empty intersections, deleted
+   vocabulary, mastered words, distractor selection, matching, progress
+   invariants, and the complete router-level journey in `collection_test.go` and
+   `collection_practice_test.go`.
+5. **Learn through Telegram.**
+   `POST /api/telegram/webhook` must authenticate Telegram, decode a realistic
+   update, scope mutations to the sender, acknowledge callbacks, and issue exact
+   Bot API calls. Tests cover messages, vocabulary callbacks, character and match
+   exercises, stale state recovery, replay, chat/message propagation, and bot
+   enablement in `telegram_webhook_test.go`, with parser/rendering tests beside
+   the integration.
+
 ## Review checklist
 
 - Does the test use the narrowest sufficient boundary?

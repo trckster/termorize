@@ -2,8 +2,6 @@ package tests
 
 import (
 	"net/http"
-	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"termorize/src/enums"
@@ -42,7 +40,7 @@ func TestLoginStartReturnsAuthURL(t *testing.T) {
 	testkit.Truncate(t)
 
 	rec := testkit.Request(t, http.MethodPost, "/api/telegram/login/start", nil)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -61,9 +59,14 @@ func TestLoginStartUsesOriginRedirect(t *testing.T) {
 	testkit.Truncate(t)
 
 	// Send an Origin header to exercise the per-origin redirect URL branch.
-	rec := buildRequestWithHeader(t, http.MethodPost, "/api/telegram/login/start",
-		"Origin", "https://app.example.com")
-	require.Equal(t, http.StatusOK, rec.Code)
+	rec := testkit.RequestWithHeaders(
+		t,
+		http.MethodPost,
+		"/api/telegram/login/start",
+		nil,
+		http.Header{"Origin": []string{"https://app.example.com"}},
+	)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -75,16 +78,16 @@ func TestLoginStartUsesOriginRedirect(t *testing.T) {
 
 // ---------------------------------------------------------------------------
 // POST /api/telegram/login/callback (CompleteTelegramLogin) — public.
-// Only the pre-network code paths are exercised; a successful login requires
-// real Telegram HTTP (ExchangeTelegramLoginCode) and so is out of scope.
+// Local rejection paths live here; successful OAuth and WebApp login protocol
+// tests use loopback Telegram endpoints in telegram_login_test.go.
 // ---------------------------------------------------------------------------
 
 func TestLoginCallbackInvalidJSON(t *testing.T) {
 	testkit.Truncate(t)
 
 	// Send a raw non-JSON body to trigger the bind error (non-validation).
-	rec := buildRawRequest(t, http.MethodPost, "/api/telegram/login/callback", "not-json")
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	rec := testkit.RawRequest(t, http.MethodPost, "/api/telegram/login/callback", "not-json", nil)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -92,62 +95,66 @@ func TestLoginCallbackInvalidJSON(t *testing.T) {
 	assert.Contains(t, body, "error")
 }
 
-func TestLoginCallbackEmptyPayload(t *testing.T) {
-	testkit.Truncate(t)
+func TestLoginCallbackRejectsInvalidLocalPayload(t *testing.T) {
+	tests := []struct {
+		name        string
+		payload     map[string]any
+		wantStatus  int
+		wantError   string
+		wantDetails bool
+	}{
+		{
+			name:       "empty payload",
+			payload:    map[string]any{},
+			wantStatus: http.StatusBadRequest,
+			wantError:  "telegram login payload is invalid",
+		},
+		{
+			name:       "authorization code without state",
+			payload:    map[string]any{"code": "some-code"},
+			wantStatus: http.StatusBadRequest,
+			wantError:  "telegram login payload is invalid",
+		},
+		{
+			name: "invalid state token",
+			payload: map[string]any{
+				"code":  "some-code",
+				"state": "not-a-valid-jwt",
+			},
+			wantStatus: http.StatusUnauthorized,
+			wantError:  "telegram login session is invalid",
+		},
+		{
+			name: "invalid WebApp signature",
+			payload: map[string]any{
+				"init_data": "auth_date=1700000000&hash=deadbeef&user=%7B%22id%22%3A1%7D",
+			},
+			wantStatus:  http.StatusUnauthorized,
+			wantError:   "telegram login failed",
+			wantDetails: true,
+		},
+	}
 
-	// Valid JSON, but no code/state/init_data => 400 before any network call.
-	rec := testkit.Request(t, http.MethodPost, "/api/telegram/login/callback", map[string]any{})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testkit.Truncate(t)
 
-	var body map[string]any
-	testkit.DecodeJSON(t, rec, &body)
-	assert.Equal(t, "telegram login payload is invalid", body["error"])
-}
+			rec := testkit.Request(t, http.MethodPost, "/api/telegram/login/callback", tt.payload)
+			testkit.RequireStatus(t, rec, tt.wantStatus)
 
-func TestLoginCallbackMissingState(t *testing.T) {
-	testkit.Truncate(t)
-
-	// Code present but no state => still 400 before network.
-	rec := testkit.Request(t, http.MethodPost, "/api/telegram/login/callback", map[string]any{
-		"code": "some-code",
-	})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
-
-	var body map[string]any
-	testkit.DecodeJSON(t, rec, &body)
-	assert.Equal(t, "telegram login payload is invalid", body["error"])
-}
-
-func TestLoginCallbackInvalidStateToken(t *testing.T) {
-	testkit.Truncate(t)
-
-	// Code + state present, but the state token is not a valid session JWT, so
-	// DecodeTelegramLoginSessionToken fails => 401 before any network call.
-	rec := testkit.Request(t, http.MethodPost, "/api/telegram/login/callback", map[string]any{
-		"code":  "some-code",
-		"state": "not-a-valid-jwt",
-	})
-	require.Equal(t, http.StatusUnauthorized, rec.Code)
-
-	var body map[string]any
-	testkit.DecodeJSON(t, rec, &body)
-	assert.Equal(t, "telegram login session is invalid", body["error"])
-}
-
-func TestLoginCallbackInvalidInitData(t *testing.T) {
-	testkit.Truncate(t)
-
-	// init_data is present but its hash is invalid; ValidateTelegramInitData
-	// fails locally (HMAC check) without any network call => 401.
-	rec := testkit.Request(t, http.MethodPost, "/api/telegram/login/callback", map[string]any{
-		"init_data": "auth_date=1700000000&hash=deadbeef&user=%7B%22id%22%3A1%7D",
-	})
-	require.Equal(t, http.StatusUnauthorized, rec.Code)
-
-	var body map[string]any
-	testkit.DecodeJSON(t, rec, &body)
-	assert.Equal(t, "telegram login failed", body["error"])
-	assert.Contains(t, body, "details")
+			var body struct {
+				Error   string `json:"error"`
+				Details string `json:"details"`
+			}
+			testkit.DecodeJSON(t, rec, &body)
+			assert.Equal(t, tt.wantError, body.Error)
+			if tt.wantDetails {
+				assert.NotEmpty(t, body.Details)
+			} else {
+				assert.Empty(t, body.Details)
+			}
+		})
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -158,7 +165,7 @@ func TestLogout(t *testing.T) {
 	testkit.Truncate(t)
 
 	rec := testkit.Request(t, http.MethodPost, "/api/logout", nil)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	// The handler deletes the auth cookie: expect a Set-Cookie clearing "auth".
 	var authCookie *http.Cookie
@@ -180,7 +187,7 @@ func TestGetSettingsPublic(t *testing.T) {
 	testkit.Truncate(t)
 
 	rec := testkit.Request(t, http.MethodGet, "/api/settings", nil)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
 		Languages []string `json:"languages"`
@@ -206,7 +213,7 @@ func TestMeRejectsDeletedUser(t *testing.T) {
 	testkit.Truncate(t)
 
 	rec := testkit.Request(t, http.MethodGet, "/api/me", nil, cookie)
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestMeReturnsSettings(t *testing.T) {
@@ -218,7 +225,7 @@ func TestMeReturnsSettings(t *testing.T) {
 	)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/me", nil)
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var got models.User
 	testkit.DecodeJSON(t, rec, &got)
@@ -238,7 +245,7 @@ func TestUpdateSettingsRequiresAuth(t *testing.T) {
 	testkit.Truncate(t)
 
 	rec := testkit.Request(t, http.MethodPut, "/api/settings", authSettingsValidPayload())
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
 func TestUpdateSettingsHappyPath(t *testing.T) {
@@ -247,7 +254,7 @@ func TestUpdateSettingsHappyPath(t *testing.T) {
 	user := testkit.CreateUser(t, testkit.WithName("Ada"))
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/settings", authSettingsValidPayload())
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var got models.User
 	testkit.DecodeJSON(t, rec, &got)
@@ -265,7 +272,7 @@ func TestUpdateSettingsHappyPath(t *testing.T) {
 
 	// Verify persistence via a fresh /api/me read.
 	meRec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/me", nil)
-	require.Equal(t, http.StatusOK, meRec.Code)
+	testkit.RequireStatus(t, meRec, http.StatusOK)
 	var me models.User
 	testkit.DecodeJSON(t, meRec, &me)
 	assert.Equal(t, enums.Language("de"), me.Settings.MainLearningLanguage)
@@ -279,8 +286,8 @@ func TestUpdateSettingsInvalidJSON(t *testing.T) {
 
 	user := testkit.CreateUser(t)
 
-	rec := buildAuthedRawRequest(t, user, http.MethodPut, "/api/settings", "}{ not json")
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	rec := testkit.AuthedRawRequest(t, user, http.MethodPut, "/api/settings", "}{ not json", nil)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
@@ -293,7 +300,7 @@ func TestUpdateSettingsMissingRequiredFields(t *testing.T) {
 	user := testkit.CreateUser(t)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/settings", map[string]any{})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body struct {
 		Errors map[string]string `json:"errors"`
@@ -303,40 +310,56 @@ func TestUpdateSettingsMissingRequiredFields(t *testing.T) {
 	assert.Equal(t, "required", body.Errors["SystemLanguage"])
 }
 
-func TestUpdateSettingsInvalidLanguageEnum(t *testing.T) {
-	testkit.Truncate(t)
-
-	user := testkit.CreateUser(t)
-
-	payload := authSettingsValidPayload()
-	payload["system_language"] = "xx" // not a valid Language enum value
-
-	rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/settings", payload)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
-
-	var body struct {
-		Errors map[string]string `json:"errors"`
+func TestUpdateSettingsRejectsInvalidFieldValues(t *testing.T) {
+	tests := []struct {
+		name      string
+		mutate    func(map[string]any)
+		wantField string
+		wantTag   string
+	}{
+		{
+			name: "unknown system language",
+			mutate: func(payload map[string]any) {
+				payload["system_language"] = "xx"
+			},
+			wantField: "SystemLanguage",
+			wantTag:   "enum",
+		},
+		{
+			name: "unknown timezone",
+			mutate: func(payload map[string]any) {
+				payload["time_zone"] = "Not/AZone"
+			},
+			wantField: "TimeZone",
+			wantTag:   "timezone",
+		},
+		{
+			name: "daily question count above maximum",
+			mutate: func(payload map[string]any) {
+				payload["telegram"].(map[string]any)["daily_questions_count"] = 101
+			},
+			wantField: "DailyQuestionsCount",
+			wantTag:   "max",
+		},
 	}
-	testkit.DecodeJSON(t, rec, &body)
-	assert.Equal(t, "enum", body.Errors["SystemLanguage"])
-}
 
-func TestUpdateSettingsInvalidTimezone(t *testing.T) {
-	testkit.Truncate(t)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testkit.Truncate(t)
+			user := testkit.CreateUser(t)
+			payload := authSettingsValidPayload()
+			tt.mutate(payload)
 
-	user := testkit.CreateUser(t)
+			rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/settings", payload)
+			testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
-	payload := authSettingsValidPayload()
-	payload["time_zone"] = "Not/AZone"
-
-	rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/settings", payload)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
-
-	var body struct {
-		Errors map[string]string `json:"errors"`
+			var body struct {
+				Errors map[string]string `json:"errors"`
+			}
+			testkit.DecodeJSON(t, rec, &body)
+			assert.Equal(t, tt.wantTag, body.Errors[tt.wantField])
+		})
 	}
-	testkit.DecodeJSON(t, rec, &body)
-	assert.Equal(t, "timezone", body.Errors["TimeZone"])
 }
 
 func TestUpdateSettingsSameSourceAndTargetLanguage(t *testing.T) {
@@ -349,7 +372,7 @@ func TestUpdateSettingsSameSourceAndTargetLanguage(t *testing.T) {
 	payload["translation_target_language"] = "en" // violates nefield constraint
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/settings", payload)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body struct {
 		Errors map[string]string `json:"errors"`
@@ -373,31 +396,13 @@ func TestUpdateSettingsInvalidScheduleTime(t *testing.T) {
 	}
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/settings", payload)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
 
 	var body struct {
 		Errors map[string]string `json:"errors"`
 	}
 	testkit.DecodeJSON(t, rec, &body)
 	require.NotEmpty(t, body.Errors)
-}
-
-func TestUpdateSettingsDailyQuestionsCountTooHigh(t *testing.T) {
-	testkit.Truncate(t)
-
-	user := testkit.CreateUser(t)
-
-	payload := authSettingsValidPayload()
-	payload["telegram"].(map[string]any)["daily_questions_count"] = 101 // max=100
-
-	rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/settings", payload)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
-
-	var body struct {
-		Errors map[string]string `json:"errors"`
-	}
-	testkit.DecodeJSON(t, rec, &body)
-	assert.Equal(t, "max", body.Errors["DailyQuestionsCount"])
 }
 
 func TestUpdateSettingsPreservesBotEnabled(t *testing.T) {
@@ -412,61 +417,9 @@ func TestUpdateSettingsPreservesBotEnabled(t *testing.T) {
 	user := testkit.CreateUser(t, testkit.WithSettings(settings))
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/settings", authSettingsValidPayload())
-	require.Equal(t, http.StatusOK, rec.Code)
+	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var got models.User
 	testkit.DecodeJSON(t, rec, &got)
 	assert.True(t, got.Settings.Telegram.BotEnabled, "BotEnabled must be preserved across settings update")
-}
-
-// ---------------------------------------------------------------------------
-// Local request helpers (unexported, prefixed authSettings/build* to avoid
-// clashes with other test files in the package).
-// ---------------------------------------------------------------------------
-
-// authSettingsRawRequest issues an in-process request against the shared router
-// with a raw (possibly invalid) body and/or custom headers — capabilities the
-// JSON-encoding testkit.Request helper does not offer.
-func authSettingsRawRequest(t *testing.T, method, path, rawBody string, cookies []*http.Cookie, headers map[string]string) *httptest.ResponseRecorder {
-	t.Helper()
-
-	var reader *strings.Reader
-	if rawBody != "" {
-		reader = strings.NewReader(rawBody)
-	}
-
-	var req *http.Request
-	if reader != nil {
-		req = httptest.NewRequest(method, path, reader)
-		req.Header.Set("Content-Type", "application/json")
-	} else {
-		req = httptest.NewRequest(method, path, nil)
-	}
-
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-	for _, c := range cookies {
-		if c != nil {
-			req.AddCookie(c)
-		}
-	}
-
-	rec := httptest.NewRecorder()
-	testkit.Router().ServeHTTP(rec, req)
-	return rec
-}
-
-// buildRawRequest issues an in-process request with a raw (possibly invalid)
-// JSON string body so bind-level (non-validation) errors can be exercised.
-func buildRawRequest(t *testing.T, method, path, rawBody string) *httptest.ResponseRecorder {
-	return authSettingsRawRequest(t, method, path, rawBody, nil, nil)
-}
-
-func buildAuthedRawRequest(t *testing.T, user models.User, method, path, rawBody string) *httptest.ResponseRecorder {
-	return authSettingsRawRequest(t, method, path, rawBody, []*http.Cookie{testkit.AuthCookie(user)}, nil)
-}
-
-func buildRequestWithHeader(t *testing.T, method, path, headerKey, headerValue string) *httptest.ResponseRecorder {
-	return authSettingsRawRequest(t, method, path, "", nil, map[string]string{headerKey: headerValue})
 }
