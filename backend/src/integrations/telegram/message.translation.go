@@ -88,6 +88,29 @@ func detectMessageTranslationLanguages(user *models.User, text string) (enums.La
 		}
 	}
 
+	// Language detection is unreliable for short words that exist in several
+	// languages. When Russian is paired with one of the supported Latin-script
+	// languages, the script still gives us an unambiguous fallback direction.
+	if containsLatin(text) {
+		if sourceLanguage == enums.LanguageRu {
+			return targetLanguage, sourceLanguage, nil
+		}
+
+		if targetLanguage == enums.LanguageRu {
+			return sourceLanguage, targetLanguage, nil
+		}
+	}
+
+	// If detection fails or returns a language outside the configured pair,
+	// prefer English when it is one of the two available directions.
+	if sourceLanguage == enums.LanguageEn {
+		return sourceLanguage, targetLanguage, nil
+	}
+
+	if targetLanguage == enums.LanguageEn {
+		return targetLanguage, sourceLanguage, nil
+	}
+
 	return sourceLanguage, targetLanguage, nil
 }
 
@@ -98,6 +121,16 @@ func buildVocabularyTranslationText(sourceLanguage enums.Language, sourceWord st
 func containsCyrillic(text string) bool {
 	for _, r := range text {
 		if unicode.Is(unicode.Cyrillic, r) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func containsLatin(text string) bool {
+	for _, r := range text {
+		if unicode.Is(unicode.Latin, r) {
 			return true
 		}
 	}
