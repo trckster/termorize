@@ -403,6 +403,55 @@ func TestCreateVocabularyByTranslationDuplicateConflicts(t *testing.T) {
 	assert.Equal(t, "vocabulary already exists", body["error"])
 }
 
+func TestCreateVocabularyByTranslationAllowsSameTranslationForDifferentUsers(t *testing.T) {
+	testkit.Truncate(t)
+
+	firstUser := testkit.CreateUser(t)
+	secondUser := testkit.CreateUser(t)
+	translationID := vocabSeedTranslation(t, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
+
+	for _, user := range []models.User{firstUser, secondUser} {
+		rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/vocabulary/translation", map[string]any{
+			"translation_id": translationID.String(),
+		})
+		testkit.RequireStatus(t, rec, http.StatusCreated)
+	}
+
+	assert.Equal(t, int64(1), vocabCountForUser(t, firstUser.ID))
+	assert.Equal(t, int64(1), vocabCountForUser(t, secondUser.ID))
+}
+
+func TestCreateVocabularyByTranslationReversePairConflicts(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+	translationID := vocabSeedTranslation(t, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
+
+	var translation models.Translation
+	require.NoError(t, db.DB.First(&translation, "id = ?", translationID).Error)
+	reversed := models.Translation{
+		OriginalID:    translation.TranslationID,
+		TranslationID: translation.OriginalID,
+		Source:        enums.TranslationSourceGoogle,
+	}
+	require.NoError(t, db.DB.Create(&reversed).Error)
+
+	first := testkit.AuthedRequest(t, user, http.MethodPost, "/api/vocabulary/translation", map[string]any{
+		"translation_id": translationID.String(),
+	})
+	testkit.RequireStatus(t, first, http.StatusCreated)
+
+	second := testkit.AuthedRequest(t, user, http.MethodPost, "/api/vocabulary/translation", map[string]any{
+		"translation_id": reversed.ID.String(),
+	})
+	testkit.RequireStatus(t, second, http.StatusConflict)
+
+	var body map[string]any
+	testkit.DecodeJSON(t, second, &body)
+	assert.Equal(t, "vocabulary already exists", body["error"])
+	assert.Equal(t, int64(1), vocabCountForUser(t, user.ID))
+}
+
 func TestCreateVocabularyByTranslationRestoresSoftDeletedItem(t *testing.T) {
 	testkit.Truncate(t)
 
@@ -490,6 +539,22 @@ func TestCreateVocabularyByTranslationMissingID(t *testing.T) {
 	}
 	testkit.DecodeJSON(t, rec, &body)
 	assert.Equal(t, "required", body.Errors["TranslationID"])
+}
+
+func TestCreateVocabularyByTranslationRejectsInvalidID(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+
+	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/vocabulary/translation", map[string]any{
+		"translation_id": "not-a-uuid",
+	})
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
+
+	var body map[string]any
+	testkit.DecodeJSON(t, rec, &body)
+	assert.Contains(t, body, "error")
+	assert.Equal(t, int64(0), vocabCountForUser(t, user.ID))
 }
 
 // ===========================================================================
