@@ -145,7 +145,7 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 		enums.ExerciseStatusFailed,
 		services.ExerciseVocabularyResultIgnored,
 		services.ExerciseVocabularyResultReasonSkipped,
-		services.ExerciseFailProgressDelta,
+		services.ExerciseBasicWrongProgressDelta,
 	)
 	if err != nil {
 		return err

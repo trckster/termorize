@@ -47,3 +47,77 @@ func TestNormalizeTranslationPairCasingLowercasesOriginalForItalianArticlePhrase
 		t.Fatalf("expected translation to be lowercased, got %q", translation)
 	}
 }
+
+func TestDamerauLevenshteinDistance(t *testing.T) {
+	tests := []struct {
+		name     string
+		left     string
+		right    string
+		expected int
+	}{
+		{
+			name:     "identical",
+			left:     "peach",
+			right:    "peach",
+			expected: 0,
+		},
+		{
+			name:     "insertion",
+			left:     "peach",
+			right:    "preach",
+			expected: 1,
+		},
+		{
+			name:     "deletion",
+			left:     "peach",
+			right:    "each",
+			expected: 1,
+		},
+		{
+			name:     "substitution",
+			left:     "peach",
+			right:    "poach",
+			expected: 1,
+		},
+		{
+			name:     "adjacent transposition",
+			left:     "peahc",
+			right:    "peach",
+			expected: 1,
+		},
+		{
+			name:     "overlapping edits use full damerau distance",
+			left:     "CA",
+			right:    "ABC",
+			expected: 2,
+		},
+		{
+			name:     "unicode transposition",
+			left:     "caéf",
+			right:    "café",
+			expected: 1,
+		},
+		{
+			name:     "empty left",
+			left:     "",
+			right:    "word",
+			expected: 4,
+		},
+		{
+			name:     "empty right",
+			left:     "word",
+			right:    "",
+			expected: 4,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := DamerauLevenshteinDistance(test.left, test.right)
+
+			if result != test.expected {
+				t.Fatalf("expected distance %d, got %d", test.expected, result)
+			}
+		})
+	}
+}

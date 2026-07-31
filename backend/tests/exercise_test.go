@@ -908,8 +908,12 @@ func TestRandomExerciseUserPathCompletesAndAppearsInHistory(t *testing.T) {
 	testkit.DecodeJSON(t, verifyRec, &verification)
 	assert.Equal(t, services.ExerciseVocabularyResultCorrect, verification.Result)
 	assert.Equal(t, answer, verification.CorrectAnswer)
-	assert.Equal(t, services.ExerciseCompleteProgressDelta, verification.ProgressDelta)
-	assert.Equal(t, services.ExerciseCompleteProgressDelta, verification.Knowledge)
+	expectedDelta := services.ExerciseBasicCorrectProgressDelta
+	if body.Type == enums.ExerciseTypeCharactersDirect || body.Type == enums.ExerciseTypeCharactersReversed {
+		expectedDelta = services.ExerciseCharacterCorrectProgressDelta
+	}
+	assert.Equal(t, expectedDelta, verification.ProgressDelta)
+	assert.Equal(t, expectedDelta, verification.Knowledge)
 
 	completed := exerciseReload(t, body.ExerciseID)
 	assert.Equal(t, enums.ExerciseStatusCompleted, completed.Status)
@@ -1026,8 +1030,8 @@ func TestVerifyExerciseCorrectAnswer(t *testing.T) {
 
 	assert.Equal(t, "correct", body.Result)
 	assert.Equal(t, "Hund", body.CorrectAnswer)
-	assert.Equal(t, services.ExerciseCompleteProgressDelta, body.ProgressDelta)
-	assert.Equal(t, services.ExerciseCompleteProgressDelta, body.Knowledge) // 0 + 15
+	assert.Equal(t, services.ExerciseBasicCorrectProgressDelta, body.ProgressDelta)
+	assert.Equal(t, services.ExerciseBasicCorrectProgressDelta, body.Knowledge) // 0 + 15
 
 	// DB side effects.
 	stored := exerciseReload(t, ex.ID)
@@ -1035,13 +1039,13 @@ func TestVerifyExerciseCorrectAnswer(t *testing.T) {
 	require.NotNil(t, stored.FinishedAt)
 
 	updatedVocab := exerciseReloadVocabulary(t, vocab.ID)
-	assert.Equal(t, services.ExerciseCompleteProgressDelta, exerciseTranslationKnowledge(t, updatedVocab.Progress))
+	assert.Equal(t, services.ExerciseBasicCorrectProgressDelta, exerciseTranslationKnowledge(t, updatedVocab.Progress))
 
 	link := exerciseLink(t, ex.ID, vocab.ID)
 	require.NotNil(t, link.Result)
 	assert.Equal(t, services.ExerciseVocabularyResultCorrect, *link.Result)
 	require.NotNil(t, link.ProgressDelta)
-	assert.Equal(t, services.ExerciseCompleteProgressDelta, *link.ProgressDelta)
+	assert.Equal(t, services.ExerciseBasicCorrectProgressDelta, *link.ProgressDelta)
 	require.NotNil(t, link.AnsweredAt)
 }
 
@@ -1076,6 +1080,8 @@ func TestVerifyCharacterExerciseDirectAndReversed(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, "correct", result.Result)
 			assert.Equal(t, testCase.correctAnswer, result.CorrectAnswer)
+			assert.Equal(t, services.ExerciseCharacterCorrectProgressDelta, result.ProgressDelta)
+			assert.Equal(t, services.ExerciseCharacterCorrectProgressDelta, result.Knowledge)
 
 			link := exerciseLink(t, exercise.ID, vocab.ID)
 			require.NotNil(t, link.ResultReason)
@@ -1175,8 +1181,8 @@ func TestVerifyExerciseWrongAnswer(t *testing.T) {
 
 	assert.Equal(t, "wrong", body.Result)
 	assert.Equal(t, "Hund", body.CorrectAnswer)
-	assert.Equal(t, services.ExerciseFailProgressDelta, body.ProgressDelta)
-	assert.Equal(t, 0, body.Knowledge) // clamp(0 - 20) = 0
+	assert.Equal(t, services.ExerciseBasicWrongProgressDelta, body.ProgressDelta)
+	assert.Equal(t, 0, body.Knowledge) // clamp(0 - 15) = 0
 
 	stored := exerciseReload(t, ex.ID)
 	assert.Equal(t, enums.ExerciseStatusFailed, stored.Status)
@@ -1186,29 +1192,56 @@ func TestVerifyExerciseWrongAnswer(t *testing.T) {
 	assert.Equal(t, services.ExerciseVocabularyResultWrong, *link.Result)
 }
 
-// A one-character typo is treated as "almost" correct (Levenshtein within threshold).
+// A one-character typo is treated as "almost" correct (Damerau-Levenshtein within threshold).
 func TestVerifyExerciseAlmostAnswer(t *testing.T) {
-	testkit.Truncate(t)
-
-	user := testkit.CreateUser(t)
-	vocab := exerciseSeedVocabulary(t, user.ID, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
-	ex := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusInProgress, vocab.ID)
-
-	rec := testkit.AuthedRequest(t, user, http.MethodPost,
-		"/api/exercises/"+ex.ID.String()+"/verify", map[string]any{"answer": "Hand"}) // 1 edit from "hund"
-	testkit.RequireStatus(t, rec, http.StatusOK)
-
-	var body struct {
-		Result        string `json:"result"`
-		ProgressDelta int    `json:"progress_delta"`
+	testCases := []struct {
+		name          string
+		exerciseType  enums.ExerciseType
+		translation   string
+		answer        string
+		expectedDelta int
+	}{
+		{
+			name:          "substitution",
+			exerciseType:  enums.ExerciseTypeBasicDirect,
+			translation:   "Hund",
+			answer:        "Hand",
+			expectedDelta: services.ExerciseBasicAlmostProgressDelta,
+		},
+		{
+			name:          "adjacent transposition in character exercise",
+			exerciseType:  enums.ExerciseTypeCharactersDirect,
+			translation:   "peach",
+			answer:        "peahc",
+			expectedDelta: services.ExerciseCharacterAlmostProgressDelta,
+		},
 	}
-	testkit.DecodeJSON(t, rec, &body)
 
-	assert.Equal(t, "almost", body.Result)
-	assert.Equal(t, services.ExerciseAlmostCorrectProgressDelta, body.ProgressDelta)
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			testkit.Truncate(t)
 
-	stored := exerciseReload(t, ex.ID)
-	assert.Equal(t, enums.ExerciseStatusCompleted, stored.Status)
+			user := testkit.CreateUser(t)
+			vocab := exerciseSeedVocabulary(t, user.ID, "dog", testCase.translation, enums.LanguageEn, enums.LanguageDe)
+			exercise := exerciseSeedExercise(t, user.ID, testCase.exerciseType, enums.ExerciseStatusInProgress, vocab.ID)
+
+			rec := testkit.AuthedRequest(t, user, http.MethodPost,
+				"/api/exercises/"+exercise.ID.String()+"/verify", map[string]any{"answer": testCase.answer})
+			testkit.RequireStatus(t, rec, http.StatusOK)
+
+			var body struct {
+				Result        string `json:"result"`
+				ProgressDelta int    `json:"progress_delta"`
+			}
+			testkit.DecodeJSON(t, rec, &body)
+
+			assert.Equal(t, "almost", body.Result)
+			assert.Equal(t, testCase.expectedDelta, body.ProgressDelta)
+
+			stored := exerciseReload(t, exercise.ID)
+			assert.Equal(t, enums.ExerciseStatusCompleted, stored.Status)
+		})
+	}
 }
 
 func TestVerifyKnownVocabularyRepetitionProgress(t *testing.T) {
@@ -1258,7 +1291,7 @@ func TestVerifyKnownVocabularyRepetitionProgress(t *testing.T) {
 			currentKnowledge:  60,
 			answer:            "Hund",
 			expectedResult:    "correct",
-			expectedDelta:     services.ExerciseCompleteProgressDelta,
+			expectedDelta:     services.ExerciseBasicCorrectProgressDelta,
 			expectedKnowledge: 75,
 			expectedStatus:    enums.ExerciseStatusCompleted,
 		},
@@ -1268,7 +1301,7 @@ func TestVerifyKnownVocabularyRepetitionProgress(t *testing.T) {
 			currentKnowledge:  60,
 			answer:            "dug",
 			expectedResult:    "almost",
-			expectedDelta:     services.ExerciseAlmostCorrectProgressDelta,
+			expectedDelta:     services.ExerciseBasicAlmostProgressDelta,
 			expectedKnowledge: 65,
 			expectedStatus:    enums.ExerciseStatusCompleted,
 		},
@@ -1328,7 +1361,7 @@ func TestKnownVocabularyRepetitionSkippedAnswerSubtractsTwentyFive(t *testing.T)
 		enums.ExerciseStatusFailed,
 		services.ExerciseVocabularyResultIgnored,
 		services.ExerciseVocabularyResultReasonSkipped,
-		services.ExerciseFailProgressDelta,
+		services.ExerciseBasicWrongProgressDelta,
 	)
 	require.NoError(t, err)
 	assert.True(t, updated)
@@ -1414,7 +1447,7 @@ func TestVerifyExerciseChoiceCorrect(t *testing.T) {
 	}
 	testkit.DecodeJSON(t, rec, &body)
 	assert.Equal(t, "correct", body.Result)
-	assert.Equal(t, services.ExerciseChoiceCompleteProgressDelta, body.ProgressDelta)
+	assert.Equal(t, services.ExerciseChoiceCorrectProgressDelta, body.ProgressDelta)
 
 	stored := exerciseReload(t, ex.ID)
 	assert.Equal(t, enums.ExerciseStatusCompleted, stored.Status)
@@ -1442,7 +1475,7 @@ func TestVerifyExerciseChoiceWrong(t *testing.T) {
 	}
 	testkit.DecodeJSON(t, rec, &body)
 	assert.Equal(t, "wrong", body.Result)
-	assert.Equal(t, services.ExerciseChoiceFailProgressDelta, body.ProgressDelta)
+	assert.Equal(t, services.ExerciseChoiceWrongProgressDelta, body.ProgressDelta)
 
 	stored := exerciseReload(t, ex.ID)
 	assert.Equal(t, enums.ExerciseStatusFailed, stored.Status)
@@ -1505,7 +1538,7 @@ func TestIgnoreExerciseHappyPath(t *testing.T) {
 	require.NotNil(t, stored.FinishedAt)
 
 	updatedVocabulary := exerciseReloadVocabulary(t, vocab.ID)
-	assert.Equal(t, 30, exerciseTranslationKnowledge(t, updatedVocabulary.Progress))
+	assert.Equal(t, 35, exerciseTranslationKnowledge(t, updatedVocabulary.Progress))
 
 	link := exerciseLink(t, ex.ID, vocab.ID)
 	require.NotNil(t, link.Result)
@@ -1513,9 +1546,9 @@ func TestIgnoreExerciseHappyPath(t *testing.T) {
 	require.NotNil(t, link.ResultReason)
 	assert.Equal(t, services.ExerciseVocabularyResultReasonSkipped, *link.ResultReason)
 	require.NotNil(t, link.ProgressDelta)
-	assert.Equal(t, services.ExerciseFailProgressDelta, *link.ProgressDelta)
+	assert.Equal(t, services.ExerciseBasicWrongProgressDelta, *link.ProgressDelta)
 	require.NotNil(t, link.KnowledgeAfter)
-	assert.Equal(t, 30, *link.KnowledgeAfter)
+	assert.Equal(t, 35, *link.KnowledgeAfter)
 	require.NotNil(t, link.AnsweredAt)
 }
 
@@ -1741,12 +1774,14 @@ func TestCompleteMatchPairsWithWrong(t *testing.T) {
 	stored := exerciseReload(t, ex.ID)
 	assert.Equal(t, enums.ExerciseStatusFailed, stored.Status)
 
-	// vocab[0] was wrong: progress delta is the fail delta (clamped at 0).
+	// vocab[0] was wrong: progress is clamped at 0, while the full delta is recorded.
 	wrongVocab := exerciseReloadVocabulary(t, vocabs[0])
-	assert.Equal(t, 0, exerciseTranslationKnowledge(t, wrongVocab.Progress)) // clamp(0 - 10)
+	assert.Equal(t, 0, exerciseTranslationKnowledge(t, wrongVocab.Progress)) // clamp(0 - 15)
 	wrongLink := exerciseLink(t, ex.ID, vocabs[0])
 	require.NotNil(t, wrongLink.Result)
 	assert.Equal(t, services.ExerciseVocabularyResultWrong, *wrongLink.Result)
+	require.NotNil(t, wrongLink.ProgressDelta)
+	assert.Equal(t, services.ExerciseMatchWrongProgressDelta, *wrongLink.ProgressDelta)
 }
 
 // Empty attempts list → 400 invalid match pair results.

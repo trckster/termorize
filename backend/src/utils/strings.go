@@ -104,7 +104,7 @@ func hasInternalUppercase(value string) bool {
 	return false
 }
 
-func LevenshteinDistance(left string, right string) int {
+func DamerauLevenshteinDistance(left string, right string) int {
 	leftRunes := []rune(left)
 	rightRunes := []rune(right)
 
@@ -116,32 +116,55 @@ func LevenshteinDistance(left string, right string) int {
 		return len(leftRunes)
 	}
 
-	previous := make([]int, len(rightRunes)+1)
-	current := make([]int, len(rightRunes)+1)
-
-	for index := range previous {
-		previous[index] = index
+	maxDistance := len(leftRunes) + len(rightRunes)
+	distances := make([][]int, len(leftRunes)+2)
+	for index := range distances {
+		distances[index] = make([]int, len(rightRunes)+2)
 	}
 
-	for leftIndex, leftRune := range leftRunes {
-		current[0] = leftIndex + 1
+	distances[0][0] = maxDistance
+	for leftIndex := 0; leftIndex <= len(leftRunes); leftIndex++ {
+		distances[leftIndex+1][0] = maxDistance
+		distances[leftIndex+1][1] = leftIndex
+	}
+	for rightIndex := 0; rightIndex <= len(rightRunes); rightIndex++ {
+		distances[0][rightIndex+1] = maxDistance
+		distances[1][rightIndex+1] = rightIndex
+	}
 
-		for rightIndex, rightRune := range rightRunes {
-			cost := 0
-			if leftRune != rightRune {
-				cost = 1
+	lastRowByRune := make(map[rune]int)
+	for leftIndex := 1; leftIndex <= len(leftRunes); leftIndex++ {
+		lastMatchingColumn := 0
+
+		for rightIndex := 1; rightIndex <= len(rightRunes); rightIndex++ {
+			matchingRow := lastRowByRune[rightRunes[rightIndex-1]]
+			matchingColumn := lastMatchingColumn
+
+			substitutionCost := 1
+			if leftRunes[leftIndex-1] == rightRunes[rightIndex-1] {
+				substitutionCost = 0
+				lastMatchingColumn = rightIndex
 			}
 
-			deletion := previous[rightIndex+1] + 1
-			insertion := current[rightIndex] + 1
-			substitution := previous[rightIndex] + cost
-			current[rightIndex+1] = minInt(deletion, insertion, substitution)
+			substitution := distances[leftIndex][rightIndex] + substitutionCost
+			insertion := distances[leftIndex+1][rightIndex] + 1
+			deletion := distances[leftIndex][rightIndex+1] + 1
+			transposition := distances[matchingRow][matchingColumn] +
+				(leftIndex - matchingRow - 1) + 1 +
+				(rightIndex - matchingColumn - 1)
+
+			distances[leftIndex+1][rightIndex+1] = minInt(
+				substitution,
+				insertion,
+				deletion,
+				transposition,
+			)
 		}
 
-		previous, current = current, previous
+		lastRowByRune[leftRunes[leftIndex-1]] = leftIndex
 	}
 
-	return previous[len(rightRunes)]
+	return distances[len(leftRunes)+1][len(rightRunes)+1]
 }
 
 func minInt(values ...int) int {
