@@ -86,9 +86,9 @@ const (
 	matchPairCardSideOriginal     = "original"
 	matchPairCardSideTranslation  = "translation"
 
-	basicExerciseWeight      = 35
-	choiceExerciseWeight     = 35
-	characterExerciseWeight  = 20
+	basicExerciseWeight      = 30
+	choiceExerciseWeight     = 30
+	characterExerciseWeight  = 30
 	matchPairsExerciseWeight = 10
 
 	knownVocabularyRepetitionMinimumDailyCount = 3
