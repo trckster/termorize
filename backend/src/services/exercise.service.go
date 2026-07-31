@@ -41,19 +41,28 @@ func almostCorrectThreshold(expected string) int {
 }
 
 const (
-	ExerciseCompleteProgressDelta              = 15
-	ExerciseAlmostCorrectProgressDelta         = 5
-	ExerciseFailProgressDelta                  = -20
-	ExerciseChoiceCompleteProgressDelta        = 5
-	ExerciseChoiceFailProgressDelta            = -10
-	ExerciseMatchCorrectProgressDelta          = 7
+	ExerciseBasicCorrectProgressDelta          = 15
+	ExerciseBasicAlmostProgressDelta           = 5
+	ExerciseBasicWrongProgressDelta            = -15
+	ExerciseCharacterCorrectProgressDelta      = 10
+	ExerciseCharacterAlmostProgressDelta       = 5
+	ExerciseCharacterWrongProgressDelta        = -20
+	ExerciseChoiceCorrectProgressDelta         = 5
+	ExerciseChoiceWrongProgressDelta           = -25
+	ExerciseMatchCorrectProgressDelta          = 5
 	ExerciseMatchAlmostProgressDelta           = 2
-	ExerciseMatchFailProgressDelta             = -10
+	ExerciseMatchWrongProgressDelta            = -15
 	KnownVocabularyRepetitionFailProgressDelta = -25
 	exerciseReminderPeriod                     = 24 * time.Hour
 	telegramExerciseExpirationPeriod           = 7 * 24 * time.Hour
 	websiteExerciseExpirationPeriod            = time.Hour
 )
+
+type exerciseProgressDeltas struct {
+	Correct int
+	Almost  int
+	Wrong   int
+}
 
 const (
 	ExerciseVocabularyResultCorrect = "correct"
@@ -888,6 +897,7 @@ func VerifyExerciseAnswer(exerciseID uuid.UUID, userID uint, answer string) (*Ve
 	var knowledge int
 	var progressDelta int
 	var resultType string
+	deltas := exerciseProgressDeltasForType(exercise.Type)
 
 	if isChoiceExerciseType(exercise.Type) {
 		options, optionsErr := GetExerciseAnswerOptions(exercise.ID, exercise.Type)
@@ -901,15 +911,15 @@ func VerifyExerciseAnswer(exerciseID uuid.UUID, userID uint, answer string) (*Ve
 		}
 
 		if normalizedAnswer == normalizedExpectedAnswer {
-			progressDelta = exerciseProgressDelta(exercise, ExerciseChoiceCompleteProgressDelta)
+			progressDelta = exerciseProgressDelta(exercise, deltas.Correct)
 			updated, knowledge, progressDelta, err = FinishExerciseWithProgressDelta(exerciseID, enums.ExerciseStatusCompleted, ExerciseVocabularyResultCorrect, ExerciseVocabularyResultReasonChoiceAnswer, progressDelta)
 			resultType = "correct"
 		} else if exerciseOptionsContainAnswer(options, normalizedAnswer) {
-			progressDelta = exerciseProgressDelta(exercise, ExerciseChoiceFailProgressDelta)
+			progressDelta = exerciseProgressDelta(exercise, deltas.Wrong)
 			updated, knowledge, progressDelta, err = FinishExerciseWithProgressDelta(exerciseID, enums.ExerciseStatusFailed, ExerciseVocabularyResultWrong, ExerciseVocabularyResultReasonChoiceAnswer, progressDelta)
 			resultType = "wrong"
 		} else {
-			progressDelta = exerciseProgressDelta(exercise, ExerciseChoiceFailProgressDelta)
+			progressDelta = exerciseProgressDelta(exercise, deltas.Wrong)
 			updated, knowledge, progressDelta, err = FinishExerciseWithProgressDelta(exerciseID, enums.ExerciseStatusFailed, ExerciseVocabularyResultWrong, ExerciseVocabularyResultReasonChoiceAnswer, progressDelta)
 			resultType = "wrong"
 		}
@@ -920,18 +930,18 @@ func VerifyExerciseAnswer(exerciseID uuid.UUID, userID uint, answer string) (*Ve
 		}
 
 		if normalizedAnswer == normalizedExpectedAnswer {
-			progressDelta = exerciseProgressDelta(exercise, ExerciseCompleteProgressDelta)
+			progressDelta = exerciseProgressDelta(exercise, deltas.Correct)
 			updated, knowledge, progressDelta, err = FinishExerciseWithProgressDelta(exerciseID, enums.ExerciseStatusCompleted, ExerciseVocabularyResultCorrect, answerReason, progressDelta)
 			resultType = "correct"
 		} else {
-			distance := utils.LevenshteinDistance(normalizedAnswer, normalizedExpectedAnswer)
+			distance := utils.DamerauLevenshteinDistance(normalizedAnswer, normalizedExpectedAnswer)
 			threshold := almostCorrectThreshold(normalizedExpectedAnswer)
 			if distance <= threshold {
-				progressDelta = exerciseProgressDelta(exercise, ExerciseAlmostCorrectProgressDelta)
+				progressDelta = exerciseProgressDelta(exercise, deltas.Almost)
 				updated, knowledge, progressDelta, err = FinishExerciseWithProgressDelta(exerciseID, enums.ExerciseStatusCompleted, ExerciseVocabularyResultAlmost, answerReason, progressDelta)
 				resultType = "almost"
 			} else {
-				progressDelta = exerciseProgressDelta(exercise, ExerciseFailProgressDelta)
+				progressDelta = exerciseProgressDelta(exercise, deltas.Wrong)
 				updated, knowledge, progressDelta, err = FinishExerciseWithProgressDelta(exerciseID, enums.ExerciseStatusFailed, ExerciseVocabularyResultWrong, answerReason, progressDelta)
 				resultType = "wrong"
 			}
@@ -993,13 +1003,14 @@ func VerifyExerciseChoice(exerciseID uuid.UUID, userID uint, selectedVocabularyI
 	var knowledge int
 	var progressDelta int
 	var resultType string
+	deltas := exerciseProgressDeltasForType(exercise.Type)
 
 	if selectedVocabularyID == correctVocabulary.VocabularyID {
-		progressDelta = exerciseProgressDelta(exercise, ExerciseChoiceCompleteProgressDelta)
+		progressDelta = exerciseProgressDelta(exercise, deltas.Correct)
 		updated, knowledge, progressDelta, err = FinishExerciseWithProgressDelta(exerciseID, enums.ExerciseStatusCompleted, ExerciseVocabularyResultCorrect, ExerciseVocabularyResultReasonChoiceAnswer, progressDelta)
 		resultType = "correct"
 	} else {
-		progressDelta = exerciseProgressDelta(exercise, ExerciseChoiceFailProgressDelta)
+		progressDelta = exerciseProgressDelta(exercise, deltas.Wrong)
 		updated, knowledge, progressDelta, err = FinishExerciseWithProgressDelta(exerciseID, enums.ExerciseStatusFailed, ExerciseVocabularyResultWrong, ExerciseVocabularyResultReasonChoiceAnswer, progressDelta)
 		resultType = "wrong"
 	}
@@ -1026,6 +1037,36 @@ func exerciseProgressDelta(exercise *models.Exercise, regularDelta int) int {
 	}
 
 	return regularDelta
+}
+
+func exerciseProgressDeltasForType(exerciseType enums.ExerciseType) exerciseProgressDeltas {
+	switch exerciseType {
+	case enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed:
+		return exerciseProgressDeltas{
+			Correct: ExerciseBasicCorrectProgressDelta,
+			Almost:  ExerciseBasicAlmostProgressDelta,
+			Wrong:   ExerciseBasicWrongProgressDelta,
+		}
+	case enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed:
+		return exerciseProgressDeltas{
+			Correct: ExerciseCharacterCorrectProgressDelta,
+			Almost:  ExerciseCharacterAlmostProgressDelta,
+			Wrong:   ExerciseCharacterWrongProgressDelta,
+		}
+	case enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed:
+		return exerciseProgressDeltas{
+			Correct: ExerciseChoiceCorrectProgressDelta,
+			Wrong:   ExerciseChoiceWrongProgressDelta,
+		}
+	case enums.ExerciseTypeMatchPairs:
+		return exerciseProgressDeltas{
+			Correct: ExerciseMatchCorrectProgressDelta,
+			Almost:  ExerciseMatchAlmostProgressDelta,
+			Wrong:   ExerciseMatchWrongProgressDelta,
+		}
+	default:
+		return exerciseProgressDeltas{}
+	}
 }
 
 func isReversedExerciseType(exerciseType enums.ExerciseType) bool {

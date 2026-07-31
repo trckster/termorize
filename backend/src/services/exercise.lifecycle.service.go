@@ -68,10 +68,7 @@ func IgnoreUserExercise(exerciseID uuid.UUID, userID uint) error {
 			return ErrExerciseNotInProgress
 		}
 
-		progressDelta := ExerciseFailProgressDelta
-		if isChoiceExerciseType(exercise.Type) || isMatchPairsExerciseType(exercise.Type) {
-			progressDelta = ExerciseChoiceFailProgressDelta
-		}
+		progressDelta := exerciseProgressDeltasForType(exercise.Type).Wrong
 		progressDelta = exerciseProgressDelta(&exercise, progressDelta)
 
 		if isMatchPairsExerciseType(exercise.Type) {
@@ -274,7 +271,7 @@ func CompleteExercise(exerciseID uuid.UUID) (bool, int, error) {
 		enums.ExerciseStatusCompleted,
 		ExerciseVocabularyResultCorrect,
 		ExerciseVocabularyResultReasonTypedAnswer,
-		ExerciseCompleteProgressDelta,
+		ExerciseBasicCorrectProgressDelta,
 	)
 }
 

@@ -195,13 +195,14 @@ func CompleteMatchPairsExercise(exerciseID uuid.UUID, userID uint, attempts []Ma
 			return ErrExerciseNotInProgress
 		}
 
+		deltas := exerciseProgressDeltasForType(exercise.Type)
 		for vocabularyID, result := range submitted {
-			delta := ExerciseMatchCorrectProgressDelta
+			delta := deltas.Correct
 			if result == ExerciseVocabularyResultAlmost {
-				delta = ExerciseMatchAlmostProgressDelta
+				delta = deltas.Almost
 			}
 			if result == ExerciseVocabularyResultWrong {
-				delta = ExerciseMatchFailProgressDelta
+				delta = deltas.Wrong
 			}
 			delta = exerciseProgressDelta(&exercise, delta)
 
