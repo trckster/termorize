@@ -78,7 +78,7 @@ func detectMessageTranslationLanguages(user *models.User, text string) (enums.La
 		}
 	}
 
-	if containsCyrillic(text) {
+	if predominantlyUsesScript(text, unicode.Cyrillic) {
 		if sourceLanguage == enums.LanguageRu {
 			return sourceLanguage, targetLanguage, nil
 		}
@@ -88,6 +88,29 @@ func detectMessageTranslationLanguages(user *models.User, text string) (enums.La
 		}
 	}
 
+	// Language detection is unreliable for short words that exist in several
+	// languages. When Russian is paired with one of the supported Latin-script
+	// languages, the script still gives us an unambiguous fallback direction.
+	if predominantlyUsesScript(text, unicode.Latin) {
+		if sourceLanguage == enums.LanguageRu {
+			return targetLanguage, sourceLanguage, nil
+		}
+
+		if targetLanguage == enums.LanguageRu {
+			return sourceLanguage, targetLanguage, nil
+		}
+	}
+
+	// If detection fails or returns a language outside the configured pair,
+	// prefer English when it is one of the two available directions.
+	if sourceLanguage == enums.LanguageEn {
+		return sourceLanguage, targetLanguage, nil
+	}
+
+	if targetLanguage == enums.LanguageEn {
+		return targetLanguage, sourceLanguage, nil
+	}
+
 	return sourceLanguage, targetLanguage, nil
 }
 
@@ -95,12 +118,20 @@ func buildVocabularyTranslationText(sourceLanguage enums.Language, sourceWord st
 	return fmt.Sprintf("%s %s — %s %s", sourceLanguage.Flag(), sourceWord, translatedWord, targetLanguage.Flag())
 }
 
-func containsCyrillic(text string) bool {
+func predominantlyUsesScript(text string, script *unicode.RangeTable) bool {
+	letterCount := 0
+	scriptLetterCount := 0
+
 	for _, r := range text {
-		if unicode.Is(unicode.Cyrillic, r) {
-			return true
+		if !unicode.IsLetter(r) {
+			continue
+		}
+
+		letterCount++
+		if unicode.Is(script, r) {
+			scriptLetterCount++
 		}
 	}
 
-	return false
+	return letterCount > 0 && scriptLetterCount*2 > letterCount
 }
