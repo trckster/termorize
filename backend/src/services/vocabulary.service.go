@@ -405,35 +405,68 @@ func DeleteVocabulary(userID uint, vocabID uuid.UUID) error {
 	return nil
 }
 
-func DeleteVocabularyByWord(userID uint, word string) (bool, error) {
-	normalizedWord := strings.TrimSpace(word)
-	if normalizedWord == "" {
-		return false, nil
+type DeleteVocabularyByWordResult struct {
+	Deleted     bool
+	Ambiguous   bool
+	Original    string
+	Translation string
+}
+
+func DeleteVocabularyByWord(userID uint, input string) (DeleteVocabularyByWordResult, error) {
+	var result DeleteVocabularyByWordResult
+	parts := strings.Split(input, ":")
+	if len(parts) > 2 {
+		return result, nil
 	}
 
-	var vocabulary models.Vocabulary
-	err := db.DB.
+	words := make([]string, len(parts))
+	for i, part := range parts {
+		words[i] = strings.TrimSpace(part)
+		if words[i] == "" {
+			return result, nil
+		}
+	}
+
+	type match struct {
+		ID          uuid.UUID
+		Original    string
+		Translation string
+	}
+	var matches []match
+	query := db.DB.
 		Model(&models.Vocabulary{}).
-		Select("vocabulary.*").
+		Select("vocabulary.id, original_words.word AS original, translation_words.word AS translation").
 		Joins("JOIN translations ON translations.id = vocabulary.translation_id").
 		Joins("JOIN words AS original_words ON original_words.id = translations.original_id").
 		Joins("JOIN words AS translation_words ON translation_words.id = translations.translation_id").
-		Where("vocabulary.user_id = ?", userID).
-		Where("LOWER(original_words.word) = LOWER(?) OR LOWER(translation_words.word) = LOWER(?)", normalizedWord, normalizedWord).
-		Order("vocabulary.created_at DESC").
-		First(&vocabulary).Error
+		Where("vocabulary.user_id = ? AND vocabulary.deleted_at IS NULL", userID)
+	if len(words) == 2 {
+		query = query.Where("LOWER(original_words.word) = LOWER(?) AND LOWER(translation_words.word) = LOWER(?)", words[0], words[1])
+	} else {
+		query = query.Where("LOWER(original_words.word) = LOWER(?) OR LOWER(translation_words.word) = LOWER(?)", words[0], words[0])
+	}
+	if err := query.Order("vocabulary.created_at DESC").Limit(2).Scan(&matches).Error; err != nil {
+		return result, err
+	}
+	if len(matches) == 0 {
+		return result, nil
+	}
+	if len(matches) > 1 {
+		result.Ambiguous = true
+		return result, nil
+	}
 
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return false, nil
+	selected := matches[0]
+	result.Original = selected.Original
+	result.Translation = selected.Translation
+
+	if err := DeleteVocabulary(userID, selected.ID); err != nil {
+		if errors.Is(err, ErrVocabularyNotFound) {
+			return DeleteVocabularyByWordResult{}, nil
 		}
-
-		return false, err
+		return result, err
 	}
 
-	if err := DeleteVocabulary(userID, vocabulary.ID); err != nil {
-		return false, err
-	}
-
-	return true, nil
+	result.Deleted = true
+	return result, nil
 }

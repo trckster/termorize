@@ -342,6 +342,60 @@ func TestTelegramWebhookCallbackDeleteTranslationSetsState(t *testing.T) {
 	require.True(t, tg.Sent("editMessageText"))
 }
 
+func TestTelegramWebhookDeleteByWordConfirmsPairAndHandlesRepeat(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+
+	const telegramID int64 = 555020
+	user := testkit.CreateUser(t,
+		testkit.WithTelegramID(telegramID),
+		testkit.WithSettings(models.UserSettings{SystemLanguage: enums.LanguageEn}),
+	)
+	seedVocabularyForWordDeletion(t, user.ID, "river", "Fluss")
+	require.NoError(t, db.DB.Model(&user).Update("telegram_state", enums.TelegramStateDeletingVocabulary).Error)
+
+	rec := telegramUpdate(t, telegramPrivateMessage(telegramID, "  FLUSS "))
+	testkit.RequireStatus(t, rec, http.StatusOK)
+	require.Len(t, tg.RequestsFor("sendMessage"), 1)
+	var sent struct {
+		Text string `json:"text"`
+	}
+	require.NoError(t, json.Unmarshal(tg.RequestsFor("sendMessage")[0].Body, &sent))
+	assert.Equal(t, "Deleted: river — Fluss ✅", sent.Text)
+	assert.Equal(t, int64(0), vocabCountForUser(t, user.ID))
+
+	require.NoError(t, db.DB.Model(&user).Update("telegram_state", enums.TelegramStateDeletingVocabulary).Error)
+	rec = telegramUpdate(t, telegramPrivateMessage(telegramID, "Fluss"))
+	testkit.RequireStatus(t, rec, http.StatusOK)
+	require.Len(t, tg.RequestsFor("sendMessage"), 2)
+	require.NoError(t, json.Unmarshal(tg.RequestsFor("sendMessage")[1].Body, &sent))
+	assert.Equal(t, "Word not found ❌", sent.Text)
+}
+
+func TestTelegramWebhookDeleteByWordAsksForAmbiguousPair(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+
+	const telegramID int64 = 555021
+	user := testkit.CreateUser(t,
+		testkit.WithTelegramID(telegramID),
+		testkit.WithSettings(models.UserSettings{SystemLanguage: enums.LanguageEn}),
+	)
+	seedVocabularyForWordDeletion(t, user.ID, "bank", "Ufer")
+	seedVocabularyForWordDeletion(t, user.ID, "bank", "Bank")
+	require.NoError(t, db.DB.Model(&user).Update("telegram_state", enums.TelegramStateDeletingVocabulary).Error)
+
+	rec := telegramUpdate(t, telegramPrivateMessage(telegramID, "bank"))
+	testkit.RequireStatus(t, rec, http.StatusOK)
+	assert.Equal(t, int64(2), vocabCountForUser(t, user.ID))
+	require.Len(t, tg.RequestsFor("sendMessage"), 1)
+	var sent struct {
+		Text string `json:"text"`
+	}
+	require.NoError(t, json.Unmarshal(tg.RequestsFor("sendMessage")[0].Body, &sent))
+	assert.Equal(t, "Several translations match that word. Send the exact pair as word1:word2.", sent.Text)
+}
+
 func TestTelegramWebhookVocabularyAddCallbackIsReplaySafe(t *testing.T) {
 	testkit.Truncate(t)
 	tg := testkit.MockTelegramAPI(t)

@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"fmt"
 	"strings"
 	"termorize/src/enums"
 	"termorize/src/models"
@@ -74,12 +75,16 @@ func handleAddingVocabularyMessage(message *message, user *models.User, telegram
 }
 
 func handleDeletingVocabularyMessage(message *message, userID uint, telegramID int64, t BotTexts) error {
-	deleted, err := services.DeleteVocabularyByWord(userID, message.Text)
+	result, err := services.DeleteVocabularyByWord(userID, message.Text)
 	if err != nil {
 		return err
 	}
 
-	if !deleted {
+	if result.Ambiguous {
+		return SendMessage(message.Chat.ID, t.DeleteAmbiguous)
+	}
+
+	if !result.Deleted {
 		return SendMessage(message.Chat.ID, t.DeleteNotFound)
 	}
 
@@ -87,7 +92,7 @@ func handleDeletingVocabularyMessage(message *message, userID uint, telegramID i
 		return err
 	}
 
-	return SendMessage(message.Chat.ID, t.DeleteCompleted)
+	return SendMessage(message.Chat.ID, fmt.Sprintf(t.DeleteCompletedFormat, result.Original, result.Translation))
 }
 
 func parseVocabularyPair(text string) (string, string, bool) {

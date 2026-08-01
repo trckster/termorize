@@ -77,8 +77,9 @@ type BotTexts struct {
 	AddVocabularyInvalid       string
 	AddVocabularyTooManyColons string
 
-	DeleteCompleted string
-	DeleteNotFound  string
+	DeleteCompletedFormat string
+	DeleteAmbiguous       string
+	DeleteNotFound        string
 
 	VocabularyAutoAddedSuffix   string
 	VocabularyManualAddedSuffix string
@@ -190,8 +191,9 @@ var botTextsEn = BotTexts{
 	AddVocabularyInvalid:       "Invalid format. Send translation as word1:word2",
 	AddVocabularyTooManyColons: "Invalid format. Use only one colon to separate word and translation",
 
-	DeleteCompleted: "Done ✅",
-	DeleteNotFound:  "Word not found ❌",
+	DeleteCompletedFormat: "Deleted: %s — %s ✅",
+	DeleteAmbiguous:       "Several translations match that word. Send the exact pair as word1:word2.",
+	DeleteNotFound:        "Word not found ❌",
 
 	VocabularyAutoAddedSuffix:   "\n\nIt was added to your vocabulary",
 	VocabularyManualAddedSuffix: "\n\nSuccessfully added to your vocabulary",
@@ -316,8 +318,9 @@ var botTextsRu = BotTexts{
 	AddVocabularyInvalid:       "Неверный формат. Отправь перевод как слово1:слово2",
 	AddVocabularyTooManyColons: "Неверный формат. Используй только одно двоеточие для разделения слова и перевода",
 
-	DeleteCompleted: "Готово ✅",
-	DeleteNotFound:  "Слово не найдено ❌",
+	DeleteCompletedFormat: "Удалено: %s — %s ✅",
+	DeleteAmbiguous:       "Найдено несколько переводов. Отправь точную пару как слово1:слово2.",
+	DeleteNotFound:        "Слово не найдено ❌",
 
 	VocabularyAutoAddedSuffix:   "\n\nДобавлено в твой словарь",
 	VocabularyManualAddedSuffix: "\n\nУспешно добавлено в словарь",
