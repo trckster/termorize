@@ -1426,7 +1426,7 @@ func TestVerifyExerciseOwnershipIsolation(t *testing.T) {
 }
 
 // Choice exercise: a correct selection completes; a valid-but-wrong option fails.
-func TestVerifyExerciseChoiceCorrect(t *testing.T) {
+func TestVerifyExerciseChoiceCorrectWithDeletedDistractor(t *testing.T) {
 	testkit.Truncate(t)
 
 	user := testkit.CreateUser(t)
@@ -1436,6 +1436,7 @@ func TestVerifyExerciseChoiceCorrect(t *testing.T) {
 	d3 := exerciseSeedVocabulary(t, user.ID, "fish", "Fisch", enums.LanguageEn, enums.LanguageDe)
 	ex := exerciseSeedChoiceExercise(t, user.ID, enums.ExerciseTypeChoiceDirect, enums.ExerciseStatusInProgress,
 		[]uuid.UUID{correct.ID, d1.ID, d2.ID, d3.ID})
+	require.NoError(t, services.DeleteVocabulary(user.ID, d1.ID))
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost,
 		"/api/exercises/"+ex.ID.String()+"/verify", map[string]any{"answer": "Hund"})
@@ -1479,6 +1480,42 @@ func TestVerifyExerciseChoiceWrong(t *testing.T) {
 
 	stored := exerciseReload(t, ex.ID)
 	assert.Equal(t, enums.ExerciseStatusFailed, stored.Status)
+}
+
+func TestVerifyExerciseChoiceWithDeletedDistractor(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+	correct := exerciseSeedVocabulary(t, user.ID, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
+	d1 := exerciseSeedVocabulary(t, user.ID, "cat", "Katze", enums.LanguageEn, enums.LanguageDe)
+	d2 := exerciseSeedVocabulary(t, user.ID, "bird", "Vogel", enums.LanguageEn, enums.LanguageDe)
+	d3 := exerciseSeedVocabulary(t, user.ID, "fish", "Fisch", enums.LanguageEn, enums.LanguageDe)
+
+	for _, testCase := range []struct {
+		name       string
+		selection  uuid.UUID
+		wantResult string
+		wantStatus enums.ExerciseStatus
+	}{
+		{name: "correct answer", selection: correct.ID, wantResult: "correct", wantStatus: enums.ExerciseStatusCompleted},
+		{name: "deleted distractor", selection: d1.ID, wantResult: "wrong", wantStatus: enums.ExerciseStatusFailed},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			ex := exerciseSeedChoiceExercise(t, user.ID, enums.ExerciseTypeChoiceDirect, enums.ExerciseStatusInProgress,
+				[]uuid.UUID{correct.ID, d1.ID, d2.ID, d3.ID})
+			require.NoError(t, services.DeleteVocabulary(user.ID, d1.ID))
+
+			result, err := services.VerifyExerciseChoice(ex.ID, user.ID, testCase.selection)
+			require.NoError(t, err)
+			assert.Equal(t, testCase.wantResult, result.Result)
+			assert.Equal(t, testCase.wantStatus, exerciseReload(t, ex.ID).Status)
+
+			// Restore the distractor so the second case can build the same fixture.
+			require.NoError(t, db.DB.Model(&models.Vocabulary{}).
+				Where("id = ?", d1.ID).
+				Update("deleted_at", nil).Error)
+		})
+	}
 }
 
 // ===========================================================================

@@ -900,24 +900,10 @@ func VerifyExerciseAnswer(exerciseID uuid.UUID, userID uint, answer string) (*Ve
 	deltas := exerciseProgressDeltasForType(exercise.Type)
 
 	if isChoiceExerciseType(exercise.Type) {
-		options, optionsErr := GetExerciseAnswerOptions(exercise.ID, exercise.Type)
-		if optionsErr != nil {
-			return nil, optionsErr
-		}
-		if len(options) != 4 {
-			_ = MarkExerciseVocabularyResultWithoutProgress(exercise.ID, ExerciseVocabularyResultIgnored, ExerciseVocabularyResultReasonInvalidOptions)
-			_ = IgnoreExercise(exercise.ID)
-			return nil, ErrExerciseVocabularyDeleted
-		}
-
 		if normalizedAnswer == normalizedExpectedAnswer {
 			progressDelta = exerciseProgressDelta(exercise, deltas.Correct)
 			updated, knowledge, progressDelta, err = FinishExerciseWithProgressDelta(exerciseID, enums.ExerciseStatusCompleted, ExerciseVocabularyResultCorrect, ExerciseVocabularyResultReasonChoiceAnswer, progressDelta)
 			resultType = "correct"
-		} else if exerciseOptionsContainAnswer(options, normalizedAnswer) {
-			progressDelta = exerciseProgressDelta(exercise, deltas.Wrong)
-			updated, knowledge, progressDelta, err = FinishExerciseWithProgressDelta(exerciseID, enums.ExerciseStatusFailed, ExerciseVocabularyResultWrong, ExerciseVocabularyResultReasonChoiceAnswer, progressDelta)
-			resultType = "wrong"
 		} else {
 			progressDelta = exerciseProgressDelta(exercise, deltas.Wrong)
 			updated, knowledge, progressDelta, err = FinishExerciseWithProgressDelta(exerciseID, enums.ExerciseStatusFailed, ExerciseVocabularyResultWrong, ExerciseVocabularyResultReasonChoiceAnswer, progressDelta)
@@ -980,16 +966,6 @@ func VerifyExerciseChoice(exerciseID uuid.UUID, userID uint, selectedVocabularyI
 
 	if correctVocabulary == nil {
 		_ = MarkExerciseVocabularyResultWithoutProgress(exercise.ID, ExerciseVocabularyResultIgnored, ExerciseVocabularyResultReasonDeletedVocabulary)
-		_ = IgnoreExercise(exercise.ID)
-		return nil, ErrExerciseVocabularyDeleted
-	}
-
-	options, err := GetExerciseAnswerOptions(exercise.ID, exercise.Type)
-	if err != nil {
-		return nil, err
-	}
-	if len(options) != 4 {
-		_ = MarkExerciseVocabularyResultWithoutProgress(exercise.ID, ExerciseVocabularyResultIgnored, ExerciseVocabularyResultReasonInvalidOptions)
 		_ = IgnoreExercise(exercise.ID)
 		return nil, ErrExerciseVocabularyDeleted
 	}
