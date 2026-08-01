@@ -212,9 +212,13 @@ func createRandomMatchPairsExercise(userID uint, options []exerciseChoiceCandida
 }
 
 func loadExerciseVocabulary(vocabularyID uuid.UUID) (*models.Vocabulary, error) {
+	return loadExerciseVocabularyWithDB(db.DB, vocabularyID)
+}
+
+func loadExerciseVocabularyWithDB(conn *gorm.DB, vocabularyID uuid.UUID) (*models.Vocabulary, error) {
 	var vocabulary models.Vocabulary
 
-	err := db.DB.
+	err := conn.
 		Where("id = ?", vocabularyID).
 		Where("deleted_at IS NULL").
 		Preload("Translation").
@@ -229,7 +233,11 @@ func loadExerciseVocabulary(vocabularyID uuid.UUID) (*models.Vocabulary, error) 
 }
 
 func selectExerciseTypeAndOptions(userID uint, vocabulary *models.Vocabulary, includeMatchPairs bool) (enums.ExerciseType, []exerciseChoiceCandidate, error) {
-	availableTypes, err := buildExerciseOptionsByType(userID, vocabulary, includeMatchPairs)
+	return selectExerciseTypeAndOptionsWithDB(db.DB, userID, vocabulary, includeMatchPairs)
+}
+
+func selectExerciseTypeAndOptionsWithDB(conn *gorm.DB, userID uint, vocabulary *models.Vocabulary, includeMatchPairs bool) (enums.ExerciseType, []exerciseChoiceCandidate, error) {
+	availableTypes, err := buildExerciseOptionsByTypeWithDB(conn, userID, vocabulary, includeMatchPairs)
 	if err != nil {
 		return "", nil, err
 	}
@@ -311,9 +319,13 @@ func isExerciseTypeAvailable(exerciseType enums.ExerciseType, options []exercise
 }
 
 func buildExerciseOptionsByType(userID uint, vocabulary *models.Vocabulary, includeMatchPairs bool) (map[enums.ExerciseType][]exerciseChoiceCandidate, error) {
+	return buildExerciseOptionsByTypeWithDB(db.DB, userID, vocabulary, includeMatchPairs)
+}
+
+func buildExerciseOptionsByTypeWithDB(conn *gorm.DB, userID uint, vocabulary *models.Vocabulary, includeMatchPairs bool) (map[enums.ExerciseType][]exerciseChoiceCandidate, error) {
 	optionsByType := make(map[enums.ExerciseType][]exerciseChoiceCandidate, 7)
 
-	directOptions, err := buildExerciseOptionsForType(userID, vocabulary, enums.ExerciseTypeBasicDirect)
+	directOptions, err := buildExerciseOptionsForTypeWithDB(conn, userID, vocabulary, enums.ExerciseTypeBasicDirect)
 	if err != nil {
 		return nil, err
 	}
@@ -327,7 +339,7 @@ func buildExerciseOptionsByType(userID uint, vocabulary *models.Vocabulary, incl
 		optionsByType[enums.ExerciseTypeChoiceDirect] = shuffledExerciseOptions(directOptions)
 	}
 
-	reversedOptions, err := buildExerciseOptionsForType(userID, vocabulary, enums.ExerciseTypeBasicReversed)
+	reversedOptions, err := buildExerciseOptionsForTypeWithDB(conn, userID, vocabulary, enums.ExerciseTypeBasicReversed)
 	if err != nil {
 		return nil, err
 	}
@@ -342,7 +354,7 @@ func buildExerciseOptionsByType(userID uint, vocabulary *models.Vocabulary, incl
 	}
 
 	if includeMatchPairs {
-		matchOptions, err := buildMatchPairOptions(userID, vocabulary)
+		matchOptions, err := buildMatchPairOptionsWithDB(conn, userID, vocabulary)
 		if err != nil {
 			return nil, err
 		}
@@ -355,6 +367,10 @@ func buildExerciseOptionsByType(userID uint, vocabulary *models.Vocabulary, incl
 }
 
 func buildMatchPairOptions(userID uint, vocabulary *models.Vocabulary) ([]exerciseChoiceCandidate, error) {
+	return buildMatchPairOptionsWithDB(db.DB, userID, vocabulary)
+}
+
+func buildMatchPairOptionsWithDB(conn *gorm.DB, userID uint, vocabulary *models.Vocabulary) ([]exerciseChoiceCandidate, error) {
 	if vocabulary == nil || vocabulary.Translation == nil {
 		return nil, errors.New("vocabulary has no translation")
 	}
@@ -390,7 +406,7 @@ func buildMatchPairOptions(userID uint, vocabulary *models.Vocabulary) ([]exerci
 	`
 
 	var rows []exerciseMatchPairCandidate
-	if err := db.DB.Raw(
+	if err := conn.Raw(
 		query,
 		userID,
 		translation.Original.Language,
@@ -453,6 +469,10 @@ func buildMatchPairOptions(userID uint, vocabulary *models.Vocabulary) ([]exerci
 }
 
 func buildExerciseOptionsForType(userID uint, vocabulary *models.Vocabulary, exerciseType enums.ExerciseType) ([]exerciseChoiceCandidate, error) {
+	return buildExerciseOptionsForTypeWithDB(db.DB, userID, vocabulary, exerciseType)
+}
+
+func buildExerciseOptionsForTypeWithDB(conn *gorm.DB, userID uint, vocabulary *models.Vocabulary, exerciseType enums.ExerciseType) ([]exerciseChoiceCandidate, error) {
 	if vocabulary == nil || vocabulary.Translation == nil {
 		return nil, errors.New("vocabulary has no translation")
 	}
@@ -476,7 +496,8 @@ func buildExerciseOptionsForType(userID uint, vocabulary *models.Vocabulary, exe
 		queryColumn = "original.word"
 	}
 
-	distractors, err := getExerciseDistractorWords(
+	distractors, err := getExerciseDistractorWordsWithDB(
+		conn,
 		userID,
 		translation.Original.Language,
 		translation.Translation.Language,
@@ -517,6 +538,18 @@ func getExerciseDistractorWords(
 	correctVocabularyID uuid.UUID,
 	correctAnswer string,
 ) ([]exerciseChoiceCandidate, error) {
+	return getExerciseDistractorWordsWithDB(db.DB, userID, originalLanguage, translationLanguage, answerColumn, correctVocabularyID, correctAnswer)
+}
+
+func getExerciseDistractorWordsWithDB(
+	conn *gorm.DB,
+	userID uint,
+	originalLanguage enums.Language,
+	translationLanguage enums.Language,
+	answerColumn string,
+	correctVocabularyID uuid.UUID,
+	correctAnswer string,
+) ([]exerciseChoiceCandidate, error) {
 	query := `
 		SELECT
 			v.id AS vocabulary_id,
@@ -533,7 +566,7 @@ func getExerciseDistractorWords(
 	`
 
 	var rows []exerciseChoiceCandidate
-	if err := db.DB.Raw(query, userID, originalLanguage, translationLanguage, correctVocabularyID).Scan(&rows).Error; err != nil {
+	if err := conn.Raw(query, userID, originalLanguage, translationLanguage, correctVocabularyID).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 

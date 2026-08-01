@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"errors"
 	"net/http"
 	"testing"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 // ---------------------------------------------------------------------------
@@ -631,6 +633,56 @@ func TestDeleteVocabularyReplacesPendingExercise(t *testing.T) {
 	for _, link := range replacementLinks {
 		assert.Equal(t, replacementVocabulary.ID, link.VocabularyID)
 	}
+}
+
+func TestDeleteVocabularyRollsBackWhenPendingExerciseReplacementFails(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+	deletedVocabulary := exerciseSeedVocabulary(t, user.ID, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
+	exerciseSeedVocabulary(t, user.ID, "cat", "Katze", enums.LanguageEn, enums.LanguageDe)
+	scheduledFor := time.Now().UTC().Add(time.Hour)
+	exercise := models.Exercise{
+		Type:         enums.ExerciseTypeBasicDirect,
+		Status:       enums.ExerciseStatusPending,
+		UserID:       user.ID,
+		ScheduledFor: &scheduledFor,
+	}
+	require.NoError(t, db.DB.Create(&exercise).Error)
+	require.NoError(t, db.DB.Create(&models.ExerciseVocabulary{
+		ExerciseID:   exercise.ID,
+		VocabularyID: deletedVocabulary.ID,
+		IsCorrect:    true,
+	}).Error)
+
+	callbackName := "test:fail_pending_exercise_replacement"
+	replacementErr := errors.New("replacement exercise creation failed")
+	require.NoError(t, db.DB.Callback().Create().Before("gorm:create").Register(callbackName, func(tx *gorm.DB) {
+		if pendingExercise, ok := tx.Statement.Dest.(*models.Exercise); ok && pendingExercise.Status == enums.ExerciseStatusPending {
+			tx.AddError(replacementErr)
+		}
+	}))
+	t.Cleanup(func() {
+		require.NoError(t, db.DB.Callback().Create().Remove(callbackName))
+	})
+
+	rec := testkit.AuthedRequest(t, user, http.MethodDelete, "/api/vocabulary/"+deletedVocabulary.ID.String(), nil)
+	testkit.RequireStatus(t, rec, http.StatusInternalServerError)
+
+	storedVocabulary := vocabFindByID(t, deletedVocabulary.ID)
+	assert.Nil(t, storedVocabulary.DeletedAt)
+
+	var pending []models.Exercise
+	require.NoError(t, db.DB.
+		Where("user_id = ? AND status = ?", user.ID, enums.ExerciseStatusPending).
+		Find(&pending).Error)
+	require.Len(t, pending, 1)
+	assert.Equal(t, exercise.ID, pending[0].ID)
+
+	var links []models.ExerciseVocabulary
+	require.NoError(t, db.DB.Where("exercise_id = ?", exercise.ID).Find(&links).Error)
+	require.Len(t, links, 1)
+	assert.Equal(t, deletedVocabulary.ID, links[0].VocabularyID)
 }
 
 func TestDeleteVocabularyCancelsPendingExerciseWithoutReplacement(t *testing.T) {

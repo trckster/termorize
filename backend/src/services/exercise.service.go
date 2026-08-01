@@ -447,10 +447,14 @@ func getKnownVocabularyID(userID uint) (uuid.UUID, error) {
 }
 
 func getEligibleVocabularyIDs(userID uint, limit uint) ([]uuid.UUID, error) {
+	return getEligibleVocabularyIDsWithDB(db.DB, userID, limit)
+}
+
+func getEligibleVocabularyIDsWithDB(conn *gorm.DB, userID uint, limit uint) ([]uuid.UUID, error) {
 	limitAsInt := int(limit)
 	vocabularyIDs := make([]uuid.UUID, 0, limitAsInt)
 
-	err := db.DB.
+	err := conn.
 		Model(&models.Vocabulary{}).
 		Select("id").
 		Where("user_id = ?", userID).
@@ -473,45 +477,49 @@ func getEligibleVocabularyIDs(userID uint, limit uint) ([]uuid.UUID, error) {
 }
 
 func generateExercise(userID uint, vocabularyID uuid.UUID, when time.Time, includeMatchPairs bool) error {
-	vocabulary, err := loadExerciseVocabulary(vocabularyID)
-	if err != nil {
-		return err
-	}
-
-	exerciseType, options, err := selectExerciseTypeAndOptions(userID, vocabulary, includeMatchPairs)
-	if err != nil {
-		return err
-	}
-
 	return db.DB.Transaction(func(tx *gorm.DB) error {
-		exercise := models.Exercise{
-			Type:         exerciseType,
-			Status:       enums.ExerciseStatusPending,
-			UserID:       userID,
-			ScheduledFor: &when,
-		}
-
-		if err := tx.Create(&exercise).Error; err != nil {
-			return err
-		}
-
-		correctVocabularyID := vocabularyID
-		if exerciseType == enums.ExerciseTypeMatchPairs {
-			correctVocabularyID = uuid.Nil
-		}
-
-		return createExerciseVocabularyLinks(tx, exercise.ID, correctVocabularyID, options)
+		return generateExerciseWithDB(tx, userID, vocabularyID, when, includeMatchPairs)
 	})
 }
 
-func createReplacementPendingExercise(userID uint, when time.Time) (bool, error) {
-	vocabularyIDs, err := getEligibleVocabularyIDs(userID, 64)
+func generateExerciseWithDB(conn *gorm.DB, userID uint, vocabularyID uuid.UUID, when time.Time, includeMatchPairs bool) error {
+	vocabulary, err := loadExerciseVocabularyWithDB(conn, vocabularyID)
+	if err != nil {
+		return err
+	}
+
+	exerciseType, options, err := selectExerciseTypeAndOptionsWithDB(conn, userID, vocabulary, includeMatchPairs)
+	if err != nil {
+		return err
+	}
+
+	exercise := models.Exercise{
+		Type:         exerciseType,
+		Status:       enums.ExerciseStatusPending,
+		UserID:       userID,
+		ScheduledFor: &when,
+	}
+
+	if err := conn.Create(&exercise).Error; err != nil {
+		return err
+	}
+
+	correctVocabularyID := vocabularyID
+	if exerciseType == enums.ExerciseTypeMatchPairs {
+		correctVocabularyID = uuid.Nil
+	}
+
+	return createExerciseVocabularyLinks(conn, exercise.ID, correctVocabularyID, options)
+}
+
+func createReplacementPendingExercise(tx *gorm.DB, userID uint, when time.Time) (bool, error) {
+	vocabularyIDs, err := getEligibleVocabularyIDsWithDB(tx, userID, 64)
 	if err != nil {
 		return false, err
 	}
 
 	for _, vocabularyID := range vocabularyIDs {
-		err := generateExercise(userID, vocabularyID, when, true)
+		err := generateExerciseWithDB(tx, userID, vocabularyID, when, true)
 		if errors.Is(err, errNoExerciseTypeAvailable) {
 			continue
 		}

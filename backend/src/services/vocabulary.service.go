@@ -361,7 +361,7 @@ func GetVocabularyStatistics(userID uint) (*VocabularyStatistics, error) {
 }
 
 func DeleteVocabulary(userID uint, vocabID uuid.UUID) error {
-	var replacementTimes []time.Time
+	var cancelledReplacementTimes []time.Time
 	var cancelledTelegramExercises []CancelledTelegramExercise
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
 		var vocabulary models.Vocabulary
@@ -373,7 +373,7 @@ func DeleteVocabulary(userID uint, vocabID uuid.UUID) error {
 		}
 
 		var err error
-		replacementTimes, err = DeletePendingExercisesByVocabularyID(tx, userID, vocabulary.ID)
+		replacementTimes, err := DeletePendingExercisesByVocabularyID(tx, userID, vocabulary.ID)
 		if err != nil {
 			return err
 		}
@@ -383,21 +383,28 @@ func DeleteVocabulary(userID uint, vocabID uuid.UUID) error {
 		if err != nil {
 			return err
 		}
-		return tx.Model(&vocabulary).Update("deleted_at", now).Error
+		if err := tx.Model(&vocabulary).Update("deleted_at", now).Error; err != nil {
+			return err
+		}
+
+		for _, scheduledFor := range replacementTimes {
+			replaced, replacementErr := createReplacementPendingExercise(tx, userID, scheduledFor)
+			if replacementErr != nil {
+				return replacementErr
+			}
+			if !replaced {
+				cancelledReplacementTimes = append(cancelledReplacementTimes, scheduledFor)
+			}
+		}
+
+		return nil
 	})
 	if err != nil {
 		return err
 	}
 
-	for _, scheduledFor := range replacementTimes {
-		replaced, replacementErr := createReplacementPendingExercise(userID, scheduledFor)
-		if replacementErr != nil {
-			logger.L().Errorw("failed to replace exercise after vocabulary deletion", "error", replacementErr, "user_id", userID, "scheduled_for", scheduledFor)
-			continue
-		}
-		if !replaced {
-			logger.L().Infow("cancelled exercise after vocabulary deletion because no eligible vocabulary remains", "user_id", userID, "scheduled_for", scheduledFor)
-		}
+	for _, scheduledFor := range cancelledReplacementTimes {
+		logger.L().Infow("cancelled exercise after vocabulary deletion because no eligible vocabulary remains", "user_id", userID, "scheduled_for", scheduledFor)
 	}
 
 	notifyCancelledTelegramExercises(cancelledTelegramExercises)
