@@ -76,7 +76,7 @@ func handleCharacterTap(callback *callbackQuery, payload []string, t BotTexts) e
 
 	switch exercise.Status {
 	case enums.ExerciseStatusIgnored:
-		return SendMessage(callback.From.ID, t.ExerciseOutdated)
+		return SendMessage(callback.From.ID, ignoredExerciseText(exercise, t))
 	case enums.ExerciseStatusCompleted, enums.ExerciseStatusFailed:
 		board := completedCharacterBoard(exercise)
 		return EditCharacterBoardMessage(
@@ -186,7 +186,7 @@ func handleCharacterBackspace(callback *callbackQuery, payload []string, t BotTe
 
 	switch exercise.Status {
 	case enums.ExerciseStatusIgnored:
-		return SendMessage(callback.From.ID, t.ExerciseOutdated)
+		return SendMessage(callback.From.ID, ignoredExerciseText(exercise, t))
 	case enums.ExerciseStatusCompleted, enums.ExerciseStatusFailed:
 		questionText := BuildBasicExerciseQuestion(
 			exercise.OriginalWord,

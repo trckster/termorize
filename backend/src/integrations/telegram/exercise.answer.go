@@ -28,7 +28,7 @@ func handleExerciseAnswer(message *message) (bool, error) {
 	t := getBotTextsForTelegramID(telegramID)
 	switch exercise.Status {
 	case enums.ExerciseStatusIgnored:
-		return true, SendMessage(message.Chat.ID, t.ExerciseOutdated)
+		return true, SendMessage(message.Chat.ID, ignoredExerciseText(exercise, t))
 	case enums.ExerciseStatusCompleted:
 		return true, SendMessage(message.Chat.ID, t.ExerciseCompleted)
 	case enums.ExerciseStatusFailed:

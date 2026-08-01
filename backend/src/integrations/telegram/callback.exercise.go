@@ -83,7 +83,7 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 
 	switch exercise.Status {
 	case enums.ExerciseStatusIgnored:
-		return SendMessage(callback.From.ID, t.ExerciseOutdated)
+		return SendMessage(callback.From.ID, ignoredExerciseText(exercise, t))
 	case enums.ExerciseStatusCompleted:
 		return SendMessage(callback.From.ID, t.ExerciseCompleted)
 	case enums.ExerciseStatusFailed:
@@ -166,4 +166,11 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 		t,
 	)
 	return SendMessageMarkdown(callback.From.ID, answerText)
+}
+
+func ignoredExerciseText(exercise *services.TelegramMessageExercise, t BotTexts) string {
+	if exercise.ResultReason == services.ExerciseVocabularyResultReasonDeletedVocabulary {
+		return t.ExerciseVocabularyDeleted
+	}
+	return t.ExerciseOutdated
 }

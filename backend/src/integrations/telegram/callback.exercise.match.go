@@ -65,7 +65,7 @@ func handleMatchTap(callback *callbackQuery, payload []string, t BotTexts) error
 
 	switch exercise.Status {
 	case enums.ExerciseStatusIgnored:
-		return SendMessage(callback.From.ID, t.ExerciseOutdated)
+		return SendMessage(callback.From.ID, ignoredExerciseText(exercise, t))
 	case enums.ExerciseStatusCompleted, enums.ExerciseStatusFailed:
 		result, resultErr := services.GetCompletedMatchPairsResult(exercise.ExerciseID, exercise.UserID)
 		if resultErr != nil {

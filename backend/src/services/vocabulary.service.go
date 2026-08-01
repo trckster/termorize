@@ -5,6 +5,7 @@ import (
 	"strings"
 	"termorize/src/data/db"
 	"termorize/src/enums"
+	"termorize/src/logger"
 	"termorize/src/models"
 	"termorize/src/utils"
 	"time"
@@ -360,7 +361,8 @@ func GetVocabularyStatistics(userID uint) (*VocabularyStatistics, error) {
 }
 
 func DeleteVocabulary(userID uint, vocabID uuid.UUID) error {
-	return db.DB.Transaction(func(tx *gorm.DB) error {
+	var replacementTimes []time.Time
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
 		var vocabulary models.Vocabulary
 		if err := tx.Where("id = ? AND user_id = ? AND deleted_at IS NULL", vocabID, userID).First(&vocabulary).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -369,13 +371,31 @@ func DeleteVocabulary(userID uint, vocabID uuid.UUID) error {
 			return err
 		}
 
-		if err := DeletePendingExercisesByVocabularyID(tx, userID, vocabulary.ID); err != nil {
+		var err error
+		replacementTimes, err = DeletePendingExercisesByVocabularyID(tx, userID, vocabulary.ID)
+		if err != nil {
 			return err
 		}
 
 		now := time.Now().UTC()
 		return tx.Model(&vocabulary).Update("deleted_at", now).Error
 	})
+	if err != nil {
+		return err
+	}
+
+	for _, scheduledFor := range replacementTimes {
+		replaced, replacementErr := createReplacementPendingExercise(userID, scheduledFor)
+		if replacementErr != nil {
+			logger.L().Errorw("failed to replace exercise after vocabulary deletion", "error", replacementErr, "user_id", userID, "scheduled_for", scheduledFor)
+			continue
+		}
+		if !replaced {
+			logger.L().Infow("cancelled exercise after vocabulary deletion because no eligible vocabulary remains", "user_id", userID, "scheduled_for", scheduledFor)
+		}
+	}
+
+	return nil
 }
 
 func DeleteVocabularyByWord(userID uint, word string) (bool, error) {

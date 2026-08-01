@@ -156,6 +156,7 @@ type TelegramMessageExercise struct {
 	ExerciseID          uuid.UUID            `gorm:"column:exercise_id"`
 	ExerciseType        enums.ExerciseType   `gorm:"column:exercise_type"`
 	Status              enums.ExerciseStatus `gorm:"column:status"`
+	ResultReason        string               `gorm:"-"`
 	UserID              uint                 `gorm:"column:user_id"`
 	Options             []ExerciseOption
 	OriginalWord        string         `gorm:"column:original_word"`
@@ -503,6 +504,26 @@ func generateExercise(userID uint, vocabularyID uuid.UUID, when time.Time, inclu
 	})
 }
 
+func createReplacementPendingExercise(userID uint, when time.Time) (bool, error) {
+	vocabularyIDs, err := getEligibleVocabularyIDs(userID, 64)
+	if err != nil {
+		return false, err
+	}
+
+	for _, vocabularyID := range vocabularyIDs {
+		err := generateExercise(userID, vocabularyID, when, true)
+		if errors.Is(err, errNoExerciseTypeAvailable) {
+			continue
+		}
+		if err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+
+	return false, nil
+}
+
 func CreatePendingMatchExercise(userID uint, when time.Time) (uuid.UUID, error) {
 	return generateMatchPairsExercise(userID, when)
 }
@@ -797,6 +818,16 @@ func GetExerciseByTelegramExerciseID(exerciseID uuid.UUID, telegramID int64) (*T
 }
 
 func buildTelegramMessageExercise(exercise models.Exercise) (*TelegramMessageExercise, error) {
+	var resultReason string
+	if err := db.DB.Model(&models.ExerciseVocabulary{}).
+		Select("result_reason").
+		Where("exercise_id = ? AND is_correct = ? AND result_reason IS NOT NULL", exercise.ID, true).
+		Order("position ASC").
+		Limit(1).
+		Scan(&resultReason).Error; err != nil {
+		return nil, err
+	}
+
 	correctVocabulary, err := getCorrectExerciseVocabularyDetails(exercise.ID)
 	if err != nil {
 		return nil, err
@@ -811,6 +842,7 @@ func buildTelegramMessageExercise(exercise models.Exercise) (*TelegramMessageExe
 		ExerciseID:   exercise.ID,
 		ExerciseType: exercise.Type,
 		Status:       exercise.Status,
+		ResultReason: resultReason,
 		UserID:       exercise.UserID,
 		Options:      options,
 	}

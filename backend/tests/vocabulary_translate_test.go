@@ -3,6 +3,7 @@ package tests
 import (
 	"net/http"
 	"testing"
+	"time"
 
 	"termorize/src/data/db"
 	"termorize/src/enums"
@@ -590,6 +591,75 @@ func TestDeleteVocabularyHappyPath(t *testing.T) {
 	}
 	testkit.DecodeJSON(t, listRec, &body)
 	assert.Empty(t, body.Data)
+}
+
+func TestDeleteVocabularyReplacesPendingExercise(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+	deletedVocabulary := exerciseSeedVocabulary(t, user.ID, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
+	replacementVocabulary := exerciseSeedVocabulary(t, user.ID, "cat", "Katze", enums.LanguageEn, enums.LanguageDe)
+	scheduledFor := time.Now().UTC().Add(time.Hour)
+	exercise := models.Exercise{
+		Type:         enums.ExerciseTypeBasicDirect,
+		Status:       enums.ExerciseStatusPending,
+		UserID:       user.ID,
+		ScheduledFor: &scheduledFor,
+	}
+	require.NoError(t, db.DB.Create(&exercise).Error)
+	require.NoError(t, db.DB.Create(&models.ExerciseVocabulary{
+		ExerciseID:   exercise.ID,
+		VocabularyID: deletedVocabulary.ID,
+		IsCorrect:    true,
+	}).Error)
+
+	rec := testkit.AuthedRequest(t, user, http.MethodDelete, "/api/vocabulary/"+deletedVocabulary.ID.String(), nil)
+	testkit.RequireStatus(t, rec, http.StatusOK)
+
+	var pending []models.Exercise
+	require.NoError(t, db.DB.
+		Where("user_id = ? AND status = ?", user.ID, enums.ExerciseStatusPending).
+		Find(&pending).Error)
+	require.Len(t, pending, 1)
+	assert.NotEqual(t, exercise.ID, pending[0].ID)
+	require.NotNil(t, pending[0].ScheduledFor)
+	assert.WithinDuration(t, scheduledFor, *pending[0].ScheduledFor, time.Microsecond)
+
+	var replacementLinks []models.ExerciseVocabulary
+	require.NoError(t, db.DB.Where("exercise_id = ?", pending[0].ID).Find(&replacementLinks).Error)
+	require.NotEmpty(t, replacementLinks)
+	for _, link := range replacementLinks {
+		assert.Equal(t, replacementVocabulary.ID, link.VocabularyID)
+	}
+}
+
+func TestDeleteVocabularyCancelsPendingExerciseWithoutReplacement(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+	vocabulary := exerciseSeedVocabulary(t, user.ID, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
+	scheduledFor := time.Now().UTC().Add(time.Hour)
+	exercise := models.Exercise{
+		Type:         enums.ExerciseTypeBasicDirect,
+		Status:       enums.ExerciseStatusPending,
+		UserID:       user.ID,
+		ScheduledFor: &scheduledFor,
+	}
+	require.NoError(t, db.DB.Create(&exercise).Error)
+	require.NoError(t, db.DB.Create(&models.ExerciseVocabulary{
+		ExerciseID:   exercise.ID,
+		VocabularyID: vocabulary.ID,
+		IsCorrect:    true,
+	}).Error)
+
+	rec := testkit.AuthedRequest(t, user, http.MethodDelete, "/api/vocabulary/"+vocabulary.ID.String(), nil)
+	testkit.RequireStatus(t, rec, http.StatusOK)
+
+	var pendingCount int64
+	require.NoError(t, db.DB.Model(&models.Exercise{}).
+		Where("user_id = ? AND status = ?", user.ID, enums.ExerciseStatusPending).
+		Count(&pendingCount).Error)
+	assert.Zero(t, pendingCount)
 }
 
 func TestDeleteVocabularyInvalidID(t *testing.T) {

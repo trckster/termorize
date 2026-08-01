@@ -129,6 +129,44 @@ func TestTelegramWebhookUnknownUpdateNoOp(t *testing.T) {
 	assert.Empty(t, tg.Requests(), "no outbound telegram call expected for an empty update")
 }
 
+func TestTelegramWebhookIgnoredExerciseReportsDeletedVocabulary(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+
+	const telegramID int64 = 555099
+	const exerciseMessageID int64 = 501
+	user := testkit.CreateUser(t, testkit.WithTelegramID(telegramID))
+	vocabulary := exerciseSeedVocabulary(t, user.ID, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
+	exercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusIgnored, vocabulary.ID)
+	require.NoError(t, db.DB.Model(&models.Exercise{}).
+		Where("id = ?", exercise.ID).
+		Update("telegram_message_id", exerciseMessageID).Error)
+	require.NoError(t, db.DB.Model(&models.ExerciseVocabulary{}).
+		Where("exercise_id = ? AND vocabulary_id = ?", exercise.ID, vocabulary.ID).
+		Updates(map[string]any{
+			"result":        services.ExerciseVocabularyResultIgnored,
+			"result_reason": services.ExerciseVocabularyResultReasonDeletedVocabulary,
+		}).Error)
+
+	update := telegramPrivateMessage(telegramID, "Hund")
+	message := update["message"].(map[string]any)
+	message["reply_to_message"] = map[string]any{
+		"message_id": exerciseMessageID,
+		"chat": map[string]any{
+			"id":   telegramID,
+			"type": "private",
+		},
+	}
+
+	rec := telegramUpdate(t, update)
+	testkit.RequireStatus(t, rec, http.StatusOK)
+
+	requests := tg.RequestsFor("sendMessage")
+	require.Len(t, requests, 1)
+	assert.Contains(t, string(requests[0].Body), "нельзя выполнить")
+	assert.NotContains(t, string(requests[0].Body), "устарело")
+}
+
 // -----------------------------------------------------------------------------
 // Message updates
 // -----------------------------------------------------------------------------

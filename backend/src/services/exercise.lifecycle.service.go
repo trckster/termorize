@@ -17,15 +17,31 @@ func DeletePendingExercisesByUserID(tx *gorm.DB, userID uint) error {
 		Delete(&models.Exercise{}).Error
 }
 
-func DeletePendingExercisesByVocabularyID(tx *gorm.DB, userID uint, vocabularyID uuid.UUID) error {
-	return tx.
+func DeletePendingExercisesByVocabularyID(tx *gorm.DB, userID uint, vocabularyID uuid.UUID) ([]time.Time, error) {
+	var scheduledFor []time.Time
+	if err := tx.Model(&models.Exercise{}).
+		Where("user_id = ? AND status = ? AND scheduled_for IS NOT NULL", userID, enums.ExerciseStatusPending).
+		Where("id IN (?)",
+			tx.Table("vocabulary_exercises").
+				Select("exercise_id").
+				Where("vocabulary_id = ?", vocabularyID),
+		).
+		Pluck("scheduled_for", &scheduledFor).Error; err != nil {
+		return nil, err
+	}
+
+	if err := tx.
 		Where("user_id = ? AND status = ?", userID, enums.ExerciseStatusPending).
 		Where("id IN (?)",
 			tx.Table("vocabulary_exercises").
 				Select("exercise_id").
 				Where("vocabulary_id = ?", vocabularyID),
 		).
-		Delete(&models.Exercise{}).Error
+		Delete(&models.Exercise{}).Error; err != nil {
+		return nil, err
+	}
+
+	return scheduledFor, nil
 }
 
 func IgnoreExercise(exerciseID uuid.UUID) error {
