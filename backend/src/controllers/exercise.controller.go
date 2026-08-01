@@ -160,6 +160,11 @@ func IgnoreExercise(c *gin.Context) {
 			return
 		}
 
+		if errors.Is(err, services.ErrExerciseVocabularyDeleted) {
+			c.JSON(nethttp.StatusConflict, gin.H{"error": services.ErrExerciseVocabularyDeleted.Error()})
+			return
+		}
+
 		ServerError(c, err)
 		return
 	}

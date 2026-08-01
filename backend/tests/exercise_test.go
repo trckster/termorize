@@ -1389,6 +1389,49 @@ func TestVerifyExerciseNotInProgress(t *testing.T) {
 	assert.Equal(t, "exercise is not in progress", body["error"])
 }
 
+func TestVerifyExerciseIgnoredAfterVocabularyDeletion(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+	vocabulary := exerciseSeedVocabulary(t, user.ID, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
+	exercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusInProgress, vocabulary.ID)
+	require.NoError(t, services.DeleteVocabulary(user.ID, vocabulary.ID))
+
+	rec := testkit.AuthedRequest(t, user, http.MethodPost,
+		"/api/exercises/"+exercise.ID.String()+"/verify", map[string]any{"answer": "Hund"})
+	testkit.RequireStatus(t, rec, http.StatusConflict)
+
+	var body map[string]any
+	testkit.DecodeJSON(t, rec, &body)
+	assert.Equal(t, services.ErrExerciseVocabularyDeleted.Error(), body["error"])
+}
+
+func TestGetDueExerciseRemindersExcludesDeletedVocabulary(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{
+		Telegram: models.UserTelegramSettings{BotEnabled: true},
+	}))
+	deletedVocabulary := exerciseSeedVocabulary(t, user.ID, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
+	activeVocabulary := exerciseSeedVocabulary(t, user.ID, "cat", "Katze", enums.LanguageEn, enums.LanguageDe)
+	deletedExercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusInProgress, deletedVocabulary.ID)
+	activeExercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusInProgress, activeVocabulary.ID)
+
+	startedAt := time.Now().UTC().Add(-25 * time.Hour)
+	for index, exerciseID := range []uuid.UUID{deletedExercise.ID, activeExercise.ID} {
+		messageID := int64(index + 1)
+		require.NoError(t, db.DB.Model(&models.Exercise{}).
+			Where("id = ?", exerciseID).
+			Updates(map[string]any{"started_at": startedAt, "telegram_message_id": messageID}).Error)
+	}
+	require.NoError(t, db.DB.Delete(&models.Vocabulary{}, "id = ?", deletedVocabulary.ID).Error)
+
+	reminders, err := services.GetDueExerciseReminders(time.Now().UTC())
+	require.NoError(t, err)
+	require.Len(t, reminders, 1)
+	assert.Equal(t, activeExercise.ID, reminders[0].ExerciseID)
+}
+
 // Verifying a match/pairs exercise via the typed endpoint is a 400.
 func TestVerifyExerciseMatchPairsRejected(t *testing.T) {
 	testkit.Truncate(t)
@@ -1426,7 +1469,7 @@ func TestVerifyExerciseOwnershipIsolation(t *testing.T) {
 }
 
 // Choice exercise: a correct selection completes; a valid-but-wrong option fails.
-func TestVerifyExerciseChoiceCorrect(t *testing.T) {
+func TestVerifyExerciseChoiceCorrectWithDeletedDistractor(t *testing.T) {
 	testkit.Truncate(t)
 
 	user := testkit.CreateUser(t)
@@ -1436,6 +1479,7 @@ func TestVerifyExerciseChoiceCorrect(t *testing.T) {
 	d3 := exerciseSeedVocabulary(t, user.ID, "fish", "Fisch", enums.LanguageEn, enums.LanguageDe)
 	ex := exerciseSeedChoiceExercise(t, user.ID, enums.ExerciseTypeChoiceDirect, enums.ExerciseStatusInProgress,
 		[]uuid.UUID{correct.ID, d1.ID, d2.ID, d3.ID})
+	require.NoError(t, services.DeleteVocabulary(user.ID, d1.ID))
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost,
 		"/api/exercises/"+ex.ID.String()+"/verify", map[string]any{"answer": "Hund"})
@@ -1451,6 +1495,43 @@ func TestVerifyExerciseChoiceCorrect(t *testing.T) {
 
 	stored := exerciseReload(t, ex.ID)
 	assert.Equal(t, enums.ExerciseStatusCompleted, stored.Status)
+}
+
+func TestDeleteVocabularyCancelsAffectedInProgressExercisesWithoutProgress(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+	correct := exerciseSeedVocabulary(t, user.ID, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
+	distractor := exerciseSeedVocabulary(t, user.ID, "cat", "Katze", enums.LanguageEn, enums.LanguageDe)
+	d2 := exerciseSeedVocabulary(t, user.ID, "bird", "Vogel", enums.LanguageEn, enums.LanguageDe)
+	d3 := exerciseSeedVocabulary(t, user.ID, "fish", "Fisch", enums.LanguageEn, enums.LanguageDe)
+
+	basic := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusInProgress, correct.ID)
+	choice := exerciseSeedChoiceExercise(t, user.ID, enums.ExerciseTypeChoiceDirect, enums.ExerciseStatusInProgress,
+		[]uuid.UUID{correct.ID, distractor.ID, d2.ID, d3.ID})
+	unaffectedChoice := exerciseSeedChoiceExercise(t, user.ID, enums.ExerciseTypeChoiceDirect, enums.ExerciseStatusInProgress,
+		[]uuid.UUID{d2.ID, correct.ID, distractor.ID, d3.ID})
+
+	before := exerciseTranslationKnowledge(t, exerciseReloadVocabulary(t, correct.ID).Progress)
+	require.NoError(t, services.DeleteVocabulary(user.ID, correct.ID))
+
+	for _, exerciseID := range []uuid.UUID{basic.ID, choice.ID} {
+		stored := exerciseReload(t, exerciseID)
+		assert.Equal(t, enums.ExerciseStatusIgnored, stored.Status)
+		assert.NotNil(t, stored.FinishedAt)
+
+		link := exerciseLink(t, exerciseID, correct.ID)
+		require.NotNil(t, link.Result)
+		assert.Equal(t, services.ExerciseVocabularyResultIgnored, *link.Result)
+		require.NotNil(t, link.ResultReason)
+		assert.Equal(t, services.ExerciseVocabularyResultReasonDeletedVocabulary, *link.ResultReason)
+		assert.Nil(t, link.ProgressDelta)
+	}
+
+	assert.Equal(t, enums.ExerciseStatusInProgress, exerciseReload(t, unaffectedChoice.ID).Status,
+		"deleting only a choice distractor must not cancel the exercise")
+	after := exerciseTranslationKnowledge(t, exerciseReloadVocabulary(t, correct.ID).Progress)
+	assert.Equal(t, before, after)
 }
 
 func TestVerifyExerciseChoiceWrong(t *testing.T) {
@@ -1479,6 +1560,42 @@ func TestVerifyExerciseChoiceWrong(t *testing.T) {
 
 	stored := exerciseReload(t, ex.ID)
 	assert.Equal(t, enums.ExerciseStatusFailed, stored.Status)
+}
+
+func TestVerifyExerciseChoiceWithDeletedDistractor(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+	correct := exerciseSeedVocabulary(t, user.ID, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
+	d1 := exerciseSeedVocabulary(t, user.ID, "cat", "Katze", enums.LanguageEn, enums.LanguageDe)
+	d2 := exerciseSeedVocabulary(t, user.ID, "bird", "Vogel", enums.LanguageEn, enums.LanguageDe)
+	d3 := exerciseSeedVocabulary(t, user.ID, "fish", "Fisch", enums.LanguageEn, enums.LanguageDe)
+
+	for _, testCase := range []struct {
+		name       string
+		selection  uuid.UUID
+		wantResult string
+		wantStatus enums.ExerciseStatus
+	}{
+		{name: "correct answer", selection: correct.ID, wantResult: "correct", wantStatus: enums.ExerciseStatusCompleted},
+		{name: "deleted distractor", selection: d1.ID, wantResult: "wrong", wantStatus: enums.ExerciseStatusFailed},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			ex := exerciseSeedChoiceExercise(t, user.ID, enums.ExerciseTypeChoiceDirect, enums.ExerciseStatusInProgress,
+				[]uuid.UUID{correct.ID, d1.ID, d2.ID, d3.ID})
+			require.NoError(t, services.DeleteVocabulary(user.ID, d1.ID))
+
+			result, err := services.VerifyExerciseChoice(ex.ID, user.ID, testCase.selection)
+			require.NoError(t, err)
+			assert.Equal(t, testCase.wantResult, result.Result)
+			assert.Equal(t, testCase.wantStatus, exerciseReload(t, ex.ID).Status)
+
+			// Restore the distractor so the second case can build the same fixture.
+			require.NoError(t, db.DB.Model(&models.Vocabulary{}).
+				Where("id = ?", d1.ID).
+				Update("deleted_at", nil).Error)
+		})
+	}
 }
 
 // ===========================================================================
@@ -1597,6 +1714,22 @@ func TestIgnoreExerciseNotInProgress(t *testing.T) {
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
 	assert.Equal(t, "exercise is not in progress", body["error"])
+}
+
+func TestIgnoreExerciseIgnoredAfterVocabularyDeletion(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+	vocabulary := exerciseSeedVocabulary(t, user.ID, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
+	exercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusInProgress, vocabulary.ID)
+	require.NoError(t, services.DeleteVocabulary(user.ID, vocabulary.ID))
+
+	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/exercises/"+exercise.ID.String()+"/ignore", nil)
+	testkit.RequireStatus(t, rec, http.StatusConflict)
+
+	var body map[string]any
+	testkit.DecodeJSON(t, rec, &body)
+	assert.Equal(t, services.ErrExerciseVocabularyDeleted.Error(), body["error"])
 }
 
 func TestIgnoreExerciseOwnershipIsolation(t *testing.T) {

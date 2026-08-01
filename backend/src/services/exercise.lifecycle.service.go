@@ -12,20 +12,91 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+type CancelledTelegramExercise struct {
+	ExerciseID     uuid.UUID      `gorm:"column:exercise_id"`
+	TelegramID     int64          `gorm:"column:telegram_id"`
+	MessageID      int64          `gorm:"column:telegram_message_id"`
+	SystemLanguage enums.Language `gorm:"column:system_language"`
+}
+
+func cancelInProgressExercisesByVocabularyID(tx *gorm.DB, userID uint, vocabularyID uuid.UUID, now time.Time) ([]CancelledTelegramExercise, error) {
+	var cancelled []CancelledTelegramExercise
+	if err := tx.Raw(`
+		SELECT e.id AS exercise_id, u.telegram_id, e.telegram_message_id,
+			u.settings->>'system_language' AS system_language
+		FROM exercises e
+		JOIN users u ON u.id = e.user_id
+		WHERE e.user_id = ? AND e.status = ? AND e.telegram_message_id IS NOT NULL
+			AND (
+				(e.type = ? AND EXISTS (
+					SELECT 1 FROM vocabulary_exercises ve
+					WHERE ve.exercise_id = e.id AND ve.vocabulary_id = ?
+				)) OR (e.type <> ? AND EXISTS (
+					SELECT 1 FROM vocabulary_exercises ve
+					WHERE ve.exercise_id = e.id AND ve.vocabulary_id = ? AND ve.is_correct = true
+				))
+			)
+	`, userID, enums.ExerciseStatusInProgress, enums.ExerciseTypeMatchPairs, vocabularyID, enums.ExerciseTypeMatchPairs, vocabularyID).Scan(&cancelled).Error; err != nil {
+		return nil, err
+	}
+
+	if err := tx.Exec(`
+		UPDATE vocabulary_exercises ve
+		SET result = ?, result_reason = ?, answered_at = ?
+		WHERE ve.result IS NULL AND ve.is_correct = true AND ve.exercise_id IN (
+			SELECT e.id FROM exercises e
+			WHERE e.user_id = ? AND e.status = ? AND (
+				(e.type = ? AND EXISTS (SELECT 1 FROM vocabulary_exercises x WHERE x.exercise_id = e.id AND x.vocabulary_id = ?))
+				OR (e.type <> ? AND EXISTS (SELECT 1 FROM vocabulary_exercises x WHERE x.exercise_id = e.id AND x.vocabulary_id = ? AND x.is_correct = true))
+			)
+		)
+	`, ExerciseVocabularyResultIgnored, ExerciseVocabularyResultReasonDeletedVocabulary, now, userID, enums.ExerciseStatusInProgress, enums.ExerciseTypeMatchPairs, vocabularyID, enums.ExerciseTypeMatchPairs, vocabularyID).Error; err != nil {
+		return nil, err
+	}
+
+	if err := tx.Exec(`
+		UPDATE exercises e SET status = ?, finished_at = ?
+		WHERE e.user_id = ? AND e.status = ? AND (
+			(e.type = ? AND EXISTS (SELECT 1 FROM vocabulary_exercises ve WHERE ve.exercise_id = e.id AND ve.vocabulary_id = ?))
+			OR (e.type <> ? AND EXISTS (SELECT 1 FROM vocabulary_exercises ve WHERE ve.exercise_id = e.id AND ve.vocabulary_id = ? AND ve.is_correct = true))
+		)
+	`, enums.ExerciseStatusIgnored, now, userID, enums.ExerciseStatusInProgress, enums.ExerciseTypeMatchPairs, vocabularyID, enums.ExerciseTypeMatchPairs, vocabularyID).Error; err != nil {
+		return nil, err
+	}
+
+	return cancelled, nil
+}
+
 func DeletePendingExercisesByUserID(tx *gorm.DB, userID uint) error {
 	return tx.Where("user_id = ? AND status = ?", userID, enums.ExerciseStatusPending).
 		Delete(&models.Exercise{}).Error
 }
 
-func DeletePendingExercisesByVocabularyID(tx *gorm.DB, userID uint, vocabularyID uuid.UUID) error {
-	return tx.
+func DeletePendingExercisesByVocabularyID(tx *gorm.DB, userID uint, vocabularyID uuid.UUID) ([]time.Time, error) {
+	var scheduledFor []time.Time
+	if err := tx.Model(&models.Exercise{}).
+		Where("user_id = ? AND status = ? AND scheduled_for IS NOT NULL", userID, enums.ExerciseStatusPending).
+		Where("id IN (?)",
+			tx.Table("vocabulary_exercises").
+				Select("exercise_id").
+				Where("vocabulary_id = ?", vocabularyID),
+		).
+		Pluck("scheduled_for", &scheduledFor).Error; err != nil {
+		return nil, err
+	}
+
+	if err := tx.
 		Where("user_id = ? AND status = ?", userID, enums.ExerciseStatusPending).
 		Where("id IN (?)",
 			tx.Table("vocabulary_exercises").
 				Select("exercise_id").
 				Where("vocabulary_id = ?", vocabularyID),
 		).
-		Delete(&models.Exercise{}).Error
+		Delete(&models.Exercise{}).Error; err != nil {
+		return nil, err
+	}
+
+	return scheduledFor, nil
 }
 
 func IgnoreExercise(exerciseID uuid.UUID) error {
@@ -36,6 +107,21 @@ func IgnoreExercise(exerciseID uuid.UUID) error {
 			"status":      enums.ExerciseStatusIgnored,
 			"finished_at": time.Now().UTC(),
 		}).Error
+}
+
+func exerciseNotInProgressError(query *gorm.DB, exerciseID uuid.UUID) error {
+	var deletedVocabularyResults int64
+	if err := query.Model(&models.ExerciseVocabulary{}).
+		Where("exercise_id = ? AND is_correct = ? AND result_reason = ?", exerciseID, true, ExerciseVocabularyResultReasonDeletedVocabulary).
+		Count(&deletedVocabularyResults).Error; err != nil {
+		return err
+	}
+
+	if deletedVocabularyResults > 0 {
+		return ErrExerciseVocabularyDeleted
+	}
+
+	return ErrExerciseNotInProgress
 }
 
 func IgnoreUserExercise(exerciseID uuid.UUID, userID uint) error {
@@ -51,7 +137,7 @@ func IgnoreUserExercise(exerciseID uuid.UUID, userID uint) error {
 		}
 
 		if exercise.Status != enums.ExerciseStatusPending && exercise.Status != enums.ExerciseStatusInProgress {
-			return ErrExerciseNotInProgress
+			return exerciseNotInProgressError(tx, exercise.ID)
 		}
 
 		result := tx.Model(&models.Exercise{}).
@@ -203,8 +289,20 @@ func GetDueExerciseReminders(now time.Time) ([]PendingExerciseReminder, error) {
 			AND e.started_at <= ?
 			AND e.reminder_sent_at IS NULL
 			AND u.settings->'telegram'->'bot_enabled' = ?
+			AND (
+				(e.type <> ? AND EXISTS (
+					SELECT 1 FROM vocabulary_exercises ve
+					JOIN vocabulary v ON v.id = ve.vocabulary_id AND v.deleted_at IS NULL
+					WHERE ve.exercise_id = e.id AND ve.is_correct = true
+				))
+				OR (e.type = ? AND (
+					SELECT COUNT(*) FROM vocabulary_exercises ve
+					JOIN vocabulary v ON v.id = ve.vocabulary_id AND v.deleted_at IS NULL
+					WHERE ve.exercise_id = e.id AND ve.is_correct = true
+				) = ?)
+			)
 		ORDER BY e.started_at ASC
-	`, enums.ExerciseStatusInProgress, remindBefore, true).Scan(&reminders).Error
+	`, enums.ExerciseStatusInProgress, remindBefore, true, enums.ExerciseTypeMatchPairs, enums.ExerciseTypeMatchPairs, matchPairsVocabularyCount).Scan(&reminders).Error
 
 	if err != nil {
 		return nil, err

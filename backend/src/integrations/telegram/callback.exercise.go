@@ -83,7 +83,7 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 
 	switch exercise.Status {
 	case enums.ExerciseStatusIgnored:
-		return SendMessage(callback.From.ID, t.ExerciseOutdated)
+		return sendIgnoredExerciseMessage(callback.Message.Chat.ID, callback.Message.MessageID, callback.From.ID, exercise, t)
 	case enums.ExerciseStatusCompleted:
 		return SendMessage(callback.From.ID, t.ExerciseCompleted)
 	case enums.ExerciseStatusFailed:
@@ -93,14 +93,7 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 	if len(exercise.Vocabulary) == 0 || exercise.Vocabulary[0].Translation == nil {
 		_ = services.MarkExerciseVocabularyResultWithoutProgress(exercise.ExerciseID, services.ExerciseVocabularyResultIgnored, services.ExerciseVocabularyResultReasonDeletedVocabulary)
 		_ = services.IgnoreExercise(exercise.ExerciseID)
-		return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
-	}
-
-	if (exercise.ExerciseType == enums.ExerciseTypeChoiceDirect || exercise.ExerciseType == enums.ExerciseTypeChoiceReversed) &&
-		len(exercise.Options) != services.ChoiceExerciseVocabularyCount {
-		_ = services.MarkExerciseVocabularyResultWithoutProgress(exercise.ExerciseID, services.ExerciseVocabularyResultIgnored, services.ExerciseVocabularyResultReasonInvalidOptions)
-		_ = services.IgnoreExercise(exercise.ExerciseID)
-		return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
+		return sendDeletedVocabularyMessage(callback.Message.Chat.ID, callback.Message.MessageID, callback.From.ID, t.ExerciseVocabularyDeleted)
 	}
 
 	if !hasAnswer && exercise.ExerciseType != enums.ExerciseTypeBasicDirect && exercise.ExerciseType != enums.ExerciseTypeBasicReversed {
@@ -119,7 +112,7 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 			}
 
 			if errors.Is(err, services.ErrExerciseVocabularyDeleted) {
-				return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
+				return sendDeletedVocabularyMessage(callback.Message.Chat.ID, callback.Message.MessageID, callback.From.ID, t.ExerciseVocabularyDeleted)
 			}
 
 			return err
@@ -173,4 +166,11 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 		t,
 	)
 	return SendMessageMarkdown(callback.From.ID, answerText)
+}
+
+func ignoredExerciseText(exercise *services.TelegramMessageExercise, t BotTexts) string {
+	if exercise.ResultReason == services.ExerciseVocabularyResultReasonDeletedVocabulary {
+		return t.ExerciseVocabularyDeleted
+	}
+	return t.ExerciseOutdated
 }

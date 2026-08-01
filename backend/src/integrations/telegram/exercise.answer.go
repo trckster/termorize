@@ -28,7 +28,7 @@ func handleExerciseAnswer(message *message) (bool, error) {
 	t := getBotTextsForTelegramID(telegramID)
 	switch exercise.Status {
 	case enums.ExerciseStatusIgnored:
-		return true, SendMessage(message.Chat.ID, t.ExerciseOutdated)
+		return true, sendIgnoredExerciseMessage(message.Chat.ID, message.ReplyToMessage.MessageID, message.Chat.ID, exercise, t)
 	case enums.ExerciseStatusCompleted:
 		return true, SendMessage(message.Chat.ID, t.ExerciseCompleted)
 	case enums.ExerciseStatusFailed:
@@ -41,20 +41,13 @@ func handleExerciseAnswer(message *message) (bool, error) {
 	if len(exercise.Vocabulary) == 0 || exercise.Vocabulary[0].Translation == nil {
 		_ = services.MarkExerciseVocabularyResultWithoutProgress(exercise.ExerciseID, services.ExerciseVocabularyResultIgnored, services.ExerciseVocabularyResultReasonDeletedVocabulary)
 		_ = services.IgnoreExercise(exercise.ExerciseID)
-		return true, SendMessage(message.Chat.ID, t.ExerciseVocabularyDeleted)
+		return true, sendDeletedVocabularyMessage(message.Chat.ID, message.ReplyToMessage.MessageID, message.Chat.ID, t.ExerciseVocabularyDeleted)
 	}
 
 	if exercise.ExerciseType == enums.ExerciseTypeChoiceDirect ||
 		exercise.ExerciseType == enums.ExerciseTypeChoiceReversed ||
 		exercise.ExerciseType == enums.ExerciseTypeCharactersDirect ||
 		exercise.ExerciseType == enums.ExerciseTypeCharactersReversed {
-		if (exercise.ExerciseType == enums.ExerciseTypeChoiceDirect || exercise.ExerciseType == enums.ExerciseTypeChoiceReversed) &&
-			len(exercise.Options) != services.ChoiceExerciseVocabularyCount {
-			_ = services.MarkExerciseVocabularyResultWithoutProgress(exercise.ExerciseID, services.ExerciseVocabularyResultIgnored, services.ExerciseVocabularyResultReasonInvalidOptions)
-			_ = services.IgnoreExercise(exercise.ExerciseID)
-			return true, SendMessage(message.Chat.ID, t.ExerciseVocabularyDeleted)
-		}
-
 		return true, SendReplyMessage(message.Chat.ID, t.ExerciseUseButtons, message.MessageID)
 	}
 
@@ -69,7 +62,7 @@ func handleExerciseAnswer(message *message) (bool, error) {
 		}
 
 		if errors.Is(err, services.ErrExerciseVocabularyDeleted) {
-			return true, SendMessage(message.Chat.ID, t.ExerciseVocabularyDeleted)
+			return true, sendDeletedVocabularyMessage(message.Chat.ID, message.ReplyToMessage.MessageID, message.Chat.ID, t.ExerciseVocabularyDeleted)
 		}
 
 		return false, err

@@ -509,13 +509,3 @@ func collectExerciseOptionLabels(options []exerciseChoiceCandidate) []string {
 
 	return labels
 }
-
-func exerciseOptionsContainAnswer(options []ExerciseOption, normalizedAnswer string) bool {
-	for _, option := range options {
-		if normalizeAnswer(option.Label) == normalizedAnswer {
-			return true
-		}
-	}
-
-	return false
-}

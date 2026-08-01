@@ -24,6 +24,7 @@ type BotTexts struct {
 	ExerciseCompleted                      string
 	ExerciseFailed                         string
 	ExerciseVocabularyDeleted              string
+	ExerciseCancelledVocabularyDeleted     string
 	ExerciseUseButtons                     string
 	ExerciseSuccess                        string
 	ExerciseAlmost                         string
@@ -76,8 +77,9 @@ type BotTexts struct {
 	AddVocabularyInvalid       string
 	AddVocabularyTooManyColons string
 
-	DeleteCompleted string
-	DeleteNotFound  string
+	DeleteCompletedFormat string
+	DeleteAmbiguous       string
+	DeleteNotFound        string
 
 	VocabularyAutoAddedSuffix   string
 	VocabularyManualAddedSuffix string
@@ -124,7 +126,8 @@ var botTextsEn = BotTexts{
 	ExerciseOutdated:                       "This exercise is outdated 🕰️",
 	ExerciseCompleted:                      "This exercise is already successfully completed 🗸",
 	ExerciseFailed:                         "This exercise was already attempted and failed 😔",
-	ExerciseVocabularyDeleted:              "This vocabulary was previously deleted 🗑️",
+	ExerciseVocabularyDeleted:              "This exercise can’t be completed because one of its vocabulary entries was deleted 🗑️",
+	ExerciseCancelledVocabularyDeleted:     "This exercise was cancelled because its vocabulary was deleted 🗑️",
 	ExerciseUseButtons:                     "Use one of the buttons below.",
 	ExerciseSuccess:                        "That's right! ✅",
 	ExerciseAlmost:                         "Almost! The correct answer is:",
@@ -188,8 +191,9 @@ var botTextsEn = BotTexts{
 	AddVocabularyInvalid:       "Invalid format. Send translation as word1:word2",
 	AddVocabularyTooManyColons: "Invalid format. Use only one colon to separate word and translation",
 
-	DeleteCompleted: "Done ✅",
-	DeleteNotFound:  "Word not found ❌",
+	DeleteCompletedFormat: "Deleted: %s — %s ✅",
+	DeleteAmbiguous:       "Several translations match that word. Send the exact pair as word1:word2.",
+	DeleteNotFound:        "Word not found ❌",
 
 	VocabularyAutoAddedSuffix:   "\n\nIt was added to your vocabulary",
 	VocabularyManualAddedSuffix: "\n\nSuccessfully added to your vocabulary",
@@ -249,7 +253,8 @@ var botTextsRu = BotTexts{
 	ExerciseOutdated:                       "Это упражнение устарело 🕰️",
 	ExerciseCompleted:                      "Это упражнение уже успешно выполнено ✅",
 	ExerciseFailed:                         "Это упражнение уже было выполнено с ошибкой 😔",
-	ExerciseVocabularyDeleted:              "Это слово было когда-то удалено из словаря 🗑️",
+	ExerciseVocabularyDeleted:              "Это упражнение нельзя выполнить, потому что одно из его слов было удалено из словаря 🗑️",
+	ExerciseCancelledVocabularyDeleted:     "Это упражнение отменено, потому что его слово было удалено из словаря 🗑️",
 	ExerciseUseButtons:                     "Используй одну из кнопок ниже.",
 	ExerciseSuccess:                        "Правильно! ✅",
 	ExerciseAlmost:                         "Почти! Правильный ответ:",
@@ -313,8 +318,9 @@ var botTextsRu = BotTexts{
 	AddVocabularyInvalid:       "Неверный формат. Отправь перевод как слово1:слово2",
 	AddVocabularyTooManyColons: "Неверный формат. Используй только одно двоеточие для разделения слова и перевода",
 
-	DeleteCompleted: "Готово ✅",
-	DeleteNotFound:  "Слово не найдено ❌",
+	DeleteCompletedFormat: "Удалено: %s — %s ✅",
+	DeleteAmbiguous:       "Найдено несколько переводов. Отправь точную пару как слово1:слово2.",
+	DeleteNotFound:        "Слово не найдено ❌",
 
 	VocabularyAutoAddedSuffix:   "\n\nДобавлено в твой словарь",
 	VocabularyManualAddedSuffix: "\n\nУспешно добавлено в словарь",

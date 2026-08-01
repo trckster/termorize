@@ -76,7 +76,7 @@ func handleCharacterTap(callback *callbackQuery, payload []string, t BotTexts) e
 
 	switch exercise.Status {
 	case enums.ExerciseStatusIgnored:
-		return SendMessage(callback.From.ID, t.ExerciseOutdated)
+		return sendIgnoredExerciseMessage(callback.Message.Chat.ID, callback.Message.MessageID, callback.From.ID, exercise, t)
 	case enums.ExerciseStatusCompleted, enums.ExerciseStatusFailed:
 		board := completedCharacterBoard(exercise)
 		return EditCharacterBoardMessage(
@@ -90,7 +90,7 @@ func handleCharacterTap(callback *callbackQuery, payload []string, t BotTexts) e
 	if len(exercise.Vocabulary) == 0 || exercise.Vocabulary[0].Translation == nil {
 		_ = services.MarkExerciseVocabularyResultWithoutProgress(exercise.ExerciseID, services.ExerciseVocabularyResultIgnored, services.ExerciseVocabularyResultReasonDeletedVocabulary)
 		_ = services.IgnoreExercise(exercise.ExerciseID)
-		return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
+		return sendDeletedVocabularyMessage(callback.Message.Chat.ID, callback.Message.MessageID, callback.From.ID, t.ExerciseVocabularyDeleted)
 	}
 
 	board, finished, err := services.ApplyCharacterTap(exercise.ExerciseID, exercise.UserID, tappedIndex)
@@ -99,10 +99,7 @@ func handleCharacterTap(callback *callbackQuery, payload []string, t BotTexts) e
 			return nil
 		}
 		if errors.Is(err, services.ErrExerciseVocabularyDeleted) {
-			if removeErr := removeMessageInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID); removeErr != nil {
-				logger.L().Warnw("failed to remove inline keyboard", "error", removeErr, "chat_id", callback.Message.Chat.ID, "message_id", callback.Message.MessageID)
-			}
-			return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
+			return sendDeletedVocabularyMessage(callback.Message.Chat.ID, callback.Message.MessageID, callback.From.ID, t.ExerciseVocabularyDeleted)
 		}
 		return err
 	}
@@ -122,7 +119,7 @@ func handleCharacterTap(callback *callbackQuery, payload []string, t BotTexts) e
 			return nil
 		}
 		if errors.Is(err, services.ErrExerciseVocabularyDeleted) {
-			return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
+			return sendDeletedVocabularyMessage(callback.Message.Chat.ID, callback.Message.MessageID, callback.From.ID, t.ExerciseVocabularyDeleted)
 		}
 		return err
 	}
@@ -186,7 +183,7 @@ func handleCharacterBackspace(callback *callbackQuery, payload []string, t BotTe
 
 	switch exercise.Status {
 	case enums.ExerciseStatusIgnored:
-		return SendMessage(callback.From.ID, t.ExerciseOutdated)
+		return sendIgnoredExerciseMessage(callback.Message.Chat.ID, callback.Message.MessageID, callback.From.ID, exercise, t)
 	case enums.ExerciseStatusCompleted, enums.ExerciseStatusFailed:
 		questionText := BuildBasicExerciseQuestion(
 			exercise.OriginalWord,
@@ -211,10 +208,7 @@ func handleCharacterBackspace(callback *callbackQuery, payload []string, t BotTe
 			return nil
 		}
 		if errors.Is(err, services.ErrExerciseVocabularyDeleted) {
-			if removeErr := removeMessageInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID); removeErr != nil {
-				logger.L().Warnw("failed to remove inline keyboard", "error", removeErr, "chat_id", callback.Message.Chat.ID, "message_id", callback.Message.MessageID)
-			}
-			return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
+			return sendDeletedVocabularyMessage(callback.Message.Chat.ID, callback.Message.MessageID, callback.From.ID, t.ExerciseVocabularyDeleted)
 		}
 		return err
 	}

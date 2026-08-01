@@ -4,7 +4,6 @@ import (
 	"errors"
 	"strconv"
 	"termorize/src/enums"
-	"termorize/src/logger"
 	"termorize/src/services"
 
 	"github.com/google/uuid"
@@ -65,7 +64,7 @@ func handleMatchTap(callback *callbackQuery, payload []string, t BotTexts) error
 
 	switch exercise.Status {
 	case enums.ExerciseStatusIgnored:
-		return SendMessage(callback.From.ID, t.ExerciseOutdated)
+		return sendIgnoredExerciseMessage(callback.Message.Chat.ID, callback.Message.MessageID, callback.From.ID, exercise, t)
 	case enums.ExerciseStatusCompleted, enums.ExerciseStatusFailed:
 		result, resultErr := services.GetCompletedMatchPairsResult(exercise.ExerciseID, exercise.UserID)
 		if resultErr != nil {
@@ -77,10 +76,7 @@ func handleMatchTap(callback *callbackQuery, payload []string, t BotTexts) error
 	board, wasWrong, finished, finalizeAttempts, err := services.ApplyMatchTap(exercise.ExerciseID, exercise.UserID, tappedIdx)
 	if err != nil {
 		if errors.Is(err, services.ErrExerciseVocabularyDeleted) {
-			if removeErr := removeMessageInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID); removeErr != nil {
-				logger.L().Warnw("failed to remove inline keyboard", "error", removeErr, "chat_id", callback.Message.Chat.ID, "message_id", callback.Message.MessageID)
-			}
-			return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
+			return sendDeletedVocabularyMessage(callback.Message.Chat.ID, callback.Message.MessageID, callback.From.ID, t.ExerciseVocabularyDeleted)
 		}
 		if errors.Is(err, services.ErrExerciseNotInProgress) {
 			return nil
@@ -108,10 +104,7 @@ func handleMatchTap(callback *callbackQuery, payload []string, t BotTexts) error
 			return nil
 		}
 		if errors.Is(err, services.ErrExerciseVocabularyDeleted) {
-			if removeErr := removeMessageInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID); removeErr != nil {
-				logger.L().Warnw("failed to remove inline keyboard", "error", removeErr, "chat_id", callback.Message.Chat.ID, "message_id", callback.Message.MessageID)
-			}
-			return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
+			return sendDeletedVocabularyMessage(callback.Message.Chat.ID, callback.Message.MessageID, callback.From.ID, t.ExerciseVocabularyDeleted)
 		}
 
 		return err
