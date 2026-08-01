@@ -109,6 +109,21 @@ func IgnoreExercise(exerciseID uuid.UUID) error {
 		}).Error
 }
 
+func exerciseNotInProgressError(query *gorm.DB, exerciseID uuid.UUID) error {
+	var deletedVocabularyResults int64
+	if err := query.Model(&models.ExerciseVocabulary{}).
+		Where("exercise_id = ? AND is_correct = ? AND result_reason = ?", exerciseID, true, ExerciseVocabularyResultReasonDeletedVocabulary).
+		Count(&deletedVocabularyResults).Error; err != nil {
+		return err
+	}
+
+	if deletedVocabularyResults > 0 {
+		return ErrExerciseVocabularyDeleted
+	}
+
+	return ErrExerciseNotInProgress
+}
+
 func IgnoreUserExercise(exerciseID uuid.UUID, userID uint) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		var exercise models.Exercise
@@ -122,7 +137,7 @@ func IgnoreUserExercise(exerciseID uuid.UUID, userID uint) error {
 		}
 
 		if exercise.Status != enums.ExerciseStatusPending && exercise.Status != enums.ExerciseStatusInProgress {
-			return ErrExerciseNotInProgress
+			return exerciseNotInProgressError(tx, exercise.ID)
 		}
 
 		result := tx.Model(&models.Exercise{}).

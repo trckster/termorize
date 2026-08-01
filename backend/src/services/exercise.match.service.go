@@ -109,7 +109,7 @@ func CompleteMatchPairsExercise(exerciseID uuid.UUID, userID uint, attempts []Ma
 	}
 
 	if exercise.Status != enums.ExerciseStatusInProgress {
-		return nil, ErrExerciseNotInProgress
+		return nil, exerciseNotInProgressError(db.DB, exercise.ID)
 	}
 
 	rows, err := getExerciseVocabularyDetails([]uuid.UUID{exerciseID}, true, true)

@@ -904,7 +904,7 @@ func VerifyExerciseAnswer(exerciseID uuid.UUID, userID uint, answer string) (*Ve
 	}
 
 	if exercise.Status != enums.ExerciseStatusInProgress {
-		return nil, ErrExerciseNotInProgress
+		return nil, exerciseNotInProgressError(db.DB, exercise.ID)
 	}
 
 	if isMatchPairsExerciseType(exercise.Type) {
@@ -989,7 +989,7 @@ func VerifyExerciseChoice(exerciseID uuid.UUID, userID uint, selectedVocabularyI
 	}
 
 	if exercise.Status != enums.ExerciseStatusInProgress {
-		return nil, ErrExerciseNotInProgress
+		return nil, exerciseNotInProgressError(db.DB, exercise.ID)
 	}
 
 	if isMatchPairsExerciseType(exercise.Type) {
