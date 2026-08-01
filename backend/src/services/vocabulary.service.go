@@ -362,6 +362,7 @@ func GetVocabularyStatistics(userID uint) (*VocabularyStatistics, error) {
 
 func DeleteVocabulary(userID uint, vocabID uuid.UUID) error {
 	var replacementTimes []time.Time
+	var cancelledTelegramExercises []CancelledTelegramExercise
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
 		var vocabulary models.Vocabulary
 		if err := tx.Where("id = ? AND user_id = ? AND deleted_at IS NULL", vocabID, userID).First(&vocabulary).Error; err != nil {
@@ -378,6 +379,10 @@ func DeleteVocabulary(userID uint, vocabID uuid.UUID) error {
 		}
 
 		now := time.Now().UTC()
+		cancelledTelegramExercises, err = cancelInProgressExercisesByVocabularyID(tx, userID, vocabulary.ID, now)
+		if err != nil {
+			return err
+		}
 		return tx.Model(&vocabulary).Update("deleted_at", now).Error
 	})
 	if err != nil {
@@ -394,6 +399,8 @@ func DeleteVocabulary(userID uint, vocabID uuid.UUID) error {
 			logger.L().Infow("cancelled exercise after vocabulary deletion because no eligible vocabulary remains", "user_id", userID, "scheduled_for", scheduledFor)
 		}
 	}
+
+	notifyCancelledTelegramExercises(cancelledTelegramExercises)
 
 	return nil
 }

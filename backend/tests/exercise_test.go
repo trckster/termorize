@@ -1454,6 +1454,43 @@ func TestVerifyExerciseChoiceCorrectWithDeletedDistractor(t *testing.T) {
 	assert.Equal(t, enums.ExerciseStatusCompleted, stored.Status)
 }
 
+func TestDeleteVocabularyCancelsAffectedInProgressExercisesWithoutProgress(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+	correct := exerciseSeedVocabulary(t, user.ID, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
+	distractor := exerciseSeedVocabulary(t, user.ID, "cat", "Katze", enums.LanguageEn, enums.LanguageDe)
+	d2 := exerciseSeedVocabulary(t, user.ID, "bird", "Vogel", enums.LanguageEn, enums.LanguageDe)
+	d3 := exerciseSeedVocabulary(t, user.ID, "fish", "Fisch", enums.LanguageEn, enums.LanguageDe)
+
+	basic := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusInProgress, correct.ID)
+	choice := exerciseSeedChoiceExercise(t, user.ID, enums.ExerciseTypeChoiceDirect, enums.ExerciseStatusInProgress,
+		[]uuid.UUID{correct.ID, distractor.ID, d2.ID, d3.ID})
+	unaffectedChoice := exerciseSeedChoiceExercise(t, user.ID, enums.ExerciseTypeChoiceDirect, enums.ExerciseStatusInProgress,
+		[]uuid.UUID{d2.ID, correct.ID, distractor.ID, d3.ID})
+
+	before := exerciseTranslationKnowledge(t, exerciseReloadVocabulary(t, correct.ID).Progress)
+	require.NoError(t, services.DeleteVocabulary(user.ID, correct.ID))
+
+	for _, exerciseID := range []uuid.UUID{basic.ID, choice.ID} {
+		stored := exerciseReload(t, exerciseID)
+		assert.Equal(t, enums.ExerciseStatusIgnored, stored.Status)
+		assert.NotNil(t, stored.FinishedAt)
+
+		link := exerciseLink(t, exerciseID, correct.ID)
+		require.NotNil(t, link.Result)
+		assert.Equal(t, services.ExerciseVocabularyResultIgnored, *link.Result)
+		require.NotNil(t, link.ResultReason)
+		assert.Equal(t, services.ExerciseVocabularyResultReasonDeletedVocabulary, *link.ResultReason)
+		assert.Nil(t, link.ProgressDelta)
+	}
+
+	assert.Equal(t, enums.ExerciseStatusInProgress, exerciseReload(t, unaffectedChoice.ID).Status,
+		"deleting only a choice distractor must not cancel the exercise")
+	after := exerciseTranslationKnowledge(t, exerciseReloadVocabulary(t, correct.ID).Progress)
+	assert.Equal(t, before, after)
+}
+
 func TestVerifyExerciseChoiceWrong(t *testing.T) {
 	testkit.Truncate(t)
 

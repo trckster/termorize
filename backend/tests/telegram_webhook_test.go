@@ -586,13 +586,49 @@ func TestTelegramWebhookCharacterTapReportsDeletedVocabulary(t *testing.T) {
 			link := exerciseLink(t, exercise.ID, vocabulary.ID)
 			require.NotNil(t, link.ResultReason)
 			assert.Equal(t, services.ExerciseVocabularyResultReasonDeletedVocabulary, *link.ResultReason)
-			require.Len(t, tg.RequestsFor("editMessageReplyMarkup"), 1)
+			cancelEdits := tg.RequestsFor("editMessageText")
+			require.Len(t, cancelEdits, 1)
+			assert.Contains(t, string(cancelEdits[0].Body), "отменено")
 			requests := tg.RequestsFor("sendMessage")
 			require.Len(t, requests, 1)
 			assert.Contains(t, string(requests[0].Body), "нельзя выполнить")
 			assert.NotContains(t, string(requests[0].Body), "устарело")
 		})
 	}
+}
+
+func TestDeleteVocabularyReplacesActiveTelegramExerciseWithCancellation(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+
+	const telegramID int64 = 555099
+	const messageID int64 = 199
+	user := testkit.CreateUser(t,
+		testkit.WithTelegramID(telegramID),
+		testkit.WithSettings(models.UserSettings{SystemLanguage: enums.LanguageEn}),
+	)
+	vocabulary := exerciseSeedVocabulary(t, user.ID, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
+	exercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusInProgress, vocabulary.ID)
+	require.NoError(t, db.DB.Model(&models.Exercise{}).Where("id = ?", exercise.ID).Update("telegram_message_id", messageID).Error)
+
+	require.NoError(t, services.DeleteVocabulary(user.ID, vocabulary.ID))
+
+	requests := tg.RequestsFor("editMessageText")
+	require.Len(t, requests, 1)
+	var edited struct {
+		ChatID      int64  `json:"chat_id"`
+		MessageID   int64  `json:"message_id"`
+		Text        string `json:"text"`
+		ReplyMarkup struct {
+			InlineKeyboard []any `json:"inline_keyboard"`
+		} `json:"reply_markup"`
+	}
+	require.NoError(t, json.Unmarshal(requests[0].Body, &edited))
+	assert.Equal(t, telegramID, edited.ChatID)
+	assert.Equal(t, messageID, edited.MessageID)
+	assert.Equal(t, "This exercise was cancelled because its vocabulary was deleted 🗑️", edited.Text)
+	assert.Empty(t, edited.ReplyMarkup.InlineKeyboard)
+	assert.False(t, tg.Sent("sendMessage"))
 }
 
 func TestTelegramWebhookCharacterBackspaceRecoversPendingMessage(t *testing.T) {
@@ -791,7 +827,9 @@ func TestTelegramWebhookMatchTapReportsDeletedVocabulary(t *testing.T) {
 		require.NotNil(t, link.ResultReason)
 		assert.Equal(t, services.ExerciseVocabularyResultReasonDeletedVocabulary, *link.ResultReason)
 	}
-	require.Len(t, tg.RequestsFor("editMessageReplyMarkup"), 1)
+	cancelEdits := tg.RequestsFor("editMessageText")
+	require.Len(t, cancelEdits, 1)
+	assert.Contains(t, string(cancelEdits[0].Body), "отменено")
 	requests := tg.RequestsFor("sendMessage")
 	require.Len(t, requests, 1)
 	assert.Contains(t, string(requests[0].Body), "нельзя выполнить")
