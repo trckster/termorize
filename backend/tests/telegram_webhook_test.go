@@ -548,6 +548,53 @@ func TestTelegramWebhookCharacterExerciseUsesSquareBoardAndCompletes(t *testing.
 	assert.Contains(t, retryEdit["text"], "l e t t e r")
 }
 
+func TestTelegramWebhookCharacterTapReportsDeletedVocabulary(t *testing.T) {
+	for _, exerciseType := range []enums.ExerciseType{
+		enums.ExerciseTypeCharactersDirect,
+		enums.ExerciseTypeCharactersReversed,
+	} {
+		t.Run(string(exerciseType), func(t *testing.T) {
+			testkit.Truncate(t)
+			tg := testkit.MockTelegramAPI(t)
+
+			const telegramID int64 = 555015
+			const messageID int64 = 106
+			user := testkit.CreateUser(t, testkit.WithTelegramID(telegramID))
+			vocabulary := exerciseSeedVocabulary(t, user.ID, "carta", "letter", enums.LanguageIt, enums.LanguageEn)
+			exercise := exerciseSeedExercise(t, user.ID, exerciseType, enums.ExerciseStatusPending, vocabulary.ID)
+			require.NoError(t, services.StartCharacterExercise(exercise.ID, messageID, []int{5, 4, 3, 2, 1, 0}))
+			require.NoError(t, services.DeleteVocabulary(user.ID, vocabulary.ID))
+
+			update := map[string]any{
+				"update_id": 80,
+				"callback_query": map[string]any{
+					"id":   "cb-character-deleted",
+					"data": "exercise:ct:" + telegramCompactUUID(exercise.ID) + ":0",
+					"from": map[string]any{"id": telegramID, "is_bot": false},
+					"message": map[string]any{
+						"message_id": messageID,
+						"chat":       map[string]any{"id": telegramID, "type": "private"},
+					},
+				},
+			}
+
+			rec := telegramUpdate(t, update)
+			testkit.RequireStatus(t, rec, http.StatusOK)
+
+			stored := exerciseReload(t, exercise.ID)
+			assert.Equal(t, enums.ExerciseStatusIgnored, stored.Status)
+			link := exerciseLink(t, exercise.ID, vocabulary.ID)
+			require.NotNil(t, link.ResultReason)
+			assert.Equal(t, services.ExerciseVocabularyResultReasonDeletedVocabulary, *link.ResultReason)
+			require.Len(t, tg.RequestsFor("editMessageReplyMarkup"), 1)
+			requests := tg.RequestsFor("sendMessage")
+			require.Len(t, requests, 1)
+			assert.Contains(t, string(requests[0].Body), "нельзя выполнить")
+			assert.NotContains(t, string(requests[0].Body), "устарело")
+		})
+	}
+}
+
 func TestTelegramWebhookCharacterBackspaceRecoversPendingMessage(t *testing.T) {
 	testkit.Truncate(t)
 	tg := testkit.MockTelegramAPI(t)
@@ -699,6 +746,56 @@ func TestTelegramWebhookMatchTapEditsBoard(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal([]byte(*refreshed.MatchState), &matchState))
 	assert.Equal(t, 0, matchState.Pending)
+}
+
+func TestTelegramWebhookMatchTapReportsDeletedVocabulary(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+
+	const telegramID int64 = 555016
+	const messageID int64 = 107
+	user := testkit.CreateUser(t, testkit.WithTelegramID(telegramID))
+	vocabularyIDs := make([]uuid.UUID, 0, services.MatchPairsVocabularyCount)
+	for index := 0; index < services.MatchPairsVocabularyCount; index++ {
+		vocabulary := exerciseSeedVocabulary(
+			t, user.ID,
+			"original-"+strconv.Itoa(index), "translation-"+strconv.Itoa(index),
+			enums.LanguageEn, enums.LanguageIt,
+		)
+		vocabularyIDs = append(vocabularyIDs, vocabulary.ID)
+	}
+	exercise := exerciseSeedMatchPairsExercise(t, user.ID, enums.ExerciseStatusPending, vocabularyIDs)
+	require.NoError(t, services.StartMatchExercise(exercise.ID, messageID, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}))
+	require.NoError(t, services.DeleteVocabulary(user.ID, vocabularyIDs[0]))
+
+	update := map[string]any{
+		"update_id": 81,
+		"callback_query": map[string]any{
+			"id":   "cb-match-deleted",
+			"data": "exercise:mt:" + telegramCompactUUID(exercise.ID) + ":0",
+			"from": map[string]any{"id": telegramID, "is_bot": false},
+			"message": map[string]any{
+				"message_id": messageID,
+				"chat":       map[string]any{"id": telegramID, "type": "private"},
+			},
+		},
+	}
+
+	rec := telegramUpdate(t, update)
+	testkit.RequireStatus(t, rec, http.StatusOK)
+
+	stored := exerciseReload(t, exercise.ID)
+	assert.Equal(t, enums.ExerciseStatusIgnored, stored.Status)
+	for _, vocabularyID := range vocabularyIDs {
+		link := exerciseLink(t, exercise.ID, vocabularyID)
+		require.NotNil(t, link.ResultReason)
+		assert.Equal(t, services.ExerciseVocabularyResultReasonDeletedVocabulary, *link.ResultReason)
+	}
+	require.Len(t, tg.RequestsFor("editMessageReplyMarkup"), 1)
+	requests := tg.RequestsFor("sendMessage")
+	require.Len(t, requests, 1)
+	assert.Contains(t, string(requests[0].Body), "нельзя выполнить")
+	assert.NotContains(t, string(requests[0].Body), "устарело")
 }
 
 func TestTelegramWebhookMatchTapRetriesFinalizationFromPersistedBoard(t *testing.T) {

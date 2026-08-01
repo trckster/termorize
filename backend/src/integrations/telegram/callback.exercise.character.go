@@ -90,6 +90,9 @@ func handleCharacterTap(callback *callbackQuery, payload []string, t BotTexts) e
 	if len(exercise.Vocabulary) == 0 || exercise.Vocabulary[0].Translation == nil {
 		_ = services.MarkExerciseVocabularyResultWithoutProgress(exercise.ExerciseID, services.ExerciseVocabularyResultIgnored, services.ExerciseVocabularyResultReasonDeletedVocabulary)
 		_ = services.IgnoreExercise(exercise.ExerciseID)
+		if removeErr := removeMessageInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID); removeErr != nil {
+			logger.L().Warnw("failed to remove inline keyboard", "error", removeErr, "chat_id", callback.Message.Chat.ID, "message_id", callback.Message.MessageID)
+		}
 		return SendMessage(callback.From.ID, t.ExerciseVocabularyDeleted)
 	}
 
