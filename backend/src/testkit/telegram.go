@@ -22,6 +22,7 @@ type FakeTelegramServer struct {
 
 	mu       sync.Mutex
 	requests []TelegramRequest
+	failures map[string]bool
 }
 
 func MockTelegramAPI(t *testing.T) *FakeTelegramServer {
@@ -49,12 +50,13 @@ func (f *FakeTelegramServer) handle(w http.ResponseWriter, r *http.Request) {
 
 	f.mu.Lock()
 	f.requests = append(f.requests, TelegramRequest{Action: action, Body: body})
+	failed := f.failures[action]
 	f.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
 
 	resp := map[string]any{
-		"ok": true,
+		"ok": !failed,
 		"result": map[string]any{
 			"message_id": 1,
 			"date":       0,
@@ -62,6 +64,15 @@ func (f *FakeTelegramServer) handle(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	_ = json.NewEncoder(w).Encode(resp)
+}
+
+func (f *FakeTelegramServer) Fail(action string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.failures == nil {
+		f.failures = make(map[string]bool)
+	}
+	f.failures[action] = true
 }
 
 func (f *FakeTelegramServer) Requests() []TelegramRequest {

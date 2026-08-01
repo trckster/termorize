@@ -28,3 +28,22 @@ func notifyCancelledTelegramExercises(exercises []services.CancelledTelegramExer
 		}
 	}
 }
+
+func sendIgnoredExerciseMessage(chatID, messageID, responseChatID int64, exercise *services.TelegramMessageExercise, texts BotTexts) error {
+	if exercise.ResultReason == services.ExerciseVocabularyResultReasonDeletedVocabulary {
+		removeDeletedExerciseKeyboard(chatID, messageID)
+	}
+
+	return SendMessage(responseChatID, ignoredExerciseText(exercise, texts))
+}
+
+func sendDeletedVocabularyMessage(chatID, messageID, responseChatID int64, text string) error {
+	removeDeletedExerciseKeyboard(chatID, messageID)
+	return SendMessage(responseChatID, text)
+}
+
+func removeDeletedExerciseKeyboard(chatID, messageID int64) {
+	if err := removeMessageInlineKeyboard(chatID, messageID); err != nil {
+		logger.L().Warnw("failed to remove inline keyboard", "error", err, "chat_id", chatID, "message_id", messageID)
+	}
+}

@@ -165,6 +165,121 @@ func TestTelegramWebhookIgnoredExerciseReportsDeletedVocabulary(t *testing.T) {
 	require.Len(t, requests, 1)
 	assert.Contains(t, string(requests[0].Body), "нельзя выполнить")
 	assert.NotContains(t, string(requests[0].Body), "устарело")
+	require.Len(t, tg.RequestsFor("editMessageReplyMarkup"), 1)
+}
+
+func TestTelegramWebhookKeyboardCleanupFailureStillReportsDeletedVocabulary(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+	tg.Fail("editMessageReplyMarkup")
+
+	const telegramID int64 = 555098
+	const exerciseMessageID int64 = 500
+	user := testkit.CreateUser(t, testkit.WithTelegramID(telegramID))
+	vocabulary := exerciseSeedVocabulary(t, user.ID, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
+	exercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusIgnored, vocabulary.ID)
+	require.NoError(t, db.DB.Model(&models.Exercise{}).
+		Where("id = ?", exercise.ID).
+		Update("telegram_message_id", exerciseMessageID).Error)
+	require.NoError(t, db.DB.Model(&models.ExerciseVocabulary{}).
+		Where("exercise_id = ? AND vocabulary_id = ?", exercise.ID, vocabulary.ID).
+		Updates(map[string]any{
+			"result":        services.ExerciseVocabularyResultIgnored,
+			"result_reason": services.ExerciseVocabularyResultReasonDeletedVocabulary,
+		}).Error)
+
+	update := telegramPrivateMessage(telegramID, "Hund")
+	message := update["message"].(map[string]any)
+	message["reply_to_message"] = map[string]any{
+		"message_id": exerciseMessageID,
+		"chat":       map[string]any{"id": telegramID, "type": "private"},
+	}
+
+	rec := telegramUpdate(t, update)
+	testkit.RequireStatus(t, rec, http.StatusOK)
+	require.Len(t, tg.RequestsFor("editMessageReplyMarkup"), 1)
+	requests := tg.RequestsFor("sendMessage")
+	require.Len(t, requests, 1)
+	assert.Contains(t, string(requests[0].Body), "нельзя выполнить")
+}
+
+func TestTelegramWebhookIgnoredDeletedVocabularyCallbacksRetryKeyboardRemoval(t *testing.T) {
+	tests := []struct {
+		name         string
+		exerciseType enums.ExerciseType
+		payload      func(exerciseID, vocabularyID uuid.UUID) string
+	}{
+		{
+			name:         "basic",
+			exerciseType: enums.ExerciseTypeBasicDirect,
+			payload: func(exerciseID, _ uuid.UUID) string {
+				return "exercise:idk:" + exerciseID.String()
+			},
+		},
+		{
+			name:         "choice",
+			exerciseType: enums.ExerciseTypeChoiceDirect,
+			payload: func(exerciseID, vocabularyID uuid.UUID) string {
+				return "exercise:answer:" + telegramCompactUUID(exerciseID) + ":" + telegramCompactUUID(vocabularyID)
+			},
+		},
+		{
+			name:         "character",
+			exerciseType: enums.ExerciseTypeCharactersDirect,
+			payload: func(exerciseID, _ uuid.UUID) string {
+				return "exercise:ct:" + telegramCompactUUID(exerciseID) + ":0"
+			},
+		},
+		{
+			name:         "match pairs",
+			exerciseType: enums.ExerciseTypeMatchPairs,
+			payload: func(exerciseID, _ uuid.UUID) string {
+				return "exercise:mt:" + telegramCompactUUID(exerciseID) + ":0"
+			},
+		},
+	}
+
+	for index, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			testkit.Truncate(t)
+			tg := testkit.MockTelegramAPI(t)
+
+			telegramID := int64(555100 + index)
+			messageID := int64(510 + index)
+			user := testkit.CreateUser(t, testkit.WithTelegramID(telegramID))
+			vocabulary := exerciseSeedVocabulary(t, user.ID, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
+			exercise := exerciseSeedExercise(t, user.ID, testCase.exerciseType, enums.ExerciseStatusIgnored, vocabulary.ID)
+			require.NoError(t, db.DB.Model(&models.Exercise{}).
+				Where("id = ?", exercise.ID).
+				Update("telegram_message_id", messageID).Error)
+			require.NoError(t, db.DB.Model(&models.ExerciseVocabulary{}).
+				Where("exercise_id = ? AND vocabulary_id = ?", exercise.ID, vocabulary.ID).
+				Updates(map[string]any{
+					"result":        services.ExerciseVocabularyResultIgnored,
+					"result_reason": services.ExerciseVocabularyResultReasonDeletedVocabulary,
+				}).Error)
+
+			update := map[string]any{
+				"update_id": 110 + index,
+				"callback_query": map[string]any{
+					"id":   "cb-ignored-deleted-" + strconv.Itoa(index),
+					"data": testCase.payload(exercise.ID, vocabulary.ID),
+					"from": map[string]any{"id": telegramID, "is_bot": false},
+					"message": map[string]any{
+						"message_id": messageID,
+						"chat":       map[string]any{"id": telegramID, "type": "private"},
+					},
+				},
+			}
+
+			rec := telegramUpdate(t, update)
+			testkit.RequireStatus(t, rec, http.StatusOK)
+			require.Len(t, tg.RequestsFor("editMessageReplyMarkup"), 1)
+			requests := tg.RequestsFor("sendMessage")
+			require.Len(t, requests, 1)
+			assert.Contains(t, string(requests[0].Body), "нельзя выполнить")
+		})
+	}
 }
 
 // -----------------------------------------------------------------------------
