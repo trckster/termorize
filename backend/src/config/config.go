@@ -29,7 +29,6 @@ type Config struct {
 	GoogleApiKey string
 
 	OpenRouterApiKey string
-	OpenRouterModel  string
 
 	SentryDSN string
 
@@ -37,6 +36,12 @@ type Config struct {
 }
 
 var config *Config
+
+const (
+	openRouterModel    = "google/gemini-2.5-flash"
+	openRouterTTSModel = "google/gemini-3.1-flash-tts-preview"
+	openRouterTTSVoice = "Kore"
+)
 
 func getEnv(key, defaultValue string) string {
 	value := os.Getenv(key)
@@ -84,7 +89,6 @@ func LoadEnv() {
 		GoogleApiKey: getRequiredEnv("GOOGLE_API_KEY"),
 
 		OpenRouterApiKey: getEnv("OPENROUTER_API_KEY", ""),
-		OpenRouterModel:  getEnv("OPENROUTER_MODEL", "openai/gpt-4o-mini"),
 
 		SentryDSN: getEnv("SENTRY_DSN", ""),
 
@@ -172,7 +176,15 @@ func GetOpenRouterApiKey() string {
 }
 
 func GetOpenRouterModel() string {
-	return config.OpenRouterModel
+	return openRouterModel
+}
+
+func GetOpenRouterTTSModel() string {
+	return openRouterTTSModel
+}
+
+func GetOpenRouterTTSVoice() string {
+	return openRouterTTSVoice
 }
 
 func GetJWTExpirationTime() time.Duration {

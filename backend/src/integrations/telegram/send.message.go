@@ -352,10 +352,14 @@ func sendMessage(messageRequest sendMessageRequest) (*sendMessageResponse, error
 }
 
 func removeMessageInlineKeyboard(chatID int64, messageID int64) error {
+	return editMessageInlineKeyboard(chatID, messageID, [][]inlineKeyboardButton{})
+}
+
+func editMessageInlineKeyboard(chatID int64, messageID int64, keyboard [][]inlineKeyboardButton) error {
 	request := editMessageReplyMarkupRequest{
 		ChatID:      chatID,
 		MessageID:   messageID,
-		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: [][]inlineKeyboardButton{}},
+		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: keyboard},
 	}
 
 	response, err := CallAPI[editMessageReplyMarkupResponse]("editMessageReplyMarkup", request)

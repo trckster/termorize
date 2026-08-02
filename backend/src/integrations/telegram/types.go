@@ -31,6 +31,11 @@ type message struct {
 	From           *user                 `json:"from,omitempty"`
 	ReplyToMessage *message              `json:"reply_to_message,omitempty"`
 	ReplyMarkup    *inlineKeyboardMarkup `json:"reply_markup,omitempty"`
+	Audio          *audio                `json:"audio,omitempty"`
+}
+
+type audio struct {
+	FileID string `json:"file_id"`
 }
 
 type callbackQuery struct {

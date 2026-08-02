@@ -46,21 +46,21 @@ func handlePlainTranslationMessage(message *message) (bool, error) {
 	if len(strings.Fields(word)) < 5 && !translationMatchesSource {
 		vocabulary, createErr := services.CreateVocabularyByTranslation(user.ID, translationResult.TranslationID)
 		if createErr == nil {
-			return true, SendMessageWithInlineKeyboard(message.Chat.ID, baseText+t.VocabularyAutoAddedSuffix, buildVocabularyDeleteKeyboard(vocabulary.ID.String(), t))
+			return true, SendMessageWithInlineKeyboard(message.Chat.ID, baseText+t.VocabularyAutoAddedSuffix, buildVocabularyDeleteKeyboard(vocabulary.ID, translationResult.TranslationID, t))
 		}
 
 		if services.VocabularyAlreadyExistsError(createErr) {
-			return true, SendMessage(message.Chat.ID, baseText)
+			return true, SendMessageWithInlineKeyboard(message.Chat.ID, baseText, buildPronunciationKeyboard(translationResult.TranslationID, t))
 		}
 
 		return true, createErr
 	}
 
 	if translationMatchesSource {
-		return true, SendMessage(message.Chat.ID, baseText)
+		return true, SendMessageWithInlineKeyboard(message.Chat.ID, baseText, buildPronunciationKeyboard(translationResult.TranslationID, t))
 	}
 
-	return true, SendMessageWithInlineKeyboard(message.Chat.ID, baseText, buildVocabularyAddKeyboard(translationResult.TranslationID.String(), t))
+	return true, SendMessageWithInlineKeyboard(message.Chat.ID, baseText, buildVocabularyAddKeyboard(translationResult.TranslationID, t))
 }
 
 func detectMessageTranslationLanguages(user *models.User, text string) (enums.Language, enums.Language, error) {

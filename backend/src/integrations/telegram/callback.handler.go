@@ -58,6 +58,9 @@ func routeCallbackData(callback *callbackQuery) error {
 		return handleMenuCallback(callback, payload)
 	case callbackTypeVocabulary:
 		return handleVocabularyCallback(callback, payload)
+	case callbackTypePronunciation:
+		handlePronunciationCallback(callback, payload)
+		return nil
 	default:
 		return nil
 	}
