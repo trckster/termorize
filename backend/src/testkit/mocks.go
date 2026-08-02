@@ -44,6 +44,17 @@ type FakeOpenRouter struct {
 	GenerateFunc func(prompt string, allowedLanguages []string) (*openrouter.GeneratedCollection, error)
 }
 
+type FakeOpenRouterSpeech struct {
+	GenerateFunc func(input string) ([]byte, error)
+}
+
+func (f *FakeOpenRouterSpeech) GenerateSpeech(input string) ([]byte, error) {
+	if f.GenerateFunc != nil {
+		return f.GenerateFunc(input)
+	}
+	return []byte("test-mp3:" + input), nil
+}
+
 func (f *FakeOpenRouter) GenerateCollection(prompt string, allowedLanguages []string) (*openrouter.GeneratedCollection, error) {
 	if f.GenerateFunc != nil {
 		return f.GenerateFunc(prompt, allowedLanguages)
@@ -67,9 +78,23 @@ func MockOpenRouter(t *testing.T, fake *FakeOpenRouter) *FakeOpenRouter {
 	return fake
 }
 
+func MockOpenRouterSpeech(t *testing.T, fake *FakeOpenRouterSpeech) *FakeOpenRouterSpeech {
+	t.Helper()
+	if fake == nil {
+		fake = &FakeOpenRouterSpeech{}
+	}
+
+	original := openrouter.NewSpeechClient
+	openrouter.NewSpeechClient = func() openrouter.SpeechClient { return fake }
+	t.Cleanup(func() { openrouter.NewSpeechClient = original })
+
+	return fake
+}
+
 func installDefaultExternalFakes() {
 	google.NewTranslateClient = func() google.TranslateClient { return &FakeGoogleTranslate{} }
 	openrouter.NewClient = func() openrouter.Client { return &FakeOpenRouter{} }
+	openrouter.NewSpeechClient = func() openrouter.SpeechClient { return &FakeOpenRouterSpeech{} }
 
 	telegram.SetAPIBaseURLForTest("http://127.0.0.1:0")
 }

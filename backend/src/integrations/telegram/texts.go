@@ -99,6 +99,7 @@ type BotTexts struct {
 	ButtonExerciseIDK           string
 	ButtonVocabularyAdd         string
 	ButtonVocabularyDelete      string
+	ButtonPronunciation         string
 
 	ButtonChangeLanguagePrefix string
 
@@ -213,6 +214,7 @@ var botTextsEn = BotTexts{
 	ButtonExerciseIDK:           "Don't know",
 	ButtonVocabularyAdd:         "Add to vocabulary",
 	ButtonVocabularyDelete:      "Delete from vocabulary",
+	ButtonPronunciation:         "🔊 Pronunciation",
 
 	ButtonChangeLanguagePrefix: "Change ",
 
@@ -340,6 +342,7 @@ var botTextsRu = BotTexts{
 	ButtonExerciseIDK:           "Не знаю",
 	ButtonVocabularyAdd:         "Добавить в словарь",
 	ButtonVocabularyDelete:      "Удалить из словаря",
+	ButtonPronunciation:         "🔊 Произношение",
 
 	ButtonChangeLanguagePrefix: "Изменить ",
 

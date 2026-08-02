@@ -15,14 +15,16 @@ import (
 type TelegramRequest struct {
 	Action string
 	Body   []byte
+	Header http.Header
 }
 
 type FakeTelegramServer struct {
 	server *httptest.Server
 
-	mu       sync.Mutex
-	requests []TelegramRequest
-	failures map[string]bool
+	mu            sync.Mutex
+	requests      []TelegramRequest
+	failures      map[string]bool
+	failureCounts map[string]int
 }
 
 func MockTelegramAPI(t *testing.T) *FakeTelegramServer {
@@ -49,8 +51,12 @@ func (f *FakeTelegramServer) handle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	f.mu.Lock()
-	f.requests = append(f.requests, TelegramRequest{Action: action, Body: body})
+	f.requests = append(f.requests, TelegramRequest{Action: action, Body: body, Header: r.Header.Clone()})
 	failed := f.failures[action]
+	if f.failureCounts[action] > 0 {
+		failed = true
+		f.failureCounts[action]--
+	}
 	f.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
@@ -61,9 +67,23 @@ func (f *FakeTelegramServer) handle(w http.ResponseWriter, r *http.Request) {
 			"message_id": 1,
 			"date":       0,
 			"chat":       map[string]any{"id": 1, "type": "private"},
+			"audio":      map[string]any{"file_id": "test-telegram-audio-file-id"},
 		},
 	}
+	if failed {
+		resp["error_code"] = 400
+		resp["description"] = "Bad Request: failed by test"
+	}
 	_ = json.NewEncoder(w).Encode(resp)
+}
+
+func (f *FakeTelegramServer) FailNext(action string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.failureCounts == nil {
+		f.failureCounts = make(map[string]int)
+	}
+	f.failureCounts[action]++
 }
 
 func (f *FakeTelegramServer) Fail(action string) {

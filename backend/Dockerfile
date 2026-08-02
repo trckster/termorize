@@ -16,7 +16,7 @@ ARG SUPERCRONIC_VERSION=v0.2.44
 
 WORKDIR /app
 
-RUN apk add --no-cache ca-certificates tzdata curl && \
+RUN apk add --no-cache ca-certificates tzdata curl ffmpeg && \
     curl -fsSL -o /usr/local/bin/supercronic "https://github.com/aptible/supercronic/releases/download/${SUPERCRONIC_VERSION}/supercronic-linux-amd64" && \
     chmod +x /usr/local/bin/supercronic
 

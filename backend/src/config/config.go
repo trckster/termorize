@@ -28,8 +28,10 @@ type Config struct {
 
 	GoogleApiKey string
 
-	OpenRouterApiKey string
-	OpenRouterModel  string
+	OpenRouterApiKey   string
+	OpenRouterModel    string
+	OpenRouterTTSModel string
+	OpenRouterTTSVoice string
 
 	SentryDSN string
 
@@ -83,8 +85,10 @@ func LoadEnv() {
 
 		GoogleApiKey: getRequiredEnv("GOOGLE_API_KEY"),
 
-		OpenRouterApiKey: getEnv("OPENROUTER_API_KEY", ""),
-		OpenRouterModel:  getEnv("OPENROUTER_MODEL", "openai/gpt-4o-mini"),
+		OpenRouterApiKey:   getEnv("OPENROUTER_API_KEY", ""),
+		OpenRouterModel:    getEnv("OPENROUTER_MODEL", "openai/gpt-4o-mini"),
+		OpenRouterTTSModel: getEnv("OPENROUTER_TTS_MODEL", "google/gemini-3.1-flash-tts-preview"),
+		OpenRouterTTSVoice: getEnv("OPENROUTER_TTS_VOICE", "Kore"),
 
 		SentryDSN: getEnv("SENTRY_DSN", ""),
 
@@ -173,6 +177,14 @@ func GetOpenRouterApiKey() string {
 
 func GetOpenRouterModel() string {
 	return config.OpenRouterModel
+}
+
+func GetOpenRouterTTSModel() string {
+	return config.OpenRouterTTSModel
+}
+
+func GetOpenRouterTTSVoice() string {
+	return config.OpenRouterTTSVoice
 }
 
 func GetJWTExpirationTime() time.Duration {

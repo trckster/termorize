@@ -54,7 +54,7 @@ func handleVocabularyAddCallback(callback *callbackQuery, payload []string) erro
 	}
 
 	updatedText := callback.Message.Text + t.VocabularyManualAddedSuffix
-	return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, updatedText, [][]inlineKeyboardButton{})
+	return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, updatedText, buildPronunciationKeyboard(translationID, t))
 }
 
 func handleVocabularyDeleteCallback(callback *callbackQuery, payload []string) error {
@@ -76,6 +76,11 @@ func handleVocabularyDeleteCallback(callback *callbackQuery, payload []string) e
 		return nil
 	}
 
+	translationID, err := services.GetVocabularyTranslationID(user.ID, vocabularyID)
+	if err != nil {
+		return err
+	}
+
 	err = services.DeleteVocabulary(user.ID, vocabularyID)
 	if err != nil && !services.VocabularyNotFoundError(err) {
 		return err
@@ -86,5 +91,6 @@ func handleVocabularyDeleteCallback(callback *callbackQuery, payload []string) e
 		updatedText = strings.TrimSuffix(callback.Message.Text, botTextsRu.VocabularyAutoAddedSuffix)
 	}
 
-	return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, updatedText, [][]inlineKeyboardButton{})
+	t := GetBotTexts(user.Settings.SystemLanguage)
+	return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, updatedText, buildPronunciationKeyboard(translationID, t))
 }

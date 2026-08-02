@@ -13,9 +13,10 @@ import (
 )
 
 const (
-	callbackTypeMenu       = "menu"
-	callbackTypeExercise   = "exercise"
-	callbackTypeVocabulary = "vocabulary"
+	callbackTypeMenu          = "menu"
+	callbackTypeExercise      = "exercise"
+	callbackTypeVocabulary    = "vocabulary"
+	callbackTypePronunciation = "pronunciation"
 
 	menuActionBack                 = "back"
 	menuActionCancel               = "cancel"
@@ -85,18 +86,29 @@ func getMenuCancelKeyboard(t BotTexts) [][]inlineKeyboardButton {
 	return [][]inlineKeyboardButton{{{Text: t.ButtonCancel, CallbackData: callbackTypeMenu + ":" + menuActionCancel}}}
 }
 
-func buildVocabularyAddKeyboard(translationID string, t BotTexts) [][]inlineKeyboardButton {
+func buildVocabularyAddKeyboard(translationID uuid.UUID, t BotTexts) [][]inlineKeyboardButton {
 	return [][]inlineKeyboardButton{{{
 		Text:         t.ButtonVocabularyAdd,
-		CallbackData: callbackTypeVocabulary + ":" + vocabularyActionAdd + ":" + translationID,
-	}}}
+		CallbackData: callbackTypeVocabulary + ":" + vocabularyActionAdd + ":" + translationID.String(),
+	}}, pronunciationButtonRow(translationID, t)}
 }
 
-func buildVocabularyDeleteKeyboard(vocabularyID string, t BotTexts) [][]inlineKeyboardButton {
+func buildVocabularyDeleteKeyboard(vocabularyID uuid.UUID, translationID uuid.UUID, t BotTexts) [][]inlineKeyboardButton {
 	return [][]inlineKeyboardButton{{{
 		Text:         t.ButtonVocabularyDelete,
-		CallbackData: callbackTypeVocabulary + ":" + vocabularyActionDelete + ":" + vocabularyID,
-	}}}
+		CallbackData: callbackTypeVocabulary + ":" + vocabularyActionDelete + ":" + vocabularyID.String(),
+	}}, pronunciationButtonRow(translationID, t)}
+}
+
+func buildPronunciationKeyboard(translationID uuid.UUID, t BotTexts) [][]inlineKeyboardButton {
+	return [][]inlineKeyboardButton{pronunciationButtonRow(translationID, t)}
+}
+
+func pronunciationButtonRow(translationID uuid.UUID, t BotTexts) []inlineKeyboardButton {
+	return []inlineKeyboardButton{{
+		Text:         t.ButtonPronunciation,
+		CallbackData: callbackTypePronunciation + ":" + compactCallbackUUID(translationID),
+	}}
 }
 
 func buildAddTranslationKeyboard(sourceLang, targetLang enums.Language, t BotTexts) [][]inlineKeyboardButton {
