@@ -89,19 +89,17 @@ const playBlob = async (blob: Blob, sequence: number) => {
     const nextAudio = new Audio(objectUrl)
     audio = nextAudio
 
-    nextAudio.addEventListener(
-        'ended',
-        () => {
-            if (audio === nextAudio) {
-                nextAudio.currentTime = 0
-                status.value = 'idle'
-                if (deactivateCurrentPronunciation === deactivatePlayback) {
-                    deactivateCurrentPronunciation = null
-                }
+    const markPlaybackIdle = () => {
+        if (audio === nextAudio) {
+            status.value = 'idle'
+            if (deactivateCurrentPronunciation === deactivatePlayback) {
+                deactivateCurrentPronunciation = null
             }
-        },
-        { once: true }
-    )
+        }
+    }
+
+    nextAudio.addEventListener('ended', markPlaybackIdle)
+    nextAudio.addEventListener('pause', markPlaybackIdle)
     nextAudio.addEventListener(
         'error',
         () => {
@@ -117,7 +115,13 @@ const playBlob = async (blob: Blob, sequence: number) => {
     )
 
     await nextAudio.play()
-    if (sequence === requestSequence && audio === nextAudio && deactivateCurrentPronunciation === deactivatePlayback) {
+    if (
+        sequence === requestSequence &&
+        audio === nextAudio &&
+        !nextAudio.paused &&
+        !nextAudio.ended &&
+        deactivateCurrentPronunciation === deactivatePlayback
+    ) {
         status.value = 'playing'
     }
 }
@@ -130,7 +134,12 @@ const resumeAudio = async (sequence: number) => {
     }
 
     await audio.play()
-    if (sequence === requestSequence && deactivateCurrentPronunciation === deactivatePlayback) {
+    if (
+        sequence === requestSequence &&
+        !audio.paused &&
+        !audio.ended &&
+        deactivateCurrentPronunciation === deactivatePlayback
+    ) {
         status.value = 'playing'
     }
 }
