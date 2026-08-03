@@ -8,6 +8,8 @@ export type TranslateRequest = {
 
 export type TranslateResponse = {
     id: string
+    original_word_id: string
+    translation_word_id: string
     translation: string
     source: 'user' | 'dictionary' | 'google'
 }

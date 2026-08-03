@@ -343,20 +343,22 @@
                         <div
                             v-for="item in orderedTranslations"
                             :key="item.id"
-                            class="group grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2 rounded-lg border border-border bg-card p-3 transition-colors hover:bg-accent/50 sm:items-center sm:gap-4 sm:p-4"
+                            class="group grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-2 rounded-lg border border-border bg-card p-3 transition-colors hover:bg-accent/50 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:gap-4 sm:p-4"
                         >
                             <button
                                 v-if="canManage"
                                 type="button"
-                                class="collection-drag-handle -ml-2 inline-flex h-11 w-11 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                class="collection-drag-handle -ml-2 col-start-1 row-start-2 inline-flex h-11 w-11 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:row-start-1"
                                 :aria-label="t.collectionReorderTranslationLabel"
                             >
                                 <GripVertical class="h-4 w-4" />
                             </button>
-                            <span v-else aria-hidden="true" />
-                            <div class="min-w-0 py-1.5 sm:py-0">
-                                <h3 class="grid min-w-0 gap-1.5 font-semibold text-foreground md:hidden">
-                                    <span class="flex min-w-0 items-start gap-2">
+                            <span v-else class="hidden sm:block" aria-hidden="true" />
+                            <div class="col-span-full row-start-1 min-w-0 py-1.5 sm:col-span-1 sm:col-start-2 sm:py-0">
+                                <h3
+                                    class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 font-semibold text-foreground sm:gap-2"
+                                >
+                                    <span class="flex min-w-0 items-center gap-0.5 sm:gap-2">
                                         <span
                                             class="shrink-0 text-xl"
                                             role="img"
@@ -364,12 +366,21 @@
                                             >{{ settingsStore.getFlag(item.original.language) }}</span
                                         >
                                         <span
-                                            class="min-w-0 break-words text-base leading-snug [overflow-wrap:anywhere]"
+                                            class="min-w-0 flex-1 break-words text-[15px] leading-snug [overflow-wrap:anywhere] min-[400px]:text-base sm:text-lg"
                                             >{{ item.original.word }}</span
                                         >
+                                        <PronunciationButton
+                                            class="-mx-1 sm:mx-0"
+                                            :word-id="item.original.id"
+                                            :word="item.original.word"
+                                            :listen-label="t.pronunciationListen"
+                                            :pause-label="t.pronunciationPause"
+                                            :loading-label="t.pronunciationLoading"
+                                            :error-label="t.pronunciationError"
+                                        />
                                     </span>
-                                    <span class="pl-7 text-muted-foreground" aria-hidden="true">↓</span>
-                                    <span class="flex min-w-0 items-start gap-2">
+                                    <span class="text-muted-foreground" aria-hidden="true">→</span>
+                                    <span class="flex min-w-0 items-center gap-0.5 sm:gap-2">
                                         <span
                                             class="shrink-0 text-xl"
                                             role="img"
@@ -377,34 +388,24 @@
                                             >{{ settingsStore.getFlag(item.translation.language) }}</span
                                         >
                                         <span
-                                            class="min-w-0 break-words text-base leading-snug [overflow-wrap:anywhere]"
+                                            class="min-w-0 flex-1 break-words text-[15px] leading-snug [overflow-wrap:anywhere] min-[400px]:text-base sm:text-lg"
                                             >{{ item.translation.word }}</span
                                         >
+                                        <PronunciationButton
+                                            class="-mx-1 sm:mx-0"
+                                            :word-id="item.translation.id"
+                                            :word="item.translation.word"
+                                            :listen-label="t.pronunciationListen"
+                                            :pause-label="t.pronunciationPause"
+                                            :loading-label="t.pronunciationLoading"
+                                            :error-label="t.pronunciationError"
+                                        />
                                     </span>
                                 </h3>
-                                <h3 class="hidden min-w-0 items-center gap-2 font-semibold text-foreground md:flex">
-                                    <span
-                                        class="shrink-0 text-xl"
-                                        role="img"
-                                        :aria-label="getLanguageName(item.original.language)"
-                                        >{{ settingsStore.getFlag(item.original.language) }}</span
-                                    >
-                                    <span class="min-w-0 break-words text-lg [overflow-wrap:anywhere]">{{
-                                        item.original.word
-                                    }}</span>
-                                    <span class="text-muted-foreground">→</span>
-                                    <span
-                                        class="shrink-0 text-xl"
-                                        role="img"
-                                        :aria-label="getLanguageName(item.translation.language)"
-                                        >{{ settingsStore.getFlag(item.translation.language) }}</span
-                                    >
-                                    <span class="min-w-0 break-words text-lg [overflow-wrap:anywhere]">{{
-                                        item.translation.word
-                                    }}</span>
-                                </h3>
                             </div>
-                            <div class="flex shrink-0 items-center gap-1">
+                            <div
+                                class="col-start-2 row-start-2 flex shrink-0 items-center justify-end gap-1 sm:col-start-3 sm:row-start-1"
+                            >
                                 <input
                                     v-if="isSelecting"
                                     type="checkbox"
@@ -489,6 +490,7 @@ import { useSettingsStore } from '@/stores/settings.ts'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast.ts'
 import LanguageSelector from '@/components/LanguageSelector.vue'
+import PronunciationButton from '@/components/PronunciationButton.vue'
 import { Button } from '@/components/ui/button'
 import {
     Dialog,

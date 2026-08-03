@@ -17,9 +17,11 @@ type TranslateRequest struct {
 }
 
 type TranslateResponse struct {
-	ID          uuid.UUID               `json:"id"`
-	Translation string                  `json:"translation"`
-	Source      enums.TranslationSource `json:"source"`
+	ID                uuid.UUID               `json:"id"`
+	OriginalWordID    uuid.UUID               `json:"original_word_id"`
+	TranslationWordID uuid.UUID               `json:"translation_word_id"`
+	Translation       string                  `json:"translation"`
+	Source            enums.TranslationSource `json:"source"`
 }
 
 func Translate(c *gin.Context) {
@@ -35,8 +37,10 @@ func Translate(c *gin.Context) {
 	}
 
 	c.JSON(nethttp.StatusOK, TranslateResponse{
-		ID:          translation.TranslationID,
-		Translation: translation.TranslatedWord,
-		Source:      translation.Source,
+		ID:                translation.TranslationID,
+		OriginalWordID:    translation.SourceWordID,
+		TranslationWordID: translation.TranslatedWordID,
+		Translation:       translation.TranslatedWord,
+		Source:            translation.Source,
 	})
 }

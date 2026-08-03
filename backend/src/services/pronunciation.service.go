@@ -2,13 +2,70 @@ package services
 
 import (
 	"errors"
+	"termorize/src/config"
 	"termorize/src/data/db"
+	"termorize/src/integrations/openrouter"
 	"termorize/src/models"
 
 	"github.com/google/uuid"
+	"golang.org/x/sync/singleflight"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
+
+var ErrWordNotFound = errors.New("word not found")
+var pronunciationGenerationGroup singleflight.Group
+
+func GetOrCreateWordPronunciation(wordID uuid.UUID) (*models.WordPronunciation, error) {
+	var word models.Word
+	if err := db.DB.Select("id", "word").Where("id = ?", wordID).First(&word).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrWordNotFound
+		}
+		return nil, err
+	}
+
+	model := config.GetOpenRouterTTSModel()
+	voice := config.GetOpenRouterTTSVoice()
+	pronunciation, err := FindWordPronunciationMetadata(wordID, model, voice)
+	if err != nil {
+		return nil, err
+	}
+
+	if pronunciation != nil {
+		pronunciation.Audio, pronunciation.MIMEType, err = GetWordPronunciationAudio(pronunciation.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		return pronunciation, nil
+	}
+
+	key := wordID.String() + "\x00" + model + "\x00" + voice
+	generated, err, _ := pronunciationGenerationGroup.Do(key, func() (any, error) {
+		pronunciation, err := FindWordPronunciationMetadata(wordID, model, voice)
+		if err != nil {
+			return nil, err
+		}
+
+		if pronunciation != nil {
+			pronunciation.Audio, pronunciation.MIMEType, err = GetWordPronunciationAudio(pronunciation.ID)
+			return pronunciation, err
+		}
+
+		audio, err := openrouter.NewSpeechClient().GenerateSpeech(word.Word)
+		if err != nil {
+			return nil, err
+		}
+
+		return StoreWordPronunciation(wordID, model, voice, audio)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return generated.(*models.WordPronunciation), nil
+}
 
 func GetTranslationTargetWord(translationID uuid.UUID) (*models.Word, error) {
 	var translation models.Translation

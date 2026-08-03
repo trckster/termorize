@@ -14,10 +14,12 @@ import (
 )
 
 type TranslationResult struct {
-	TranslationID  uuid.UUID
-	SourceWord     string
-	TranslatedWord string
-	Source         enums.TranslationSource
+	TranslationID    uuid.UUID
+	SourceWordID     uuid.UUID
+	TranslatedWordID uuid.UUID
+	SourceWord       string
+	TranslatedWord   string
+	Source           enums.TranslationSource
 }
 
 func DetectLanguage(text string) (enums.Language, bool, error) {
@@ -53,10 +55,12 @@ func Translate(fromWord string, fromLanguage enums.Language, toLanguage enums.La
 
 		if existingTranslation != nil {
 			result = TranslationResult{
-				TranslationID:  existingTranslation.ID,
-				SourceWord:     existingTranslation.Original.Word,
-				TranslatedWord: existingTranslation.Translation.Word,
-				Source:         existingTranslation.Source,
+				TranslationID:    existingTranslation.ID,
+				SourceWordID:     existingTranslation.Original.ID,
+				TranslatedWordID: existingTranslation.Translation.ID,
+				SourceWord:       existingTranslation.Original.Word,
+				TranslatedWord:   existingTranslation.Translation.Word,
+				Source:           existingTranslation.Source,
 			}
 			return nil
 		}
@@ -90,10 +94,12 @@ func Translate(fromWord string, fromLanguage enums.Language, toLanguage enums.La
 		}
 
 		result = TranslationResult{
-			TranslationID:  translation.ID,
-			SourceWord:     sourceWord.Word,
-			TranslatedWord: targetWord.Word,
-			Source:         translation.Source,
+			TranslationID:    translation.ID,
+			SourceWordID:     sourceWord.ID,
+			TranslatedWordID: targetWord.ID,
+			SourceWord:       sourceWord.Word,
+			TranslatedWord:   targetWord.Word,
+			Source:           translation.Source,
 		}
 
 		return nil

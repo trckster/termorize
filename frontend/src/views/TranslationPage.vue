@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { settingsApi } from '@/api/settings.ts'
 import { translationApi } from '@/api/translation.ts'
 import LanguageSelector from '@/components/LanguageSelector.vue'
+import PronunciationButton from '@/components/PronunciationButton.vue'
 import { Kbd } from '@/components/ui/kbd'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/composables/useToast.ts'
@@ -53,6 +54,8 @@ const targetLanguageSelectorRef = ref<LanguageSelectorInstance | null>(null)
 const sourceLang = ref(initialLanguages.source)
 const targetLang = ref(initialLanguages.target)
 const translationId = ref<string | null>(null)
+const sourceWordId = ref<string | null>(null)
+const targetWordId = ref<string | null>(null)
 const isSavingVocabulary = ref(false)
 
 const { addToast } = useToast()
@@ -72,6 +75,16 @@ const translationSourceLabel = computed(() => {
     if (translationSource.value === 'google') return t.value.translationSourceGoogle
     return translationSource.value
 })
+
+const invalidateTranslationResult = () => {
+    latestTranslationRequestId += 1
+    translationId.value = null
+    sourceWordId.value = null
+    targetWordId.value = null
+    translationSource.value = ''
+    isLoadingSource.value = false
+    isLoadingTarget.value = false
+}
 
 const focusTextarea = async (field: 'source' | 'target') => {
     await nextTick()
@@ -139,6 +152,7 @@ const performTranslation = async (
     fromText: string,
     fromLang: string,
     toLang: string,
+    direction: 'source-to-target' | 'target-to-source',
     updateTarget: (text: string) => void,
     setLoading: (loading: boolean) => void
 ) => {
@@ -146,6 +160,8 @@ const performTranslation = async (
         updateTarget('')
         translationSource.value = ''
         translationId.value = null
+        sourceWordId.value = null
+        targetWordId.value = null
         translationErrorMessage.value = ''
         return
     }
@@ -168,6 +184,13 @@ const performTranslation = async (
         updateTarget(result.translation)
         translationSource.value = result.source
         translationId.value = result.id
+        if (direction === 'source-to-target') {
+            sourceWordId.value = result.original_word_id
+            targetWordId.value = result.translation_word_id
+        } else {
+            sourceWordId.value = result.translation_word_id
+            targetWordId.value = result.original_word_id
+        }
     } catch (error) {
         if (requestId !== latestTranslationRequestId) {
             return
@@ -176,6 +199,8 @@ const performTranslation = async (
         console.error('Translation error:', error)
         translationSource.value = ''
         translationId.value = null
+        sourceWordId.value = null
+        targetWordId.value = null
         translationErrorMessage.value = t.value.translationTranslateErrorDescription
     } finally {
         if (requestId === latestTranslationRequestId) {
@@ -188,6 +213,7 @@ const debouncedTranslate = (
     fromText: string,
     fromLang: string,
     toLang: string,
+    direction: 'source-to-target' | 'target-to-source',
     updateTarget: (text: string) => void,
     setLoading: (loading: boolean) => void
 ) => {
@@ -196,7 +222,7 @@ const debouncedTranslate = (
     }
 
     debounceTimer = setTimeout(() => {
-        performTranslation(fromText, fromLang, toLang, updateTarget, setLoading)
+        performTranslation(fromText, fromLang, toLang, direction, updateTarget, setLoading)
     }, 500)
 }
 
@@ -205,6 +231,7 @@ const queueSourceToTargetTranslation = (fromText: string) => {
         fromText,
         sourceLang.value,
         targetLang.value,
+        'source-to-target',
         (text) => {
             translatedText.value = text
         },
@@ -219,6 +246,7 @@ const queueTargetToSourceTranslation = (fromText: string) => {
         fromText,
         targetLang.value,
         sourceLang.value,
+        'target-to-source',
         (text) => {
             sourceText.value = text
         },
@@ -234,7 +262,7 @@ const triggerActiveFieldTranslation = (requireText: boolean = false) => {
             return
         }
 
-        translationId.value = null
+        invalidateTranslationResult()
         queueSourceToTargetTranslation(sourceText.value)
         return
     }
@@ -244,7 +272,7 @@ const triggerActiveFieldTranslation = (requireText: boolean = false) => {
             return
         }
 
-        translationId.value = null
+        invalidateTranslationResult()
         queueTargetToSourceTranslation(translatedText.value)
     }
 }
@@ -253,7 +281,7 @@ watch(
     sourceText,
     (newValue) => {
         if (activeField.value !== 'source') return
-        translationId.value = null
+        invalidateTranslationResult()
         translationErrorMessage.value = ''
         queueSourceToTargetTranslation(newValue)
     },
@@ -264,7 +292,7 @@ watch(
     translatedText,
     (newValue) => {
         if (activeField.value !== 'target') return
-        translationId.value = null
+        invalidateTranslationResult()
         translationErrorMessage.value = ''
         queueTargetToSourceTranslation(newValue)
     },
@@ -305,6 +333,7 @@ const handleSwapLanguages = () => {
     isLoadingTarget.value = false
     ;[sourceLang.value, targetLang.value] = [targetLang.value, sourceLang.value]
     ;[sourceText.value, translatedText.value] = [translatedText.value, sourceText.value]
+    ;[sourceWordId.value, targetWordId.value] = [targetWordId.value, sourceWordId.value]
 
     void nextTick(() => {
         isSwappingLanguages = false
@@ -456,9 +485,19 @@ onBeforeUnmount(() => {
                             <div class="motion-safe:animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                         </div>
                     </div>
-                    <p class="text-xs text-muted-foreground text-right">
-                        {{ sourceText.length }} {{ t.translationCharacters }}
-                    </p>
+                    <div class="flex min-h-11 items-center justify-between gap-3">
+                        <PronunciationButton
+                            :word-id="sourceWordId"
+                            :word="sourceText"
+                            :listen-label="t.pronunciationListen"
+                            :pause-label="t.pronunciationPause"
+                            :loading-label="t.pronunciationLoading"
+                            :error-label="t.pronunciationError"
+                        />
+                        <p class="text-right text-xs text-muted-foreground">
+                            {{ sourceText.length }} {{ t.translationCharacters }}
+                        </p>
+                    </div>
                 </div>
 
                 <div class="flex items-center justify-center lg:pt-14">
@@ -509,9 +548,19 @@ onBeforeUnmount(() => {
                             <div class="motion-safe:animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                         </div>
                     </div>
-                    <p class="text-xs text-muted-foreground text-right">
-                        {{ translatedText.length }} {{ t.translationCharacters }}
-                    </p>
+                    <div class="flex min-h-11 items-center justify-between gap-3">
+                        <PronunciationButton
+                            :word-id="targetWordId"
+                            :word="translatedText"
+                            :listen-label="t.pronunciationListen"
+                            :pause-label="t.pronunciationPause"
+                            :loading-label="t.pronunciationLoading"
+                            :error-label="t.pronunciationError"
+                        />
+                        <p class="text-right text-xs text-muted-foreground">
+                            {{ translatedText.length }} {{ t.translationCharacters }}
+                        </p>
+                    </div>
                 </div>
             </div>
 
