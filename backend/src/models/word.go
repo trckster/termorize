@@ -8,7 +8,7 @@ import (
 )
 
 type Word struct {
-	ID        uuid.UUID      `json:"-" gorm:"default:gen_random_uuid()"`
+	ID        uuid.UUID      `json:"id" gorm:"default:gen_random_uuid()"`
 	Word      string         `json:"word"`
 	Language  enums.Language `json:"language"`
 	CreatedAt time.Time      `json:"-"`

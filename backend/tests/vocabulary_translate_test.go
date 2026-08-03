@@ -885,13 +885,17 @@ func TestTranslateUserPathSavesAndListsVocabulary(t *testing.T) {
 	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
-		ID          uuid.UUID               `json:"id"`
-		Translation string                  `json:"translation"`
-		Source      enums.TranslationSource `json:"source"`
+		ID                uuid.UUID               `json:"id"`
+		OriginalWordID    uuid.UUID               `json:"original_word_id"`
+		TranslationWordID uuid.UUID               `json:"translation_word_id"`
+		Translation       string                  `json:"translation"`
+		Source            enums.TranslationSource `json:"source"`
 	}
 	testkit.DecodeJSON(t, rec, &body)
 
 	assert.NotEqual(t, uuid.Nil, body.ID)
+	assert.NotEqual(t, uuid.Nil, body.OriginalWordID)
+	assert.NotEqual(t, uuid.Nil, body.TranslationWordID)
 	assert.Equal(t, "hund", body.Translation)
 	assert.Equal(t, enums.TranslationSourceGoogle, body.Source)
 
@@ -899,6 +903,8 @@ func TestTranslateUserPathSavesAndListsVocabulary(t *testing.T) {
 	var translation models.Translation
 	require.NoError(t, db.DB.Where("id = ?", body.ID).First(&translation).Error)
 	assert.Equal(t, enums.TranslationSourceGoogle, translation.Source)
+	assert.Equal(t, body.OriginalWordID, translation.OriginalID)
+	assert.Equal(t, body.TranslationWordID, translation.TranslationID)
 
 	createRec := testkit.AuthedRequest(
 		t,

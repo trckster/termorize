@@ -115,11 +115,11 @@
                 >
                     <div class="grid min-w-0 grid-cols-1 gap-4 items-center md:grid-cols-12">
                         <!-- Part 1: Words -->
-                        <div class="min-w-0 md:col-span-4">
+                        <div class="min-w-0 md:col-span-5">
                             <h3
-                                class="grid min-w-0 gap-2 font-semibold text-foreground sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-start"
+                                class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 font-semibold text-foreground sm:gap-2"
                             >
-                                <span class="flex min-w-0 items-start gap-2">
+                                <span class="flex min-w-0 items-center gap-0.5 sm:gap-2">
                                     <span
                                         class="shrink-0 text-xl"
                                         role="img"
@@ -127,15 +127,21 @@
                                         >{{ settingsStore.getFlag(item.translation.original.language) }}</span
                                     >
                                     <span
-                                        class="min-w-0 break-words text-base leading-snug [overflow-wrap:anywhere] sm:text-lg"
+                                        class="min-w-0 flex-1 break-words text-sm leading-snug [overflow-wrap:anywhere] min-[400px]:text-base sm:text-lg"
                                         >{{ item.translation.original.word }}</span
                                     >
+                                    <PronunciationButton
+                                        class="-mx-1 sm:mx-0"
+                                        :word-id="item.translation.original.id"
+                                        :word="item.translation.original.word"
+                                        :listen-label="t.pronunciationListen"
+                                        :pause-label="t.pronunciationPause"
+                                        :loading-label="t.pronunciationLoading"
+                                        :error-label="t.pronunciationError"
+                                    />
                                 </span>
-                                <span class="pl-7 text-muted-foreground sm:pl-0" aria-hidden="true">
-                                    <span class="sm:hidden">↓</span>
-                                    <span class="hidden sm:inline">→</span>
-                                </span>
-                                <span class="flex min-w-0 items-start gap-2">
+                                <span class="text-muted-foreground" aria-hidden="true">→</span>
+                                <span class="flex min-w-0 items-center gap-0.5 sm:gap-2">
                                     <span
                                         class="shrink-0 text-xl"
                                         role="img"
@@ -143,15 +149,24 @@
                                         >{{ settingsStore.getFlag(item.translation.translation.language) }}</span
                                     >
                                     <span
-                                        class="min-w-0 break-words text-base leading-snug [overflow-wrap:anywhere] sm:text-lg"
+                                        class="min-w-0 flex-1 break-words text-sm leading-snug [overflow-wrap:anywhere] min-[400px]:text-base sm:text-lg"
                                         >{{ item.translation.translation.word }}</span
                                     >
+                                    <PronunciationButton
+                                        class="-mx-1 sm:mx-0"
+                                        :word-id="item.translation.translation.id"
+                                        :word="item.translation.translation.word"
+                                        :listen-label="t.pronunciationListen"
+                                        :pause-label="t.pronunciationPause"
+                                        :loading-label="t.pronunciationLoading"
+                                        :error-label="t.pronunciationError"
+                                    />
                                 </span>
                             </h3>
                         </div>
 
                         <!-- Part 2: Progress -->
-                        <div class="min-w-0 md:col-span-5 flex flex-col gap-3">
+                        <div class="min-w-0 md:col-span-4 flex flex-col gap-3">
                             <div v-if="item.progress && item.progress.length > 0">
                                 <div v-for="(prog, idx) in item.progress" :key="idx" class="w-full">
                                     <Progress :model-value="prog.knowledge" class="h-2" />
@@ -294,6 +309,7 @@ import { useAuthStore } from '@/stores/auth.ts'
 import { useSettingsStore } from '@/stores/settings.ts'
 import { useI18n } from '@/composables/useI18n'
 import LanguageSelector from '@/components/LanguageSelector.vue'
+import PronunciationButton from '@/components/PronunciationButton.vue'
 import { Pagination, PaginationContent, PaginationItem, PaginationEllipsis } from '@/components/ui/pagination'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
