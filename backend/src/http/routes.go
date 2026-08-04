@@ -12,6 +12,7 @@ import (
 func defineProtectedRoutes(group *gin.RouterGroup) {
 	group.GET("/me", controllers.Me)
 	group.PUT("/settings", controllers.UpdateSettings)
+	group.GET("/admin/users", controllers.GetAdminUsers)
 
 	group.GET("/vocabulary", controllers.GetVocabulary)
 	group.POST("/vocabulary", controllers.CreateVocabulary)
