@@ -1,8 +1,6 @@
 package telegram
 
 import (
-	"termorize/src/config"
-	"termorize/src/integrations/openrouter"
 	"termorize/src/logger"
 	"termorize/src/services"
 )
@@ -23,9 +21,7 @@ func handlePronunciationCallback(callback *callbackQuery, payload []string) {
 		return
 	}
 
-	model := config.GetOpenRouterTTSModel()
-	voice := config.GetOpenRouterTTSVoice()
-	pronunciation, err := services.FindWordPronunciationMetadata(targetWord.ID, model, voice)
+	pronunciation, err := services.FindConfiguredWordPronunciationMetadata(targetWord.ID, string(targetWord.Language))
 	if err != nil {
 		logPronunciationFailure("failed to load pronunciation cache", err, translationID.String())
 		return
@@ -41,15 +37,9 @@ func handlePronunciationCallback(callback *callbackQuery, payload []string) {
 	}
 
 	if pronunciation == nil {
-		audio, err := openrouter.NewSpeechClient().GenerateSpeech(targetWord.Word)
+		pronunciation, err = services.GetOrCreateWordPronunciation(targetWord.ID)
 		if err != nil {
 			logPronunciationFailure("failed to generate pronunciation", err, translationID.String())
-			return
-		}
-
-		pronunciation, err = services.StoreWordPronunciation(targetWord.ID, model, voice, audio)
-		if err != nil {
-			logPronunciationFailure("failed to store pronunciation", err, translationID.String())
 			return
 		}
 	} else {

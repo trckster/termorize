@@ -98,7 +98,7 @@ func TestTelegramPronunciationCacheMissGeneratesStoresAndUploadsMP3(t *testing.T
 	generated := 0
 	testkit.MockOpenRouterSpeech(t, &testkit.FakeOpenRouterSpeech{GenerateFunc: func(input string) ([]byte, error) {
 		generated++
-		assert.Equal(t, target.Word, input)
+		assert.Equal(t, "Synthesize speech in German. Speak only the transcript exactly as written.\nTranscript: \"Hund\"", input)
 		return audio, nil
 	}})
 

@@ -43,6 +43,7 @@ func TestSpeechClientRequestsPCMAndReturnsEncodedMP3(t *testing.T) {
 		apiKey:  "secret",
 		model:   "google/gemini-3.1-flash-tts-preview",
 		voice:   "Kore",
+		format:  "pcm",
 		referer: "https://termorize.test",
 		http:    server.Client(),
 		encodePCM: func(actual []byte) ([]byte, error) {
@@ -52,6 +53,36 @@ func TestSpeechClientRequestsPCMAndReturnsEncodedMP3(t *testing.T) {
 	}
 
 	audio, err := client.GenerateSpeech("buongiorno")
+
+	require.NoError(t, err)
+	require.Equal(t, expectedMP3, audio)
+}
+
+func TestSpeechClientReturnsMP3WithoutEncoding(t *testing.T) {
+	expectedMP3 := []byte{0xff, 0xfb, 0x90, 0x64}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request speechRequest
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&request))
+		require.Equal(t, "mp3", request.ResponseFormat)
+		w.Header().Set("Content-Type", "audio/mpeg")
+		_, _ = w.Write(expectedMP3)
+	}))
+	defer server.Close()
+
+	restoreSpeechURL(t, server.URL)
+	client := &speechClient{
+		apiKey: "secret",
+		model:  "microsoft/mai-voice-2",
+		voice:  "it-IT-Rosa:MAI-Voice-2",
+		format: "mp3",
+		http:   server.Client(),
+		encodePCM: func([]byte) ([]byte, error) {
+			t.Fatal("MP3 responses must not be encoded as PCM")
+			return nil, nil
+		},
+	}
+
+	audio, err := client.GenerateSpeech("radio")
 
 	require.NoError(t, err)
 	require.Equal(t, expectedMP3, audio)

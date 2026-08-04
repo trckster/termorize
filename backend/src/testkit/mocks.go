@@ -85,7 +85,7 @@ func MockOpenRouterSpeech(t *testing.T, fake *FakeOpenRouterSpeech) *FakeOpenRou
 	}
 
 	original := openrouter.NewSpeechClient
-	openrouter.NewSpeechClient = func() openrouter.SpeechClient { return fake }
+	openrouter.NewSpeechClient = func(string, string, string) openrouter.SpeechClient { return fake }
 	t.Cleanup(func() { openrouter.NewSpeechClient = original })
 
 	return fake
@@ -94,7 +94,7 @@ func MockOpenRouterSpeech(t *testing.T, fake *FakeOpenRouterSpeech) *FakeOpenRou
 func installDefaultExternalFakes() {
 	google.NewTranslateClient = func() google.TranslateClient { return &FakeGoogleTranslate{} }
 	openrouter.NewClient = func() openrouter.Client { return &FakeOpenRouter{} }
-	openrouter.NewSpeechClient = func() openrouter.SpeechClient { return &FakeOpenRouterSpeech{} }
+	openrouter.NewSpeechClient = func(string, string, string) openrouter.SpeechClient { return &FakeOpenRouterSpeech{} }
 
 	telegram.SetAPIBaseURLForTest("http://127.0.0.1:0")
 }

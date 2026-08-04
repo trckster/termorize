@@ -38,10 +38,18 @@ type Config struct {
 var config *Config
 
 const (
-	openRouterModel    = "google/gemini-2.5-flash"
-	openRouterTTSModel = "google/gemini-3.1-flash-tts-preview"
-	openRouterTTSVoice = "Kore"
+	openRouterModel            = "google/gemini-2.5-flash"
+	openRouterTTSModel         = "google/gemini-3.1-flash-tts-preview"
+	openRouterTTSVoice         = "Kore"
+	openRouterFallbackTTSModel = "microsoft/mai-voice-2"
 )
+
+type OpenRouterTTSConfig struct {
+	Model          string
+	Voice          string
+	ResponseFormat string
+	LanguagePrompt bool
+}
 
 func getEnv(key, defaultValue string) string {
 	value := os.Getenv(key)
@@ -185,6 +193,30 @@ func GetOpenRouterTTSModel() string {
 
 func GetOpenRouterTTSVoice() string {
 	return openRouterTTSVoice
+}
+
+func GetOpenRouterTTSConfigs(language string) []OpenRouterTTSConfig {
+	return []OpenRouterTTSConfig{
+		{Model: openRouterTTSModel, Voice: openRouterTTSVoice, ResponseFormat: "pcm", LanguagePrompt: true},
+		{Model: openRouterFallbackTTSModel, Voice: getOpenRouterFallbackTTSVoice(language), ResponseFormat: "mp3"},
+	}
+}
+
+func getOpenRouterFallbackTTSVoice(language string) string {
+	voices := map[string]string{
+		"en": "en-US-Harper:MAI-Voice-2",
+		"ru": "ru-RU-SvetlanaNeural",
+		"it": "it-IT-Rosa:MAI-Voice-2",
+		"de": "de-DE-Mia:MAI-Voice-2",
+		"es": "es-ES-Marta:MAI-Voice-2",
+		"fr": "fr-FR-Soleil:MAI-Voice-2",
+		"pl": "pl-PL-ZofiaNeural",
+		"tr": "tr-TR-EmelNeural",
+	}
+	if voice, ok := voices[language]; ok {
+		return voice
+	}
+	return voices["en"]
 }
 
 func GetJWTExpirationTime() time.Duration {

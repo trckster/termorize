@@ -34,7 +34,7 @@ func TestWordPronunciationCacheMissGeneratesStoresAndReturnsMP3(t *testing.T) {
 	generated := 0
 	testkit.MockOpenRouterSpeech(t, &testkit.FakeOpenRouterSpeech{GenerateFunc: func(input string) ([]byte, error) {
 		generated++
-		assert.Equal(t, word.Word, input)
+		assert.Equal(t, "Synthesize speech in Italian. Speak only the transcript exactly as written.\nTranscript: \"buongiorno\"", input)
 		return audio, nil
 	}})
 
@@ -52,6 +52,39 @@ func TestWordPronunciationCacheMissGeneratesStoresAndReturnsMP3(t *testing.T) {
 	assert.Equal(t, audio, stored.Audio)
 	assert.Equal(t, config.GetOpenRouterTTSModel(), stored.Model)
 	assert.Equal(t, config.GetOpenRouterTTSVoice(), stored.Voice)
+}
+
+func TestWordPronunciationFallsBackToSecondaryModel(t *testing.T) {
+	testkit.Truncate(t)
+	user := testkit.CreateUser(t)
+	word := createPronunciationWord(t, "radio")
+	audio := []byte("fallback-mp3")
+	generated := 0
+	var inputs []string
+	testkit.MockOpenRouterSpeech(t, &testkit.FakeOpenRouterSpeech{GenerateFunc: func(input string) ([]byte, error) {
+		generated++
+		inputs = append(inputs, input)
+		if generated == 1 {
+			return nil, errors.New("empty audio")
+		}
+		return audio, nil
+	}})
+
+	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/words/"+word.ID.String()+"/pronunciation", nil)
+
+	testkit.RequireStatus(t, rec, http.StatusOK)
+	assert.Equal(t, audio, rec.Body.Bytes())
+	assert.Equal(t, 2, generated)
+	assert.Equal(t, []string{
+		"Synthesize speech in Italian. Speak only the transcript exactly as written.\nTranscript: \"radio\"",
+		"radio",
+	}, inputs)
+
+	var stored models.WordPronunciation
+	require.NoError(t, db.DB.Where("word_id = ?", word.ID).First(&stored).Error)
+	fallback := config.GetOpenRouterTTSConfigs(string(word.Language))[1]
+	assert.Equal(t, fallback.Model, stored.Model)
+	assert.Equal(t, fallback.Voice, stored.Voice)
 }
 
 func TestWordPronunciationCacheHitReturnsStoredAudioWithoutGenerating(t *testing.T) {
