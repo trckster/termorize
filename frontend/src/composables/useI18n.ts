@@ -8,6 +8,21 @@ const en = {
     navVocabulary: 'Vocabulary',
     navExercises: 'Exercises',
     navStatistics: 'Statistics',
+    navUsers: 'Users',
+
+    // Admin users page
+    usersHeading: 'Users',
+    usersDescription: 'The 50 most recently active users, sorted by vocabulary additions and finished exercises.',
+    usersTotal: 'Total users',
+    usersId: 'User ID',
+    usersName: 'Name',
+    usersUsername: 'Username',
+    usersVocabularySize: 'Vocabulary size',
+    usersLatestUsage: 'Latest usage',
+    usersLoadError: 'Unable to load users. Please try again.',
+    usersEmpty: 'No recent activity',
+    usersEmptyDescription: 'Users will appear after adding vocabulary or finishing an exercise.',
+    usersNotAvailable: 'Not available',
 
     // Header
     headerChangeTheme: 'Change theme',
@@ -442,6 +457,21 @@ const ru: typeof en = {
     navVocabulary: 'Словарь',
     navExercises: 'Упражнения',
     navStatistics: 'Статистика',
+    navUsers: 'Пользователи',
+
+    // Admin users page
+    usersHeading: 'Пользователи',
+    usersDescription: '50 последних активных пользователей по добавлениям в словарь и завершённым упражнениям.',
+    usersTotal: 'Всего пользователей',
+    usersId: 'ID пользователя',
+    usersName: 'Имя',
+    usersUsername: 'Имя пользователя',
+    usersVocabularySize: 'Размер словаря',
+    usersLatestUsage: 'Последняя активность',
+    usersLoadError: 'Не удалось загрузить пользователей. Попробуйте ещё раз.',
+    usersEmpty: 'Недавней активности нет',
+    usersEmptyDescription: 'Пользователи появятся после добавления слов или завершения упражнения.',
+    usersNotAvailable: 'Недоступно',
 
     // Header
     headerChangeTheme: 'Сменить тему',

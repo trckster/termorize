@@ -78,6 +78,12 @@ const router = createRouter({
                     name: 'settings',
                     component: () => import('@/views/SettingsPage.vue'),
                 },
+                {
+                    path: 'users',
+                    name: 'users',
+                    component: () => import('@/views/UsersPage.vue'),
+                    meta: { requiresAdmin: true },
+                },
             ],
         },
     ],
@@ -128,6 +134,8 @@ router.beforeEach(async (to, _from, next) => {
 
     if (to.meta.requiresAuth && !authStore.isAuthenticated) {
         next('/')
+    } else if (to.meta.requiresAdmin && !authStore.user?.is_admin) {
+        next({ name: 'translation' })
     } else if (to.meta.guest && authStore.isAuthenticated) {
         next({ name: 'translation' })
     } else {
