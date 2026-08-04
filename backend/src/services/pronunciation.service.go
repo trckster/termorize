@@ -2,9 +2,11 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"termorize/src/config"
 	"termorize/src/data/db"
 	"termorize/src/integrations/openrouter"
+	"termorize/src/logger"
 	"termorize/src/models"
 
 	"github.com/google/uuid"
@@ -18,16 +20,14 @@ var pronunciationGenerationGroup singleflight.Group
 
 func GetOrCreateWordPronunciation(wordID uuid.UUID) (*models.WordPronunciation, error) {
 	var word models.Word
-	if err := db.DB.Select("id", "word").Where("id = ?", wordID).First(&word).Error; err != nil {
+	if err := db.DB.Select("id", "word", "language").Where("id = ?", wordID).First(&word).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrWordNotFound
 		}
 		return nil, err
 	}
 
-	model := config.GetOpenRouterTTSModel()
-	voice := config.GetOpenRouterTTSVoice()
-	pronunciation, err := FindWordPronunciationMetadata(wordID, model, voice)
+	pronunciation, err := FindConfiguredWordPronunciationMetadata(wordID, string(word.Language))
 	if err != nil {
 		return nil, err
 	}
@@ -41,9 +41,9 @@ func GetOrCreateWordPronunciation(wordID uuid.UUID) (*models.WordPronunciation, 
 		return pronunciation, nil
 	}
 
-	key := wordID.String() + "\x00" + model + "\x00" + voice
+	key := wordID.String()
 	generated, err, _ := pronunciationGenerationGroup.Do(key, func() (any, error) {
-		pronunciation, err := FindWordPronunciationMetadata(wordID, model, voice)
+		pronunciation, err := FindConfiguredWordPronunciationMetadata(wordID, string(word.Language))
 		if err != nil {
 			return nil, err
 		}
@@ -53,18 +53,52 @@ func GetOrCreateWordPronunciation(wordID uuid.UUID) (*models.WordPronunciation, 
 			return pronunciation, err
 		}
 
-		audio, err := openrouter.NewSpeechClient().GenerateSpeech(word.Word)
-		if err != nil {
-			return nil, err
+		input := fmt.Sprintf(
+			"Synthesize speech in %s. Speak only the transcript exactly as written.\nTranscript: %q",
+			word.Language.DisplayName(),
+			word.Word,
+		)
+		var generationErrors []error
+		for _, speechConfig := range config.GetOpenRouterTTSConfigs(string(word.Language)) {
+			audio, err := openrouter.NewSpeechClient(
+				speechConfig.Model,
+				speechConfig.Voice,
+				speechConfig.ResponseFormat,
+			).GenerateSpeech(input)
+			if err == nil {
+				return StoreWordPronunciation(wordID, speechConfig.Model, speechConfig.Voice, audio)
+			}
+
+			logger.L().Warnw(
+				"pronunciation generation failed",
+				"error", err,
+				"model", speechConfig.Model,
+				"word_id", wordID,
+			)
+			generationErrors = append(generationErrors, fmt.Errorf("%s: %w", speechConfig.Model, err))
 		}
 
-		return StoreWordPronunciation(wordID, model, voice, audio)
+		return nil, fmt.Errorf("all pronunciation models failed: %w", errors.Join(generationErrors...))
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	return generated.(*models.WordPronunciation), nil
+}
+
+func FindConfiguredWordPronunciationMetadata(wordID uuid.UUID, language string) (*models.WordPronunciation, error) {
+	for _, speechConfig := range config.GetOpenRouterTTSConfigs(language) {
+		pronunciation, err := FindWordPronunciationMetadata(wordID, speechConfig.Model, speechConfig.Voice)
+		if err != nil {
+			return nil, err
+		}
+		if pronunciation != nil {
+			return pronunciation, nil
+		}
+	}
+
+	return nil, nil
 }
 
 func GetTranslationTargetWord(translationID uuid.UUID) (*models.Word, error) {

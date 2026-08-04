@@ -26,16 +26,18 @@ type speechClient struct {
 	apiKey    string
 	model     string
 	voice     string
+	format    string
 	referer   string
 	http      *http.Client
 	encodePCM func([]byte) ([]byte, error)
 }
 
-var NewSpeechClient = func() SpeechClient {
+var NewSpeechClient = func(model, voice, responseFormat string) SpeechClient {
 	return &speechClient{
 		apiKey:    config.GetOpenRouterApiKey(),
-		model:     config.GetOpenRouterTTSModel(),
-		voice:     config.GetOpenRouterTTSVoice(),
+		model:     model,
+		voice:     voice,
+		format:    responseFormat,
 		referer:   config.GetPublicURL(),
 		http:      &http.Client{Timeout: 30 * time.Second},
 		encodePCM: encodePCMToMP3,
@@ -58,7 +60,7 @@ func (c *speechClient) GenerateSpeech(input string) ([]byte, error) {
 		Model:          c.model,
 		Input:          input,
 		Voice:          c.voice,
-		ResponseFormat: "pcm",
+		ResponseFormat: c.format,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal openrouter speech request: %w", err)
@@ -91,6 +93,9 @@ func (c *speechClient) GenerateSpeech(input string) ([]byte, error) {
 
 	if len(body) == 0 {
 		return nil, errors.New("openrouter speech returned empty audio")
+	}
+	if c.format == "mp3" {
+		return body, nil
 	}
 
 	encodePCM := c.encodePCM
