@@ -333,12 +333,13 @@ const { t } = useI18n()
 
 const vocabulary = ref<VocabularyItem[]>([])
 const currentPage = ref(1)
-const paginationData = ref<PaginationData>({
+const defaultPaginationData = (): PaginationData => ({
     page: 1,
     page_size: 20,
     total: 0,
     total_pages: 0,
 })
+const paginationData = ref<PaginationData>(defaultPaginationData())
 const deletingId = ref<string | null>(null)
 const isAddDialogOpen = ref(false)
 const isAdding = ref(false)
@@ -472,10 +473,16 @@ const fetchVocabulary = async (page: number) => {
             paginationData.value.page_size,
             search.value || undefined
         )
+
+        if (!response?.pagination || !Array.isArray(response.data)) {
+            throw new Error('Invalid vocabulary response')
+        }
+
         vocabulary.value = response.data
         paginationData.value = response.pagination
     } catch {
         vocabulary.value = []
+        paginationData.value = defaultPaginationData()
         vocabularyErrorMessage.value = t.value.vocabularyToastErrorDescription
     } finally {
         isLoadingVocabulary.value = false
