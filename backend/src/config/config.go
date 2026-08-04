@@ -48,6 +48,7 @@ type OpenRouterTTSConfig struct {
 	Model          string
 	Voice          string
 	ResponseFormat string
+	LanguagePrompt bool
 }
 
 func getEnv(key, defaultValue string) string {
@@ -196,7 +197,7 @@ func GetOpenRouterTTSVoice() string {
 
 func GetOpenRouterTTSConfigs(language string) []OpenRouterTTSConfig {
 	return []OpenRouterTTSConfig{
-		{Model: openRouterTTSModel, Voice: openRouterTTSVoice, ResponseFormat: "pcm"},
+		{Model: openRouterTTSModel, Voice: openRouterTTSVoice, ResponseFormat: "pcm", LanguagePrompt: true},
 		{Model: openRouterFallbackTTSModel, Voice: getOpenRouterFallbackTTSVoice(language), ResponseFormat: "mp3"},
 	}
 }

@@ -60,8 +60,10 @@ func TestWordPronunciationFallsBackToSecondaryModel(t *testing.T) {
 	word := createPronunciationWord(t, "radio")
 	audio := []byte("fallback-mp3")
 	generated := 0
-	testkit.MockOpenRouterSpeech(t, &testkit.FakeOpenRouterSpeech{GenerateFunc: func(string) ([]byte, error) {
+	var inputs []string
+	testkit.MockOpenRouterSpeech(t, &testkit.FakeOpenRouterSpeech{GenerateFunc: func(input string) ([]byte, error) {
 		generated++
+		inputs = append(inputs, input)
 		if generated == 1 {
 			return nil, errors.New("empty audio")
 		}
@@ -73,6 +75,10 @@ func TestWordPronunciationFallsBackToSecondaryModel(t *testing.T) {
 	testkit.RequireStatus(t, rec, http.StatusOK)
 	assert.Equal(t, audio, rec.Body.Bytes())
 	assert.Equal(t, 2, generated)
+	assert.Equal(t, []string{
+		"Synthesize speech in Italian. Speak only the transcript exactly as written.\nTranscript: \"radio\"",
+		"radio",
+	}, inputs)
 
 	var stored models.WordPronunciation
 	require.NoError(t, db.DB.Where("word_id = ?", word.ID).First(&stored).Error)

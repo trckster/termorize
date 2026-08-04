@@ -53,13 +53,16 @@ func GetOrCreateWordPronunciation(wordID uuid.UUID) (*models.WordPronunciation, 
 			return pronunciation, err
 		}
 
-		input := fmt.Sprintf(
-			"Synthesize speech in %s. Speak only the transcript exactly as written.\nTranscript: %q",
-			word.Language.DisplayName(),
-			word.Word,
-		)
 		var generationErrors []error
 		for _, speechConfig := range config.GetOpenRouterTTSConfigs(string(word.Language)) {
+			input := word.Word
+			if speechConfig.LanguagePrompt {
+				input = fmt.Sprintf(
+					"Synthesize speech in %s. Speak only the transcript exactly as written.\nTranscript: %q",
+					word.Language.DisplayName(),
+					word.Word,
+				)
+			}
 			audio, err := openrouter.NewSpeechClient(
 				speechConfig.Model,
 				speechConfig.Voice,
