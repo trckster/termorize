@@ -100,6 +100,7 @@ type BotTexts struct {
 	ButtonVocabularyAdd         string
 	ButtonVocabularyDelete      string
 	ButtonPronunciation         string
+	OpenRouterLimitFormat       string
 
 	ButtonChangeLanguagePrefix string
 
@@ -215,6 +216,7 @@ var botTextsEn = BotTexts{
 	ButtonVocabularyAdd:         "Add to vocabulary",
 	ButtonVocabularyDelete:      "Delete from vocabulary",
 	ButtonPronunciation:         "🔊 Pronunciation",
+	OpenRouterLimitFormat:       "Your AI spending limit has been reached. Try again after %s.",
 
 	ButtonChangeLanguagePrefix: "Change ",
 
@@ -343,6 +345,7 @@ var botTextsRu = BotTexts{
 	ButtonVocabularyAdd:         "Добавить в словарь",
 	ButtonVocabularyDelete:      "Удалить из словаря",
 	ButtonPronunciation:         "🔊 Произношение",
+	OpenRouterLimitFormat:       "Лимит расходов на ИИ исчерпан. Попробуйте снова после %s.",
 
 	ButtonChangeLanguagePrefix: "Изменить ",
 

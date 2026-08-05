@@ -679,10 +679,13 @@ func GenerateCollection(userID uint, prompt string) (*CollectionDetail, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := CheckOpenRouterSpendingLimit(userID); err != nil {
+		return nil, err
+	}
 
 	result, err := openrouter.NewClient().GenerateCollection(prompt, enums.AllLanguages())
 	if result != nil {
-		recordOpenRouterUsage(userID, result.Usage)
+		RecordOpenRouterUsage(userID, result.Usage)
 	}
 	if err != nil {
 		if errors.Is(err, openrouter.ErrNotConfigured) {
@@ -781,30 +784,6 @@ func GenerateCollection(userID uint, prompt string) (*CollectionDetail, error) {
 	}
 
 	return GetCollection(userID, collection.ID)
-}
-
-func recordOpenRouterUsage(userID uint, usage openrouter.Usage) {
-	// Responses without any accounting metadata did not reach billable inference.
-	if usage.GenerationID == "" && usage.Cost == 0 && usage.TotalTokens == 0 {
-		return
-	}
-
-	var generationID *string
-	if usage.GenerationID != "" {
-		generationID = &usage.GenerationID
-	}
-	record := models.OpenRouterUsage{
-		UserID:           userID,
-		GenerationID:     generationID,
-		Model:            usage.Model,
-		Cost:             usage.Cost,
-		PromptTokens:     usage.PromptTokens,
-		CompletionTokens: usage.CompletionTokens,
-		TotalTokens:      usage.TotalTokens,
-	}
-	if err := db.DB.Create(&record).Error; err != nil {
-		logger.L().Errorw("failed to persist openrouter usage", "error", err, "user_id", userID, "generation_id", usage.GenerationID)
-	}
 }
 
 func SetCollectionIsPublished(userID uint, collectionID uuid.UUID, isPublished bool) (*CollectionDetail, error) {

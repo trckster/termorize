@@ -18,7 +18,7 @@ import (
 var ErrWordNotFound = errors.New("word not found")
 var pronunciationGenerationGroup singleflight.Group
 
-func GetOrCreateWordPronunciation(wordID uuid.UUID) (*models.WordPronunciation, error) {
+func GetOrCreateWordPronunciation(userID uint, wordID uuid.UUID) (*models.WordPronunciation, error) {
 	var word models.Word
 	if err := db.DB.Select("id", "word", "language").Where("id = ?", wordID).First(&word).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -52,9 +52,11 @@ func GetOrCreateWordPronunciation(wordID uuid.UUID) (*models.WordPronunciation, 
 			pronunciation.Audio, pronunciation.MIMEType, err = GetWordPronunciationAudio(pronunciation.ID)
 			return pronunciation, err
 		}
-
 		var generationErrors []error
 		for _, speechConfig := range config.GetOpenRouterTTSConfigs(string(word.Language)) {
+			if err := CheckOpenRouterSpendingLimit(userID); err != nil {
+				return nil, err
+			}
 			input := word.Word
 			if speechConfig.LanguagePrompt {
 				input = fmt.Sprintf(
@@ -63,13 +65,16 @@ func GetOrCreateWordPronunciation(wordID uuid.UUID) (*models.WordPronunciation, 
 					word.Word,
 				)
 			}
-			audio, err := openrouter.NewSpeechClient(
+			result, err := openrouter.NewSpeechClient(
 				speechConfig.Model,
 				speechConfig.Voice,
 				speechConfig.ResponseFormat,
 			).GenerateSpeech(input)
-			if err == nil {
-				return StoreWordPronunciation(wordID, speechConfig.Model, speechConfig.Voice, audio)
+			if result != nil {
+				RecordOpenRouterUsage(userID, result.Usage)
+			}
+			if err == nil && result != nil {
+				return StoreWordPronunciation(wordID, speechConfig.Model, speechConfig.Voice, result.Audio)
 			}
 
 			logger.L().Warnw(

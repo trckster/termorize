@@ -260,7 +260,7 @@ import { useAuthStore } from '@/stores/auth.ts'
 import { useSettingsStore } from '@/stores/settings.ts'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast.ts'
-import { formatNumber } from '@/lib/utils.ts'
+import { formatDate, formatNumber } from '@/lib/utils.ts'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Pagination, PaginationContent, PaginationItem, PaginationEllipsis } from '@/components/ui/pagination'
@@ -408,11 +408,16 @@ const handleGenerate = async () => {
 
         router.push(`/collections/${collection.id}`)
     } catch (error) {
-        const apiError = error as { status?: number }
+        const apiError = error as { status?: number; body?: { retry_at?: string } }
+        const limitDescription = apiError.body?.retry_at
+            ? t.value.collectionsGenerateLimitDescription.replace('{time}', formatDate(apiError.body.retry_at))
+            : t.value.collectionsGenerateErrorDescription
         addToast({
             title: t.value.toastErrorTitle,
             description:
-                apiError.status === 503
+                apiError.status === 429
+                    ? limitDescription
+                    : apiError.status === 503
                     ? t.value.collectionsGenerateUnavailableDescription
                     : t.value.collectionsGenerateErrorDescription,
             variant: 'destructive',

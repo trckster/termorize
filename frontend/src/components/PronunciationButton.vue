@@ -6,7 +6,7 @@
         :disabled="!wordId || status === 'loading'"
         :aria-label="buttonLabel"
         :aria-pressed="status === 'playing'"
-        :title="status === 'error' ? errorLabel : buttonLabel"
+        :title="status === 'error' ? formattedErrorLabel : buttonLabel"
         @click="togglePlayback"
     >
         <LoaderCircle v-if="status === 'loading'" class="size-[18px] motion-safe:animate-spin" aria-hidden="true" />
@@ -25,7 +25,10 @@ let deactivateCurrentPronunciation: (() => void) | null = null
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { CircleAlert, LoaderCircle, Pause, Volume2 } from 'lucide-vue-next'
-import { pronunciationApi } from '@/api/pronunciation.ts'
+import { PronunciationLimitError, pronunciationApi } from '@/api/pronunciation.ts'
+import { useI18n } from '@/composables/useI18n'
+import { useToast } from '@/composables/useToast.ts'
+import { formatDate } from '@/lib/utils.ts'
 
 type PlaybackStatus = 'idle' | 'loading' | 'playing' | 'error'
 
@@ -39,15 +42,24 @@ const props = defineProps<{
 }>()
 
 const status = ref<PlaybackStatus>('idle')
+const limitRetryAt = ref<string | null>(null)
 let audio: HTMLAudioElement | null = null
 let objectUrl: string | null = null
 let requestSequence = 0
 
 const formatLabel = (template: string) => template.replace('{word}', props.word)
+const { t } = useI18n()
+const { addToast } = useToast()
+const formattedErrorLabel = computed(() => {
+    if (limitRetryAt.value) {
+        return t.value.pronunciationLimitError.replace('{time}', formatDate(limitRetryAt.value))
+    }
+    return formatLabel(props.errorLabel)
+})
 const buttonLabel = computed(() => formatLabel(status.value === 'playing' ? props.pauseLabel : props.listenLabel))
 const liveStatus = computed(() => {
     if (status.value === 'loading') return formatLabel(props.loadingLabel)
-    if (status.value === 'error') return formatLabel(props.errorLabel)
+    if (status.value === 'error') return formattedErrorLabel.value
     return ''
 })
 
@@ -170,6 +182,7 @@ const togglePlayback = async () => {
 
     const sequence = ++requestSequence
     status.value = 'loading'
+    limitRetryAt.value = null
 
     try {
         let blob = pronunciationBlobCache.get(props.wordId)
@@ -178,8 +191,17 @@ const togglePlayback = async () => {
             pronunciationBlobCache.set(props.wordId, blob)
         }
         await playBlob(blob, sequence)
-    } catch {
+    } catch (error) {
         if (sequence === requestSequence) {
+            if (error instanceof PronunciationLimitError) {
+                limitRetryAt.value = error.retryAt
+                addToast({
+                    title: t.value.toastErrorTitle,
+                    description: formattedErrorLabel.value,
+                    variant: 'destructive',
+                    duration: 8000,
+                })
+            }
             releaseAudio()
             status.value = 'error'
             if (deactivateCurrentPronunciation === deactivatePlayback) {
@@ -195,6 +217,7 @@ watch(
         deactivatePlayback()
         releaseAudio()
         status.value = 'idle'
+        limitRetryAt.value = null
     }
 )
 

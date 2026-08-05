@@ -38,6 +38,13 @@ func respondCollectionError(c *gin.Context, err error) {
 		c.JSON(nethttp.StatusBadRequest, gin.H{"error": err.Error()})
 	case services.AIGenerationUnavailableError(err):
 		c.JSON(nethttp.StatusServiceUnavailable, gin.H{"error": err.Error()})
+	case errors.Is(err, services.ErrOpenRouterSpendingLimit):
+		limitErr, _ := services.AsOpenRouterSpendingLimitError(err)
+		c.JSON(nethttp.StatusTooManyRequests, gin.H{
+			"error":    "AI spending limit reached",
+			"limit":    limitErr.Limit,
+			"retry_at": limitErr.RetryAt,
+		})
 	case services.AIGenerationFailedError(err):
 		ServerError(c, errors.New("request to OpenRouter failed"))
 	case errors.Is(err, services.ErrNoCollectionPracticeVocabulary):

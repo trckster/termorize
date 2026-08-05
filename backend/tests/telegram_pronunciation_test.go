@@ -254,6 +254,39 @@ func TestTelegramPronunciationCacheIsSharedAcrossUsers(t *testing.T) {
 	assert.Equal(t, "application/json", tg.RequestsFor("sendAudio")[1].Header.Get("Content-Type"))
 }
 
+func TestTelegramPronunciationShowsSpendingLimitRetryTime(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+	const telegramID int64 = 710099
+	user := testkit.CreateUser(t,
+		testkit.WithTelegramID(telegramID),
+		testkit.WithSettings(models.UserSettings{SystemLanguage: enums.LanguageEn}),
+	)
+	translationID, _ := seedPronunciationTranslation(t)
+	createdAt := time.Now().UTC().Add(-time.Hour)
+	require.NoError(t, db.DB.Create(&models.OpenRouterUsage{
+		UserID: user.ID, Model: "test/model", Cost: 1, CreatedAt: createdAt,
+	}).Error)
+	called := false
+	testkit.MockOpenRouterSpeech(t, &testkit.FakeOpenRouterSpeech{GenerateFunc: func(string) ([]byte, error) {
+		called = true
+		return []byte("unexpected"), nil
+	}})
+
+	rec := telegramUpdate(t, pronunciationCallbackUpdate(telegramID, translationID))
+
+	testkit.RequireStatus(t, rec, http.StatusOK)
+	assert.False(t, called)
+	require.Len(t, tg.RequestsFor("sendMessage"), 1)
+	var sent struct {
+		Text string `json:"text"`
+	}
+	require.NoError(t, json.Unmarshal(tg.RequestsFor("sendMessage")[0].Body, &sent))
+	assert.Contains(t, sent.Text, "Your AI spending limit has been reached")
+	assert.Contains(t, sent.Text, createdAt.Add(24*time.Hour).Format("02 Jan 2006 15:04 UTC"))
+	assert.Empty(t, tg.RequestsFor("sendAudio"))
+}
+
 func TestTelegramPronunciationFailuresStaySilentAndReturnOK(t *testing.T) {
 	tests := []struct {
 		name    string

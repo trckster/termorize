@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"fmt"
 	"termorize/src/logger"
 	"termorize/src/services"
 )
@@ -37,8 +38,30 @@ func handlePronunciationCallback(callback *callbackQuery, payload []string) {
 	}
 
 	if pronunciation == nil {
-		pronunciation, err = services.GetOrCreateWordPronunciation(targetWord.ID)
+		if err := services.EnsureUserByTelegramID(
+			callback.From.ID,
+			callback.From.Username,
+			callback.From.FirstName,
+			callback.From.LastName,
+		); err != nil {
+			logPronunciationFailure("failed to ensure pronunciation user", err, translationID.String())
+			return
+		}
+		user, userErr := services.GetUserByTelegramID(callback.From.ID)
+		if userErr != nil || user == nil {
+			logPronunciationFailure("failed to resolve pronunciation user", userErr, translationID.String())
+			return
+		}
+		pronunciation, err = services.GetOrCreateWordPronunciation(user.ID, targetWord.ID)
 		if err != nil {
+			if limitErr, ok := services.AsOpenRouterSpendingLimitError(err); ok {
+				t := GetBotTexts(user.Settings.SystemLanguage)
+				message := fmt.Sprintf(t.OpenRouterLimitFormat, limitErr.RetryAt.UTC().Format("02 Jan 2006 15:04 UTC"))
+				if sendErr := SendMessage(callback.Message.Chat.ID, message); sendErr != nil {
+					logPronunciationFailure("failed to send spending limit message", sendErr, translationID.String())
+				}
+				return
+			}
 			logPronunciationFailure("failed to generate pronunciation", err, translationID.String())
 			return
 		}

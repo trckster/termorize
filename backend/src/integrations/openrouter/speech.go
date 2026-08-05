@@ -15,11 +15,18 @@ import (
 )
 
 const defaultSpeechAPIURL = "https://openrouter.ai/api/v1/audio/speech"
+const defaultGenerationAPIURL = "https://openrouter.ai/api/v1/generation"
 
 var speechAPIURL = defaultSpeechAPIURL
+var generationAPIURL = defaultGenerationAPIURL
+
+type SpeechResult struct {
+	Audio []byte
+	Usage Usage
+}
 
 type SpeechClient interface {
-	GenerateSpeech(input string) ([]byte, error)
+	GenerateSpeech(input string) (*SpeechResult, error)
 }
 
 type speechClient struct {
@@ -51,7 +58,7 @@ type speechRequest struct {
 	ResponseFormat string `json:"response_format"`
 }
 
-func (c *speechClient) GenerateSpeech(input string) ([]byte, error) {
+func (c *speechClient) GenerateSpeech(input string) (*SpeechResult, error) {
 	if strings.TrimSpace(c.apiKey) == "" {
 		return nil, ErrNotConfigured
 	}
@@ -94,24 +101,88 @@ func (c *speechClient) GenerateSpeech(input string) ([]byte, error) {
 	if len(body) == 0 {
 		return nil, errors.New("openrouter speech returned empty audio")
 	}
-	if c.format == "mp3" {
-		return body, nil
+	audio := body
+	if c.format != "mp3" {
+		encodePCM := c.encodePCM
+		if encodePCM == nil {
+			encodePCM = encodePCMToMP3
+		}
+
+		audio, err = encodePCM(body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode openrouter speech PCM as MP3: %w", err)
+		}
+		if len(audio) == 0 {
+			return nil, errors.New("PCM encoder returned empty MP3 audio")
+		}
 	}
 
-	encodePCM := c.encodePCM
-	if encodePCM == nil {
-		encodePCM = encodePCMToMP3
+	generationID := strings.TrimSpace(resp.Header.Get("X-Generation-Id"))
+	result := &SpeechResult{
+		Audio: audio,
+		Usage: Usage{GenerationID: generationID, Model: c.model},
+	}
+	if generationID == "" {
+		return result, nil
 	}
 
-	mp3, err := encodePCM(body)
+	usage, err := c.getGenerationUsage(generationID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode openrouter speech PCM as MP3: %w", err)
+		// The audio is still usable. Keep the generation ID so the request is
+		// represented in the local ledger even if metadata retrieval fails.
+		return result, nil
 	}
-	if len(mp3) == 0 {
-		return nil, errors.New("PCM encoder returned empty MP3 audio")
+	result.Usage = usage
+	return result, nil
+}
+
+func (c *speechClient) getGenerationUsage(generationID string) (Usage, error) {
+	req, err := http.NewRequest(http.MethodGet, generationAPIURL, nil)
+	if err != nil {
+		return Usage{}, fmt.Errorf("failed to build openrouter generation request: %w", err)
+	}
+	query := req.URL.Query()
+	query.Set("id", generationID)
+	req.URL.RawQuery = query.Encode()
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return Usage{}, fmt.Errorf("failed to fetch openrouter generation usage: %w", err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return Usage{}, fmt.Errorf("failed to read openrouter generation usage: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return Usage{}, fmt.Errorf("openrouter generation usage returned status %d: %s", resp.StatusCode, truncate(string(body), 300))
 	}
 
-	return mp3, nil
+	var parsed struct {
+		Data struct {
+			ID                     string  `json:"id"`
+			Model                  string  `json:"model"`
+			TotalCost              float64 `json:"total_cost"`
+			NativeTokensPrompt     int     `json:"native_tokens_prompt"`
+			NativeTokensCompletion int     `json:"native_tokens_completion"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return Usage{}, fmt.Errorf("failed to decode openrouter generation usage: %w", err)
+	}
+	model := parsed.Data.Model
+	if model == "" {
+		model = c.model
+	}
+	return Usage{
+		GenerationID:     generationID,
+		Model:            model,
+		Cost:             parsed.Data.TotalCost,
+		PromptTokens:     parsed.Data.NativeTokensPrompt,
+		CompletionTokens: parsed.Data.NativeTokensCompletion,
+		TotalTokens:      parsed.Data.NativeTokensPrompt + parsed.Data.NativeTokensCompletion,
+	}, nil
 }
 
 func encodePCMToMP3(pcm []byte) ([]byte, error) {

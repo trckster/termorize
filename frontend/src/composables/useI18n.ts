@@ -269,6 +269,7 @@ const en = {
     pronunciationPause: 'Pause {word}',
     pronunciationLoading: 'Loading audio for {word}',
     pronunciationError: 'Could not play {word}. Try again.',
+    pronunciationLimitError: 'Your AI spending limit has been reached. Try again after {time}.',
     translationToastNoTranslationTitle: 'Warning',
     translationToastNoTranslationDescription: 'No translation is available yet. Translate text first.',
     translationToastVocabSuccessTitle: 'Success!',
@@ -433,6 +434,7 @@ const en = {
     collectionsGenerateSuccessDescriptionAdmin: 'Review it and publish when ready.',
     collectionsGenerateErrorDescription: 'Failed to generate the collection. Please try again.',
     collectionsGenerateUnavailableDescription: 'AI generation is not configured on the server.',
+    collectionsGenerateLimitDescription: 'Your AI spending limit has been reached. Try again after {time}.',
     collectionsGenerateDisclaimer: 'AI might not be able to fulfill your request correctly, verify the result.',
     collectionsDraftBadge: 'Draft',
     collectionDraftNotice:
@@ -721,6 +723,7 @@ const ru: typeof en = {
     pronunciationPause: 'Приостановить {word}',
     pronunciationLoading: 'Загрузка произношения: {word}',
     pronunciationError: 'Не удалось воспроизвести {word}. Попробуйте ещё раз.',
+    pronunciationLimitError: 'Лимит расходов на ИИ исчерпан. Попробуйте снова после {time}.',
     translationToastNoTranslationTitle: 'Предупреждение',
     translationToastNoTranslationDescription: 'Перевод ещё недоступен. Сначала переведите текст.',
     translationToastVocabSuccessTitle: 'Успешно!',
@@ -885,6 +888,7 @@ const ru: typeof en = {
     collectionsGenerateSuccessDescriptionAdmin: 'Проверьте и опубликуйте, когда будет готово.',
     collectionsGenerateErrorDescription: 'Не удалось сгенерировать коллекцию. Попробуйте ещё раз.',
     collectionsGenerateUnavailableDescription: 'Генерация ИИ не настроена на сервере.',
+    collectionsGenerateLimitDescription: 'Лимит расходов на ИИ исчерпан. Попробуйте снова после {time}.',
     collectionsGenerateDisclaimer: 'ИИ может не справиться с вашим запросом корректно, проверьте результат.',
     collectionsDraftBadge: 'Черновик',
     collectionDraftNotice:

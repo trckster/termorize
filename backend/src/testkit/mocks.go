@@ -47,13 +47,15 @@ type FakeOpenRouter struct {
 
 type FakeOpenRouterSpeech struct {
 	GenerateFunc func(input string) ([]byte, error)
+	Usage        openrouter.Usage
 }
 
-func (f *FakeOpenRouterSpeech) GenerateSpeech(input string) ([]byte, error) {
+func (f *FakeOpenRouterSpeech) GenerateSpeech(input string) (*openrouter.SpeechResult, error) {
 	if f.GenerateFunc != nil {
-		return f.GenerateFunc(input)
+		audio, err := f.GenerateFunc(input)
+		return &openrouter.SpeechResult{Audio: audio, Usage: f.Usage}, err
 	}
-	return []byte("test-mp3:" + input), nil
+	return &openrouter.SpeechResult{Audio: []byte("test-mp3:" + input), Usage: f.Usage}, nil
 }
 
 func (f *FakeOpenRouter) GenerateCollection(prompt string, allowedLanguages []string) (*openrouter.GenerationResult, error) {

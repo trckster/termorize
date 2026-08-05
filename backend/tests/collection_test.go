@@ -1311,6 +1311,9 @@ func TestGenerateCollectionAdminProducesUnpublishedGlobal(t *testing.T) {
 	})
 
 	admin := testkit.CreateUser(t, testkit.WithAdmin())
+	require.NoError(t, db.DB.Create(&models.OpenRouterUsage{
+		UserID: admin.ID, Model: "test/model", Cost: 1, CreatedAt: time.Now().UTC(),
+	}).Error)
 
 	rec := testkit.AuthedRequest(t, admin, http.MethodPost, "/api/collection-generate",
 		map[string]any{"prompt": "animals"})
@@ -1404,6 +1407,76 @@ func TestGenerateCollectionNotConfigured(t *testing.T) {
 	var body map[string]any
 	testkit.DecodeJSON(t, rec, &body)
 	assert.Equal(t, "ai generation is not configured", body["error"])
+}
+
+func TestGenerateCollectionEnforcesRollingSpendingLimit(t *testing.T) {
+	tests := []struct {
+		name  string
+		admin bool
+		limit float64
+	}{
+		{name: "user", limit: 1},
+		{name: "admin", admin: true, limit: 10},
+	}
+
+	for index, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			testkit.Truncate(t)
+			options := []testkit.UserOption{testkit.WithTelegramID(int64(880000 + index))}
+			if test.admin {
+				options = append(options, testkit.WithAdmin())
+			}
+			user := testkit.CreateUser(t, options...)
+			now := time.Now().UTC()
+			oldest := now.Add(-23 * time.Hour)
+			require.NoError(t, db.DB.Create(&models.OpenRouterUsage{
+				UserID: user.ID, Model: "test/model", Cost: test.limit * 0.4, CreatedAt: oldest,
+			}).Error)
+			require.NoError(t, db.DB.Create(&models.OpenRouterUsage{
+				UserID: user.ID, Model: "test/model", Cost: test.limit * 0.6, CreatedAt: now.Add(-time.Hour),
+			}).Error)
+
+			called := false
+			testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{GenerateFunc: func(string, []string) (*openrouter.GeneratedCollection, error) {
+				called = true
+				return nil, nil
+			}})
+
+			rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collection-generate", map[string]any{"prompt": "animals"})
+			testkit.RequireStatus(t, rec, http.StatusTooManyRequests)
+			assert.False(t, called)
+
+			var body struct {
+				Error   string    `json:"error"`
+				Limit   float64   `json:"limit"`
+				RetryAt time.Time `json:"retry_at"`
+			}
+			testkit.DecodeJSON(t, rec, &body)
+			assert.Equal(t, "AI spending limit reached", body.Error)
+			assert.Equal(t, test.limit, body.Limit)
+			assert.WithinDuration(t, oldest.Add(24*time.Hour), body.RetryAt, time.Second)
+		})
+	}
+}
+
+func TestGenerateCollectionIgnoresSpendOutsideRollingWindow(t *testing.T) {
+	testkit.Truncate(t)
+	user := testkit.CreateUser(t)
+	require.NoError(t, db.DB.Create(&models.OpenRouterUsage{
+		UserID: user.ID, Model: "test/model", Cost: 100, CreatedAt: time.Now().UTC().Add(-25 * time.Hour),
+	}).Error)
+	testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{GenerateFunc: func(string, []string) (*openrouter.GeneratedCollection, error) {
+		return &openrouter.GeneratedCollection{
+			Title: "Allowed",
+			Translations: []openrouter.GeneratedTranslation{
+				{Original: "dog", OriginalLanguage: "en", Translation: "Hund", TranslationLanguage: "de"},
+			},
+		}, nil
+	}})
+
+	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collection-generate", map[string]any{"prompt": "animals"})
+
+	testkit.RequireStatus(t, rec, http.StatusCreated)
 }
 
 func TestGenerateCollectionNoUsablePairs(t *testing.T) {

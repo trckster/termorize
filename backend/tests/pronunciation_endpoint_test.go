@@ -7,6 +7,7 @@ import (
 	"termorize/src/config"
 	"termorize/src/data/db"
 	"termorize/src/enums"
+	"termorize/src/integrations/openrouter"
 	"termorize/src/models"
 	"termorize/src/services"
 	"termorize/src/testkit"
@@ -32,11 +33,13 @@ func TestWordPronunciationCacheMissGeneratesStoresAndReturnsMP3(t *testing.T) {
 	word := createPronunciationWord(t, "buongiorno")
 	audio := []byte{0xff, 0xfb, 0x01, 0x02, 0x03}
 	generated := 0
-	testkit.MockOpenRouterSpeech(t, &testkit.FakeOpenRouterSpeech{GenerateFunc: func(input string) ([]byte, error) {
-		generated++
-		assert.Equal(t, "Synthesize speech in Italian. Speak only the transcript exactly as written.\nTranscript: \"buongiorno\"", input)
-		return audio, nil
-	}})
+	testkit.MockOpenRouterSpeech(t, &testkit.FakeOpenRouterSpeech{
+		Usage: openrouter.Usage{GenerationID: "gen-tts", Model: "tts/model", Cost: 0.002, TotalTokens: 10},
+		GenerateFunc: func(input string) ([]byte, error) {
+			generated++
+			assert.Equal(t, "Synthesize speech in Italian. Speak only the transcript exactly as written.\nTranscript: \"buongiorno\"", input)
+			return audio, nil
+		}})
 
 	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/words/"+word.ID.String()+"/pronunciation", nil)
 
@@ -52,6 +55,10 @@ func TestWordPronunciationCacheMissGeneratesStoresAndReturnsMP3(t *testing.T) {
 	assert.Equal(t, audio, stored.Audio)
 	assert.Equal(t, config.GetOpenRouterTTSModel(), stored.Model)
 	assert.Equal(t, config.GetOpenRouterTTSVoice(), stored.Voice)
+	var usage models.OpenRouterUsage
+	require.NoError(t, db.DB.Where("user_id = ?", user.ID).First(&usage).Error)
+	assert.Equal(t, "gen-tts", *usage.GenerationID)
+	assert.InDelta(t, 0.002, usage.Cost, 0.0000000001)
 }
 
 func TestWordPronunciationFallsBackToSecondaryModel(t *testing.T) {
@@ -99,6 +106,9 @@ func TestWordPronunciationCacheHitReturnsStoredAudioWithoutGenerating(t *testing
 		audio,
 	)
 	require.NoError(t, err)
+	require.NoError(t, db.DB.Create(&models.OpenRouterUsage{
+		UserID: user.ID, Model: "test/model", Cost: 1, CreatedAt: time.Now().UTC(),
+	}).Error)
 	testkit.MockOpenRouterSpeech(t, &testkit.FakeOpenRouterSpeech{GenerateFunc: func(string) ([]byte, error) {
 		return nil, errors.New("unexpected TTS generation")
 	}})
@@ -109,8 +119,36 @@ func TestWordPronunciationCacheHitReturnsStoredAudioWithoutGenerating(t *testing
 	assert.Equal(t, audio, rec.Body.Bytes())
 }
 
+func TestWordPronunciationRejectsGenerationAtSpendingLimit(t *testing.T) {
+	testkit.Truncate(t)
+	user := testkit.CreateUser(t)
+	word := createPronunciationWord(t, "limite")
+	createdAt := time.Now().UTC().Add(-time.Hour)
+	require.NoError(t, db.DB.Create(&models.OpenRouterUsage{
+		UserID: user.ID, Model: "test/model", Cost: 1, CreatedAt: createdAt,
+	}).Error)
+	called := false
+	testkit.MockOpenRouterSpeech(t, &testkit.FakeOpenRouterSpeech{GenerateFunc: func(string) ([]byte, error) {
+		called = true
+		return []byte("unexpected"), nil
+	}})
+
+	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/words/"+word.ID.String()+"/pronunciation", nil)
+
+	testkit.RequireStatus(t, rec, http.StatusTooManyRequests)
+	assert.False(t, called)
+	var body struct {
+		Limit   float64   `json:"limit"`
+		RetryAt time.Time `json:"retry_at"`
+	}
+	testkit.DecodeJSON(t, rec, &body)
+	assert.Equal(t, 1.0, body.Limit)
+	assert.WithinDuration(t, createdAt.Add(24*time.Hour), body.RetryAt, time.Second)
+}
+
 func TestWordPronunciationCoalescesConcurrentGeneration(t *testing.T) {
 	testkit.Truncate(t)
+	user := testkit.CreateUser(t)
 	word := createPronunciationWord(t, "arrivederci")
 	audio := []byte("shared-mp3")
 	started := make(chan struct{})
@@ -130,7 +168,7 @@ func TestWordPronunciationCoalescesConcurrentGeneration(t *testing.T) {
 	}
 	results := make(chan result, 2)
 	request := func() {
-		pronunciation, err := services.GetOrCreateWordPronunciation(word.ID)
+		pronunciation, err := services.GetOrCreateWordPronunciation(user.ID, word.ID)
 		results <- result{pronunciation: pronunciation, err: err}
 	}
 

@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -52,10 +53,10 @@ func TestSpeechClientRequestsPCMAndReturnsEncodedMP3(t *testing.T) {
 		},
 	}
 
-	audio, err := client.GenerateSpeech("buongiorno")
+	result, err := client.GenerateSpeech("buongiorno")
 
 	require.NoError(t, err)
-	require.Equal(t, expectedMP3, audio)
+	require.Equal(t, expectedMP3, result.Audio)
 }
 
 func TestSpeechClientReturnsMP3WithoutEncoding(t *testing.T) {
@@ -82,10 +83,41 @@ func TestSpeechClientReturnsMP3WithoutEncoding(t *testing.T) {
 		},
 	}
 
-	audio, err := client.GenerateSpeech("radio")
+	result, err := client.GenerateSpeech("radio")
 
 	require.NoError(t, err)
-	require.Equal(t, expectedMP3, audio)
+	require.Equal(t, expectedMP3, result.Audio)
+}
+
+func TestSpeechClientFetchesUsageByGenerationID(t *testing.T) {
+	expectedMP3 := []byte{0xff, 0xfb, 0x90, 0x64}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/speech":
+			w.Header().Set("X-Generation-Id", "gen-speech-123")
+			_, _ = w.Write(expectedMP3)
+		case "/generation":
+			require.Equal(t, "gen-speech-123", r.URL.Query().Get("id"))
+			require.Equal(t, "Bearer secret", r.Header.Get("Authorization"))
+			_, _ = io.WriteString(w, `{"data":{"id":"gen-speech-123","model":"tts/model","total_cost":0.0025,"native_tokens_prompt":12,"native_tokens_completion":8}}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	restoreSpeechURL(t, server.URL+"/speech")
+	restoreGenerationURL(t, server.URL+"/generation")
+	client := &speechClient{apiKey: "secret", model: "requested/tts", voice: "voice", format: "mp3", http: server.Client()}
+
+	result, err := client.GenerateSpeech("radio")
+
+	require.NoError(t, err)
+	require.Equal(t, expectedMP3, result.Audio)
+	assert.Equal(t, Usage{
+		GenerationID: "gen-speech-123", Model: "tts/model", Cost: 0.0025,
+		PromptTokens: 12, CompletionTokens: 8, TotalTokens: 20,
+	}, result.Usage)
 }
 
 func TestSpeechClientReturnsPCMEncodingFailure(t *testing.T) {
@@ -193,4 +225,11 @@ func restoreSpeechURL(t *testing.T, url string) {
 	previous := speechAPIURL
 	speechAPIURL = url
 	t.Cleanup(func() { speechAPIURL = previous })
+}
+
+func restoreGenerationURL(t *testing.T, url string) {
+	t.Helper()
+	previous := generationAPIURL
+	generationAPIURL = url
+	t.Cleanup(func() { generationAPIURL = previous })
 }
