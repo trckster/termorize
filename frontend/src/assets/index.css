@@ -233,9 +233,8 @@
         @apply bg-background text-foreground;
         min-height: 100dvh;
         background-image: var(--app-gradient);
-        background-attachment: fixed;
         background-repeat: no-repeat;
-        background-size: cover;
+        background-size: 100% 100%;
         padding-right: env(safe-area-inset-right);
         padding-left: env(safe-area-inset-left);
     }
@@ -248,11 +247,6 @@
         touch-action: manipulation;
     }
 
-    @media (max-width: 767px) {
-        body {
-            background-attachment: scroll;
-        }
-    }
 }
 
 @layer utilities {
