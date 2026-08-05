@@ -35,9 +35,14 @@ type Point = {
     x: number
     y: number
 }
+type CardGeometry = Point & {
+    width: number
+    height: number
+}
 
 const BOARD_INSET = 6
 const CARD_GAP = 4
+const CONNECTOR_CARD_GAP = 3
 const ROTATION_PADDING = 4
 const PLACEMENT_ATTEMPTS = 6000
 
@@ -50,6 +55,8 @@ const props = defineProps<{
     isSubmitting: boolean
     checkingText: string
     boardLabel: string
+    correctText: string
+    invalidText: string
 }>()
 
 const emit = defineEmits<{
@@ -62,12 +69,12 @@ const boardWidth = ref(0)
 const boardHeight = ref(0)
 const fallbackCardWidth = ref(112)
 const cardLayouts = ref<Record<string, MatchCardLayout>>({})
-const cardCenters = ref<Record<string, Point>>({})
+const cardGeometries = ref<Record<string, CardGeometry>>({})
 const cardRefs = new Map<string, HTMLElement>()
 const transientInvalidConnector = ref<MatchConnectorCandidate | null>(null)
+const connectorStatus = ref('')
 let resizeObserver: ResizeObserver | null = null
 let invalidConnectorTimeoutId: number | null = null
-let invalidConnectorSequence = 0
 
 function clamp(value: number, min: number, max: number): number {
     return Math.min(max, Math.max(min, value))
@@ -97,6 +104,38 @@ function isCorrectPair([first, second]: [ExerciseMatchCard, ExerciseMatchCard]):
     return first.vocabulary_id === second.vocabulary_id && first.side !== second.side
 }
 
+function getConnectorKey(cardIds: [string, string]): string {
+    return `pair-${[...cardIds].sort().join('-')}`
+}
+
+function getConnectorEndpoints(start: CardGeometry, end: CardGeometry): [Point, Point] {
+    const dx = end.x - start.x
+    const dy = end.y - start.y
+    const length = Math.hypot(dx, dy)
+    if (length < 1) return [start, end]
+
+    const directionX = dx / length
+    const directionY = dy / length
+    const getEdgeDistance = (geometry: CardGeometry) => {
+        const horizontalDistance = Math.abs(directionX) > 0 ? geometry.width / 2 / Math.abs(directionX) : Infinity
+        const verticalDistance = Math.abs(directionY) > 0 ? geometry.height / 2 / Math.abs(directionY) : Infinity
+        return Math.min(horizontalDistance, verticalDistance) + CONNECTOR_CARD_GAP
+    }
+    const startDistance = getEdgeDistance(start)
+    const endDistance = getEdgeDistance(end)
+
+    return [
+        {
+            x: start.x + directionX * startDistance,
+            y: start.y + directionY * startDistance,
+        },
+        {
+            x: end.x - directionX * endDistance,
+            y: end.y - directionY * endDistance,
+        },
+    ]
+}
+
 function buildWavyPath(start: Point, end: Point): string {
     const dx = end.x - start.x
     const dy = end.y - start.y
@@ -105,8 +144,8 @@ function buildWavyPath(start: Point, end: Point): string {
 
     const perpendicularX = -dy / length
     const perpendicularY = dx / length
-    const amplitude = clamp(length * 0.035, 5, 11)
-    const segmentCount = Math.max(4, Math.round(length / 34 / 2) * 2)
+    const amplitude = clamp(length * 0.035, Math.min(3, length * 0.2), 11)
+    const segmentCount = Math.max(2, Math.round(length / 34 / 2) * 2)
     let path = `M ${start.x.toFixed(1)} ${start.y.toFixed(1)}`
 
     for (let index = 0; index < segmentCount; index++) {
@@ -130,27 +169,31 @@ function updateConnectorPositions() {
 
     boardWidth.value = boardRect.width
     boardHeight.value = boardRect.height
-    const nextCenters: Record<string, Point> = {}
+    const nextGeometries: Record<string, CardGeometry> = {}
 
     for (const card of props.cards) {
         const cardElement = cardRefs.get(card.id)
         if (!cardElement) continue
 
         if (window.getComputedStyle(cardElement).position === 'absolute') {
-            nextCenters[card.id] = {
+            nextGeometries[card.id] = {
                 x: cardElement.offsetLeft,
                 y: cardElement.offsetTop,
+                width: cardElement.offsetWidth,
+                height: cardElement.offsetHeight,
             }
         } else {
             const cardRect = cardElement.getBoundingClientRect()
-            nextCenters[card.id] = {
+            nextGeometries[card.id] = {
                 x: cardRect.left - boardRect.left + cardRect.width / 2,
                 y: cardRect.top - boardRect.top + cardRect.height / 2,
+                width: cardRect.width,
+                height: cardRect.height,
             }
         }
     }
 
-    cardCenters.value = nextCenters
+    cardGeometries.value = nextGeometries
 }
 
 function clearInvalidConnector() {
@@ -397,21 +440,20 @@ const connectorCandidates = computed<MatchConnectorCandidate[]>(() => {
         const translation = pair.find((card) => card.side === 'translation')
         if (!original || !translation) continue
 
+        const cardIds: [string, string] = [original.id, translation.id]
         candidates.push({
-            key: `resolved-${vocabularyId}`,
-            cardIds: [original.id, translation.id],
+            key: getConnectorKey(cardIds),
+            cardIds,
             tone: 'correct',
         })
     }
 
     const selectedPair = getPair(getCardsByIds(props.selectedCardIds))
     if (selectedPair) {
+        const cardIds: [string, string] = [selectedPair[0].id, selectedPair[1].id]
         candidates.push({
-            key: `selected-${selectedPair
-                .map((card) => card.id)
-                .sort()
-                .join('-')}`,
-            cardIds: [selectedPair[0].id, selectedPair[1].id],
+            key: getConnectorKey(cardIds),
+            cardIds,
             tone: isCorrectPair(selectedPair) ? 'correct' : 'invalid',
         })
     } else if (transientInvalidConnector.value) {
@@ -423,8 +465,10 @@ const connectorCandidates = computed<MatchConnectorCandidate[]>(() => {
 
 const connectors = computed<MatchConnector[]>(() =>
     connectorCandidates.value.flatMap((connector) => {
-        const start = cardCenters.value[connector.cardIds[0]]
-        const end = cardCenters.value[connector.cardIds[1]]
+        const startGeometry = cardGeometries.value[connector.cardIds[0]]
+        const endGeometry = cardGeometries.value[connector.cardIds[1]]
+        if (!startGeometry || !endGeometry) return []
+        const [start, end] = getConnectorEndpoints(startGeometry, endGeometry)
         if (!start || !end) return []
         return [{ ...connector, path: buildWavyPath(start, end) }]
     })
@@ -469,17 +513,24 @@ watch(
     () => props.selectedCardIds.join('|'),
     (selectedIds, previousSelectedIds) => {
         const selectedPair = getPair(getCardsByIds(selectedIds ? selectedIds.split('|') : []))
-        if (selectedPair && !isCorrectPair(selectedPair)) {
-            invalidConnectorSequence += 1
+        if (selectedPair) {
+            const isCorrect = isCorrectPair(selectedPair)
+            connectorStatus.value = `${selectedPair[0].word}, ${selectedPair[1].word}: ${
+                isCorrect ? props.correctText : props.invalidText
+            }`
+            if (isCorrect) return
+
             if (invalidConnectorTimeoutId != null) window.clearTimeout(invalidConnectorTimeoutId)
+            const cardIds: [string, string] = [selectedPair[0].id, selectedPair[1].id]
             transientInvalidConnector.value = {
-                key: `invalid-${invalidConnectorSequence}`,
-                cardIds: [selectedPair[0].id, selectedPair[1].id],
+                key: getConnectorKey(cardIds),
+                cardIds,
                 tone: 'invalid',
             }
             invalidConnectorTimeoutId = window.setTimeout(clearInvalidConnector, 700)
         } else if (props.selectedCardIds.length === 1 && previousSelectedIds.length === 0) {
             clearInvalidConnector()
+            connectorStatus.value = ''
         }
     }
 )
@@ -521,6 +572,8 @@ onBeforeUnmount(() => {
         role="group"
         :aria-label="boardLabel"
     >
+        <p class="sr-only" role="status" aria-live="polite" aria-atomic="true">{{ connectorStatus }}</p>
+
         <svg
             class="quiz-match-connectors pointer-events-none absolute inset-0 z-0 h-full w-full overflow-visible"
             :viewBox="connectorViewBox"
@@ -590,11 +643,17 @@ onBeforeUnmount(() => {
 
 .quiz-match-connector--invalid {
     stroke: oklch(0.79 0.12 24);
+    stroke-dasharray: 3 4;
+    stroke-linecap: butt;
+    animation-name: quiz-match-connector-invalid-in;
 }
 
 .quiz-match-connector--underlay {
     stroke: hsl(var(--overlay) / 0.2);
     stroke-width: 6.5;
+    stroke-dasharray: 1;
+    stroke-linecap: round;
+    animation-name: quiz-match-connector-draw;
 }
 
 .quiz-match-card {
@@ -660,12 +719,25 @@ onBeforeUnmount(() => {
     }
 }
 
+@keyframes quiz-match-connector-invalid-in {
+    from {
+        opacity: 0;
+        stroke-dashoffset: 5;
+    }
+
+    to {
+        opacity: 1;
+        stroke-dashoffset: 0;
+    }
+}
+
 @media (max-width: 639px) {
     .quiz-match-board {
         display: grid;
         aspect-ratio: auto;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 0.5rem;
+        column-gap: 1.25rem;
+        row-gap: 1.25rem;
         max-width: none;
     }
 

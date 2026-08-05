@@ -1003,6 +1003,8 @@ onBeforeUnmount(() => {
                                 :is-submitting="isSubmitting"
                                 :checking-text="t.quizChecking"
                                 :board-label="questionHint"
+                                :correct-text="t.quizResultCorrect"
+                                :invalid-text="t.quizResultWrong"
                                 @choose="chooseMatchCard"
                             />
 
