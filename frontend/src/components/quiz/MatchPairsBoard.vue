@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type ComponentPublicInstance } from 'vue'
 import type { ExerciseMatchCard, MatchPairResult } from '@/api/exercises.ts'
 
 type MatchCardVisualState = 'idle' | 'selected' | 'green' | 'yellow' | 'red'
@@ -21,6 +21,19 @@ type PlacedCard = {
 type PlacementCandidate = PlacedCard & {
     renderX: number
     renderY: number
+}
+type MatchConnectorTone = 'correct' | 'invalid'
+type MatchConnectorCandidate = {
+    key: string
+    cardIds: [string, string]
+    tone: MatchConnectorTone
+}
+type MatchConnector = MatchConnectorCandidate & {
+    path: string
+}
+type Point = {
+    x: number
+    y: number
 }
 
 const BOARD_INSET = 6
@@ -45,12 +58,107 @@ const emit = defineEmits<{
 
 const boardRef = ref<HTMLElement | null>(null)
 const boardSize = ref(0)
+const boardWidth = ref(0)
+const boardHeight = ref(0)
 const fallbackCardWidth = ref(112)
 const cardLayouts = ref<Record<string, MatchCardLayout>>({})
+const cardCenters = ref<Record<string, Point>>({})
+const cardRefs = new Map<string, HTMLElement>()
+const transientInvalidConnector = ref<MatchConnectorCandidate | null>(null)
 let resizeObserver: ResizeObserver | null = null
+let invalidConnectorTimeoutId: number | null = null
+let invalidConnectorSequence = 0
 
 function clamp(value: number, min: number, max: number): number {
     return Math.min(max, Math.max(min, value))
+}
+
+function setCardRef(cardId: string, element: Element | ComponentPublicInstance | null) {
+    if (element instanceof HTMLElement) {
+        cardRefs.set(cardId, element)
+    } else {
+        cardRefs.delete(cardId)
+    }
+}
+
+function getCardsByIds(cardIds: string[]): ExerciseMatchCard[] {
+    return cardIds
+        .map((cardId) => props.cards.find((card) => card.id === cardId))
+        .filter((card): card is ExerciseMatchCard => card != null)
+}
+
+function getPair(cards: ExerciseMatchCard[]): [ExerciseMatchCard, ExerciseMatchCard] | null {
+    const first = cards[0]
+    const second = cards[1]
+    return cards.length === 2 && first && second ? [first, second] : null
+}
+
+function isCorrectPair([first, second]: [ExerciseMatchCard, ExerciseMatchCard]): boolean {
+    return first.vocabulary_id === second.vocabulary_id && first.side !== second.side
+}
+
+function buildWavyPath(start: Point, end: Point): string {
+    const dx = end.x - start.x
+    const dy = end.y - start.y
+    const length = Math.hypot(dx, dy)
+    if (length < 1) return `M ${start.x} ${start.y}`
+
+    const perpendicularX = -dy / length
+    const perpendicularY = dx / length
+    const amplitude = clamp(length * 0.035, 5, 11)
+    const segmentCount = Math.max(4, Math.round(length / 34 / 2) * 2)
+    let path = `M ${start.x.toFixed(1)} ${start.y.toFixed(1)}`
+
+    for (let index = 0; index < segmentCount; index++) {
+        const startProgress = index / segmentCount
+        const endProgress = (index + 1) / segmentCount
+        const controlProgress = (startProgress + endProgress) / 2
+        const direction = index % 2 === 0 ? 1 : -1
+        const controlX = start.x + dx * controlProgress + perpendicularX * amplitude * direction
+        const controlY = start.y + dy * controlProgress + perpendicularY * amplitude * direction
+        const endX = start.x + dx * endProgress
+        const endY = start.y + dy * endProgress
+        path += ` Q ${controlX.toFixed(1)} ${controlY.toFixed(1)} ${endX.toFixed(1)} ${endY.toFixed(1)}`
+    }
+
+    return path
+}
+
+function updateConnectorPositions() {
+    const boardRect = boardRef.value?.getBoundingClientRect()
+    if (!boardRect) return
+
+    boardWidth.value = boardRect.width
+    boardHeight.value = boardRect.height
+    const nextCenters: Record<string, Point> = {}
+
+    for (const card of props.cards) {
+        const cardElement = cardRefs.get(card.id)
+        if (!cardElement) continue
+
+        if (window.getComputedStyle(cardElement).position === 'absolute') {
+            nextCenters[card.id] = {
+                x: cardElement.offsetLeft,
+                y: cardElement.offsetTop,
+            }
+        } else {
+            const cardRect = cardElement.getBoundingClientRect()
+            nextCenters[card.id] = {
+                x: cardRect.left - boardRect.left + cardRect.width / 2,
+                y: cardRect.top - boardRect.top + cardRect.height / 2,
+            }
+        }
+    }
+
+    cardCenters.value = nextCenters
+}
+
+function clearInvalidConnector() {
+    if (invalidConnectorTimeoutId != null) {
+        window.clearTimeout(invalidConnectorTimeoutId)
+        invalidConnectorTimeoutId = null
+    }
+    transientInvalidConnector.value = null
 }
 
 function createSeededRandom(seedInput: string): () => number {
@@ -278,6 +386,52 @@ function updateBoardSize() {
     }
 }
 
+const connectorCandidates = computed<MatchConnectorCandidate[]>(() => {
+    const candidates: MatchConnectorCandidate[] = []
+
+    for (const [vocabularyId, state] of Object.entries(props.vocabularyStates)) {
+        if (state.result !== 'correct' && state.result !== 'almost') continue
+
+        const pair = props.cards.filter((card) => card.vocabulary_id === vocabularyId)
+        const original = pair.find((card) => card.side === 'original')
+        const translation = pair.find((card) => card.side === 'translation')
+        if (!original || !translation) continue
+
+        candidates.push({
+            key: `resolved-${vocabularyId}`,
+            cardIds: [original.id, translation.id],
+            tone: 'correct',
+        })
+    }
+
+    const selectedPair = getPair(getCardsByIds(props.selectedCardIds))
+    if (selectedPair) {
+        candidates.push({
+            key: `selected-${selectedPair
+                .map((card) => card.id)
+                .sort()
+                .join('-')}`,
+            cardIds: [selectedPair[0].id, selectedPair[1].id],
+            tone: isCorrectPair(selectedPair) ? 'correct' : 'invalid',
+        })
+    } else if (transientInvalidConnector.value) {
+        candidates.push(transientInvalidConnector.value)
+    }
+
+    return candidates
+})
+
+const connectors = computed<MatchConnector[]>(() =>
+    connectorCandidates.value.flatMap((connector) => {
+        const start = cardCenters.value[connector.cardIds[0]]
+        const end = cardCenters.value[connector.cardIds[1]]
+        if (!start || !end) return []
+        return [{ ...connector, path: buildWavyPath(start, end) }]
+    })
+)
+
+const connectorViewBox = computed(() => `0 0 ${boardWidth.value || 1} ${boardHeight.value || 1}`)
+
 function getMatchCardVisualState(card: ExerciseMatchCard): MatchCardVisualState {
     const state = props.vocabularyStates[card.vocabulary_id]
     if (!state) return 'idle'
@@ -307,21 +461,56 @@ watch(
     async () => {
         await nextTick()
         updateBoardSize()
+        updateConnectorPositions()
     }
+)
+
+watch(
+    () => props.selectedCardIds.join('|'),
+    (selectedIds, previousSelectedIds) => {
+        const selectedPair = getPair(getCardsByIds(selectedIds ? selectedIds.split('|') : []))
+        if (selectedPair && !isCorrectPair(selectedPair)) {
+            invalidConnectorSequence += 1
+            if (invalidConnectorTimeoutId != null) window.clearTimeout(invalidConnectorTimeoutId)
+            transientInvalidConnector.value = {
+                key: `invalid-${invalidConnectorSequence}`,
+                cardIds: [selectedPair[0].id, selectedPair[1].id],
+                tone: 'invalid',
+            }
+            invalidConnectorTimeoutId = window.setTimeout(clearInvalidConnector, 700)
+        } else if (props.selectedCardIds.length === 1 && previousSelectedIds.length === 0) {
+            clearInvalidConnector()
+        }
+    }
+)
+
+watch(
+    [() => props.selectedCardIds.join('|'), () => JSON.stringify(props.vocabularyStates), cardLayouts],
+    async () => {
+        await nextTick()
+        updateConnectorPositions()
+    },
+    { flush: 'post' }
 )
 
 onMounted(async () => {
     await nextTick()
     updateBoardSize()
+    updateConnectorPositions()
 
     if (boardRef.value && typeof ResizeObserver !== 'undefined') {
-        resizeObserver = new ResizeObserver(() => updateBoardSize())
+        resizeObserver = new ResizeObserver(async () => {
+            updateBoardSize()
+            await nextTick()
+            updateConnectorPositions()
+        })
         resizeObserver.observe(boardRef.value)
     }
 })
 
 onBeforeUnmount(() => {
     resizeObserver?.disconnect()
+    clearInvalidConnector()
 })
 </script>
 
@@ -332,9 +521,33 @@ onBeforeUnmount(() => {
         role="group"
         :aria-label="boardLabel"
     >
+        <svg
+            class="quiz-match-connectors pointer-events-none absolute inset-0 z-0 h-full w-full overflow-visible"
+            :viewBox="connectorViewBox"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+            focusable="false"
+        >
+            <g v-for="connector in connectors" :key="connector.key">
+                <path
+                    :d="connector.path"
+                    pathLength="1"
+                    class="quiz-match-connector quiz-match-connector--underlay"
+                    :class="`quiz-match-connector--${connector.tone}`"
+                />
+                <path
+                    :d="connector.path"
+                    pathLength="1"
+                    class="quiz-match-connector"
+                    :class="`quiz-match-connector--${connector.tone}`"
+                />
+            </g>
+        </svg>
+
         <button
             v-for="card in cards"
             :key="card.id"
+            :ref="(element) => setCardRef(card.id, element)"
             type="button"
             :disabled="disabled || isMatchCardResolved(card)"
             :class="getMatchCardClass(card)"
@@ -344,7 +557,7 @@ onBeforeUnmount(() => {
                 width: `${cardLayouts[card.id]?.width ?? fallbackCardWidth}px`,
                 transform: `translate(-50%, -50%) rotate(${cardLayouts[card.id]?.rotation ?? 0}deg)`,
             }"
-            class="quiz-match-card absolute flex min-h-14 items-center justify-center rounded-md border px-3 py-2 text-center text-sm font-semibold leading-tight shadow-sm transition-[background-color,border-color,box-shadow,filter,transform] duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-default sm:min-h-16 sm:px-3.5 sm:py-2.5"
+            class="quiz-match-card absolute z-10 flex min-h-14 items-center justify-center rounded-md border px-3 py-2 text-center text-sm font-semibold leading-tight shadow-sm transition-[background-color,border-color,box-shadow,filter,transform] duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-default sm:min-h-16 sm:px-3.5 sm:py-2.5"
             @click="emit('choose', card)"
         >
             <span class="quiz-match-card__text w-full min-w-0">{{ card.word }}</span>
@@ -352,7 +565,7 @@ onBeforeUnmount(() => {
 
         <div
             v-if="isSubmitting"
-            class="absolute inset-x-0 bottom-8 mx-auto flex w-fit items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-muted-foreground shadow-sm"
+            class="absolute inset-x-0 bottom-8 z-20 mx-auto flex w-fit items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-muted-foreground shadow-sm"
         >
             <span
                 class="quiz-inline-spinner h-4 w-4 rounded-full border-2 border-muted-foreground/35 border-t-muted-foreground"
@@ -364,6 +577,26 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.quiz-match-connector {
+    fill: none;
+    stroke: oklch(0.98 0.006 155);
+    stroke-width: 3.25;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 1;
+    vector-effect: non-scaling-stroke;
+    animation: quiz-match-connector-draw 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.quiz-match-connector--invalid {
+    stroke: oklch(0.79 0.12 24);
+}
+
+.quiz-match-connector--underlay {
+    stroke: hsl(var(--overlay) / 0.2);
+    stroke-width: 6.5;
+}
+
 .quiz-match-card {
     color: hsl(var(--foreground));
     background: hsl(var(--background));
@@ -417,6 +650,16 @@ onBeforeUnmount(() => {
     }
 }
 
+@keyframes quiz-match-connector-draw {
+    from {
+        stroke-dashoffset: 1;
+    }
+
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
 @media (max-width: 639px) {
     .quiz-match-board {
         display: grid;
@@ -442,6 +685,10 @@ onBeforeUnmount(() => {
 }
 
 @media (prefers-reduced-motion: reduce) {
+    .quiz-match-connector {
+        animation: none;
+    }
+
     .quiz-match-card {
         transition: none;
     }
