@@ -120,16 +120,6 @@
                         </div>
 
                         <button
-                            v-if="user?.is_admin"
-                            @click="goToUsers"
-                            role="menuitem"
-                            class="flex min-h-11 w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium transition-colors hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        >
-                            <Users class="h-4 w-4" />
-                            <span>{{ t.navUsers }}</span>
-                        </button>
-
-                        <button
                             ref="firstMenuActionRef"
                             @click="goToSettings"
                             role="menuitem"
@@ -171,7 +161,7 @@
 import { computed, nextTick, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { Sun, Moon, ChevronDown, Settings, LogOut, UserRound, Users } from 'lucide-vue-next'
+import { Sun, Moon, ChevronDown, Settings, LogOut, UserRound } from 'lucide-vue-next'
 import { ToggleSwitch } from '@/components/ui/toggle-switch'
 import { isTelegramWebApp } from '@/lib/telegram.ts'
 import { useI18n } from '@/composables/useI18n'
@@ -231,11 +221,6 @@ onBeforeUnmount(() => {
 const goToSettings = () => {
     closeProfileMenu()
     router.push('/settings')
-}
-
-const goToUsers = () => {
-    closeProfileMenu()
-    router.push('/users')
 }
 
 const handleLogout = async () => {
