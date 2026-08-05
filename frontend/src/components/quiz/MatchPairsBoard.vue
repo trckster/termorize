@@ -433,7 +433,7 @@ const connectorCandidates = computed<MatchConnectorCandidate[]>(() => {
     const candidates: MatchConnectorCandidate[] = []
 
     for (const [vocabularyId, state] of Object.entries(props.vocabularyStates)) {
-        if (state.result !== 'correct' && state.result !== 'almost') continue
+        if (state.result == null) continue
 
         const pair = props.cards.filter((card) => card.vocabulary_id === vocabularyId)
         const original = pair.find((card) => card.side === 'original')
@@ -444,7 +444,7 @@ const connectorCandidates = computed<MatchConnectorCandidate[]>(() => {
         candidates.push({
             key: getConnectorKey(cardIds),
             cardIds,
-            tone: 'correct',
+            tone: state.result === 'wrong' ? 'invalid' : 'correct',
         })
     }
 
