@@ -71,10 +71,8 @@ const fallbackCardWidth = ref(112)
 const cardLayouts = ref<Record<string, MatchCardLayout>>({})
 const cardGeometries = ref<Record<string, CardGeometry>>({})
 const cardRefs = new Map<string, HTMLElement>()
-const transientInvalidConnector = ref<MatchConnectorCandidate | null>(null)
 const connectorStatus = ref('')
 let resizeObserver: ResizeObserver | null = null
-let invalidConnectorTimeoutId: number | null = null
 
 function clamp(value: number, min: number, max: number): number {
     return Math.min(max, Math.max(min, value))
@@ -194,14 +192,6 @@ function updateConnectorPositions() {
     }
 
     cardGeometries.value = nextGeometries
-}
-
-function clearInvalidConnector() {
-    if (invalidConnectorTimeoutId != null) {
-        window.clearTimeout(invalidConnectorTimeoutId)
-        invalidConnectorTimeoutId = null
-    }
-    transientInvalidConnector.value = null
 }
 
 function createSeededRandom(seedInput: string): () => number {
@@ -448,18 +438,6 @@ const connectorCandidates = computed<MatchConnectorCandidate[]>(() => {
         })
     }
 
-    const selectedPair = getPair(getCardsByIds(props.selectedCardIds))
-    if (selectedPair) {
-        const cardIds: [string, string] = [selectedPair[0].id, selectedPair[1].id]
-        candidates.push({
-            key: getConnectorKey(cardIds),
-            cardIds,
-            tone: isCorrectPair(selectedPair) ? 'correct' : 'invalid',
-        })
-    } else if (transientInvalidConnector.value) {
-        candidates.push(transientInvalidConnector.value)
-    }
-
     return candidates
 })
 
@@ -518,28 +496,14 @@ watch(
             connectorStatus.value = `${selectedPair[0].word}, ${selectedPair[1].word}: ${
                 isCorrect ? props.correctText : props.invalidText
             }`
-            if (isCorrect) {
-                clearInvalidConnector()
-                return
-            }
-
-            if (invalidConnectorTimeoutId != null) window.clearTimeout(invalidConnectorTimeoutId)
-            const cardIds: [string, string] = [selectedPair[0].id, selectedPair[1].id]
-            transientInvalidConnector.value = {
-                key: getConnectorKey(cardIds),
-                cardIds,
-                tone: 'invalid',
-            }
-            invalidConnectorTimeoutId = window.setTimeout(clearInvalidConnector, 700)
         } else if (props.selectedCardIds.length === 1) {
-            clearInvalidConnector()
             connectorStatus.value = ''
         }
     }
 )
 
 watch(
-    [() => props.selectedCardIds.join('|'), () => JSON.stringify(props.vocabularyStates), cardLayouts],
+    [() => JSON.stringify(props.vocabularyStates), cardLayouts],
     async () => {
         await nextTick()
         updateConnectorPositions()
@@ -564,7 +528,6 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
     resizeObserver?.disconnect()
-    clearInvalidConnector()
 })
 </script>
 
