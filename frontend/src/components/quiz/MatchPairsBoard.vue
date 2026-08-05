@@ -511,14 +511,17 @@ watch(
 
 watch(
     () => props.selectedCardIds.join('|'),
-    (selectedIds, previousSelectedIds) => {
+    (selectedIds) => {
         const selectedPair = getPair(getCardsByIds(selectedIds ? selectedIds.split('|') : []))
         if (selectedPair) {
             const isCorrect = isCorrectPair(selectedPair)
             connectorStatus.value = `${selectedPair[0].word}, ${selectedPair[1].word}: ${
                 isCorrect ? props.correctText : props.invalidText
             }`
-            if (isCorrect) return
+            if (isCorrect) {
+                clearInvalidConnector()
+                return
+            }
 
             if (invalidConnectorTimeoutId != null) window.clearTimeout(invalidConnectorTimeoutId)
             const cardIds: [string, string] = [selectedPair[0].id, selectedPair[1].id]
@@ -528,7 +531,7 @@ watch(
                 tone: 'invalid',
             }
             invalidConnectorTimeoutId = window.setTimeout(clearInvalidConnector, 700)
-        } else if (props.selectedCardIds.length === 1 && previousSelectedIds.length === 0) {
+        } else if (props.selectedCardIds.length === 1) {
             clearInvalidConnector()
             connectorStatus.value = ''
         }
