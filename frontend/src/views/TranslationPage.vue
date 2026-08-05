@@ -12,6 +12,11 @@ import { useToast } from '@/composables/useToast.ts'
 import { usePhoneViewport } from '@/composables/usePhoneViewport.ts'
 import { useAuthStore } from '@/stores/auth.ts'
 import { useI18n } from '@/composables/useI18n'
+import {
+    createProgrammaticChangeGuard,
+    getLanguageChangeDirection,
+    type TranslationField,
+} from '@/lib/translationPageState.ts'
 
 type LanguageSelectorInstance = {
     focusInput: () => Promise<void>
@@ -57,12 +62,14 @@ const translationId = ref<string | null>(null)
 const sourceWordId = ref<string | null>(null)
 const targetWordId = ref<string | null>(null)
 const isSavingVocabulary = ref(false)
+const programmaticTextChanges = createProgrammaticChangeGuard<'source' | 'target'>()
 
 const { addToast } = useToast()
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let settingsSaveTimer: ReturnType<typeof setTimeout> | null = null
 let isSwappingLanguages = false
+let lastTranslationDirection: 'source-to-target' | 'target-to-source' | null = null
 const activeField = ref<'source' | 'target' | null>(null)
 const isLoadingSource = ref(false)
 const isLoadingTarget = ref(false)
@@ -221,6 +228,7 @@ const debouncedTranslate = (
         clearTimeout(debounceTimer)
     }
 
+    lastTranslationDirection = direction
     debounceTimer = setTimeout(() => {
         performTranslation(fromText, fromLang, toLang, direction, updateTarget, setLoading)
     }, 500)
@@ -233,6 +241,9 @@ const queueSourceToTargetTranslation = (fromText: string) => {
         targetLang.value,
         'source-to-target',
         (text) => {
+            if (translatedText.value === text) return
+
+            programmaticTextChanges.mark('target', text)
             translatedText.value = text
         },
         (loading) => {
@@ -248,6 +259,9 @@ const queueTargetToSourceTranslation = (fromText: string) => {
         sourceLang.value,
         'target-to-source',
         (text) => {
+            if (sourceText.value === text) return
+
+            programmaticTextChanges.mark('source', text)
             sourceText.value = text
         },
         (loading) => {
@@ -256,22 +270,29 @@ const queueTargetToSourceTranslation = (fromText: string) => {
     )
 }
 
-const triggerActiveFieldTranslation = (requireText: boolean = false) => {
-    if (activeField.value === 'source') {
-        if (requireText && !sourceText.value.trim()) {
-            return
-        }
-
+const retryLastTranslation = () => {
+    if (lastTranslationDirection === 'source-to-target' && sourceText.value.trim()) {
         invalidateTranslationResult()
         queueSourceToTargetTranslation(sourceText.value)
         return
     }
 
-    if (activeField.value === 'target') {
-        if (requireText && !translatedText.value.trim()) {
-            return
-        }
+    if (lastTranslationDirection === 'target-to-source' && translatedText.value.trim()) {
+        invalidateTranslationResult()
+        queueTargetToSourceTranslation(translatedText.value)
+    }
+}
 
+const translateForLanguageChange = (field: TranslationField) => {
+    const direction = getLanguageChangeDirection(field)
+
+    if (direction === 'source-to-target' && sourceText.value.trim()) {
+        invalidateTranslationResult()
+        queueSourceToTargetTranslation(sourceText.value)
+        return
+    }
+
+    if (direction === 'target-to-source' && translatedText.value.trim()) {
         invalidateTranslationResult()
         queueTargetToSourceTranslation(translatedText.value)
     }
@@ -280,6 +301,7 @@ const triggerActiveFieldTranslation = (requireText: boolean = false) => {
 watch(
     sourceText,
     (newValue) => {
+        if (programmaticTextChanges.consume('source', newValue)) return
         if (activeField.value !== 'source') return
         invalidateTranslationResult()
         translationErrorMessage.value = ''
@@ -291,6 +313,7 @@ watch(
 watch(
     translatedText,
     (newValue) => {
+        if (programmaticTextChanges.consume('target', newValue)) return
         if (activeField.value !== 'target') return
         invalidateTranslationResult()
         translationErrorMessage.value = ''
@@ -305,7 +328,7 @@ watch(
         if (!isSwappingLanguages) {
             void focusTextarea('source')
         }
-        triggerActiveFieldTranslation(true)
+        translateForLanguageChange('source')
         queuePersistTranslationLanguages()
     },
     { immediate: false }
@@ -317,7 +340,7 @@ watch(
         if (!isSwappingLanguages) {
             void focusTextarea('target')
         }
-        triggerActiveFieldTranslation(true)
+        translateForLanguageChange('target')
         queuePersistTranslationLanguages()
     },
     { immediate: false }
@@ -569,9 +592,7 @@ onBeforeUnmount(() => {
                 class="mt-3 flex flex-col items-center justify-center gap-3 text-center sm:flex-row"
             >
                 <p class="max-w-2xl text-sm text-destructive">{{ translationErrorMessage }}</p>
-                <Button variant="outline" size="sm" @click="triggerActiveFieldTranslation(true)">{{
-                    t.commonRetry
-                }}</Button>
+                <Button variant="outline" size="sm" @click="retryLastTranslation">{{ t.commonRetry }}</Button>
             </div>
 
             <p v-if="translationSource" class="mt-3 text-center text-xs text-muted-foreground">

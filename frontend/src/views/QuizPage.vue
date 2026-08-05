@@ -37,6 +37,7 @@ const settingsStore = useSettingsStore()
 
 const state = ref<QuizState>('loading')
 const currentExercise = ref<RandomExercise | null>(null)
+const ignoredExerciseId = ref<string | null>(null)
 const verifyResult = ref<VerifyResult | null>(null)
 const matchCompleteResult = ref<MatchPairsCompleteResult | null>(null)
 const exerciseIds = ref<string[]>([])
@@ -754,6 +755,7 @@ async function closeQuiz() {
     if (exerciseId && state.value === 'question') {
         try {
             await exercisesApi.ignoreExercise(exerciseId)
+            ignoredExerciseId.value = exerciseId
         } catch {
             // Closing the quiz should not trap the user if the exercise was already handled elsewhere.
         }
@@ -765,6 +767,14 @@ async function closeQuiz() {
     }
 
     void router.push({ name: 'translation' })
+}
+
+function ignoreCurrentExerciseOnPageExit() {
+    const exerciseId = currentExercise.value?.exercise_id
+    if (exerciseId && exerciseId !== ignoredExerciseId.value && state.value === 'question') {
+        ignoredExerciseId.value = exerciseId
+        exercisesApi.ignoreExerciseOnPageExit(exerciseId)
+    }
 }
 
 const scoredResults = computed(() =>
@@ -907,10 +917,13 @@ const resultClass = computed(() => {
 })
 
 onMounted(() => {
+    window.addEventListener('pagehide', ignoreCurrentExerciseOnPageExit)
     void startQuiz()
 })
 
 onBeforeUnmount(() => {
+    window.removeEventListener('pagehide', ignoreCurrentExerciseOnPageExit)
+    ignoreCurrentExerciseOnPageExit()
     clearChoiceSubmit()
     clearMatchResolve()
     clearFeedbackAdvance()
@@ -1003,6 +1016,8 @@ onBeforeUnmount(() => {
                                 :is-submitting="isSubmitting"
                                 :checking-text="t.quizChecking"
                                 :board-label="questionHint"
+                                :correct-text="t.quizResultCorrect"
+                                :invalid-text="t.quizResultWrong"
                                 @choose="chooseMatchCard"
                             />
 

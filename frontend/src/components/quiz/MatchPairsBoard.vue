@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type ComponentPublicInstance } from 'vue'
 import type { ExerciseMatchCard, MatchPairResult } from '@/api/exercises.ts'
 
 type MatchCardVisualState = 'idle' | 'selected' | 'green' | 'yellow' | 'red'
@@ -22,9 +22,27 @@ type PlacementCandidate = PlacedCard & {
     renderX: number
     renderY: number
 }
+type MatchConnectorTone = 'correct' | 'invalid'
+type MatchConnectorCandidate = {
+    key: string
+    cardIds: [string, string]
+    tone: MatchConnectorTone
+}
+type MatchConnector = MatchConnectorCandidate & {
+    path: string
+}
+type Point = {
+    x: number
+    y: number
+}
+type CardGeometry = Point & {
+    width: number
+    height: number
+}
 
 const BOARD_INSET = 6
 const CARD_GAP = 4
+const CONNECTOR_CARD_GAP = 3
 const ROTATION_PADDING = 4
 const PLACEMENT_ATTEMPTS = 6000
 
@@ -37,6 +55,8 @@ const props = defineProps<{
     isSubmitting: boolean
     checkingText: string
     boardLabel: string
+    correctText: string
+    invalidText: string
 }>()
 
 const emit = defineEmits<{
@@ -45,12 +65,133 @@ const emit = defineEmits<{
 
 const boardRef = ref<HTMLElement | null>(null)
 const boardSize = ref(0)
+const boardWidth = ref(0)
+const boardHeight = ref(0)
 const fallbackCardWidth = ref(112)
 const cardLayouts = ref<Record<string, MatchCardLayout>>({})
+const cardGeometries = ref<Record<string, CardGeometry>>({})
+const cardRefs = new Map<string, HTMLElement>()
+const connectorStatus = ref('')
 let resizeObserver: ResizeObserver | null = null
 
 function clamp(value: number, min: number, max: number): number {
     return Math.min(max, Math.max(min, value))
+}
+
+function setCardRef(cardId: string, element: Element | ComponentPublicInstance | null) {
+    if (element instanceof HTMLElement) {
+        cardRefs.set(cardId, element)
+    } else {
+        cardRefs.delete(cardId)
+    }
+}
+
+function getCardsByIds(cardIds: string[]): ExerciseMatchCard[] {
+    return cardIds
+        .map((cardId) => props.cards.find((card) => card.id === cardId))
+        .filter((card): card is ExerciseMatchCard => card != null)
+}
+
+function getPair(cards: ExerciseMatchCard[]): [ExerciseMatchCard, ExerciseMatchCard] | null {
+    const first = cards[0]
+    const second = cards[1]
+    return cards.length === 2 && first && second ? [first, second] : null
+}
+
+function isCorrectPair([first, second]: [ExerciseMatchCard, ExerciseMatchCard]): boolean {
+    return first.vocabulary_id === second.vocabulary_id && first.side !== second.side
+}
+
+function getConnectorKey(cardIds: [string, string]): string {
+    return `pair-${[...cardIds].sort().join('-')}`
+}
+
+function getConnectorEndpoints(start: CardGeometry, end: CardGeometry): [Point, Point] {
+    const dx = end.x - start.x
+    const dy = end.y - start.y
+    const length = Math.hypot(dx, dy)
+    if (length < 1) return [start, end]
+
+    const directionX = dx / length
+    const directionY = dy / length
+    const getEdgeDistance = (geometry: CardGeometry) => {
+        const horizontalDistance = Math.abs(directionX) > 0 ? geometry.width / 2 / Math.abs(directionX) : Infinity
+        const verticalDistance = Math.abs(directionY) > 0 ? geometry.height / 2 / Math.abs(directionY) : Infinity
+        return Math.min(horizontalDistance, verticalDistance) + CONNECTOR_CARD_GAP
+    }
+    const startDistance = getEdgeDistance(start)
+    const endDistance = getEdgeDistance(end)
+
+    return [
+        {
+            x: start.x + directionX * startDistance,
+            y: start.y + directionY * startDistance,
+        },
+        {
+            x: end.x - directionX * endDistance,
+            y: end.y - directionY * endDistance,
+        },
+    ]
+}
+
+function buildWavyPath(start: Point, end: Point): string {
+    const dx = end.x - start.x
+    const dy = end.y - start.y
+    const length = Math.hypot(dx, dy)
+    if (length < 1) return `M ${start.x} ${start.y}`
+
+    const perpendicularX = -dy / length
+    const perpendicularY = dx / length
+    const amplitude = clamp(length * 0.035, Math.min(3, length * 0.2), 11)
+    const segmentCount = Math.max(2, Math.round(length / 34 / 2) * 2)
+    let path = `M ${start.x.toFixed(1)} ${start.y.toFixed(1)}`
+
+    for (let index = 0; index < segmentCount; index++) {
+        const startProgress = index / segmentCount
+        const endProgress = (index + 1) / segmentCount
+        const controlProgress = (startProgress + endProgress) / 2
+        const direction = index % 2 === 0 ? 1 : -1
+        const controlX = start.x + dx * controlProgress + perpendicularX * amplitude * direction
+        const controlY = start.y + dy * controlProgress + perpendicularY * amplitude * direction
+        const endX = start.x + dx * endProgress
+        const endY = start.y + dy * endProgress
+        path += ` Q ${controlX.toFixed(1)} ${controlY.toFixed(1)} ${endX.toFixed(1)} ${endY.toFixed(1)}`
+    }
+
+    return path
+}
+
+function updateConnectorPositions() {
+    const boardRect = boardRef.value?.getBoundingClientRect()
+    if (!boardRect) return
+
+    boardWidth.value = boardRect.width
+    boardHeight.value = boardRect.height
+    const nextGeometries: Record<string, CardGeometry> = {}
+
+    for (const card of props.cards) {
+        const cardElement = cardRefs.get(card.id)
+        if (!cardElement) continue
+
+        if (window.getComputedStyle(cardElement).position === 'absolute') {
+            nextGeometries[card.id] = {
+                x: cardElement.offsetLeft,
+                y: cardElement.offsetTop,
+                width: cardElement.offsetWidth,
+                height: cardElement.offsetHeight,
+            }
+        } else {
+            const cardRect = cardElement.getBoundingClientRect()
+            nextGeometries[card.id] = {
+                x: cardRect.left - boardRect.left + cardRect.width / 2,
+                y: cardRect.top - boardRect.top + cardRect.height / 2,
+                width: cardRect.width,
+                height: cardRect.height,
+            }
+        }
+    }
+
+    cardGeometries.value = nextGeometries
 }
 
 function createSeededRandom(seedInput: string): () => number {
@@ -278,6 +419,41 @@ function updateBoardSize() {
     }
 }
 
+const connectorCandidates = computed<MatchConnectorCandidate[]>(() => {
+    const candidates: MatchConnectorCandidate[] = []
+
+    for (const [vocabularyId, state] of Object.entries(props.vocabularyStates)) {
+        if (state.result == null) continue
+
+        const pair = props.cards.filter((card) => card.vocabulary_id === vocabularyId)
+        const original = pair.find((card) => card.side === 'original')
+        const translation = pair.find((card) => card.side === 'translation')
+        if (!original || !translation) continue
+
+        const cardIds: [string, string] = [original.id, translation.id]
+        candidates.push({
+            key: getConnectorKey(cardIds),
+            cardIds,
+            tone: state.result === 'wrong' ? 'invalid' : 'correct',
+        })
+    }
+
+    return candidates
+})
+
+const connectors = computed<MatchConnector[]>(() =>
+    connectorCandidates.value.flatMap((connector) => {
+        const startGeometry = cardGeometries.value[connector.cardIds[0]]
+        const endGeometry = cardGeometries.value[connector.cardIds[1]]
+        if (!startGeometry || !endGeometry) return []
+        const [start, end] = getConnectorEndpoints(startGeometry, endGeometry)
+        if (!start || !end) return []
+        return [{ ...connector, path: buildWavyPath(start, end) }]
+    })
+)
+
+const connectorViewBox = computed(() => `0 0 ${boardWidth.value || 1} ${boardHeight.value || 1}`)
+
 function getMatchCardVisualState(card: ExerciseMatchCard): MatchCardVisualState {
     const state = props.vocabularyStates[card.vocabulary_id]
     if (!state) return 'idle'
@@ -307,15 +483,45 @@ watch(
     async () => {
         await nextTick()
         updateBoardSize()
+        updateConnectorPositions()
     }
+)
+
+watch(
+    () => props.selectedCardIds.join('|'),
+    (selectedIds) => {
+        const selectedPair = getPair(getCardsByIds(selectedIds ? selectedIds.split('|') : []))
+        if (selectedPair) {
+            const isCorrect = isCorrectPair(selectedPair)
+            connectorStatus.value = `${selectedPair[0].word}, ${selectedPair[1].word}: ${
+                isCorrect ? props.correctText : props.invalidText
+            }`
+        } else if (props.selectedCardIds.length === 1) {
+            connectorStatus.value = ''
+        }
+    }
+)
+
+watch(
+    [() => JSON.stringify(props.vocabularyStates), cardLayouts],
+    async () => {
+        await nextTick()
+        updateConnectorPositions()
+    },
+    { flush: 'post' }
 )
 
 onMounted(async () => {
     await nextTick()
     updateBoardSize()
+    updateConnectorPositions()
 
     if (boardRef.value && typeof ResizeObserver !== 'undefined') {
-        resizeObserver = new ResizeObserver(() => updateBoardSize())
+        resizeObserver = new ResizeObserver(async () => {
+            updateBoardSize()
+            await nextTick()
+            updateConnectorPositions()
+        })
         resizeObserver.observe(boardRef.value)
     }
 })
@@ -332,9 +538,35 @@ onBeforeUnmount(() => {
         role="group"
         :aria-label="boardLabel"
     >
+        <p class="sr-only" role="status" aria-live="polite" aria-atomic="true">{{ connectorStatus }}</p>
+
+        <svg
+            class="quiz-match-connectors pointer-events-none absolute inset-0 z-0 h-full w-full overflow-visible"
+            :viewBox="connectorViewBox"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+            focusable="false"
+        >
+            <g v-for="connector in connectors" :key="connector.key">
+                <path
+                    :d="connector.path"
+                    pathLength="1"
+                    class="quiz-match-connector quiz-match-connector--underlay"
+                    :class="`quiz-match-connector--${connector.tone}`"
+                />
+                <path
+                    :d="connector.path"
+                    pathLength="1"
+                    class="quiz-match-connector"
+                    :class="`quiz-match-connector--${connector.tone}`"
+                />
+            </g>
+        </svg>
+
         <button
             v-for="card in cards"
             :key="card.id"
+            :ref="(element) => setCardRef(card.id, element)"
             type="button"
             :disabled="disabled || isMatchCardResolved(card)"
             :class="getMatchCardClass(card)"
@@ -344,7 +576,7 @@ onBeforeUnmount(() => {
                 width: `${cardLayouts[card.id]?.width ?? fallbackCardWidth}px`,
                 transform: `translate(-50%, -50%) rotate(${cardLayouts[card.id]?.rotation ?? 0}deg)`,
             }"
-            class="quiz-match-card absolute flex min-h-14 items-center justify-center rounded-md border px-3 py-2 text-center text-sm font-semibold leading-tight shadow-sm transition-[background-color,border-color,box-shadow,filter,transform] duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-default sm:min-h-16 sm:px-3.5 sm:py-2.5"
+            class="quiz-match-card absolute z-10 flex min-h-14 items-center justify-center rounded-md border px-3 py-2 text-center text-sm font-semibold leading-tight shadow-sm transition-[background-color,border-color,box-shadow,filter,transform] duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-default sm:min-h-16 sm:px-3.5 sm:py-2.5"
             @click="emit('choose', card)"
         >
             <span class="quiz-match-card__text w-full min-w-0">{{ card.word }}</span>
@@ -352,7 +584,7 @@ onBeforeUnmount(() => {
 
         <div
             v-if="isSubmitting"
-            class="absolute inset-x-0 bottom-8 mx-auto flex w-fit items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-muted-foreground shadow-sm"
+            class="absolute inset-x-0 bottom-8 z-20 mx-auto flex w-fit items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-muted-foreground shadow-sm"
         >
             <span
                 class="quiz-inline-spinner h-4 w-4 rounded-full border-2 border-muted-foreground/35 border-t-muted-foreground"
@@ -364,6 +596,32 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.quiz-match-connector {
+    fill: none;
+    stroke: oklch(0.98 0.006 155);
+    stroke-width: 3.25;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 1;
+    vector-effect: non-scaling-stroke;
+    animation: quiz-match-connector-draw 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.quiz-match-connector--invalid {
+    stroke: oklch(0.79 0.12 24);
+    stroke-dasharray: 3 4;
+    stroke-linecap: butt;
+    animation-name: quiz-match-connector-invalid-in;
+}
+
+.quiz-match-connector--underlay {
+    stroke: hsl(var(--overlay) / 0.2);
+    stroke-width: 6.5;
+    stroke-dasharray: 1;
+    stroke-linecap: round;
+    animation-name: quiz-match-connector-draw;
+}
+
 .quiz-match-card {
     color: hsl(var(--foreground));
     background: hsl(var(--background));
@@ -417,12 +675,35 @@ onBeforeUnmount(() => {
     }
 }
 
+@keyframes quiz-match-connector-draw {
+    from {
+        stroke-dashoffset: 1;
+    }
+
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+@keyframes quiz-match-connector-invalid-in {
+    from {
+        opacity: 0;
+        stroke-dashoffset: 5;
+    }
+
+    to {
+        opacity: 1;
+        stroke-dashoffset: 0;
+    }
+}
+
 @media (max-width: 639px) {
     .quiz-match-board {
         display: grid;
         aspect-ratio: auto;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 0.5rem;
+        column-gap: 1.25rem;
+        row-gap: 1.25rem;
         max-width: none;
     }
 
@@ -442,6 +723,10 @@ onBeforeUnmount(() => {
 }
 
 @media (prefers-reduced-motion: reduce) {
+    .quiz-match-connector {
+        animation: none;
+    }
+
     .quiz-match-card {
         transition: none;
     }
