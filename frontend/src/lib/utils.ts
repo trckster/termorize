@@ -87,10 +87,5 @@ export function formatCost(value: number) {
         return String(value)
     }
 
-    return new Intl.NumberFormat(getPreferredLocale(), {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 6,
-    }).format(value)
+    return `$${value.toFixed(2)}`
 }
