@@ -1245,6 +1245,10 @@ func TestGenerateCollectionHappyPath(t *testing.T) {
 	testkit.Truncate(t)
 
 	testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{
+		Usage: openrouter.Usage{
+			GenerationID: "gen-animals", Model: "test/model", Cost: 0.00125,
+			PromptTokens: 100, CompletionTokens: 25, TotalTokens: 125,
+		},
 		GenerateFunc: func(prompt string, allowedLanguages []string) (*openrouter.GeneratedCollection, error) {
 			assert.Equal(t, "animals in german", prompt)
 			return &openrouter.GeneratedCollection{
@@ -1281,6 +1285,15 @@ func TestGenerateCollectionHappyPath(t *testing.T) {
 	stored := collectionFindByID(t, body.ID)
 	require.NotNil(t, stored.OwnerID)
 	assert.Equal(t, user.ID, *stored.OwnerID)
+
+	var usage models.OpenRouterUsage
+	require.NoError(t, db.DB.Where("user_id = ?", user.ID).First(&usage).Error)
+	assert.Equal(t, "gen-animals", *usage.GenerationID)
+	assert.Equal(t, "test/model", usage.Model)
+	assert.InDelta(t, 0.00125, usage.Cost, 0.0000000001)
+	assert.Equal(t, 100, usage.PromptTokens)
+	assert.Equal(t, 25, usage.CompletionTokens)
+	assert.Equal(t, 125, usage.TotalTokens)
 }
 
 func TestGenerateCollectionAdminProducesUnpublishedGlobal(t *testing.T) {
@@ -1351,6 +1364,10 @@ func TestGenerateCollectionOpenRouterFailure(t *testing.T) {
 	testkit.Truncate(t)
 
 	testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{
+		Usage: openrouter.Usage{
+			GenerationID: "gen-failed-content", Model: "test/model", Cost: 0.003,
+			PromptTokens: 50, CompletionTokens: 4, TotalTokens: 54,
+		},
 		GenerateFunc: func(prompt string, allowedLanguages []string) (*openrouter.GeneratedCollection, error) {
 			return nil, assert.AnError
 		},
@@ -1362,6 +1379,10 @@ func TestGenerateCollectionOpenRouterFailure(t *testing.T) {
 		map[string]any{"prompt": "animals"})
 	// AIGenerationFailed → ServerError → 500.
 	testkit.RequireStatus(t, rec, http.StatusInternalServerError)
+
+	var usage models.OpenRouterUsage
+	require.NoError(t, db.DB.Where("user_id = ?", user.ID).First(&usage).Error)
+	assert.InDelta(t, 0.003, usage.Cost, 0.0000000001)
 }
 
 func TestGenerateCollectionNotConfigured(t *testing.T) {

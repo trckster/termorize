@@ -42,6 +42,7 @@ func MockGoogleTranslate(t *testing.T, fake *FakeGoogleTranslate) *FakeGoogleTra
 
 type FakeOpenRouter struct {
 	GenerateFunc func(prompt string, allowedLanguages []string) (*openrouter.GeneratedCollection, error)
+	Usage        openrouter.Usage
 }
 
 type FakeOpenRouterSpeech struct {
@@ -55,14 +56,18 @@ func (f *FakeOpenRouterSpeech) GenerateSpeech(input string) ([]byte, error) {
 	return []byte("test-mp3:" + input), nil
 }
 
-func (f *FakeOpenRouter) GenerateCollection(prompt string, allowedLanguages []string) (*openrouter.GeneratedCollection, error) {
+func (f *FakeOpenRouter) GenerateCollection(prompt string, allowedLanguages []string) (*openrouter.GenerationResult, error) {
+	var generated *openrouter.GeneratedCollection
+	var err error
 	if f.GenerateFunc != nil {
-		return f.GenerateFunc(prompt, allowedLanguages)
+		generated, err = f.GenerateFunc(prompt, allowedLanguages)
+	} else {
+		generated = &openrouter.GeneratedCollection{
+			Title:        "Test Collection",
+			Translations: []openrouter.GeneratedTranslation{},
+		}
 	}
-	return &openrouter.GeneratedCollection{
-		Title:        "Test Collection",
-		Translations: []openrouter.GeneratedTranslation{},
-	}, nil
+	return &openrouter.GenerationResult{Collection: generated, Usage: f.Usage}, err
 }
 
 func MockOpenRouter(t *testing.T, fake *FakeOpenRouter) *FakeOpenRouter {

@@ -12,12 +12,13 @@ const en = {
 
     // Admin users page
     usersHeading: 'Users',
-    usersDescription: 'The 50 most recently active users, sorted by vocabulary additions and finished exercises.',
+    usersDescription: 'The 50 most recently active users, including vocabulary, exercises, and AI generation.',
     usersTotal: 'Total users',
     usersId: 'User ID',
     usersName: 'Name',
     usersUsername: 'Username',
     usersVocabularySize: 'Vocabulary size',
+    usersOpenRouterCost: 'OpenRouter spend',
     usersLatestUsage: 'Latest usage',
     usersLoadError: 'Unable to load users. Please try again.',
     usersEmpty: 'No recent activity',
@@ -461,12 +462,13 @@ const ru: typeof en = {
 
     // Admin users page
     usersHeading: 'Пользователи',
-    usersDescription: '50 последних активных пользователей по добавлениям в словарь и завершённым упражнениям.',
+    usersDescription: '50 последних активных пользователей по словарю, упражнениям и генерации с помощью ИИ.',
     usersTotal: 'Всего пользователей',
     usersId: 'ID пользователя',
     usersName: 'Имя',
     usersUsername: 'Имя пользователя',
     usersVocabularySize: 'Размер словаря',
+    usersOpenRouterCost: 'Расходы OpenRouter',
     usersLatestUsage: 'Последняя активность',
     usersLoadError: 'Не удалось загрузить пользователей. Попробуйте ещё раз.',
     usersEmpty: 'Недавней активности нет',

@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { adminApi, type AdminUser } from '@/api/admin.ts'
 import { useI18n } from '@/composables/useI18n'
-import { formatDate, formatNumber, formatRelativeTime } from '@/lib/utils.ts'
+import { formatCost, formatDate, formatNumber, formatRelativeTime } from '@/lib/utils.ts'
 
 const { t } = useI18n()
 const users = ref<AdminUser[]>([])
@@ -88,6 +88,7 @@ onMounted(() => void fetchUsers())
                                 <th scope="col" class="px-5 py-3">{{ t.usersName }}</th>
                                 <th scope="col" class="px-5 py-3">{{ t.usersUsername }}</th>
                                 <th scope="col" class="px-5 py-3 text-right">{{ t.usersVocabularySize }}</th>
+                                <th scope="col" class="px-5 py-3 text-right">{{ t.usersOpenRouterCost }}</th>
                                 <th scope="col" class="px-5 py-3 text-right">{{ t.usersLatestUsage }}</th>
                             </tr>
                         </thead>
@@ -102,6 +103,9 @@ onMounted(() => void fetchUsers())
                                 </td>
                                 <td class="px-5 py-3.5 text-right tabular-nums text-foreground">
                                     {{ formatNumber(user.vocabulary_size) }}
+                                </td>
+                                <td class="px-5 py-3.5 text-right font-mono text-xs tabular-nums text-foreground">
+                                    {{ formatCost(user.openrouter_cost) }}
                                 </td>
                                 <td class="px-5 py-3.5 text-right">
                                     <time

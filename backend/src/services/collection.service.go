@@ -680,7 +680,10 @@ func GenerateCollection(userID uint, prompt string) (*CollectionDetail, error) {
 		return nil, err
 	}
 
-	generated, err := openrouter.NewClient().GenerateCollection(prompt, enums.AllLanguages())
+	result, err := openrouter.NewClient().GenerateCollection(prompt, enums.AllLanguages())
+	if result != nil {
+		recordOpenRouterUsage(userID, result.Usage)
+	}
 	if err != nil {
 		if errors.Is(err, openrouter.ErrNotConfigured) {
 			return nil, ErrAIGenerationUnavailable
@@ -690,6 +693,13 @@ func GenerateCollection(userID uint, prompt string) (*CollectionDetail, error) {
 			logMsg = strings.ReplaceAll(logMsg, key, "***")
 		}
 		logger.L().Errorw("openrouter request failed", "error", logMsg, "model", config.GetOpenRouterModel())
+		return nil, ErrAIGenerationFailed
+	}
+	if result == nil {
+		return nil, ErrAIGenerationFailed
+	}
+	generated := result.Collection
+	if generated == nil {
 		return nil, ErrAIGenerationFailed
 	}
 
@@ -771,6 +781,30 @@ func GenerateCollection(userID uint, prompt string) (*CollectionDetail, error) {
 	}
 
 	return GetCollection(userID, collection.ID)
+}
+
+func recordOpenRouterUsage(userID uint, usage openrouter.Usage) {
+	// Responses without any accounting metadata did not reach billable inference.
+	if usage.GenerationID == "" && usage.Cost == 0 && usage.TotalTokens == 0 {
+		return
+	}
+
+	var generationID *string
+	if usage.GenerationID != "" {
+		generationID = &usage.GenerationID
+	}
+	record := models.OpenRouterUsage{
+		UserID:           userID,
+		GenerationID:     generationID,
+		Model:            usage.Model,
+		Cost:             usage.Cost,
+		PromptTokens:     usage.PromptTokens,
+		CompletionTokens: usage.CompletionTokens,
+		TotalTokens:      usage.TotalTokens,
+	}
+	if err := db.DB.Create(&record).Error; err != nil {
+		logger.L().Errorw("failed to persist openrouter usage", "error", err, "user_id", userID, "generation_id", usage.GenerationID)
+	}
 }
 
 func SetCollectionIsPublished(userID uint, collectionID uuid.UUID, isPublished bool) (*CollectionDetail, error) {

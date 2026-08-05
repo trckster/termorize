@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const apiURL = "https://openrouter.ai/api/v1/chat/completions"
+var apiURL = "https://openrouter.ai/api/v1/chat/completions"
 
 var ErrNotConfigured = errors.New("openrouter api key is not configured")
 
@@ -28,21 +28,37 @@ type GeneratedCollection struct {
 	Translations []GeneratedTranslation `json:"translations"`
 }
 
+type Usage struct {
+	GenerationID     string
+	Model            string
+	Cost             float64
+	PromptTokens     int
+	CompletionTokens int
+	TotalTokens      int
+}
+
+type GenerationResult struct {
+	Collection *GeneratedCollection
+	Usage      Usage
+}
+
 type Client interface {
-	GenerateCollection(prompt string, allowedLanguages []string) (*GeneratedCollection, error)
+	GenerateCollection(prompt string, allowedLanguages []string) (*GenerationResult, error)
 }
 
 type client struct {
-	apiKey string
-	model  string
-	http   *http.Client
+	apiKey  string
+	model   string
+	referer string
+	http    *http.Client
 }
 
 var NewClient = func() Client {
 	return &client{
-		apiKey: config.GetOpenRouterApiKey(),
-		model:  config.GetOpenRouterModel(),
-		http:   &http.Client{Timeout: 30 * time.Second},
+		apiKey:  config.GetOpenRouterApiKey(),
+		model:   config.GetOpenRouterModel(),
+		referer: config.GetPublicURL(),
+		http:    &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
@@ -63,6 +79,8 @@ type chatRequest struct {
 }
 
 type chatResponse struct {
+	ID      string `json:"id"`
+	Model   string `json:"model"`
 	Choices []struct {
 		Message struct {
 			Content string `json:"content"`
@@ -71,9 +89,15 @@ type chatResponse struct {
 	Error *struct {
 		Message string `json:"message"`
 	} `json:"error"`
+	Usage struct {
+		Cost             float64 `json:"cost"`
+		PromptTokens     int     `json:"prompt_tokens"`
+		CompletionTokens int     `json:"completion_tokens"`
+		TotalTokens      int     `json:"total_tokens"`
+	} `json:"usage"`
 }
 
-func (c *client) GenerateCollection(prompt string, allowedLanguages []string) (*GeneratedCollection, error) {
+func (c *client) GenerateCollection(prompt string, allowedLanguages []string) (*GenerationResult, error) {
 	if strings.TrimSpace(c.apiKey) == "" {
 		return nil, ErrNotConfigured
 	}
@@ -95,63 +119,79 @@ func (c *client) GenerateCollection(prompt string, allowedLanguages []string) (*
 		return nil, fmt.Errorf("failed to marshal openrouter request: %w", err)
 	}
 
-	content, err := c.doRequest(payload)
-	if err != nil {
+	response, err := c.doRequest(payload)
+	if response == nil {
 		return nil, err
+	}
+	model := response.Model
+	if model == "" {
+		model = c.model
+	}
+	result := &GenerationResult{Usage: Usage{
+		GenerationID:     response.ID,
+		Model:            model,
+		Cost:             response.Usage.Cost,
+		PromptTokens:     response.Usage.PromptTokens,
+		CompletionTokens: response.Usage.CompletionTokens,
+		TotalTokens:      response.Usage.TotalTokens,
+	}}
+	if err != nil {
+		return result, err
 	}
 
 	var generated GeneratedCollection
-	if err := json.Unmarshal([]byte(content), &generated); err != nil {
-		return nil, fmt.Errorf("failed to parse generated collection json: %w", err)
+	if err := json.Unmarshal([]byte(response.Choices[0].Message.Content), &generated); err != nil {
+		return result, fmt.Errorf("failed to parse generated collection json: %w", err)
 	}
-	return &generated, nil
+	result.Collection = &generated
+	return result, nil
 }
 
-func (c *client) doRequest(payload []byte) (string, error) {
+func (c *client) doRequest(payload []byte) (*chatResponse, error) {
 	httpReq, err := http.NewRequest(http.MethodPost, apiURL, bytes.NewReader(payload))
 	if err != nil {
-		return "", fmt.Errorf("failed to build openrouter request: %w", err)
+		return nil, fmt.Errorf("failed to build openrouter request: %w", err)
 	}
 
 	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("HTTP-Referer", config.GetPublicURL())
+	httpReq.Header.Set("HTTP-Referer", c.referer)
 	httpReq.Header.Set("X-Title", "Termorize")
 
 	resp, err := c.http.Do(httpReq)
 	if err != nil {
-		return "", fmt.Errorf("failed to call openrouter: %w", err)
+		return nil, fmt.Errorf("failed to call openrouter: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("failed to read openrouter response: %w", err)
+		return nil, fmt.Errorf("failed to read openrouter response: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("openrouter returned status %d: %s", resp.StatusCode, truncate(string(body), 300))
+		return nil, fmt.Errorf("openrouter returned status %d: %s", resp.StatusCode, truncate(string(body), 300))
 	}
 
 	var parsed chatResponse
 	if err := json.Unmarshal(body, &parsed); err != nil {
-		return "", fmt.Errorf("failed to decode openrouter response: %w", err)
+		return nil, fmt.Errorf("failed to decode openrouter response: %w", err)
 	}
 
 	if parsed.Error != nil {
-		return "", fmt.Errorf("openrouter error: %s", parsed.Error.Message)
+		return &parsed, fmt.Errorf("openrouter error: %s", parsed.Error.Message)
 	}
 
 	if len(parsed.Choices) == 0 {
-		return "", errors.New("openrouter returned no choices")
+		return &parsed, errors.New("openrouter returned no choices")
 	}
 
-	content := strings.TrimSpace(parsed.Choices[0].Message.Content)
-	if content == "" {
-		return "", errors.New("openrouter returned empty content")
+	parsed.Choices[0].Message.Content = strings.TrimSpace(parsed.Choices[0].Message.Content)
+	if parsed.Choices[0].Message.Content == "" {
+		return &parsed, errors.New("openrouter returned empty content")
 	}
 
-	return content, nil
+	return &parsed, nil
 }
 
 func buildSystemPrompt(allowedLanguages []string) string {

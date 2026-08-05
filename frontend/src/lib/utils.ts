@@ -81,3 +81,16 @@ export function formatNumber(value: number) {
 
     return new Intl.NumberFormat(getPreferredLocale()).format(value)
 }
+
+export function formatCost(value: number) {
+    if (!Number.isFinite(value)) {
+        return String(value)
+    }
+
+    return new Intl.NumberFormat(getPreferredLocale(), {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 6,
+    }).format(value)
+}

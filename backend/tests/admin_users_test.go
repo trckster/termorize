@@ -21,6 +21,7 @@ type adminUsersBody struct {
 		Name           string    `json:"name"`
 		Username       string    `json:"username"`
 		VocabularySize int64     `json:"vocabulary_size"`
+		OpenRouterCost float64   `json:"openrouter_cost"`
 		LatestUsage    time.Time `json:"latest_usage"`
 	} `json:"data"`
 	Total int64 `json:"total"`
@@ -68,6 +69,14 @@ func TestAdminUsersReturnsRecentActivityForAdmins(t *testing.T) {
 		FinishedAt: &newer,
 	}
 	require.NoError(t, db.DB.Create(&exercise).Error)
+	require.NoError(t, db.DB.Create(&models.OpenRouterUsage{
+		UserID: vocabularyUser.ID, Model: "test/model", Cost: 0.00125,
+		PromptTokens: 10, CompletionTokens: 5, TotalTokens: 15, CreatedAt: older,
+	}).Error)
+	require.NoError(t, db.DB.Create(&models.OpenRouterUsage{
+		UserID: vocabularyUser.ID, Model: "test/model", Cost: 0.00275,
+		PromptTokens: 20, CompletionTokens: 10, TotalTokens: 30, CreatedAt: older,
+	}).Error)
 
 	// Pending and ignored exercises must not count as usage for this page.
 	for _, status := range []enums.ExerciseStatus{enums.ExerciseStatusPending, enums.ExerciseStatusIgnored} {
@@ -91,6 +100,7 @@ func TestAdminUsersReturnsRecentActivityForAdmins(t *testing.T) {
 	assert.WithinDuration(t, newer, body.Data[0].LatestUsage, time.Second)
 	assert.Equal(t, vocabularyUser.ID, body.Data[1].ID)
 	assert.Equal(t, int64(1), body.Data[1].VocabularySize)
+	assert.InDelta(t, 0.004, body.Data[1].OpenRouterCost, 0.0000000001)
 	assert.WithinDuration(t, older, body.Data[1].LatestUsage, time.Second)
 }
 

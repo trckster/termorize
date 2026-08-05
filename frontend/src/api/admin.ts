@@ -5,6 +5,7 @@ export type AdminUser = {
     name: string
     username: string
     vocabulary_size: number
+    openrouter_cost: number
     latest_usage: string
 }
 

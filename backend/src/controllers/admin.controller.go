@@ -19,6 +19,7 @@ type recentUser struct {
 	Name           string    `json:"name"`
 	Username       string    `json:"username"`
 	VocabularySize int64     `json:"vocabulary_size"`
+	OpenRouterCost float64   `json:"openrouter_cost"`
 	LatestUsage    time.Time `json:"latest_usage"`
 }
 
@@ -57,6 +58,7 @@ func GetAdminUsers(c *gin.Context) {
 			users.name,
 			users.username,
 			COALESCE(vocabulary_stats.size, 0) AS vocabulary_size,
+			COALESCE(openrouter_stats.cost, 0) AS open_router_cost,
 			MAX(activity.used_at) AS latest_usage
 		FROM users
 		JOIN (
@@ -66,6 +68,9 @@ func GetAdminUsers(c *gin.Context) {
 			SELECT user_id, finished_at AS used_at
 			FROM exercises
 			WHERE status IN (?, ?) AND finished_at IS NOT NULL
+			UNION ALL
+			SELECT user_id, created_at AS used_at
+			FROM openrouter_usages
 		) AS activity ON activity.user_id = users.id
 		LEFT JOIN (
 			SELECT user_id, COUNT(*) AS size
@@ -73,7 +78,12 @@ func GetAdminUsers(c *gin.Context) {
 			WHERE deleted_at IS NULL
 			GROUP BY user_id
 		) AS vocabulary_stats ON vocabulary_stats.user_id = users.id
-		GROUP BY users.id, users.name, users.username, vocabulary_stats.size
+		LEFT JOIN (
+			SELECT user_id, SUM(cost) AS cost
+			FROM openrouter_usages
+			GROUP BY user_id
+		) AS openrouter_stats ON openrouter_stats.user_id = users.id
+		GROUP BY users.id, users.name, users.username, vocabulary_stats.size, openrouter_stats.cost
 		ORDER BY latest_usage DESC, users.id DESC
 		LIMIT ?
 	`, enums.ExerciseStatusCompleted, enums.ExerciseStatusFailed, recentUsersLimit).Scan(&response.Data).Error
