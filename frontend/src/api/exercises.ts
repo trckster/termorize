@@ -1,6 +1,8 @@
 import apiCall, { unwrapBody } from '@/api/index.ts'
 import type { Paginated } from '@/api/pagination.ts'
 
+const API_URL = import.meta.env.VITE_API_URL.replace(/\/$/, '')
+
 export type ExerciseStatistics = {
     in_progress: number
     done: number
@@ -147,6 +149,22 @@ export const exercisesApi = {
 
     async ignoreExercise(exerciseId: string): Promise<void> {
         await apiCall(`/exercises/${exerciseId}/ignore`, 'POST')
+    },
+
+    ignoreExerciseOnPageExit(exerciseId: string): void {
+        const url = `${API_URL}/exercises/${exerciseId}/ignore`
+
+        if (navigator.sendBeacon?.(url)) {
+            return
+        }
+
+        void fetch(url, {
+            method: 'POST',
+            credentials: 'include',
+            keepalive: true,
+        }).catch(() => {
+            // Page-exit requests are best-effort and must never delay navigation.
+        })
     },
 
     async completeMatchPairsExercise(
