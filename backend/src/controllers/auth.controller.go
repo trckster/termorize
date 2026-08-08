@@ -8,14 +8,11 @@ import (
 	"strings"
 	"termorize/src/auth"
 	"termorize/src/config"
-	"termorize/src/data/db"
 	"termorize/src/http/validators"
-	"termorize/src/models"
 	"termorize/src/services"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 func StartTelegramLogin(c *gin.Context) {
@@ -105,14 +102,13 @@ func CompleteTelegramLogin(c *gin.Context) {
 }
 
 func Me(c *gin.Context) {
-	userID := c.MustGet("userID")
-
-	var user models.User
-	if err := db.DB.Where("id = ?", userID).First(&user).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	user, err := services.GetUserByID(c.MustGet("userID").(uint))
+	if err != nil {
+		if errors.Is(err, services.ErrUserNotFound) {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
+
 		ServerError(c, err)
 		return
 	}
