@@ -250,16 +250,18 @@ func CreateCollectionPracticeExercise(c *gin.Context) {
 	var req struct {
 		TargetVocabularyID uuid.UUID `json:"target_vocabulary_id" binding:"required"`
 		Matching           bool      `json:"matching"`
+		ExcludeAudio       bool      `json:"exclude_audio"`
 	}
 	if !validators.BindJSONWithErrors(c, &req) {
 		return
 	}
 
-	result, err := services.CreateCollectionPracticeExercise(
+	result, err := services.CreateCollectionPracticeExerciseWithOptions(
 		userID,
 		collectionID,
 		req.TargetVocabularyID,
 		req.Matching,
+		req.ExcludeAudio,
 	)
 	if err != nil {
 		respondCollectionError(c, err)
@@ -272,6 +274,7 @@ func CreateCollectionPracticeExercise(c *gin.Context) {
 		"question_word":   result.QuestionWord,
 		"language":        result.Language,
 		"answer_language": result.AnswerLanguage,
+		"audio_word_id":   result.AudioWordID,
 		"options":         result.Options,
 		"cards":           result.Cards,
 	})

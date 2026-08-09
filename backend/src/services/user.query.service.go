@@ -68,7 +68,7 @@ func GetRecentUsersForAdmin(viewerID uint) (*RecentUsersResponse, error) {
 			UNION ALL
 			SELECT user_id, finished_at AS used_at
 			FROM exercises
-			WHERE status IN (?, ?) AND finished_at IS NOT NULL
+			WHERE status IN (?, ?) AND finished_at IS NOT NULL AND deleted_at IS NULL
 		) AS activity ON activity.user_id = users.id
 		LEFT JOIN (
 			SELECT user_id, COUNT(*) AS size

@@ -31,6 +31,7 @@ func GetExerciseWordsByTelegram(exerciseID uuid.UUID, telegramID int64) (*Exerci
 		JOIN words AS original ON original.id = t.original_id
 		JOIN words AS translated ON translated.id = t.translation_id
 		WHERE e.id = ?
+			AND e.deleted_at IS NULL
 			AND u.telegram_id = ?
 		LIMIT 1
 	`, exerciseID, telegramID).Scan(&words).Error
@@ -56,7 +57,7 @@ func GetExerciseStatistics(userID uint) (*ExerciseStatistics, error) {
 			COUNT(*) FILTER (WHERE status = ?) AS failed,
 			COUNT(*) FILTER (WHERE status = ?) AS ignored
 		FROM exercises
-		WHERE user_id = ?
+		WHERE user_id = ? AND deleted_at IS NULL
 	`, enums.ExerciseStatusInProgress, enums.ExerciseStatusCompleted, enums.ExerciseStatusFailed, enums.ExerciseStatusIgnored, userID).Scan(&statistics).Error
 	if err != nil {
 		return nil, err

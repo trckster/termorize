@@ -25,8 +25,10 @@ func GetDuePendingExercises(now time.Time) ([]PendingExercise, error) {
 			u.username AS username,
 			u.telegram_id AS telegram_id,
 			original.word AS original_word,
+			original.id AS original_word_id,
 			original.language AS original_language,
 			translated.word AS translation_word,
+			translated.id AS translation_word_id,
 			translated.language AS translation_language,
 			u.settings->>'system_language' AS system_language
 		FROM exercises AS e
@@ -36,12 +38,13 @@ func GetDuePendingExercises(now time.Time) ([]PendingExercise, error) {
 		JOIN translations AS t ON t.id = v.translation_id
 		JOIN words AS original ON original.id = t.original_id
 		JOIN words AS translated ON translated.id = t.translation_id
-		WHERE e.status = ?
-			AND e.type IN (?, ?, ?, ?, ?, ?)
+		WHERE e.deleted_at IS NULL
+			AND e.status = ?
+			AND e.type IN (?, ?, ?, ?, ?, ?, ?, ?)
 			AND e.scheduled_for <= ?
 			AND u.settings->'telegram'->'bot_enabled' = ?
 		ORDER BY e.scheduled_for ASC, e.created_at ASC
-	`, enums.ExerciseStatusPending, enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed, enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed, now, true).Scan(&exercises).Error
+	`, enums.ExerciseStatusPending, enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed, enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed, enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed, now, true).Scan(&exercises).Error
 
 	if err != nil {
 		return nil, err
@@ -62,7 +65,8 @@ func GetDuePendingMatchExercises(now time.Time) ([]PendingMatchExercise, error) 
 			u.settings->>'system_language' AS system_language
 		FROM exercises AS e
 		JOIN users AS u ON u.id = e.user_id
-		WHERE e.status = ?
+		WHERE e.deleted_at IS NULL
+			AND e.status = ?
 			AND e.type = ?
 			AND e.scheduled_for <= ?
 			AND u.settings->'telegram'->'bot_enabled' = ?
@@ -153,7 +157,7 @@ func StartMatchExercise(exerciseID uuid.UUID, telegramMessageID int64, order []i
 func GetExerciseByTelegramMessage(telegramMessageID int64, telegramID int64) (*TelegramMessageExercise, error) {
 	var exercise models.Exercise
 
-	err := db.DB.
+	err := db.DB.Unscoped().
 		Model(&models.Exercise{}).
 		Joins("JOIN users AS u ON u.id = exercises.user_id").
 		Where("exercises.telegram_message_id = ?", telegramMessageID).
@@ -173,7 +177,7 @@ func GetExerciseByTelegramMessage(telegramMessageID int64, telegramID int64) (*T
 func GetExerciseByTelegramExerciseID(exerciseID uuid.UUID, telegramID int64) (*TelegramMessageExercise, error) {
 	var exercise models.Exercise
 
-	err := db.DB.
+	err := db.DB.Unscoped().
 		Model(&models.Exercise{}).
 		Joins("JOIN users AS u ON u.id = exercises.user_id").
 		Where("exercises.id = ?", exerciseID).
@@ -215,6 +219,7 @@ func buildTelegramMessageExercise(exercise models.Exercise) (*TelegramMessageExe
 		ExerciseID:   exercise.ID,
 		ExerciseType: exercise.Type,
 		Status:       exercise.Status,
+		Deleted:      exercise.DeletedAt.Valid,
 		ResultReason: resultReason,
 		UserID:       exercise.UserID,
 		Options:      options,
@@ -249,11 +254,28 @@ func buildTelegramMessageExercise(exercise models.Exercise) (*TelegramMessageExe
 }
 
 func StartTelegramExercise(exerciseID uuid.UUID, telegramMessageID int64) error {
-	return db.DB.Model(&models.Exercise{}).
+	result := db.DB.Model(&models.Exercise{}).
 		Where("id = ? AND status = ?", exerciseID, enums.ExerciseStatusPending).
 		Updates(map[string]any{
 			"status":              enums.ExerciseStatusInProgress,
 			"telegram_message_id": telegramMessageID,
 			"started_at":          time.Now().UTC(),
-		}).Error
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		// Delivery happens before this transition. If a concurrent language
+		// ignore soft-deleted the row after Telegram accepted the audio, retain
+		// the message id so replies resolve to the cancelled exercise.
+		cancelled := db.DB.Unscoped().Model(&models.Exercise{}).
+			Where("id = ? AND deleted_at IS NOT NULL AND telegram_message_id IS NULL", exerciseID).
+			Where("type IN ?", []enums.ExerciseType{enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed}).
+			Update("telegram_message_id", telegramMessageID)
+		if cancelled.Error != nil {
+			return cancelled.Error
+		}
+		return ErrExerciseNotInProgress
+	}
+	return nil
 }

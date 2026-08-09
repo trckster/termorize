@@ -848,19 +848,22 @@ func TestRandomExerciseUserPathCompletesAndAppearsInHistory(t *testing.T) {
 		QuestionWord   string                       `json:"question_word"`
 		Language       enums.Language               `json:"language"`
 		AnswerLanguage enums.Language               `json:"answer_language"`
+		AudioWordID    *uuid.UUID                   `json:"audio_word_id"`
 		Options        []string                     `json:"options"`
 		Cards          []services.ExerciseMatchCard `json:"cards"`
 	}
 	testkit.DecodeJSON(t, rec, &body)
 
 	require.NotEqual(t, uuid.Nil, body.ExerciseID)
-	// Choice and match exercises need additional vocabulary; typed and character
+	// Choice and match exercises need additional vocabulary; typed, audio, and character
 	// exercises only need the correct word pair.
 	assert.Contains(t, []enums.ExerciseType{
 		enums.ExerciseTypeBasicDirect,
 		enums.ExerciseTypeBasicReversed,
 		enums.ExerciseTypeCharactersDirect,
 		enums.ExerciseTypeCharactersReversed,
+		enums.ExerciseTypeAudioDirect,
+		enums.ExerciseTypeAudioReversed,
 	}, body.Type)
 
 	// DB side effect: the exercise exists, is in progress and belongs to user.
@@ -871,12 +874,17 @@ func TestRandomExerciseUserPathCompletesAndAppearsInHistory(t *testing.T) {
 
 	// Question word matches expected direction. Words are seeded with their raw
 	// casing directly in the DB (no service-level normalization here).
-	if body.Type == enums.ExerciseTypeBasicReversed || body.Type == enums.ExerciseTypeCharactersReversed {
+	if body.Type == enums.ExerciseTypeBasicReversed ||
+		body.Type == enums.ExerciseTypeCharactersReversed ||
+		body.Type == enums.ExerciseTypeAudioReversed {
 		assert.Equal(t, "Hund", body.QuestionWord)
 		assert.Equal(t, enums.LanguageDe, body.Language)
 		assert.Equal(t, enums.LanguageEn, body.AnswerLanguage)
 		if body.Type == enums.ExerciseTypeCharactersReversed {
 			assert.ElementsMatch(t, []string{"d", "o", "g"}, body.Options)
+		}
+		if body.Type == enums.ExerciseTypeAudioReversed {
+			require.NotNil(t, body.AudioWordID)
 		}
 	} else {
 		assert.Equal(t, "dog", body.QuestionWord)
@@ -884,6 +892,9 @@ func TestRandomExerciseUserPathCompletesAndAppearsInHistory(t *testing.T) {
 		assert.Equal(t, enums.LanguageDe, body.AnswerLanguage)
 		if body.Type == enums.ExerciseTypeCharactersDirect {
 			assert.ElementsMatch(t, []string{"H", "u", "n", "d"}, body.Options)
+		}
+		if body.Type == enums.ExerciseTypeAudioDirect {
+			require.NotNil(t, body.AudioWordID)
 		}
 	}
 

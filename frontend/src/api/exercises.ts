@@ -85,10 +85,13 @@ export type RandomExercise = {
         | 'choice/reversed'
         | 'characters/direct'
         | 'characters/reversed'
+        | 'audio/direct'
+        | 'audio/reversed'
         | 'match/pairs'
     question_word: string
     language: string
     answer_language: string
+    audio_word_id?: string | null
     options: string[]
     cards?: ExerciseMatchCard[]
 }
@@ -128,18 +131,22 @@ export const exercisesApi = {
         return apiCall<Exercise[]>('/exercises/by-ids', 'GET', { ids: ids.join(',') }).then(unwrapBody)
     },
 
-    async getRandomExercise(): Promise<RandomExercise> {
-        return apiCall<RandomExercise>('/exercises/random', 'POST').then(unwrapBody)
+    async getRandomExercise(excludeAudio: boolean = false): Promise<RandomExercise> {
+        return apiCall<RandomExercise>('/exercises/random', 'POST', {
+            exclude_audio: excludeAudio || undefined,
+        }).then(unwrapBody)
     },
 
     async getCollectionPracticeExercise(
         collectionId: string,
         targetVocabularyId: string,
-        matching: boolean
+        matching: boolean,
+        excludeAudio: boolean = false
     ): Promise<RandomExercise> {
         return apiCall<RandomExercise>(`/collections/${collectionId}/practice/exercises`, 'POST', {
             target_vocabulary_id: targetVocabularyId,
             matching,
+            exclude_audio: excludeAudio || undefined,
         }).then(unwrapBody)
     },
 
@@ -149,6 +156,12 @@ export const exercisesApi = {
 
     async ignoreExercise(exerciseId: string): Promise<void> {
         await apiCall(`/exercises/${exerciseId}/ignore`, 'POST')
+    },
+
+    async ignoreAudioLanguage(exerciseId: string): Promise<import('@/api/auth.ts').User> {
+        return apiCall<import('@/api/auth.ts').User>(`/exercises/${exerciseId}/ignore-audio-language`, 'POST').then(
+            unwrapBody
+        )
     },
 
     ignoreExerciseOnPageExit(exerciseId: string): void {

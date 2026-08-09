@@ -72,6 +72,10 @@ const getTypeLabel = (type: string) => {
             return t.value.exerciseTypeCharactersDirect
         case 'characters/reversed':
             return t.value.exerciseTypeCharactersReversed
+        case 'audio/direct':
+            return t.value.exerciseTypeAudioDirect
+        case 'audio/reversed':
+            return t.value.exerciseTypeAudioReversed
         case 'match/pairs':
             return t.value.exerciseTypeMatchPairs
         default:
@@ -93,6 +97,10 @@ const getTypeBadgeClass = (type: string) => {
             return 'border-primary/30 bg-primary/10 text-primary'
         case 'characters/reversed':
             return 'border-warning/30 bg-warning/10 text-warning'
+        case 'audio/direct':
+            return 'border-info/30 bg-info/10 text-info'
+        case 'audio/reversed':
+            return 'border-primary/30 bg-primary/10 text-primary'
         case 'match/pairs':
             return 'border-success/30 bg-success/10 text-success'
         default:

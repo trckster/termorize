@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"encoding/base64"
+	"fmt"
 	"math"
 	"strconv"
 	"unicode/utf8"
@@ -34,13 +35,15 @@ const (
 	menuActionSetTargetLang        = "set_target_lang"
 	menuActionSetSystemLang        = "set_system_lang"
 
-	exerciseActionAnswer             = "answer"
-	exerciseActionIDK                = "idk"
-	exerciseActionMatchTap           = "mt"
-	exerciseActionMatchNoop          = "mn"
-	exerciseActionCharacterTap       = "ct"
-	exerciseActionCharacterNoop      = "cn"
-	exerciseActionCharacterBackspace = "cc"
+	exerciseActionAnswer              = "answer"
+	exerciseActionIDK                 = "idk"
+	exerciseActionMatchTap            = "mt"
+	exerciseActionMatchNoop           = "mn"
+	exerciseActionCharacterTap        = "ct"
+	exerciseActionCharacterNoop       = "cn"
+	exerciseActionCharacterBackspace  = "cc"
+	exerciseActionIgnoreAudioLanguage = "ai"
+	exerciseActionUndoAudioLanguage   = "au"
 
 	vocabularyActionAdd    = "add"
 	vocabularyActionDelete = "delete"
@@ -57,6 +60,26 @@ func getMenuKeyboard(t BotTexts) [][]inlineKeyboardButton {
 		{{Text: t.ButtonVocabulary, CallbackData: callbackTypeMenu + ":" + menuActionVocabulary}, {Text: t.ButtonStatistics, CallbackData: callbackTypeMenu + ":" + menuActionStatistics}},
 		{{Text: t.ButtonSettings, CallbackData: callbackTypeMenu + ":" + menuActionSettings}, {Text: t.ButtonWhatsGoingOn, CallbackData: callbackTypeMenu + ":" + menuActionWhatsGoingOn}},
 	}
+}
+
+func buildAudioExerciseKeyboard(exerciseID uuid.UUID, spokenLanguage enums.Language, t BotTexts) [][]inlineKeyboardButton {
+	return [][]inlineKeyboardButton{
+		{{
+			Text:         t.ButtonExerciseIDK,
+			CallbackData: callbackTypeExercise + ":" + exerciseActionIDK + ":" + exerciseID.String(),
+		}},
+		{{
+			Text:         fmt.Sprintf(t.ButtonIgnoreAudioLanguageFormat, localizedLanguageName(spokenLanguage, t)),
+			CallbackData: callbackTypeExercise + ":" + exerciseActionIgnoreAudioLanguage + ":" + compactCallbackUUID(exerciseID) + ":" + string(spokenLanguage),
+		}},
+	}
+}
+
+func buildAudioUndoKeyboard(exerciseID uuid.UUID, spokenLanguage enums.Language, t BotTexts) [][]inlineKeyboardButton {
+	return [][]inlineKeyboardButton{{{
+		Text:         fmt.Sprintf(t.ButtonRemoveAudioLanguageFormat, localizedLanguageName(spokenLanguage, t)),
+		CallbackData: callbackTypeExercise + ":" + exerciseActionUndoAudioLanguage + ":" + compactCallbackUUID(exerciseID) + ":" + string(spokenLanguage),
+	}}}
 }
 
 func getMenuBackKeyboard(t BotTexts) [][]inlineKeyboardButton {

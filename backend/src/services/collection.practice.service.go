@@ -72,6 +72,16 @@ func CreateCollectionPracticeExercise(
 	targetVocabularyID uuid.UUID,
 	matching bool,
 ) (*RandomExerciseResult, error) {
+	return CreateCollectionPracticeExerciseWithOptions(userID, collectionID, targetVocabularyID, matching, false)
+}
+
+func CreateCollectionPracticeExerciseWithOptions(
+	userID uint,
+	collectionID uuid.UUID,
+	targetVocabularyID uuid.UUID,
+	matching bool,
+	excludeAudio bool,
+) (*RandomExerciseResult, error) {
 	collection, err := getAccessibleCollection(db.DB, userID, collectionID)
 	if err != nil {
 		return nil, err
@@ -113,6 +123,7 @@ func CreateCollectionPracticeExercise(
 		collection,
 		targetVocabulary,
 		collectionVocabularyIDs,
+		excludeAudio,
 	)
 }
 
@@ -131,13 +142,14 @@ func createCollectionPracticeTargetExercise(
 	collection *models.Collection,
 	vocabulary *models.Vocabulary,
 	collectionVocabularyIDs []uuid.UUID,
+	excludeAudio bool,
 ) (*RandomExerciseResult, error) {
 	optionsByType, err := buildCollectionPracticeOptionsByType(userID, vocabulary, collectionVocabularyIDs)
 	if err != nil {
 		return nil, err
 	}
 
-	exerciseType, options, err := selectCollectionPracticeExerciseType(optionsByType)
+	exerciseType, options, err := selectCollectionPracticeExerciseType(optionsByType, excludeAudio)
 	if err != nil {
 		return nil, err
 	}
@@ -173,6 +185,14 @@ func createCollectionPracticeTargetExercise(
 	if isCharacterExerciseType(exerciseType) {
 		resultOptions = ShuffledAnswerCharacters(options[0].AnswerWord)
 	}
+	var audioWordID *uuid.UUID
+	if isAudioExerciseType(exerciseType) {
+		wordID := vocabulary.Translation.Original.ID
+		if isReversedExerciseType(exerciseType) {
+			wordID = vocabulary.Translation.Translation.ID
+		}
+		audioWordID = &wordID
+	}
 
 	return &RandomExerciseResult{
 		ExerciseID:     exercise.ID,
@@ -180,6 +200,7 @@ func createCollectionPracticeTargetExercise(
 		QuestionWord:   questionWord,
 		Language:       language,
 		AnswerLanguage: answerLanguage,
+		AudioWordID:    audioWordID,
 		Options:        resultOptions,
 	}, nil
 }
@@ -189,7 +210,7 @@ func buildCollectionPracticeOptionsByType(
 	vocabulary *models.Vocabulary,
 	collectionVocabularyIDs []uuid.UUID,
 ) (map[enums.ExerciseType][]exerciseChoiceCandidate, error) {
-	optionsByType := make(map[enums.ExerciseType][]exerciseChoiceCandidate, 6)
+	optionsByType := make(map[enums.ExerciseType][]exerciseChoiceCandidate, 8)
 
 	for _, exerciseType := range []enums.ExerciseType{
 		enums.ExerciseTypeBasicDirect,
@@ -209,6 +230,15 @@ func buildCollectionPracticeOptionsByType(
 		}
 
 		optionsByType[exerciseType] = append([]exerciseChoiceCandidate(nil), options[:1]...)
+		spokenLanguage := vocabulary.Translation.Original.Language
+		audioType := enums.ExerciseTypeAudioDirect
+		if isReversedExerciseType(exerciseType) {
+			spokenLanguage = vocabulary.Translation.Translation.Language
+			audioType = enums.ExerciseTypeAudioReversed
+		}
+		if !ignoredAudioLanguageWithDB(db.DB, userID, spokenLanguage) {
+			optionsByType[audioType] = append([]exerciseChoiceCandidate(nil), options[:1]...)
+		}
 
 		characterType := enums.ExerciseTypeCharactersDirect
 		choiceType := enums.ExerciseTypeChoiceDirect
@@ -328,6 +358,7 @@ func getCollectionPracticeDistractors(
 
 func selectCollectionPracticeExerciseType(
 	optionsByType map[enums.ExerciseType][]exerciseChoiceCandidate,
+	excludeAudio bool,
 ) (enums.ExerciseType, []exerciseChoiceCandidate, error) {
 	type exerciseTypeGroup struct {
 		weight int
@@ -347,6 +378,12 @@ func selectCollectionPracticeExerciseType(
 			enums.ExerciseTypeCharactersDirect,
 			enums.ExerciseTypeCharactersReversed,
 		}},
+	}
+	if !excludeAudio {
+		groups = append(groups, exerciseTypeGroup{weight: audioExerciseWeight, types: []enums.ExerciseType{
+			enums.ExerciseTypeAudioDirect,
+			enums.ExerciseTypeAudioReversed,
+		}})
 	}
 
 	availableGroups := make([]exerciseTypeGroup, 0, len(groups))

@@ -59,7 +59,25 @@ func GetExercises(c *gin.Context) {
 func RandomExercise(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
-	result, err := services.CreateRandomExercise(userID)
+	excludeAudio := c.Query("exclude_audio") == "true"
+	var body struct {
+		ExcludeAudio bool `json:"exclude_audio"`
+	}
+	if c.Request.ContentLength != 0 {
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid request body"})
+			return
+		}
+		excludeAudio = excludeAudio || body.ExcludeAudio
+	}
+
+	var result *services.RandomExerciseResult
+	var err error
+	if excludeAudio {
+		result, err = services.CreateRandomExerciseExcludingAudio(userID)
+	} else {
+		result, err = services.CreateRandomExercise(userID)
+	}
 	if err != nil {
 		if errors.Is(err, services.ErrNoVocabularyForExercise) {
 			c.JSON(nethttp.StatusUnprocessableEntity, gin.H{"error": services.ErrNoVocabularyForExercise.Error()})
@@ -81,6 +99,7 @@ func RandomExercise(c *gin.Context) {
 		"question_word":   result.QuestionWord,
 		"language":        result.Language,
 		"answer_language": result.AnswerLanguage,
+		"audio_word_id":   result.AudioWordID,
 		"options":         result.Options,
 		"cards":           result.Cards,
 	})
@@ -170,6 +189,34 @@ func IgnoreExercise(c *gin.Context) {
 	}
 
 	c.JSON(nethttp.StatusOK, gin.H{"status": "ignored"})
+}
+
+func IgnoreAudioLanguage(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+	exerciseID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid exercise id"})
+		return
+	}
+
+	user, err := services.IgnoreAudioLanguageForExercise(exerciseID, userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, services.ErrExerciseNotFound):
+			c.JSON(nethttp.StatusNotFound, gin.H{"error": "exercise not found"})
+		case errors.Is(err, services.ErrExerciseNotAudio):
+			c.JSON(nethttp.StatusConflict, gin.H{"error": services.ErrExerciseNotAudio.Error()})
+		case errors.Is(err, services.ErrExerciseNotInProgress):
+			c.JSON(nethttp.StatusConflict, gin.H{"error": services.ErrExerciseNotInProgress.Error()})
+		case errors.Is(err, services.ErrExerciseVocabularyDeleted):
+			c.JSON(nethttp.StatusConflict, gin.H{"error": services.ErrExerciseVocabularyDeleted.Error()})
+		default:
+			ServerError(c, err)
+		}
+		return
+	}
+
+	c.JSON(nethttp.StatusOK, user)
 }
 
 func CompleteMatchPairsExercise(c *gin.Context) {

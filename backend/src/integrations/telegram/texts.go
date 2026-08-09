@@ -25,6 +25,7 @@ type BotTexts struct {
 	ExerciseFailed                         string
 	ExerciseVocabularyDeleted              string
 	ExerciseCancelledVocabularyDeleted     string
+	ExerciseAudioCancelled                 string
 	ExerciseUseButtons                     string
 	ExerciseSuccess                        string
 	ExerciseAlmost                         string
@@ -34,6 +35,9 @@ type BotTexts struct {
 	ExerciseTranslationKnowledgeUpFormat   string
 	ExerciseTranslationKnowledgeDownFormat string
 	KnownVocabularyRepetitionIntro         string
+	AudioExerciseTitle                     string
+	AudioExerciseCaptionFormat             string
+	AudioExerciseCancelledCaptionFormat    string
 
 	MatchExerciseTitle          string
 	MatchProgressFormat         string
@@ -84,22 +88,25 @@ type BotTexts struct {
 	VocabularyAutoAddedSuffix   string
 	VocabularyManualAddedSuffix string
 
-	ButtonOpenApp               string
-	ButtonAddTranslation        string
-	ButtonDeleteWord            string
-	ButtonVocabulary            string
-	ButtonStatistics            string
-	ButtonSettings              string
-	ButtonChangeSystemLanguage  string
-	ButtonEnableDailyExercises  string
-	ButtonDisableDailyExercises string
-	ButtonWhatsGoingOn          string
-	ButtonBack                  string
-	ButtonCancel                string
-	ButtonExerciseIDK           string
-	ButtonVocabularyAdd         string
-	ButtonVocabularyDelete      string
-	ButtonPronunciation         string
+	ButtonOpenApp                   string
+	ButtonAddTranslation            string
+	ButtonDeleteWord                string
+	ButtonVocabulary                string
+	ButtonStatistics                string
+	ButtonSettings                  string
+	ButtonChangeSystemLanguage      string
+	ButtonEnableDailyExercises      string
+	ButtonDisableDailyExercises     string
+	ButtonWhatsGoingOn              string
+	ButtonBack                      string
+	ButtonCancel                    string
+	ButtonExerciseIDK               string
+	ButtonVocabularyAdd             string
+	ButtonVocabularyDelete          string
+	ButtonPronunciation             string
+	ButtonIgnoreAudioLanguageFormat string
+	ButtonRemoveAudioLanguageFormat string
+	LanguageNames                   map[enums.Language]string
 
 	ButtonChangeLanguagePrefix string
 
@@ -129,6 +136,7 @@ var botTextsEn = BotTexts{
 	ExerciseFailed:                         "This exercise was already attempted and failed 😔",
 	ExerciseVocabularyDeleted:              "This exercise can’t be completed because one of its vocabulary entries was deleted 🗑️",
 	ExerciseCancelledVocabularyDeleted:     "This exercise was cancelled because its vocabulary was deleted 🗑️",
+	ExerciseAudioCancelled:                 "This audio exercise was cancelled and is no longer scored.",
 	ExerciseUseButtons:                     "Use one of the buttons below.",
 	ExerciseSuccess:                        "That's right! ✅",
 	ExerciseAlmost:                         "Almost! The correct answer is:",
@@ -138,6 +146,9 @@ var botTextsEn = BotTexts{
 	ExerciseTranslationKnowledgeUpFormat:   "Translation knowledge: *%d%%* 📈",
 	ExerciseTranslationKnowledgeDownFormat: "Translation knowledge: *%d%%* 📉",
 	KnownVocabularyRepetitionIntro:         "Repetition!",
+	AudioExerciseTitle:                     "Listening exercise",
+	AudioExerciseCaptionFormat:             "Listen and translate into %s.\n\nReply directly to this audio.",
+	AudioExerciseCancelledCaptionFormat:    "Listen and translate into %s.\n\nExercise was cancelled.",
 
 	MatchExerciseTitle:          "🧩 *Match the pairs*",
 	MatchProgressFormat:         "Matched %d/%d",
@@ -199,22 +210,34 @@ var botTextsEn = BotTexts{
 	VocabularyAutoAddedSuffix:   "\n\nIt was added to your vocabulary",
 	VocabularyManualAddedSuffix: "\n\nSuccessfully added to your vocabulary",
 
-	ButtonOpenApp:               "Open App 🌐",
-	ButtonAddTranslation:        "Add Translation",
-	ButtonDeleteWord:            "Delete Translation",
-	ButtonVocabulary:            "Your Vocabulary",
-	ButtonStatistics:            "Statistics",
-	ButtonSettings:              "Settings",
-	ButtonChangeSystemLanguage:  "Change System Language",
-	ButtonEnableDailyExercises:  "Enable Daily Exercises",
-	ButtonDisableDailyExercises: "Disable Daily Exercises",
-	ButtonWhatsGoingOn:          "About",
-	ButtonBack:                  "Back",
-	ButtonCancel:                "Cancel",
-	ButtonExerciseIDK:           "Don't know",
-	ButtonVocabularyAdd:         "Add to vocabulary",
-	ButtonVocabularyDelete:      "Delete from vocabulary",
-	ButtonPronunciation:         "🔊 Pronunciation",
+	ButtonOpenApp:                   "Open App 🌐",
+	ButtonAddTranslation:            "Add Translation",
+	ButtonDeleteWord:                "Delete Translation",
+	ButtonVocabulary:                "Your Vocabulary",
+	ButtonStatistics:                "Statistics",
+	ButtonSettings:                  "Settings",
+	ButtonChangeSystemLanguage:      "Change System Language",
+	ButtonEnableDailyExercises:      "Enable Daily Exercises",
+	ButtonDisableDailyExercises:     "Disable Daily Exercises",
+	ButtonWhatsGoingOn:              "About",
+	ButtonBack:                      "Back",
+	ButtonCancel:                    "Cancel",
+	ButtonExerciseIDK:               "Don't know",
+	ButtonVocabularyAdd:             "Add to vocabulary",
+	ButtonVocabularyDelete:          "Delete from vocabulary",
+	ButtonPronunciation:             "🔊 Pronunciation",
+	ButtonIgnoreAudioLanguageFormat: "Don't send me audio in %s",
+	ButtonRemoveAudioLanguageFormat: "Remove %s from ignored",
+	LanguageNames: map[enums.Language]string{
+		enums.LanguageEn: "English",
+		enums.LanguageRu: "Russian",
+		enums.LanguageIt: "Italian",
+		enums.LanguageDe: "German",
+		enums.LanguageEs: "Spanish",
+		enums.LanguageFr: "French",
+		enums.LanguagePl: "Polish",
+		enums.LanguageTr: "Turkish",
+	},
 
 	ButtonChangeLanguagePrefix: "Change ",
 
@@ -257,6 +280,7 @@ var botTextsRu = BotTexts{
 	ExerciseFailed:                         "Это упражнение уже было выполнено с ошибкой 😔",
 	ExerciseVocabularyDeleted:              "Это упражнение нельзя выполнить, потому что одно из его слов было удалено из словаря 🗑️",
 	ExerciseCancelledVocabularyDeleted:     "Это упражнение отменено, потому что его слово было удалено из словаря 🗑️",
+	ExerciseAudioCancelled:                 "Это аудиоупражнение отменено и больше не влияет на результат.",
 	ExerciseUseButtons:                     "Используй одну из кнопок ниже.",
 	ExerciseSuccess:                        "Правильно! ✅",
 	ExerciseAlmost:                         "Почти! Правильный ответ:",
@@ -266,6 +290,9 @@ var botTextsRu = BotTexts{
 	ExerciseTranslationKnowledgeUpFormat:   "Знание перевода: *%d%%* 📈",
 	ExerciseTranslationKnowledgeDownFormat: "Знание перевода: *%d%%* 📉",
 	KnownVocabularyRepetitionIntro:         "Повторение!",
+	AudioExerciseTitle:                     "Упражнение на слух",
+	AudioExerciseCaptionFormat:             "Прослушай и переведи. Язык ответа: %s.\n\nОтветь непосредственно на это аудио.",
+	AudioExerciseCancelledCaptionFormat:    "Прослушай и переведи. Язык ответа: %s.\n\nУпражнение отменено.",
 
 	MatchExerciseTitle:          "🧩 *Сопоставь пары*",
 	MatchProgressFormat:         "Сопоставлено %d/%d",
@@ -327,22 +354,34 @@ var botTextsRu = BotTexts{
 	VocabularyAutoAddedSuffix:   "\n\nДобавлено в твой словарь",
 	VocabularyManualAddedSuffix: "\n\nУспешно добавлено в словарь",
 
-	ButtonOpenApp:               "Открыть приложение 🌐",
-	ButtonAddTranslation:        "Добавить перевод",
-	ButtonDeleteWord:            "Удалить перевод",
-	ButtonVocabulary:            "Мой словарь",
-	ButtonStatistics:            "Статистика",
-	ButtonSettings:              "Настройки",
-	ButtonChangeSystemLanguage:  "Изменить Язык Системы",
-	ButtonEnableDailyExercises:  "Включить Ежедневные Упражнения",
-	ButtonDisableDailyExercises: "Выключить Ежедневные Упражнения",
-	ButtonWhatsGoingOn:          "О проекте",
-	ButtonBack:                  "Назад",
-	ButtonCancel:                "Отмена",
-	ButtonExerciseIDK:           "Не знаю",
-	ButtonVocabularyAdd:         "Добавить в словарь",
-	ButtonVocabularyDelete:      "Удалить из словаря",
-	ButtonPronunciation:         "🔊 Произношение",
+	ButtonOpenApp:                   "Открыть приложение 🌐",
+	ButtonAddTranslation:            "Добавить перевод",
+	ButtonDeleteWord:                "Удалить перевод",
+	ButtonVocabulary:                "Мой словарь",
+	ButtonStatistics:                "Статистика",
+	ButtonSettings:                  "Настройки",
+	ButtonChangeSystemLanguage:      "Изменить Язык Системы",
+	ButtonEnableDailyExercises:      "Включить Ежедневные Упражнения",
+	ButtonDisableDailyExercises:     "Выключить Ежедневные Упражнения",
+	ButtonWhatsGoingOn:              "О проекте",
+	ButtonBack:                      "Назад",
+	ButtonCancel:                    "Отмена",
+	ButtonExerciseIDK:               "Не знаю",
+	ButtonVocabularyAdd:             "Добавить в словарь",
+	ButtonVocabularyDelete:          "Удалить из словаря",
+	ButtonPronunciation:             "🔊 Произношение",
+	ButtonIgnoreAudioLanguageFormat: "Не присылать аудио. Язык: %s",
+	ButtonRemoveAudioLanguageFormat: "Разрешить аудио. Язык: %s",
+	LanguageNames: map[enums.Language]string{
+		enums.LanguageEn: "Английский",
+		enums.LanguageRu: "Русский",
+		enums.LanguageIt: "Итальянский",
+		enums.LanguageDe: "Немецкий",
+		enums.LanguageEs: "Испанский",
+		enums.LanguageFr: "Французский",
+		enums.LanguagePl: "Польский",
+		enums.LanguageTr: "Турецкий",
+	},
 
 	ButtonChangeLanguagePrefix: "Изменить ",
 
@@ -370,6 +409,13 @@ func GetBotTexts(lang enums.Language) BotTexts {
 	return botTextsEn
 }
 
+func localizedLanguageName(language enums.Language, texts BotTexts) string {
+	if name := texts.LanguageNames[language]; name != "" {
+		return name
+	}
+	return language.DisplayName()
+}
+
 func BuildBasicExerciseQuestion(
 	originalWord string,
 	translationWord string,
@@ -380,7 +426,8 @@ func BuildBasicExerciseQuestion(
 ) string {
 	if exerciseType == enums.ExerciseTypeBasicReversed ||
 		exerciseType == enums.ExerciseTypeChoiceReversed ||
-		exerciseType == enums.ExerciseTypeCharactersReversed {
+		exerciseType == enums.ExerciseTypeCharactersReversed ||
+		exerciseType == enums.ExerciseTypeAudioReversed {
 		return buildTranslateQuestionText(translationWord, originalLanguage.DisplayNameWithFlag(), exerciseType, texts)
 	}
 

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type Exercise struct {
@@ -19,12 +20,13 @@ type Exercise struct {
 	PracticeCollectionTitle     *string              `json:"-" gorm:"column:practice_collection_title"`
 	IsKnownVocabularyRepetition bool                 `json:"-" gorm:"column:is_known_vocabulary_repetition"`
 
-	ScheduledFor   *time.Time `json:"-"`
-	StartedAt      *time.Time `json:"starts_at"`
-	ReminderSentAt *time.Time `json:"-"`
-	FinishedAt     *time.Time `json:"finishes_at"`
-	CreatedAt      time.Time  `json:"-"`
-	UpdatedAt      time.Time  `json:"-"`
+	ScheduledFor   *time.Time     `json:"-"`
+	StartedAt      *time.Time     `json:"starts_at"`
+	ReminderSentAt *time.Time     `json:"-"`
+	FinishedAt     *time.Time     `json:"finishes_at"`
+	CreatedAt      time.Time      `json:"-"`
+	UpdatedAt      time.Time      `json:"-"`
+	DeletedAt      gorm.DeletedAt `json:"-"`
 
 	User       *User        `json:"-"`
 	Vocabulary []Vocabulary `json:"vocabularies,omitempty" gorm:"many2many:vocabulary_exercises;"`

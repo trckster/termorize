@@ -46,6 +46,9 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 	}
 
 	t := getBotTextsForTelegramID(callback.From.ID)
+	if handled, err := handleAudioLanguageCallback(callback, payload, t); handled {
+		return err
+	}
 
 	if len(payload) > 0 && payload[0] == exerciseActionMatchNoop {
 		return nil
@@ -80,6 +83,9 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 	if exercise == nil || exercise.ExerciseID != exerciseID {
 		return nil
 	}
+	if exercise.Deleted {
+		return SendMessage(callback.From.ID, t.ExerciseAudioCancelled)
+	}
 
 	switch exercise.Status {
 	case enums.ExerciseStatusIgnored:
@@ -96,7 +102,8 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 		return sendDeletedVocabularyMessage(callback.Message.Chat.ID, callback.Message.MessageID, callback.From.ID, t.ExerciseVocabularyDeleted)
 	}
 
-	if !hasAnswer && exercise.ExerciseType != enums.ExerciseTypeBasicDirect && exercise.ExerciseType != enums.ExerciseTypeBasicReversed {
+	if !hasAnswer && exercise.ExerciseType != enums.ExerciseTypeBasicDirect && exercise.ExerciseType != enums.ExerciseTypeBasicReversed &&
+		exercise.ExerciseType != enums.ExerciseTypeAudioDirect && exercise.ExerciseType != enums.ExerciseTypeAudioReversed {
 		return nil
 	}
 

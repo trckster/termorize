@@ -86,7 +86,63 @@ func processDueExercises() {
 			err            error
 		)
 
-		if isCharacterExerciseType(exercise.ExerciseType) {
+		if isAudioExerciseType(exercise.ExerciseType) {
+			spokenLanguage := exercise.OriginalLanguage
+			answerLanguage := exercise.TranslationLanguage
+			audioWordID := exercise.OriginalWordID
+			if exercise.ExerciseType == enums.ExerciseTypeAudioReversed {
+				spokenLanguage = exercise.TranslationLanguage
+				answerLanguage = exercise.OriginalLanguage
+				audioWordID = exercise.TranslationWordID
+			}
+
+			ignored, checkErr := services.IsAudioLanguageIgnored(exercise.UserID, spokenLanguage)
+			if checkErr != nil {
+				logger.L().Warnw("failed to check ignored audio language", "error", checkErr, "exercise_id", exercise.ExerciseID)
+				continue
+			}
+			if ignored {
+				if _, replaceErr := services.ReplacePendingAudioExercise(exercise.ExerciseID, false); replaceErr != nil {
+					logger.L().Warnw("failed to replace ignored audio exercise", "error", replaceErr, "exercise_id", exercise.ExerciseID)
+				}
+				continue
+			}
+
+			pronunciation, loadErr := services.FindConfiguredWordPronunciationMetadata(audioWordID, string(spokenLanguage))
+			if loadErr == nil && pronunciation == nil {
+				pronunciation, loadErr = services.GetOrCreateWordPronunciation(audioWordID)
+			}
+			if loadErr != nil {
+				if errors.Is(loadErr, services.ErrPronunciationGenerationFailed) {
+					logger.L().Warnw("replacing audio exercise after pronunciation generation failed", "error", loadErr, "exercise_id", exercise.ExerciseID)
+					if _, replaceErr := services.ReplacePendingAudioExercise(exercise.ExerciseID, true); replaceErr != nil {
+						logger.L().Warnw("failed to replace audio exercise after pronunciation failure", "error", replaceErr, "exercise_id", exercise.ExerciseID)
+					}
+				} else {
+					logger.L().Warnw("failed to prepare audio exercise", "error", loadErr, "exercise_id", exercise.ExerciseID)
+				}
+				continue
+			}
+
+			ignored, checkErr = services.IsAudioLanguageIgnored(exercise.UserID, spokenLanguage)
+			if checkErr != nil || ignored {
+				if checkErr != nil {
+					logger.L().Warnw("failed final ignored audio language check", "error", checkErr, "exercise_id", exercise.ExerciseID)
+				} else if _, replaceErr := services.ReplacePendingAudioExercise(exercise.ExerciseID, false); replaceErr != nil {
+					logger.L().Warnw("failed to replace ignored audio exercise", "error", replaceErr, "exercise_id", exercise.ExerciseID)
+				}
+				continue
+			}
+
+			messageID, err = telegram.SendAudioExerciseMessage(
+				exercise.TelegramID,
+				exercise.ExerciseID,
+				pronunciation,
+				spokenLanguage,
+				answerLanguage,
+				texts,
+			)
+		} else if isCharacterExerciseType(exercise.ExerciseType) {
 			answer := exercise.TranslationWord
 			if exercise.ExerciseType == enums.ExerciseTypeCharactersReversed {
 				answer = exercise.OriginalWord
@@ -232,11 +288,16 @@ func isSupportedExerciseType(exerciseType enums.ExerciseType) bool {
 	switch exerciseType {
 	case enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed,
 		enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed,
-		enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed:
+		enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed,
+		enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed:
 		return true
 	default:
 		return false
 	}
+}
+
+func isAudioExerciseType(exerciseType enums.ExerciseType) bool {
+	return exerciseType == enums.ExerciseTypeAudioDirect || exerciseType == enums.ExerciseTypeAudioReversed
 }
 
 func isCharacterExerciseType(exerciseType enums.ExerciseType) bool {

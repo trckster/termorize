@@ -12,6 +12,7 @@ type UserSettings struct {
 	MainLearningLanguage      enums.Language       `json:"main_learning_language"`
 	TranslationSourceLanguage enums.Language       `json:"translation_source_language"`
 	TranslationTargetLanguage enums.Language       `json:"translation_target_language"`
+	IgnoredAudioLanguages     []enums.Language     `json:"ignored_audio_languages"`
 	TimeZone                  string               `json:"time_zone"`
 	Telegram                  UserTelegramSettings `json:"telegram"`
 }
@@ -57,6 +58,19 @@ func (s UserSettings) WithDefaults() UserSettings {
 
 	if s.TranslationTargetLanguage == "" {
 		s.TranslationTargetLanguage = enums.LanguageRu
+	}
+
+	ignored := make(map[enums.Language]struct{}, len(s.IgnoredAudioLanguages))
+	for _, language := range s.IgnoredAudioLanguages {
+		if enums.IsSupportedLanguage(language) {
+			ignored[language] = struct{}{}
+		}
+	}
+	s.IgnoredAudioLanguages = make([]enums.Language, 0, len(ignored))
+	for _, language := range enums.AllLanguageValues() {
+		if _, ok := ignored[language]; ok {
+			s.IgnoredAudioLanguages = append(s.IgnoredAudioLanguages, language)
+		}
 	}
 
 	return s

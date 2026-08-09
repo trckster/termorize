@@ -17,6 +17,7 @@ import (
 
 var ErrWordNotFound = errors.New("word not found")
 var ErrWordPronunciationNotFound = errors.New("word pronunciation not found")
+var ErrPronunciationGenerationFailed = errors.New("pronunciation generation failed")
 var pronunciationGenerationGroup singleflight.Group
 
 type generatedWordPronunciation struct {
@@ -107,7 +108,10 @@ func generateWordPronunciation(word models.Word) (*generatedWordPronunciation, e
 		generationErrors = append(generationErrors, fmt.Errorf("%s: %w", speechConfig.Model, err))
 	}
 
-	return nil, fmt.Errorf("all pronunciation models failed: %w", errors.Join(generationErrors...))
+	if len(generationErrors) == 0 {
+		return nil, ErrPronunciationGenerationFailed
+	}
+	return nil, fmt.Errorf("%w: %w", ErrPronunciationGenerationFailed, errors.Join(generationErrors...))
 }
 
 func FindConfiguredWordPronunciationMetadata(wordID uuid.UUID, language string) (*models.WordPronunciation, error) {

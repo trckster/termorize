@@ -26,7 +26,7 @@ func cancelInProgressExercisesByVocabularyID(tx *gorm.DB, userID uint, vocabular
 			u.settings->>'system_language' AS system_language
 		FROM exercises e
 		JOIN users u ON u.id = e.user_id
-		WHERE e.user_id = ? AND e.status = ? AND e.telegram_message_id IS NOT NULL
+		WHERE e.user_id = ? AND e.deleted_at IS NULL AND e.status = ? AND e.telegram_message_id IS NOT NULL
 			AND (
 				(e.type = ? AND EXISTS (
 					SELECT 1 FROM vocabulary_exercises ve
@@ -45,7 +45,7 @@ func cancelInProgressExercisesByVocabularyID(tx *gorm.DB, userID uint, vocabular
 		SET result = ?, result_reason = ?, answered_at = ?
 		WHERE ve.result IS NULL AND ve.is_correct = true AND ve.exercise_id IN (
 			SELECT e.id FROM exercises e
-			WHERE e.user_id = ? AND e.status = ? AND (
+				WHERE e.user_id = ? AND e.deleted_at IS NULL AND e.status = ? AND (
 				(e.type = ? AND EXISTS (SELECT 1 FROM vocabulary_exercises x WHERE x.exercise_id = e.id AND x.vocabulary_id = ?))
 				OR (e.type <> ? AND EXISTS (SELECT 1 FROM vocabulary_exercises x WHERE x.exercise_id = e.id AND x.vocabulary_id = ? AND x.is_correct = true))
 			)
@@ -56,7 +56,7 @@ func cancelInProgressExercisesByVocabularyID(tx *gorm.DB, userID uint, vocabular
 
 	if err := tx.Exec(`
 		UPDATE exercises e SET status = ?, finished_at = ?
-		WHERE e.user_id = ? AND e.status = ? AND (
+		WHERE e.user_id = ? AND e.deleted_at IS NULL AND e.status = ? AND (
 			(e.type = ? AND EXISTS (SELECT 1 FROM vocabulary_exercises ve WHERE ve.exercise_id = e.id AND ve.vocabulary_id = ?))
 			OR (e.type <> ? AND EXISTS (SELECT 1 FROM vocabulary_exercises ve WHERE ve.exercise_id = e.id AND ve.vocabulary_id = ? AND ve.is_correct = true))
 		)
@@ -199,8 +199,9 @@ func IgnoreDuePendingExercisesWithoutActiveVocabulary(now time.Time) error {
 			WITH affected AS (
 				SELECT e.id
 				FROM exercises AS e
-				WHERE e.status = ?
-					AND e.type IN (?, ?, ?, ?, ?, ?, ?)
+				WHERE e.deleted_at IS NULL
+					AND e.status = ?
+					AND e.type IN (?, ?, ?, ?, ?, ?, ?, ?, ?)
 					AND e.scheduled_for <= ?
 					AND (
 						(e.type <> ? AND NOT EXISTS (
@@ -233,6 +234,8 @@ func IgnoreDuePendingExercisesWithoutActiveVocabulary(now time.Time) error {
 			enums.ExerciseTypeChoiceReversed,
 			enums.ExerciseTypeCharactersDirect,
 			enums.ExerciseTypeCharactersReversed,
+			enums.ExerciseTypeAudioDirect,
+			enums.ExerciseTypeAudioReversed,
 			enums.ExerciseTypeMatchPairs,
 			now,
 			enums.ExerciseTypeMatchPairs,
@@ -248,8 +251,9 @@ func IgnoreDuePendingExercisesWithoutActiveVocabulary(now time.Time) error {
 		return tx.Exec(`
 			UPDATE exercises AS e
 			SET status = ?, finished_at = ?
-			WHERE e.status = ?
-				AND e.type IN (?, ?, ?, ?, ?, ?, ?)
+			WHERE e.deleted_at IS NULL
+				AND e.status = ?
+				AND e.type IN (?, ?, ?, ?, ?, ?, ?, ?, ?)
 				AND e.scheduled_for <= ?
 				AND (
 					(e.type <> ? AND NOT EXISTS (
@@ -267,7 +271,7 @@ func IgnoreDuePendingExercisesWithoutActiveVocabulary(now time.Time) error {
 							AND ve.is_correct = true
 					) <> ?)
 				)
-		`, enums.ExerciseStatusIgnored, now, enums.ExerciseStatusPending, enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed, enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed, enums.ExerciseTypeMatchPairs, now, enums.ExerciseTypeMatchPairs, enums.ExerciseTypeMatchPairs, matchPairsVocabularyCount).Error
+		`, enums.ExerciseStatusIgnored, now, enums.ExerciseStatusPending, enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed, enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed, enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed, enums.ExerciseTypeMatchPairs, now, enums.ExerciseTypeMatchPairs, enums.ExerciseTypeMatchPairs, matchPairsVocabularyCount).Error
 	})
 }
 
@@ -283,7 +287,8 @@ func GetDueExerciseReminders(now time.Time) ([]PendingExerciseReminder, error) {
 			u.settings->>'system_language' AS system_language
 		FROM exercises AS e
 		JOIN users AS u ON u.id = e.user_id
-		WHERE e.status = ?
+		WHERE e.deleted_at IS NULL
+			AND e.status = ?
 			AND e.telegram_message_id IS NOT NULL
 			AND e.started_at IS NOT NULL
 			AND e.started_at <= ?
@@ -548,6 +553,7 @@ func markExerciseVocabularyResultWithoutProgress(tx *gorm.DB, exerciseID uuid.UU
 		FROM exercises AS e
 		WHERE e.id = ve.exercise_id
 			AND e.id = ?
+			AND e.deleted_at IS NULL
 			AND e.status IN (?, ?)
 			AND ve.is_correct = true
 			AND ve.result IS NULL
@@ -572,6 +578,7 @@ func markExpiredExerciseVocabularyResults(tx *gorm.DB, now time.Time, telegramMe
 		SET result = ?, result_reason = ?, answered_at = ?
 		FROM exercises AS e
 		WHERE e.id = ve.exercise_id
+			AND e.deleted_at IS NULL
 			AND e.status = ?
 			AND e.started_at IS NOT NULL
 			AND e.`+messageIDPredicate+`

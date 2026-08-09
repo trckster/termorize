@@ -263,6 +263,8 @@ func TestUpdateSettingsHappyPath(t *testing.T) {
 	assert.Equal(t, enums.Language("de"), got.Settings.MainLearningLanguage)
 	assert.Equal(t, enums.Language("en"), got.Settings.TranslationSourceLanguage)
 	assert.Equal(t, enums.Language("ru"), got.Settings.TranslationTargetLanguage)
+	assert.NotNil(t, got.Settings.IgnoredAudioLanguages)
+	assert.Empty(t, got.Settings.IgnoredAudioLanguages)
 	assert.Equal(t, "Europe/Berlin", got.Settings.TimeZone)
 	assert.True(t, got.Settings.Telegram.DailyQuestionsEnabled)
 	assert.Equal(t, uint(3), got.Settings.Telegram.DailyQuestionsCount)
