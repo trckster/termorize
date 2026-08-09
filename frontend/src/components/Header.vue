@@ -69,6 +69,17 @@
                 >
                     {{ t.navUsers }}
                 </router-link>
+                <router-link
+                    v-if="user?.is_admin"
+                    to="/word-audios"
+                    :aria-current="route.path === '/word-audios' ? 'page' : undefined"
+                    :class="[
+                        'text-sm font-medium transition-colors hover:text-foreground',
+                        route.path === '/word-audios' ? 'text-foreground' : 'text-muted-foreground',
+                    ]"
+                >
+                    {{ t.navWordAudios }}
+                </router-link>
             </nav>
 
             <div class="flex min-w-0 items-center gap-4">
@@ -130,6 +141,16 @@
                         </button>
 
                         <button
+                            v-if="user?.is_admin"
+                            @click="goToWordAudios"
+                            role="menuitem"
+                            class="flex min-h-11 w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium transition-colors hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                            <AudioLines class="h-4 w-4" />
+                            <span>{{ t.navWordAudios }}</span>
+                        </button>
+
+                        <button
                             ref="firstMenuActionRef"
                             @click="goToSettings"
                             role="menuitem"
@@ -171,7 +192,7 @@
 import { computed, nextTick, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { Sun, Moon, ChevronDown, Settings, LogOut, UserRound, Users } from 'lucide-vue-next'
+import { Sun, Moon, ChevronDown, Settings, LogOut, UserRound, Users, AudioLines } from 'lucide-vue-next'
 import { ToggleSwitch } from '@/components/ui/toggle-switch'
 import { isTelegramWebApp } from '@/lib/telegram.ts'
 import { useI18n } from '@/composables/useI18n'
@@ -236,6 +257,11 @@ const goToSettings = () => {
 const goToUsers = () => {
     closeProfileMenu()
     router.push('/users')
+}
+
+const goToWordAudios = () => {
+    closeProfileMenu()
+    router.push('/word-audios')
 }
 
 const handleLogout = async () => {
