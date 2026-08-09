@@ -37,6 +37,7 @@ type BotTexts struct {
 	KnownVocabularyRepetitionIntro         string
 	AudioExerciseTitle                     string
 	AudioExerciseCaptionFormat             string
+	AudioExerciseCancelledCaptionFormat    string
 
 	MatchExerciseTitle          string
 	MatchProgressFormat         string
@@ -147,6 +148,7 @@ var botTextsEn = BotTexts{
 	KnownVocabularyRepetitionIntro:         "Repetition!",
 	AudioExerciseTitle:                     "Listening exercise",
 	AudioExerciseCaptionFormat:             "Listen and translate into %s.\n\nReply directly to this audio.",
+	AudioExerciseCancelledCaptionFormat:    "Listen and translate into %s.\n\nExercise was cancelled.",
 
 	MatchExerciseTitle:          "🧩 *Match the pairs*",
 	MatchProgressFormat:         "Matched %d/%d",
@@ -290,6 +292,7 @@ var botTextsRu = BotTexts{
 	KnownVocabularyRepetitionIntro:         "Повторение!",
 	AudioExerciseTitle:                     "Упражнение на слух",
 	AudioExerciseCaptionFormat:             "Прослушай и переведи. Язык ответа: %s.\n\nОтветь непосредственно на это аудио.",
+	AudioExerciseCancelledCaptionFormat:    "Прослушай и переведи. Язык ответа: %s.\n\nУпражнение отменено.",
 
 	MatchExerciseTitle:          "🧩 *Сопоставь пары*",
 	MatchProgressFormat:         "Сопоставлено %d/%d",

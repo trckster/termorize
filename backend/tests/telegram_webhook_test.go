@@ -296,7 +296,62 @@ func TestTelegramAudioIgnoreAndUndoCallbacksAreIdempotent(t *testing.T) {
 	assert.True(t, deleted.DeletedAt.Valid)
 	assert.Equal(t, enums.ExerciseStatusInProgress, deleted.Status)
 	assert.Len(t, tg.RequestsFor("answerCallbackQuery"), 4)
-	assert.Len(t, tg.RequestsFor("editMessageReplyMarkup"), 4)
+	assert.Len(t, tg.RequestsFor("editMessageCaption"), 2)
+	assert.Len(t, tg.RequestsFor("editMessageReplyMarkup"), 2)
+
+	var cancelledCaption struct {
+		Caption     string `json:"caption"`
+		ReplyMarkup struct {
+			InlineKeyboard [][]telegramKeyboardButton `json:"inline_keyboard"`
+		} `json:"reply_markup"`
+	}
+	require.NoError(t, json.Unmarshal(tg.RequestsFor("editMessageCaption")[0].Body, &cancelledCaption))
+	assert.Equal(t, "Listen and translate into 🇮🇹 Italian.\n\nExercise was cancelled.", cancelledCaption.Caption)
+	_, hasUndo := findCallbackButton(cancelledCaption.ReplyMarkup.InlineKeyboard, "exercise:au:")
+	assert.True(t, hasUndo)
+
+	var undoEdit telegramKeyboardRequest
+	require.NoError(t, json.Unmarshal(tg.RequestsFor("editMessageReplyMarkup")[0].Body, &undoEdit))
+	assert.Empty(t, undoEdit.ReplyMarkup.InlineKeyboard)
+}
+
+func TestTelegramAudioIgnoreCallbackUsesActiveLanguage(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+
+	const telegramID int64 = 555095
+	const exerciseMessageID int64 = 497
+	user := testkit.CreateUser(t, testkit.WithTelegramID(telegramID), testkit.WithSettings(models.UserSettings{
+		SystemLanguage: enums.LanguageRu,
+	}))
+	vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
+	exercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeAudioDirect, enums.ExerciseStatusInProgress, vocabulary.ID)
+	require.NoError(t, db.DB.Model(&models.Exercise{}).
+		Where("id = ?", exercise.ID).
+		Update("telegram_message_id", exerciseMessageID).Error)
+
+	update := map[string]any{
+		"update_id": 1,
+		"callback_query": map[string]any{
+			"id":   "ignore-ru",
+			"data": "exercise:ai:" + telegramCompactUUID(exercise.ID) + ":en",
+			"from": map[string]any{"id": telegramID, "is_bot": false},
+			"message": map[string]any{
+				"message_id": exerciseMessageID,
+				"chat":       map[string]any{"id": telegramID, "type": "private"},
+			},
+		},
+	}
+
+	rec := telegramUpdate(t, update)
+	testkit.RequireStatus(t, rec, http.StatusOK)
+	require.Len(t, tg.RequestsFor("editMessageCaption"), 1)
+
+	var edited struct {
+		Caption string `json:"caption"`
+	}
+	require.NoError(t, json.Unmarshal(tg.RequestsFor("editMessageCaption")[0].Body, &edited))
+	assert.Equal(t, "Прослушай и переведи. Язык ответа: 🇮🇹 Итальянский.\n\nУпражнение отменено.", edited.Caption)
 }
 
 func TestTelegramWebhookIgnoredDeletedVocabularyCallbacksRetryKeyboardRemoval(t *testing.T) {

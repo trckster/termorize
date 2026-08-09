@@ -76,6 +76,18 @@ type editMessageTextResponse struct {
 	OK bool `json:"ok"`
 }
 
+type editMessageCaptionRequest struct {
+	ChatID      int64                 `json:"chat_id"`
+	MessageID   int64                 `json:"message_id"`
+	Caption     string                `json:"caption"`
+	ParseMode   string                `json:"parse_mode,omitempty"`
+	ReplyMarkup *inlineKeyboardMarkup `json:"reply_markup,omitempty"`
+}
+
+type editMessageCaptionResponse struct {
+	OK bool `json:"ok"`
+}
+
 func SendMessage(chatID int64, text string) error {
 	messageRequest := sendMessageRequest{ChatID: chatID, Text: text}
 	_, err := sendMessage(messageRequest)
@@ -257,6 +269,22 @@ func editMessageTextTolerant(request editMessageTextRequest) error {
 	}
 
 	return err
+}
+
+func editMessageCaptionTolerant(request editMessageCaptionRequest) error {
+	response, err := CallAPI[editMessageCaptionResponse]("editMessageCaption", request)
+	if err != nil {
+		if strings.Contains(err.Error(), "message is not modified") {
+			return nil
+		}
+		return err
+	}
+
+	if !response.OK {
+		return errors.New("telegram editMessageCaption response not ok")
+	}
+
+	return nil
 }
 
 func EditMatchBoardMessage(chatID int64, messageID int64, text string, keyboard [][]inlineKeyboardButton) error {

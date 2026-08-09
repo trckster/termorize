@@ -192,7 +192,7 @@ func SendAudioExerciseMessage(
 	}
 	options := audioSendOptions{
 		Title:   texts.AudioExerciseTitle,
-		Caption: fmt.Sprintf(texts.AudioExerciseCaptionFormat, answerLanguage.Flag()+" "+localizedLanguageName(answerLanguage, texts)),
+		Caption: buildAudioExerciseCaption(answerLanguage, texts, false),
 		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: buildAudioExerciseKeyboard(
 			exerciseID,
 			spokenLanguage,
@@ -225,4 +225,33 @@ func SendAudioExerciseMessage(
 	}
 
 	return &result.MessageID, nil
+}
+
+func buildAudioExerciseCaption(answerLanguage enums.Language, texts BotTexts, cancelled bool) string {
+	captionFormat := texts.AudioExerciseCaptionFormat
+	if cancelled {
+		captionFormat = texts.AudioExerciseCancelledCaptionFormat
+	}
+
+	return fmt.Sprintf(captionFormat, answerLanguage.Flag()+" "+localizedLanguageName(answerLanguage, texts))
+}
+
+func editCancelledAudioExerciseMessage(
+	chatID int64,
+	messageID int64,
+	answerLanguage enums.Language,
+	exerciseID uuid.UUID,
+	spokenLanguage enums.Language,
+	texts BotTexts,
+) error {
+	return editMessageCaptionTolerant(editMessageCaptionRequest{
+		ChatID:    chatID,
+		MessageID: messageID,
+		Caption:   buildAudioExerciseCaption(answerLanguage, texts, true),
+		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: buildAudioUndoKeyboard(
+			exerciseID,
+			spokenLanguage,
+			texts,
+		)},
+	})
 }

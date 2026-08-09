@@ -42,10 +42,17 @@ func handleAudioLanguageCallback(callback *callbackQuery, payload []string, text
 		if _, err := services.IgnoreAudioLanguageForExercise(exerciseID, exercise.UserID); err != nil {
 			return true, err
 		}
-		return true, editMessageInlineKeyboardTolerant(
+		answerLanguage := exercise.TranslationLanguage
+		if exercise.ExerciseType == enums.ExerciseTypeAudioReversed {
+			answerLanguage = exercise.OriginalLanguage
+		}
+		return true, editCancelledAudioExerciseMessage(
 			callback.Message.Chat.ID,
 			callback.Message.MessageID,
-			buildAudioUndoKeyboard(exerciseID, language, texts),
+			answerLanguage,
+			exerciseID,
+			language,
+			texts,
 		)
 	}
 
@@ -55,6 +62,6 @@ func handleAudioLanguageCallback(callback *callbackQuery, payload []string, text
 	return true, editMessageInlineKeyboardTolerant(
 		callback.Message.Chat.ID,
 		callback.Message.MessageID,
-		buildAudioExerciseKeyboard(exerciseID, language, texts),
+		[][]inlineKeyboardButton{},
 	)
 }
