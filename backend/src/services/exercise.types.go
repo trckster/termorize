@@ -69,6 +69,7 @@ const (
 	basicExerciseWeight      = 30
 	choiceExerciseWeight     = 30
 	characterExerciseWeight  = 30
+	audioExerciseWeight      = 30
 	matchPairsExerciseWeight = 10
 
 	knownVocabularyRepetitionMinimumDailyCount = 3
@@ -88,8 +89,10 @@ type PendingExercise struct {
 	Username                    string             `gorm:"column:username"`
 	TelegramID                  int64              `gorm:"column:telegram_id"`
 	OriginalWord                string             `gorm:"column:original_word"`
+	OriginalWordID              uuid.UUID          `gorm:"column:original_word_id"`
 	OriginalLanguage            enums.Language     `gorm:"column:original_language"`
 	TranslationWord             string             `gorm:"column:translation_word"`
+	TranslationWordID           uuid.UUID          `gorm:"column:translation_word_id"`
 	TranslationLanguage         enums.Language     `gorm:"column:translation_language"`
 	SystemLanguage              enums.Language     `gorm:"column:system_language"`
 }
@@ -121,6 +124,7 @@ type TelegramMessageExercise struct {
 	ExerciseID          uuid.UUID            `gorm:"column:exercise_id"`
 	ExerciseType        enums.ExerciseType   `gorm:"column:exercise_type"`
 	Status              enums.ExerciseStatus `gorm:"column:status"`
+	Deleted             bool                 `gorm:"-"`
 	ResultReason        string               `gorm:"-"`
 	UserID              uint                 `gorm:"column:user_id"`
 	Options             []ExerciseOption

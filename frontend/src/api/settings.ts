@@ -15,4 +15,10 @@ export const settingsApi = {
     async updateSettings(payload: UpdateSettingsPayload): Promise<User> {
         return apiCall<User>('/settings', 'PUT', payload).then(unwrapBody)
     },
+
+    async removeIgnoredAudioLanguage(language: string): Promise<User> {
+        return apiCall<User>(`/settings/ignored-audio-languages/${encodeURIComponent(language)}`, 'DELETE').then(
+            unwrapBody
+        )
+    },
 }

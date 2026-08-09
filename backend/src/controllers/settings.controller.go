@@ -18,6 +18,7 @@ type UpdateSettingsRequest struct {
 	MainLearningLanguage      enums.Language                `json:"main_learning_language" binding:"required,enum=Language"`
 	TranslationSourceLanguage enums.Language                `json:"translation_source_language" binding:"required,enum=Language,nefield=TranslationTargetLanguage"`
 	TranslationTargetLanguage enums.Language                `json:"translation_target_language" binding:"required,enum=Language,nefield=TranslationSourceLanguage"`
+	IgnoredAudioLanguages     []enums.Language              `json:"ignored_audio_languages" binding:"dive,enum=Language"`
 	TimeZone                  string                        `json:"time_zone" binding:"required,timezone"`
 	Telegram                  UpdateSettingsTelegramRequest `json:"telegram" binding:"required"`
 }
@@ -52,6 +53,7 @@ func UpdateSettings(c *gin.Context) {
 		MainLearningLanguage:      req.MainLearningLanguage,
 		TranslationSourceLanguage: req.TranslationSourceLanguage,
 		TranslationTargetLanguage: req.TranslationTargetLanguage,
+		IgnoredAudioLanguages:     req.IgnoredAudioLanguages,
 		TimeZone:                  strings.TrimSpace(req.TimeZone),
 		Telegram: models.UserTelegramSettings{
 			DailyQuestionsEnabled: req.Telegram.DailyQuestionsEnabled,
@@ -73,6 +75,27 @@ func UpdateSettings(c *gin.Context) {
 			return
 		}
 
+		ServerError(c, err)
+		return
+	}
+
+	c.JSON(nethttp.StatusOK, user)
+}
+
+func RemoveIgnoredAudioLanguage(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+	language := enums.Language(c.Param("language"))
+	if !enums.IsSupportedLanguage(language) {
+		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid language"})
+		return
+	}
+
+	user, err := services.RemoveIgnoredAudioLanguage(userID, language)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(nethttp.StatusNotFound, gin.H{"error": "user not found"})
+			return
+		}
 		ServerError(c, err)
 		return
 	}

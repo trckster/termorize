@@ -19,6 +19,17 @@ const languageNames: Record<string, string> = {
     tr: 'Turkish',
 }
 
+const russianLanguageNames: Record<string, string> = {
+    en: 'Английский',
+    ru: 'Русский',
+    it: 'Итальянский',
+    de: 'Немецкий',
+    es: 'Испанский',
+    fr: 'Французский',
+    pl: 'Польский',
+    tr: 'Турецкий',
+}
+
 const languageEmojis: Record<string, string> = {
     en: '🇬🇧',
     ru: '🇷🇺',
@@ -32,7 +43,8 @@ const languageEmojis: Record<string, string> = {
 
 const fallbackFlag = '🏳'
 
-const getLanguageName = (code: string) => languageNames[code] || code.toUpperCase()
+const getLanguageName = (code: string, locale = 'en') =>
+    (locale === 'ru' ? russianLanguageNames[code] : languageNames[code]) || code.toUpperCase()
 const getLanguageFlag = (code: string) => languageEmojis[code] || fallbackFlag
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -54,6 +66,10 @@ export const useSettingsStore = defineStore('settings', () => {
         return getLanguageFlag(languageCode)
     }
 
+    const getLanguageNameForCode = (languageCode: string, locale = 'en') => {
+        return getLanguageName(languageCode, locale)
+    }
+
     const fetchSettings = async () => {
         try {
             settings.value = await settingsApi.getSettings()
@@ -67,5 +83,6 @@ export const useSettingsStore = defineStore('settings', () => {
         languageOptions,
         fetchSettings,
         getFlag,
+        getLanguageName: getLanguageNameForCode,
     }
 })

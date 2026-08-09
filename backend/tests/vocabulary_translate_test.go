@@ -727,6 +727,8 @@ func TestDeleteVocabularyReplacesEveryPendingExerciseType(t *testing.T) {
 		enums.ExerciseTypeChoiceReversed,
 		enums.ExerciseTypeCharactersDirect,
 		enums.ExerciseTypeCharactersReversed,
+		enums.ExerciseTypeAudioDirect,
+		enums.ExerciseTypeAudioReversed,
 		enums.ExerciseTypeMatchPairs,
 	}
 	scheduledTimes := make([]time.Time, 0, len(exerciseTypes))
@@ -770,6 +772,19 @@ func TestDeleteVocabularyReplacesEveryPendingExerciseType(t *testing.T) {
 			assert.Equal(t, replacementVocabulary.ID, link.VocabularyID)
 		}
 	}
+
+	var deletedExercises []models.Exercise
+	require.NoError(t, db.DB.Unscoped().Where("id IN ?", oldExerciseIDs).Find(&deletedExercises).Error)
+	require.Len(t, deletedExercises, len(oldExerciseIDs))
+	for _, deleted := range deletedExercises {
+		assert.True(t, deleted.DeletedAt.Valid)
+		assert.Equal(t, enums.ExerciseStatusPending, deleted.Status)
+		var linkCount int64
+		require.NoError(t, db.DB.Model(&models.ExerciseVocabulary{}).
+			Where("exercise_id = ?", deleted.ID).
+			Count(&linkCount).Error)
+		assert.Positive(t, linkCount)
+	}
 }
 
 func TestDeleteVocabularyCancelsEveryPendingExerciseTypeWithoutReplacement(t *testing.T) {
@@ -784,6 +799,8 @@ func TestDeleteVocabularyCancelsEveryPendingExerciseTypeWithoutReplacement(t *te
 		enums.ExerciseTypeChoiceReversed,
 		enums.ExerciseTypeCharactersDirect,
 		enums.ExerciseTypeCharactersReversed,
+		enums.ExerciseTypeAudioDirect,
+		enums.ExerciseTypeAudioReversed,
 		enums.ExerciseTypeMatchPairs,
 	}
 	for index, exerciseType := range exerciseTypes {

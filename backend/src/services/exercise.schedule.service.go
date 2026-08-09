@@ -242,12 +242,16 @@ func generateExercise(userID uint, vocabularyID uuid.UUID, when time.Time, inclu
 }
 
 func generateExerciseWithDB(conn *gorm.DB, userID uint, vocabularyID uuid.UUID, when time.Time, includeMatchPairs bool) error {
+	return generateExerciseWithDBConfig(conn, userID, vocabularyID, when, includeMatchPairs, false)
+}
+
+func generateExerciseWithDBConfig(conn *gorm.DB, userID uint, vocabularyID uuid.UUID, when time.Time, includeMatchPairs bool, excludeAudio bool) error {
 	vocabulary, err := loadExerciseVocabularyWithDB(conn, vocabularyID)
 	if err != nil {
 		return err
 	}
 
-	exerciseType, options, err := selectExerciseTypeAndOptionsWithDB(conn, userID, vocabulary, includeMatchPairs)
+	exerciseType, options, err := selectExerciseTypeAndOptionsWithConfig(conn, userID, vocabulary, includeMatchPairs, excludeAudio)
 	if err != nil {
 		return err
 	}
@@ -272,13 +276,21 @@ func generateExerciseWithDB(conn *gorm.DB, userID uint, vocabularyID uuid.UUID, 
 }
 
 func createReplacementPendingExercise(tx *gorm.DB, userID uint, when time.Time) (bool, error) {
+	return createReplacementPendingExerciseWithConfig(tx, userID, when, false)
+}
+
+func createReplacementPendingExerciseWithoutAudio(tx *gorm.DB, userID uint, when time.Time) (bool, error) {
+	return createReplacementPendingExerciseWithConfig(tx, userID, when, true)
+}
+
+func createReplacementPendingExerciseWithConfig(tx *gorm.DB, userID uint, when time.Time, excludeAudio bool) (bool, error) {
 	vocabularyIDs, err := getEligibleVocabularyIDsWithDB(tx, userID, 64)
 	if err != nil {
 		return false, err
 	}
 
 	for _, vocabularyID := range vocabularyIDs {
-		err := generateExerciseWithDB(tx, userID, vocabularyID, when, true)
+		err := generateExerciseWithDBConfig(tx, userID, vocabularyID, when, true, excludeAudio)
 		if errors.Is(err, errNoExerciseTypeAvailable) {
 			continue
 		}

@@ -24,6 +24,10 @@ func handleExerciseAnswer(message *message) (bool, error) {
 	if exercise == nil {
 		return false, nil
 	}
+	if exercise.Deleted {
+		t := getBotTextsForTelegramID(telegramID)
+		return true, SendReplyMessage(message.Chat.ID, t.ExerciseAudioCancelled, message.MessageID)
+	}
 
 	t := getBotTextsForTelegramID(telegramID)
 	switch exercise.Status {

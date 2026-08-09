@@ -13,11 +13,14 @@ import {
     type VerifyResult,
 } from '@/api/exercises.ts'
 import { collectionsApi, type CollectionPracticeRound } from '@/api/collections.ts'
+import { settingsApi } from '@/api/settings.ts'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import { Progress } from '@/components/ui/progress'
 import MatchPairsBoard from '@/components/quiz/MatchPairsBoard.vue'
+import PronunciationButton from '@/components/PronunciationButton.vue'
 import { useI18n } from '@/composables/useI18n'
+import { useAuthStore } from '@/stores/auth.ts'
 import { useSettingsStore } from '@/stores/settings.ts'
 import { formatNumber } from '@/lib/utils.ts'
 
@@ -29,11 +32,13 @@ type MatchVocabularyResult = MatchPairResult | null
 type MatchVocabularyState = {
     result: MatchVocabularyResult
 }
+type AudioIgnoreState = 'idle' | 'saving' | 'undo' | 'undo-failed'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const settingsStore = useSettingsStore()
+const authStore = useAuthStore()
 
 const state = ref<QuizState>('loading')
 const currentExercise = ref<RandomExercise | null>(null)
@@ -54,6 +59,11 @@ const feedbackTimeoutId = ref<number | null>(null)
 const choiceSubmitTimeoutId = ref<number | null>(null)
 const matchResolveTimeoutId = ref<number | null>(null)
 const characterWarningTimeoutId = ref<number | null>(null)
+const audioIgnoreTimeoutId = ref<number | null>(null)
+const audioIgnoreIntervalId = ref<number | null>(null)
+const audioIgnoreState = ref<AudioIgnoreState>('idle')
+const audioIgnoreCountdown = ref(5)
+const prefersReducedMotion = ref(false)
 const answer = ref('')
 const showCharacterLanguageWarning = ref(false)
 const selectedChoiceIndex = ref<number | null>(null)
@@ -78,6 +88,16 @@ const isChoiceQuestion = computed(
 const isCharacterQuestion = computed(
     () => currentExercise.value?.type === 'characters/direct' || currentExercise.value?.type === 'characters/reversed'
 )
+const isAudioQuestion = computed(
+    () => currentExercise.value?.type === 'audio/direct' || currentExercise.value?.type === 'audio/reversed'
+)
+const isAnswerDisabled = computed(() => isSubmitting.value || audioIgnoreState.value !== 'idle')
+const audioSpokenLanguageName = computed(() =>
+    settingsStore.getLanguageName(
+        currentExercise.value?.language ?? '',
+        authStore.user?.settings.system_language ?? 'en'
+    )
+)
 const isChoiceAnswerPending = computed(() => choiceSubmitTimeoutId.value != null || isSubmitting.value)
 const quizContentClass = computed(() => {
     if (state.value === 'results') return 'w-full max-w-5xl'
@@ -89,6 +109,9 @@ const questionHint = computed(() => {
     if (!currentExercise.value) return ''
     if (currentExercise.value.type === 'match/pairs') {
         return t.value.quizTypeMatchPairsHint
+    }
+    if (isAudioQuestion.value) {
+        return t.value.quizTypeAudioHint
     }
     if (
         currentExercise.value.type === 'basic/reversed' ||
@@ -181,7 +204,7 @@ async function startQuiz() {
     await loadNextQuestion()
 }
 
-async function loadNextQuestion() {
+async function loadNextQuestion(excludeAudio: boolean = false) {
     state.value = 'loading'
     error.value = null
     emptyState.value = null
@@ -189,6 +212,9 @@ async function loadNextQuestion() {
     clearChoiceSubmit()
     clearMatchResolve()
     clearCharacterLanguageWarning()
+    clearAudioIgnoreTimer()
+    audioIgnoreState.value = 'idle'
+    audioIgnoreCountdown.value = 5
     selectedChoiceIndex.value = null
     selectedCharacterIndices.value = []
     selectedMatchCardIds.value = []
@@ -211,10 +237,11 @@ async function loadNextQuestion() {
             currentExercise.value = await exercisesApi.getCollectionPracticeExercise(
                 collectionId.value,
                 targetVocabularyId,
-                requestMatching
+                requestMatching,
+                excludeAudio
             )
         } else {
-            currentExercise.value = await exercisesApi.getRandomExercise()
+            currentExercise.value = await exercisesApi.getRandomExercise(excludeAudio)
         }
         verifyResult.value = null
         matchCompleteResult.value = null
@@ -256,7 +283,7 @@ async function loadNextQuestion() {
 }
 
 async function submitAnswer(answer: string) {
-    if (!currentExercise.value || !answer.trim() || isSubmitting.value) return
+    if (!currentExercise.value || !answer.trim() || isAnswerDisabled.value || state.value !== 'question') return
 
     isSubmitting.value = true
     error.value = null
@@ -292,7 +319,7 @@ function getSkipAnswer(): string {
 async function skipAnswer() {
     if (
         !currentExercise.value ||
-        isSubmitting.value ||
+        isAnswerDisabled.value ||
         state.value !== 'question' ||
         isChoiceQuestion.value ||
         isMatchQuestion.value
@@ -323,6 +350,78 @@ async function skipAnswer() {
     } finally {
         isSubmitting.value = false
     }
+}
+
+function formatQuizText(template: string, values: Record<string, string | number>): string {
+    return Object.entries(values).reduce((result, [key, value]) => result.replace(`{${key}}`, String(value)), template)
+}
+
+function clearAudioIgnoreTimer() {
+    if (audioIgnoreTimeoutId.value != null) {
+        window.clearTimeout(audioIgnoreTimeoutId.value)
+        audioIgnoreTimeoutId.value = null
+    }
+    if (audioIgnoreIntervalId.value != null) {
+        window.clearInterval(audioIgnoreIntervalId.value)
+        audioIgnoreIntervalId.value = null
+    }
+}
+
+function scheduleAudioReplacement() {
+    clearAudioIgnoreTimer()
+    audioIgnoreCountdown.value = 5
+    audioIgnoreIntervalId.value = window.setInterval(() => {
+        audioIgnoreCountdown.value = Math.max(0, audioIgnoreCountdown.value - 1)
+    }, 1000)
+    audioIgnoreTimeoutId.value = window.setTimeout(() => {
+        if (audioIgnoreState.value !== 'undo') return
+        audioIgnoreState.value = 'saving'
+        clearAudioIgnoreTimer()
+        void loadNextQuestion(true)
+    }, 5000)
+}
+
+async function ignoreCurrentAudioLanguage() {
+    if (!currentExercise.value || !isAudioQuestion.value || audioIgnoreState.value !== 'idle') return
+
+    audioIgnoreState.value = 'saving'
+    error.value = null
+    try {
+        authStore.user = await exercisesApi.ignoreAudioLanguage(currentExercise.value.exercise_id)
+        ignoredExerciseId.value = currentExercise.value.exercise_id
+        audioIgnoreState.value = 'undo'
+        scheduleAudioReplacement()
+    } catch {
+        audioIgnoreState.value = 'idle'
+        error.value = t.value.quizIgnoreAudioError
+    }
+}
+
+async function undoIgnoredAudioLanguage() {
+    if (
+        !currentExercise.value ||
+        !isAudioQuestion.value ||
+        (audioIgnoreState.value !== 'undo' && audioIgnoreState.value !== 'undo-failed')
+    )
+        return
+
+    clearAudioIgnoreTimer()
+    audioIgnoreState.value = 'saving'
+    error.value = null
+    try {
+        authStore.user = await settingsApi.removeIgnoredAudioLanguage(currentExercise.value.language)
+        await loadNextQuestion(true)
+    } catch {
+        audioIgnoreState.value = 'undo-failed'
+        error.value = t.value.quizUndoAudioError
+    }
+}
+
+function continueAfterIgnoredAudio() {
+    if (audioIgnoreState.value !== 'undo-failed') return
+    clearAudioIgnoreTimer()
+    audioIgnoreState.value = 'saving'
+    void loadNextQuestion(true)
 }
 
 function chooseOption(option: string, index: number) {
@@ -657,6 +756,9 @@ function handleKeydown(event: KeyboardEvent) {
     if (event.altKey || event.ctrlKey || event.metaKey) {
         return
     }
+    if (state.value === 'question' && isAudioQuestion.value && audioIgnoreState.value !== 'idle') {
+        return
+    }
 
     if (state.value === 'question' && currentExercise.value && isCharacterQuestion.value) {
         if (event.key === 'Escape') {
@@ -917,6 +1019,7 @@ const resultClass = computed(() => {
 })
 
 onMounted(() => {
+    prefersReducedMotion.value = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     window.addEventListener('pagehide', ignoreCurrentExerciseOnPageExit)
     void startQuiz()
 })
@@ -928,6 +1031,7 @@ onBeforeUnmount(() => {
     clearMatchResolve()
     clearFeedbackAdvance()
     clearCharacterLanguageWarning()
+    clearAudioIgnoreTimer()
 })
 </script>
 
@@ -1035,7 +1139,30 @@ onBeforeUnmount(() => {
                                 {{ questionHint }}
                             </p>
 
-                            <div class="text-center">
+                            <div v-if="isAudioQuestion" class="flex flex-col items-center gap-3 text-center">
+                                <PronunciationButton
+                                    v-if="audioIgnoreState === 'idle'"
+                                    :word-id="currentExercise?.audio_word_id"
+                                    word=""
+                                    :listen-label="t.quizAudioListen"
+                                    :pause-label="t.quizAudioPause"
+                                    :loading-label="t.quizAudioLoading"
+                                    :error-label="t.quizAudioError"
+                                />
+                                <div
+                                    v-else
+                                    class="flex h-11 items-center text-sm font-medium text-muted-foreground"
+                                    aria-live="polite"
+                                >
+                                    {{
+                                        audioIgnoreState === 'saving'
+                                            ? t.quizIgnoringAudioLanguage
+                                            : t.quizTypeAudioHint
+                                    }}
+                                </div>
+                            </div>
+
+                            <div v-else class="text-center">
                                 <p class="break-words text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
                                     {{ currentExercise?.question_word }}
                                 </p>
@@ -1052,7 +1179,7 @@ onBeforeUnmount(() => {
                                     :key="option"
                                     type="button"
                                     :aria-pressed="selectedChoiceIndex === index"
-                                    :disabled="isSubmitting"
+                                    :disabled="isAnswerDisabled"
                                     :class="
                                         selectedChoiceIndex === index
                                             ? 'quiz-choice-button--selected'
@@ -1145,7 +1272,7 @@ onBeforeUnmount(() => {
                                     size="lg"
                                     type="button"
                                     variant="outline"
-                                    :disabled="isSubmitting"
+                                    :disabled="isAnswerDisabled"
                                     @click="skipAnswer"
                                 >
                                     {{ t.quizSkip }}
@@ -1160,7 +1287,7 @@ onBeforeUnmount(() => {
                                     v-model="answer"
                                     name="answer"
                                     :placeholder="t.quizAnswerPlaceholder"
-                                    :disabled="isSubmitting"
+                                    :disabled="isAnswerDisabled"
                                     class="w-full rounded-md border border-input bg-background px-4 py-3 text-base shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                                     autocomplete="off"
                                     autocapitalize="off"
@@ -1173,7 +1300,7 @@ onBeforeUnmount(() => {
                                         size="lg"
                                         type="button"
                                         variant="outline"
-                                        :disabled="isSubmitting"
+                                        :disabled="isAnswerDisabled"
                                         @click="skipAnswer"
                                     >
                                         {{ t.quizSkip }}
@@ -1182,7 +1309,7 @@ onBeforeUnmount(() => {
                                         class="w-full"
                                         size="lg"
                                         type="submit"
-                                        :disabled="isSubmitting || !answer.trim()"
+                                        :disabled="isAnswerDisabled || !answer.trim()"
                                     >
                                         <span
                                             v-if="isSubmitting"
@@ -1193,6 +1320,61 @@ onBeforeUnmount(() => {
                                     </Button>
                                 </div>
                             </form>
+
+                            <div v-if="isAudioQuestion" class="space-y-2">
+                                <Button
+                                    v-if="audioIgnoreState === 'idle' || audioIgnoreState === 'saving'"
+                                    class="w-full"
+                                    type="button"
+                                    variant="ghost"
+                                    :disabled="audioIgnoreState === 'saving'"
+                                    @click="ignoreCurrentAudioLanguage"
+                                >
+                                    {{
+                                        audioIgnoreState === 'saving'
+                                            ? t.quizIgnoringAudioLanguage
+                                            : formatQuizText(t.quizIgnoreAudioLanguage, {
+                                                  language: audioSpokenLanguageName,
+                                              })
+                                    }}
+                                </Button>
+
+                                <button
+                                    v-else-if="audioIgnoreState === 'undo'"
+                                    type="button"
+                                    class="relative flex min-h-11 w-full items-center justify-center overflow-hidden rounded-md border border-success/35 bg-success/10 px-4 py-2 text-sm font-medium text-success transition-colors hover:bg-success/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    @click="undoIgnoredAudioLanguage"
+                                >
+                                    <span>
+                                        {{
+                                            formatQuizText(t.quizUndoAudioLanguage, {
+                                                language: audioSpokenLanguageName,
+                                            })
+                                        }}
+                                    </span>
+                                    <span v-if="prefersReducedMotion" class="ml-2 tabular-nums" aria-live="polite">
+                                        {{
+                                            formatQuizText(t.quizUndoAudioLanguageCountdown, {
+                                                seconds: audioIgnoreCountdown,
+                                            })
+                                        }}
+                                    </span>
+                                    <span
+                                        v-else
+                                        class="quiz-audio-undo-progress absolute inset-x-0 bottom-0 h-0.5 origin-left bg-success"
+                                        aria-hidden="true"
+                                    ></span>
+                                </button>
+
+                                <div v-else class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                    <Button type="button" variant="outline" @click="undoIgnoredAudioLanguage">
+                                        {{ t.quizRetryUndo }}
+                                    </Button>
+                                    <Button type="button" @click="continueAfterIgnoredAudio">
+                                        {{ t.quizNextQuestion }}
+                                    </Button>
+                                </div>
+                            </div>
                         </template>
 
                         <div v-if="error" class="space-y-3 text-center">
@@ -1402,9 +1584,22 @@ onBeforeUnmount(() => {
     animation: quiz-spin 0.7s linear infinite;
 }
 
+.quiz-audio-undo-progress {
+    animation: quiz-audio-undo-deplete 5s linear forwards;
+}
+
 @keyframes quiz-spin {
     to {
         transform: rotate(360deg);
+    }
+}
+
+@keyframes quiz-audio-undo-deplete {
+    from {
+        transform: scaleX(1);
+    }
+    to {
+        transform: scaleX(0);
     }
 }
 
@@ -1414,6 +1609,10 @@ onBeforeUnmount(() => {
     }
 
     .quiz-inline-spinner {
+        animation: none;
+    }
+
+    .quiz-audio-undo-progress {
         animation: none;
     }
 

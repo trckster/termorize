@@ -240,7 +240,8 @@ func TestCollectionPracticeAnswerKeepsKnowledgeAndAppearsInHistory(t *testing.T)
 	answer := "treno"
 	if exercise.Type == enums.ExerciseTypeBasicReversed ||
 		exercise.Type == enums.ExerciseTypeChoiceReversed ||
-		exercise.Type == enums.ExerciseTypeCharactersReversed {
+		exercise.Type == enums.ExerciseTypeCharactersReversed ||
+		exercise.Type == enums.ExerciseTypeAudioReversed {
 		answer = "train"
 	}
 
@@ -331,6 +332,39 @@ func TestCollectionPracticeWrongAnswerDoesNotSubtractKnowledge(t *testing.T) {
 	assert.Equal(t, 0, verify.ProgressDelta)
 	assert.Equal(t, 45, verify.Knowledge)
 	assert.Equal(t, 45, collectionPracticeKnowledge(t, vocabulary.ID))
+}
+
+func TestCollectionPracticeCanExcludeAudioForImmediateReplacement(t *testing.T) {
+	testkit.Truncate(t)
+
+	user := testkit.CreateUser(t)
+	collection := collectionSeed(t, "Listening replacement", uintPtr(user.ID), false, true)
+	translationID := collectionSeedTranslation(t, "train", "treno", enums.LanguageEn, enums.LanguageIt)
+	collectionLink(t, collection.ID, translationID, 0)
+	vocabulary := collectionPracticeSeedVocabulary(t, user.ID, translationID, 45)
+
+	for range 20 {
+		rec := testkit.AuthedRequest(
+			t,
+			user,
+			http.MethodPost,
+			"/api/collections/"+collection.ID.String()+"/practice/exercises",
+			map[string]any{
+				"target_vocabulary_id": vocabulary.ID,
+				"matching":             false,
+				"exclude_audio":        true,
+			},
+		)
+		testkit.RequireStatus(t, rec, http.StatusOK)
+		var exercise struct {
+			Type        enums.ExerciseType `json:"type"`
+			AudioWordID *uuid.UUID         `json:"audio_word_id"`
+		}
+		testkit.DecodeJSON(t, rec, &exercise)
+		assert.NotEqual(t, enums.ExerciseTypeAudioDirect, exercise.Type)
+		assert.NotEqual(t, enums.ExerciseTypeAudioReversed, exercise.Type)
+		assert.Nil(t, exercise.AudioWordID)
+	}
 }
 
 func TestCollectionPracticeMatchingUsesOnlyCollectionWordsAndKeepsKnowledge(t *testing.T) {

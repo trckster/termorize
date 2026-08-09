@@ -373,3 +373,12 @@ func editMessageInlineKeyboard(chatID int64, messageID int64, keyboard [][]inlin
 
 	return nil
 }
+
+func editMessageInlineKeyboardTolerant(chatID int64, messageID int64, keyboard [][]inlineKeyboardButton) error {
+	err := editMessageInlineKeyboard(chatID, messageID, keyboard)
+	if err != nil && strings.Contains(err.Error(), "message is not modified") {
+		return nil
+	}
+
+	return err
+}

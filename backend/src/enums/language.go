@@ -26,6 +26,23 @@ func AllLanguages() []string {
 	}
 }
 
+func AllLanguageValues() []Language {
+	values := make([]Language, 0, len(AllLanguages()))
+	for _, language := range AllLanguages() {
+		values = append(values, Language(language))
+	}
+	return values
+}
+
+func IsSupportedLanguage(language Language) bool {
+	for _, supported := range AllLanguageValues() {
+		if language == supported {
+			return true
+		}
+	}
+	return false
+}
+
 func (l Language) DisplayName() string {
 	switch l {
 	case LanguageEn:

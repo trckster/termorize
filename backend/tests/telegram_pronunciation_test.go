@@ -16,6 +16,7 @@ import (
 	"termorize/src/data/db"
 	"termorize/src/enums"
 	"termorize/src/integrations/openrouter"
+	"termorize/src/integrations/telegram"
 	"termorize/src/models"
 	"termorize/src/services"
 	"termorize/src/testkit"
@@ -24,6 +25,103 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestTelegramAudioExerciseUploadsGenericCaptionAndKeyboard(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+	word := models.Word{Word: "secret", Language: enums.LanguageEn}
+	require.NoError(t, db.DB.Create(&word).Error)
+	pronunciation, err := services.StoreWordPronunciation(
+		word.ID,
+		config.GetOpenRouterTTSModel(),
+		config.GetOpenRouterTTSVoice(),
+		[]byte("audio-exercise-mp3"),
+	)
+	require.NoError(t, err)
+	exerciseID := uuid.New()
+
+	messageID, err := telegram.SendAudioExerciseMessage(
+		720001,
+		exerciseID,
+		pronunciation,
+		enums.LanguageEn,
+		enums.LanguageIt,
+		telegram.GetBotTexts(enums.LanguageEn),
+	)
+	require.NoError(t, err)
+	require.NotNil(t, messageID)
+	assert.EqualValues(t, 1, *messageID)
+
+	requests := tg.RequestsFor("sendAudio")
+	require.Len(t, requests, 1)
+	assert.Equal(t, []byte("audio-exercise-mp3"), uploadedAudio(t, requests[0]))
+	fields := uploadedAudioFields(t, requests[0])
+	assert.Equal(t, "Listening exercise", fields["title"])
+	assert.NotContains(t, fields["title"], word.Word)
+	assert.Equal(t, "Listen and translate into 🇮🇹 Italian.\n\nReply directly to this audio.", fields["caption"])
+
+	var markup struct {
+		InlineKeyboard [][]telegramKeyboardButton `json:"inline_keyboard"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(fields["reply_markup"]), &markup))
+	_, hasIDK := findCallbackButton(markup.InlineKeyboard, "exercise:idk:"+exerciseID.String())
+	assert.True(t, hasIDK)
+	ignore, hasIgnore := findCallbackButton(markup.InlineKeyboard, "exercise:ai:")
+	assert.True(t, hasIgnore)
+	assert.NotContains(t, ignore.Text, word.Word)
+
+	stored := loadPronunciation(t, word.ID)
+	require.NotNil(t, stored.TelegramFileID)
+	assert.Equal(t, "test-telegram-audio-file-id", *stored.TelegramFileID)
+}
+
+func TestTelegramAudioExerciseUsesCachedFileWithCaptionAndKeyboard(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+	word := models.Word{Word: "secret", Language: enums.LanguageIt}
+	require.NoError(t, db.DB.Create(&word).Error)
+	pronunciation, err := services.StoreWordPronunciation(
+		word.ID,
+		config.GetOpenRouterTTSModel(),
+		config.GetOpenRouterTTSVoice(),
+		[]byte("cached-audio-exercise-mp3"),
+	)
+	require.NoError(t, err)
+	require.NoError(t, services.SetWordPronunciationTelegramFileID(pronunciation.ID, "cached-audio-file-id"))
+	cachedFileID := "cached-audio-file-id"
+	pronunciation.TelegramFileID = &cachedFileID
+	exerciseID := uuid.New()
+
+	messageID, err := telegram.SendAudioExerciseMessage(
+		720002,
+		exerciseID,
+		pronunciation,
+		enums.LanguageIt,
+		enums.LanguageEn,
+		telegram.GetBotTexts(enums.LanguageRu),
+	)
+	require.NoError(t, err)
+	require.NotNil(t, messageID)
+
+	requests := tg.RequestsFor("sendAudio")
+	require.Len(t, requests, 1)
+	assert.NotContains(t, requests[0].Header.Get("Content-Type"), "multipart/form-data")
+	var sent struct {
+		Audio       string `json:"audio"`
+		Title       string `json:"title"`
+		Caption     string `json:"caption"`
+		ReplyMarkup struct {
+			InlineKeyboard [][]telegramKeyboardButton `json:"inline_keyboard"`
+		} `json:"reply_markup"`
+	}
+	require.NoError(t, json.Unmarshal(requests[0].Body, &sent))
+	assert.Equal(t, "cached-audio-file-id", sent.Audio)
+	assert.Equal(t, "Упражнение на слух", sent.Title)
+	assert.Contains(t, sent.Caption, "🇬🇧 Английский")
+	assert.NotContains(t, sent.Caption, word.Word)
+	_, hasIgnore := findCallbackButton(sent.ReplyMarkup.InlineKeyboard, "exercise:ai:")
+	assert.True(t, hasIgnore)
+}
 
 func TestTelegramTranslationsAlwaysIncludePronunciationWithoutGeneratingAudio(t *testing.T) {
 	tests := []struct {
@@ -380,6 +478,28 @@ func uploadedAudio(t *testing.T, request testkit.TelegramRequest) []byte {
 	}
 	t.Fatal("audio multipart field not found")
 	return nil
+}
+
+func uploadedAudioFields(t *testing.T, request testkit.TelegramRequest) map[string]string {
+	t.Helper()
+	_, params, err := mime.ParseMediaType(request.Header.Get("Content-Type"))
+	require.NoError(t, err)
+	reader := multipart.NewReader(bytes.NewReader(request.Body), params["boundary"])
+	fields := make(map[string]string)
+	for {
+		part, err := reader.NextPart()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		require.NoError(t, err)
+		if part.FileName() != "" {
+			continue
+		}
+		body, err := io.ReadAll(part)
+		require.NoError(t, err)
+		fields[part.FormName()] = string(body)
+	}
+	return fields
 }
 
 type telegramKeyboardRequest struct {

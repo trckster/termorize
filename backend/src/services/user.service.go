@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func defaultUserSettings(timezone string, botEnabled bool) models.UserSettings {
@@ -22,6 +23,7 @@ func defaultUserSettings(timezone string, botEnabled bool) models.UserSettings {
 		MainLearningLanguage:      enums.LanguageEn,
 		TranslationSourceLanguage: enums.LanguageEn,
 		TranslationTargetLanguage: enums.LanguageRu,
+		IgnoredAudioLanguages:     []enums.Language{},
 		TimeZone:                  timezone,
 		Telegram: models.UserTelegramSettings{
 			BotEnabled:             botEnabled,
@@ -36,7 +38,7 @@ func CreateOrUpdateUserByTelegramProfile(profile auth.TelegramUserProfile, timez
 	var user models.User
 
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		result := tx.Where("telegram_id = ?", profile.ID).First(&user)
+		result := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("telegram_id = ?", profile.ID).First(&user)
 
 		if result.Error == nil {
 			user.Name = strings.TrimSpace(profile.Name)
@@ -68,13 +70,15 @@ func UpdateUserSettings(userID uint, settings models.UserSettings) (*models.User
 	var user models.User
 
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("id = ?", userID).First(&user).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", userID).First(&user).Error; err != nil {
 			return err
 		}
 
 		wasDailyQuestionsEnabled := user.Settings.Telegram.DailyQuestionsEnabled
+		previousIgnoredAudioLanguages := append([]enums.Language(nil), user.Settings.IgnoredAudioLanguages...)
 		settings.Telegram.BotEnabled = user.Settings.Telegram.BotEnabled
 		settings = settings.WithDefaults()
+		newlyIgnoredLanguages := newlyIgnoredAudioLanguages(previousIgnoredAudioLanguages, settings.IgnoredAudioLanguages)
 
 		user.Settings = settings
 
@@ -86,6 +90,8 @@ func UpdateUserSettings(userID uint, settings models.UserSettings) (*models.User
 			if err := DeletePendingExercisesByUserID(tx, user.ID); err != nil {
 				return err
 			}
+		} else if err := replacePendingAudioExercisesForLanguages(tx, user.ID, newlyIgnoredLanguages); err != nil {
+			return err
 		}
 
 		return nil
@@ -101,7 +107,7 @@ func UpdateUserTelegramBotEnabled(telegramID int64, botEnabled bool) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		var user models.User
 
-		if err := tx.Where("telegram_id = ?", telegramID).First(&user).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("telegram_id = ?", telegramID).First(&user).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil
 			}
@@ -124,7 +130,7 @@ func UpdateUserTelegramDailyQuestionsEnabled(telegramID int64, toggle bool) (*mo
 	var user models.User
 
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("telegram_id = ?", telegramID).First(&user).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("telegram_id = ?", telegramID).First(&user).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil
 			}
@@ -174,7 +180,7 @@ func UpdateUserTelegramState(telegramID int64, state enums.TelegramState) (bool,
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
 		var user models.User
 
-		if err := tx.Where("telegram_id = ?", telegramID).First(&user).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("telegram_id = ?", telegramID).First(&user).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil
 			}
@@ -242,7 +248,7 @@ func UpdateUserTranslationLanguage(telegramID int64, isSource bool, lang enums.L
 	var user models.User
 
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("telegram_id = ?", telegramID).First(&user).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("telegram_id = ?", telegramID).First(&user).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil
 			}
@@ -275,7 +281,7 @@ func UpdateUserSystemLanguage(telegramID int64, lang enums.Language) (*models.Us
 	var user models.User
 
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("telegram_id = ?", telegramID).First(&user).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("telegram_id = ?", telegramID).First(&user).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil
 			}

@@ -175,7 +175,8 @@ func exerciseProgressDelta(exercise *models.Exercise, regularDelta int) int {
 
 func exerciseProgressDeltasForType(exerciseType enums.ExerciseType) exerciseProgressDeltas {
 	switch exerciseType {
-	case enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed:
+	case enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed,
+		enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed:
 		return exerciseProgressDeltas{
 			Correct: ExerciseBasicCorrectProgressDelta,
 			Almost:  ExerciseBasicAlmostProgressDelta,
@@ -205,7 +206,8 @@ func exerciseProgressDeltasForType(exerciseType enums.ExerciseType) exerciseProg
 
 func isReversedExerciseType(exerciseType enums.ExerciseType) bool {
 	switch exerciseType {
-	case enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceReversed, enums.ExerciseTypeCharactersReversed:
+	case enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceReversed, enums.ExerciseTypeCharactersReversed,
+		enums.ExerciseTypeAudioReversed:
 		return true
 	default:
 		return false
@@ -232,4 +234,8 @@ func isChoiceExerciseType(exerciseType enums.ExerciseType) bool {
 
 func isMatchPairsExerciseType(exerciseType enums.ExerciseType) bool {
 	return exerciseType == enums.ExerciseTypeMatchPairs
+}
+
+func isAudioExerciseType(exerciseType enums.ExerciseType) bool {
+	return exerciseType == enums.ExerciseTypeAudioDirect || exerciseType == enums.ExerciseTypeAudioReversed
 }
