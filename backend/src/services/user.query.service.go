@@ -45,16 +45,8 @@ func GetUserByID(userID uint) (*models.User, error) {
 }
 
 func GetRecentUsersForAdmin(viewerID uint) (*RecentUsersResponse, error) {
-	var viewer models.User
-	if err := db.DB.Select("is_admin").First(&viewer, viewerID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrUserNotFound
-		}
-
+	if err := RequireAdmin(viewerID); err != nil {
 		return nil, err
-	}
-	if !viewer.IsAdmin {
-		return nil, ErrAdminRequired
 	}
 
 	response := RecentUsersResponse{Data: make([]RecentUser, 0)}
@@ -93,4 +85,19 @@ func GetRecentUsersForAdmin(viewerID uint) (*RecentUsersResponse, error) {
 	}
 
 	return &response, nil
+}
+
+func RequireAdmin(userID uint) error {
+	var viewer models.User
+	if err := db.DB.Select("is_admin").First(&viewer, userID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrUserNotFound
+		}
+
+		return err
+	}
+	if !viewer.IsAdmin {
+		return ErrAdminRequired
+	}
+	return nil
 }

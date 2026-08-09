@@ -84,6 +84,12 @@ const router = createRouter({
                     component: () => import('@/views/UsersPage.vue'),
                     meta: { requiresAdmin: true },
                 },
+                {
+                    path: 'word-audios',
+                    name: 'word-audios',
+                    component: () => import('@/views/WordAudiosPage.vue'),
+                    meta: { requiresAdmin: true },
+                },
             ],
         },
     ],

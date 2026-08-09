@@ -16,7 +16,14 @@ import (
 )
 
 var ErrWordNotFound = errors.New("word not found")
+var ErrWordPronunciationNotFound = errors.New("word pronunciation not found")
 var pronunciationGenerationGroup singleflight.Group
+
+type generatedWordPronunciation struct {
+	Model string
+	Voice string
+	Audio []byte
+}
 
 func GetOrCreateWordPronunciation(wordID uuid.UUID) (*models.WordPronunciation, error) {
 	var word models.Word
@@ -53,41 +60,54 @@ func GetOrCreateWordPronunciation(wordID uuid.UUID) (*models.WordPronunciation, 
 			return pronunciation, err
 		}
 
-		var generationErrors []error
-		for _, speechConfig := range config.GetOpenRouterTTSConfigs(string(word.Language)) {
-			input := word.Word
-			if speechConfig.LanguagePrompt {
-				input = fmt.Sprintf(
-					"Synthesize speech in %s. Speak only the transcript exactly as written.\nTranscript: %q",
-					word.Language.DisplayName(),
-					word.Word,
-				)
-			}
-			audio, err := openrouter.NewSpeechClient(
-				speechConfig.Model,
-				speechConfig.Voice,
-				speechConfig.ResponseFormat,
-			).GenerateSpeech(input)
-			if err == nil {
-				return StoreWordPronunciation(wordID, speechConfig.Model, speechConfig.Voice, audio)
-			}
-
-			logger.L().Warnw(
-				"pronunciation generation failed",
-				"error", err,
-				"model", speechConfig.Model,
-				"word_id", wordID,
-			)
-			generationErrors = append(generationErrors, fmt.Errorf("%s: %w", speechConfig.Model, err))
+		generated, err := generateWordPronunciation(word)
+		if err != nil {
+			return nil, err
 		}
 
-		return nil, fmt.Errorf("all pronunciation models failed: %w", errors.Join(generationErrors...))
+		return StoreWordPronunciation(wordID, generated.Model, generated.Voice, generated.Audio)
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	return generated.(*models.WordPronunciation), nil
+}
+
+func generateWordPronunciation(word models.Word) (*generatedWordPronunciation, error) {
+	var generationErrors []error
+	for _, speechConfig := range config.GetOpenRouterTTSConfigs(string(word.Language)) {
+		input := word.Word
+		if speechConfig.LanguagePrompt {
+			input = fmt.Sprintf(
+				"Synthesize speech in %s. Speak only the transcript exactly as written.\nTranscript: %q",
+				word.Language.DisplayName(),
+				word.Word,
+			)
+		}
+		audio, err := openrouter.NewSpeechClient(
+			speechConfig.Model,
+			speechConfig.Voice,
+			speechConfig.ResponseFormat,
+		).GenerateSpeech(input)
+		if err == nil {
+			return &generatedWordPronunciation{
+				Model: speechConfig.Model,
+				Voice: speechConfig.Voice,
+				Audio: audio,
+			}, nil
+		}
+
+		logger.L().Warnw(
+			"pronunciation generation failed",
+			"error", err,
+			"model", speechConfig.Model,
+			"word_id", word.ID,
+		)
+		generationErrors = append(generationErrors, fmt.Errorf("%s: %w", speechConfig.Model, err))
+	}
+
+	return nil, fmt.Errorf("all pronunciation models failed: %w", errors.Join(generationErrors...))
 }
 
 func FindConfiguredWordPronunciationMetadata(wordID uuid.UUID, language string) (*models.WordPronunciation, error) {
