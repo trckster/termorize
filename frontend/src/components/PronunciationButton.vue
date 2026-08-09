@@ -1,18 +1,46 @@
 <template>
     <button
         type="button"
-        class="relative inline-flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-[color,background-color,transform] duration-200 ease-out hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.96] disabled:pointer-events-none disabled:opacity-40"
-        :class="status === 'playing' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : ''"
+        class="relative inline-flex shrink-0 items-center justify-center transition-[color,background-color,border-color,box-shadow,transform] duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.97] disabled:pointer-events-none"
+        :class="[
+            prominent
+                ? status === 'playing'
+                    ? 'min-h-14 min-w-44 gap-2.5 rounded-lg border border-primary bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-md hover:bg-primary/90 disabled:opacity-70'
+                    : 'min-h-14 min-w-44 gap-2.5 rounded-lg border border-primary/45 bg-primary/10 px-5 py-3 text-sm font-semibold text-foreground shadow-sm hover:border-primary/65 hover:bg-primary/15 disabled:opacity-70'
+                : status === 'playing'
+                  ? 'size-11 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40'
+                  : 'size-11 rounded-full text-muted-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-40',
+        ]"
         :disabled="!wordId || status === 'loading'"
         :aria-label="buttonLabel"
         :aria-pressed="status === 'playing'"
         :title="status === 'error' ? errorLabel : buttonLabel"
         @click="togglePlayback"
     >
-        <LoaderCircle v-if="status === 'loading'" class="size-[18px] motion-safe:animate-spin" aria-hidden="true" />
-        <Pause v-else-if="status === 'playing'" class="size-[18px] fill-current" aria-hidden="true" />
-        <CircleAlert v-else-if="status === 'error'" class="size-[18px] text-destructive" aria-hidden="true" />
-        <Volume2 v-else class="size-[18px]" aria-hidden="true" />
+        <LoaderCircle
+            v-if="status === 'loading'"
+            :class="prominent ? 'size-5' : 'size-[18px]'"
+            class="motion-safe:animate-spin"
+            aria-hidden="true"
+        />
+        <Pause
+            v-else-if="status === 'playing'"
+            :class="prominent ? 'size-5' : 'size-[18px]'"
+            class="fill-current"
+            aria-hidden="true"
+        />
+        <CircleAlert
+            v-else-if="status === 'error'"
+            :class="prominent ? 'size-5' : 'size-[18px]'"
+            class="text-destructive"
+            aria-hidden="true"
+        />
+        <Volume2
+            v-else
+            :class="[prominent ? 'size-5' : 'size-[18px]', prominent ? 'text-primary' : '']"
+            aria-hidden="true"
+        />
+        <span v-if="prominent">{{ visibleLabel }}</span>
         <span class="sr-only" aria-live="polite">{{ liveStatus }}</span>
     </button>
 </template>
@@ -36,6 +64,7 @@ const props = defineProps<{
     pauseLabel: string
     loadingLabel: string
     errorLabel: string
+    prominent?: boolean
 }>()
 
 const status = ref<PlaybackStatus>('idle')
@@ -45,6 +74,7 @@ let requestSequence = 0
 
 const formatLabel = (template: string) => template.replace('{word}', props.word)
 const buttonLabel = computed(() => formatLabel(status.value === 'playing' ? props.pauseLabel : props.listenLabel))
+const visibleLabel = computed(() => (status.value === 'loading' ? formatLabel(props.loadingLabel) : buttonLabel.value))
 const liveStatus = computed(() => {
     if (status.value === 'loading') return formatLabel(props.loadingLabel)
     if (status.value === 'error') return formatLabel(props.errorLabel)

@@ -1144,6 +1144,7 @@ onBeforeUnmount(() => {
                                     v-if="audioIgnoreState === 'idle'"
                                     :word-id="currentExercise?.audio_word_id"
                                     word=""
+                                    prominent
                                     :listen-label="t.quizAudioListen"
                                     :pause-label="t.quizAudioPause"
                                     :loading-label="t.quizAudioLoading"
