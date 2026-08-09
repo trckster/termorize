@@ -30,6 +30,7 @@ import (
 //	go run ./cmd/test/ basic      # basic exercise, random direction
 //	go run ./cmd/test/ choice     # choice exercise, random direction
 //	go run ./cmd/test/ characters # character exercise, random direction
+//	go run ./cmd/test/ audio      # audio exercise, random direction
 //	go run ./cmd/test/ repeat     # known-vocabulary repetition, random direction
 const (
 	testExerciseRunnerBuffer = time.Hour
@@ -82,10 +83,12 @@ func main() {
 		)
 	case "characters":
 		sendCharacterExercise(user, texts)
+	case "audio":
+		sendAudioExercise(user, texts)
 	case "repeat":
 		sendRepetitionExercise(user, texts)
 	default:
-		fatal("unknown mode", errors.New("supported modes: match, basic, choice, characters, repeat"))
+		fatal("unknown mode", errors.New("supported modes: match, basic, choice, characters, audio, repeat"))
 	}
 }
 
@@ -161,6 +164,61 @@ func sendCharacterExercise(user models.User, texts telegram.BotTexts) {
 	}
 
 	logger.L().Infow("character exercise sent to telegram",
+		"exercise_id", result.ExerciseID,
+		"exercise_type", result.Type,
+		"telegram_id", user.TelegramID,
+		"message_id", *messageID,
+	)
+}
+
+func sendAudioExercise(user models.User, texts telegram.BotTexts) {
+	result, err := services.CreateRandomExerciseOfTypes(
+		user.ID,
+		enums.ExerciseTypeAudioDirect,
+		enums.ExerciseTypeAudioReversed,
+	)
+	if err != nil {
+		fatal("failed to create audio exercise", err)
+	}
+	if result.AudioWordID == nil {
+		fatal("audio exercise has no spoken word", errors.New("audio_word_id is missing"))
+	}
+
+	pronunciation, err := services.FindConfiguredWordPronunciationMetadata(
+		*result.AudioWordID,
+		string(result.Language),
+	)
+	if err == nil && pronunciation == nil {
+		pronunciation, err = services.GetOrCreateWordPronunciation(*result.AudioWordID)
+	}
+	if err != nil {
+		fatal("failed to prepare audio exercise pronunciation", err)
+	}
+
+	messageID, err := telegram.SendAudioExerciseMessage(
+		user.TelegramID,
+		result.ExerciseID,
+		pronunciation,
+		result.Language,
+		result.AnswerLanguage,
+		texts,
+	)
+	if err != nil {
+		fatal("failed to send audio exercise to telegram", err)
+	}
+	if messageID == nil {
+		fatal("telegram did not return a message id", errors.New("user may have blocked the bot or disabled it"))
+	}
+
+	// CreateRandomExerciseOfTypes already marks the exercise as in-progress, so
+	// attach the Telegram message id directly, as for immediate basic exercises.
+	if err := db.DB.Model(&models.Exercise{}).
+		Where("id = ?", result.ExerciseID).
+		Update("telegram_message_id", *messageID).Error; err != nil {
+		fatal("failed to store telegram message id", err)
+	}
+
+	logger.L().Infow("audio exercise sent to telegram",
 		"exercise_id", result.ExerciseID,
 		"exercise_type", result.Type,
 		"telegram_id", user.TelegramID,
