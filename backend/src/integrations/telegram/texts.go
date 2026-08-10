@@ -237,6 +237,8 @@ var botTextsEn = BotTexts{
 		enums.LanguageFr: "French",
 		enums.LanguagePl: "Polish",
 		enums.LanguageTr: "Turkish",
+		enums.LanguagePt: "Portuguese",
+		enums.LanguageUk: "Ukrainian",
 	},
 
 	ButtonChangeLanguagePrefix: "Change ",
@@ -381,6 +383,8 @@ var botTextsRu = BotTexts{
 		enums.LanguageFr: "Французский",
 		enums.LanguagePl: "Польский",
 		enums.LanguageTr: "Турецкий",
+		enums.LanguagePt: "Португальский",
+		enums.LanguageUk: "Украинский",
 	},
 
 	ButtonChangeLanguagePrefix: "Изменить ",

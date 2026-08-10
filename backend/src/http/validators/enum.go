@@ -18,7 +18,8 @@ func ValidateEnum(fl validator.FieldLevel) bool {
 	value := field.String()
 
 	enumFuncs := map[string]func() []string{
-		"Language": enums.AllLanguages,
+		"Language":       enums.AllLanguages,
+		"SystemLanguage": enums.AllSystemLanguages,
 	}
 
 	fn, ok := enumFuncs[param]

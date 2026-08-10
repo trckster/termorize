@@ -196,6 +196,8 @@ func TestGetSettingsPublic(t *testing.T) {
 	assert.Equal(t, enums.AllLanguages(), body.Languages)
 	assert.Contains(t, body.Languages, "en")
 	assert.Contains(t, body.Languages, "ru")
+	assert.Contains(t, body.Languages, "pt")
+	assert.Contains(t, body.Languages, "uk")
 }
 
 // ---------------------------------------------------------------------------
@@ -283,6 +285,26 @@ func TestUpdateSettingsHappyPath(t *testing.T) {
 	assert.Equal(t, "09:00", me.Settings.Telegram.DailyQuestionsSchedule[0].From)
 }
 
+func TestUpdateSettingsSupportsPortugueseAndUkrainian(t *testing.T) {
+	testkit.Truncate(t)
+	user := testkit.CreateUser(t)
+	payload := authSettingsValidPayload()
+	payload["main_learning_language"] = "uk"
+	payload["translation_source_language"] = "pt"
+	payload["translation_target_language"] = "uk"
+	payload["ignored_audio_languages"] = []string{"pt", "uk"}
+
+	rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/settings", payload)
+	testkit.RequireStatus(t, rec, http.StatusOK)
+
+	var got models.User
+	testkit.DecodeJSON(t, rec, &got)
+	assert.Equal(t, enums.LanguageUk, got.Settings.MainLearningLanguage)
+	assert.Equal(t, enums.LanguagePt, got.Settings.TranslationSourceLanguage)
+	assert.Equal(t, enums.LanguageUk, got.Settings.TranslationTargetLanguage)
+	assert.Equal(t, []enums.Language{enums.LanguagePt, enums.LanguageUk}, got.Settings.IgnoredAudioLanguages)
+}
+
 func TestUpdateSettingsInvalidJSON(t *testing.T) {
 	testkit.Truncate(t)
 
@@ -323,6 +345,22 @@ func TestUpdateSettingsRejectsInvalidFieldValues(t *testing.T) {
 			name: "unknown system language",
 			mutate: func(payload map[string]any) {
 				payload["system_language"] = "xx"
+			},
+			wantField: "SystemLanguage",
+			wantTag:   "enum",
+		},
+		{
+			name: "Portuguese is not an interface language",
+			mutate: func(payload map[string]any) {
+				payload["system_language"] = "pt"
+			},
+			wantField: "SystemLanguage",
+			wantTag:   "enum",
+		},
+		{
+			name: "Ukrainian is not an interface language",
+			mutate: func(payload map[string]any) {
+				payload["system_language"] = "uk"
 			},
 			wantField: "SystemLanguage",
 			wantTag:   "enum",

@@ -12,7 +12,7 @@ A vocabulary trainer for the web and Telegram. Translate, save, practice, and tr
 ## Features
 
 - **Personal vocabulary** — Save, search, and track mastery for every word pair.
-- **Instant translation** — Translate across eight languages and save results in one click.
+- **Instant translation** — Translate across ten languages and save results in one click.
 - **Smart exercises** — Practice with typed, multiple-choice, character, and matching quizzes.
 - **Progress tracking** — Review exercise history, mastery changes, and activity charts.
 - **Collections** — Build, reorder, filter, and share themed word sets.

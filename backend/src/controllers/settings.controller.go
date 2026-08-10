@@ -14,7 +14,7 @@ import (
 )
 
 type UpdateSettingsRequest struct {
-	SystemLanguage            enums.Language                `json:"system_language" binding:"required,enum=Language"`
+	SystemLanguage            enums.Language                `json:"system_language" binding:"required,enum=SystemLanguage"`
 	MainLearningLanguage      enums.Language                `json:"main_learning_language" binding:"required,enum=Language"`
 	TranslationSourceLanguage enums.Language                `json:"translation_source_language" binding:"required,enum=Language,nefield=TranslationTargetLanguage"`
 	TranslationTargetLanguage enums.Language                `json:"translation_target_language" binding:"required,enum=Language,nefield=TranslationSourceLanguage"`

@@ -212,6 +212,8 @@ func getOpenRouterFallbackTTSVoice(language string) string {
 		"fr": "fr-FR-Soleil:MAI-Voice-2",
 		"pl": "pl-PL-ZofiaNeural",
 		"tr": "tr-TR-EmelNeural",
+		"pt": "pt-BR-FranciscaNeural",
+		"uk": "uk-UA-PolinaNeural",
 	}
 	if voice, ok := voices[language]; ok {
 		return voice
