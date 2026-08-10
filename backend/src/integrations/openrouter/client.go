@@ -159,7 +159,7 @@ func buildSystemPrompt(allowedLanguages []string) string {
 
 	return "You generate vocabulary for a language-learning app. " +
 		"MANDATORY RULES — never ignore these: " +
-		"1) Every noun in Italian, German, Spanish, or French MUST include its definite article: la gamba, das Bein, la pierna, la jambe. " +
+		"1) Every noun in Italian, German, Spanish, French, or Portuguese MUST include its definite article: la gamba, das Bein, la pierna, la jambe, a perna. " +
 		"2) Every verb MUST be infinitive only: прыгать, saltare, springen, sauter. " +
 		"3) Never add articles to English nouns. " +
 		"4) Output ONLY this JSON shape with no markdown: " +

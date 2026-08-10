@@ -27,3 +27,10 @@ func TestPortugueseAndUkrainianLanguageMetadata(t *testing.T) {
 		})
 	}
 }
+
+func TestSystemLanguagesRemainLimitedToLocalizedInterfaces(t *testing.T) {
+	assert.Equal(t, []string{"en", "ru"}, AllSystemLanguages())
+	assert.Equal(t, []Language{LanguageEn, LanguageRu}, AllSystemLanguageValues())
+	assert.NotContains(t, AllSystemLanguages(), string(LanguagePt))
+	assert.NotContains(t, AllSystemLanguages(), string(LanguageUk))
+}

@@ -329,7 +329,7 @@ func compactCallbackUUID(id uuid.UUID) string {
 }
 
 func getSupportedSystemLanguages() []enums.Language {
-	return []enums.Language{enums.LanguageEn, enums.LanguageRu}
+	return enums.AllSystemLanguageValues()
 }
 
 func menuActionToText(action string, t BotTexts) (string, bool) {

@@ -30,9 +30,24 @@ func AllLanguages() []string {
 	}
 }
 
+func AllSystemLanguages() []string {
+	return []string{
+		string(LanguageEn),
+		string(LanguageRu),
+	}
+}
+
 func AllLanguageValues() []Language {
 	values := make([]Language, 0, len(AllLanguages()))
 	for _, language := range AllLanguages() {
+		values = append(values, Language(language))
+	}
+	return values
+}
+
+func AllSystemLanguageValues() []Language {
+	values := make([]Language, 0, len(AllSystemLanguages()))
+	for _, language := range AllSystemLanguages() {
 		values = append(values, Language(language))
 	}
 	return values

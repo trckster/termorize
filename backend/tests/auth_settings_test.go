@@ -350,6 +350,22 @@ func TestUpdateSettingsRejectsInvalidFieldValues(t *testing.T) {
 			wantTag:   "enum",
 		},
 		{
+			name: "Portuguese is not an interface language",
+			mutate: func(payload map[string]any) {
+				payload["system_language"] = "pt"
+			},
+			wantField: "SystemLanguage",
+			wantTag:   "enum",
+		},
+		{
+			name: "Ukrainian is not an interface language",
+			mutate: func(payload map[string]any) {
+				payload["system_language"] = "uk"
+			},
+			wantField: "SystemLanguage",
+			wantTag:   "enum",
+		},
+		{
 			name: "unknown timezone",
 			mutate: func(payload map[string]any) {
 				payload["time_zone"] = "Not/AZone"
