@@ -884,6 +884,48 @@ func TestTranslateRequiresAuth(t *testing.T) {
 	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
 }
 
+func TestTranslateSupportsPortugueseAndUkrainian(t *testing.T) {
+	tests := []struct {
+		name       string
+		word       string
+		translated string
+		from       enums.Language
+		to         enums.Language
+	}{
+		{"English to Portuguese", "hello", "olá", enums.LanguageEn, enums.LanguagePt},
+		{"Ukrainian to Portuguese", "привіт", "olá", enums.LanguageUk, enums.LanguagePt},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			testkit.Truncate(t)
+			testkit.MockGoogleTranslate(t, &testkit.FakeGoogleTranslate{
+				TranslateFunc: func(text, source, target string) (string, error) {
+					assert.Equal(t, test.word, text)
+					assert.Equal(t, string(test.from), source)
+					assert.Equal(t, string(test.to), target)
+					return test.translated, nil
+				},
+			})
+			user := testkit.CreateUser(t)
+			payload := map[string]any{
+				"from_word":     test.word,
+				"from_language": string(test.from),
+				"to_language":   string(test.to),
+			}
+
+			rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/translate", payload)
+			testkit.RequireStatus(t, rec, http.StatusOK)
+
+			var response struct {
+				Translation string `json:"translation"`
+			}
+			testkit.DecodeJSON(t, rec, &response)
+			assert.Equal(t, test.translated, response.Translation)
+		})
+	}
+}
+
 func TestTranslateUserPathSavesAndListsVocabulary(t *testing.T) {
 	testkit.Truncate(t)
 

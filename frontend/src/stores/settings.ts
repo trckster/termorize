@@ -17,6 +17,8 @@ const languageNames: Record<string, string> = {
     fr: 'French',
     pl: 'Polish',
     tr: 'Turkish',
+    pt: 'Portuguese',
+    uk: 'Ukrainian',
 }
 
 const russianLanguageNames: Record<string, string> = {
@@ -28,6 +30,8 @@ const russianLanguageNames: Record<string, string> = {
     fr: 'Французский',
     pl: 'Польский',
     tr: 'Турецкий',
+    pt: 'Португальский',
+    uk: 'Украинский',
 }
 
 const languageEmojis: Record<string, string> = {
@@ -39,6 +43,8 @@ const languageEmojis: Record<string, string> = {
     fr: '🇫🇷',
     pl: '🇵🇱',
     tr: '🇹🇷',
+    pt: '🇵🇹',
+    uk: '🇺🇦',
 }
 
 const fallbackFlag = '🏳'

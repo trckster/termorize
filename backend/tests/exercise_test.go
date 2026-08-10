@@ -1060,6 +1060,35 @@ func TestVerifyExerciseCorrectAnswer(t *testing.T) {
 	require.NotNil(t, link.AnsweredAt)
 }
 
+func TestCharacterExercisesSupportPortugueseAndUkrainianScripts(t *testing.T) {
+	tests := []struct {
+		language enums.Language
+		answer   string
+	}{
+		{enums.LanguagePt, "olá"},
+		{enums.LanguageUk, "привіт"},
+	}
+
+	for _, test := range tests {
+		t.Run(string(test.language), func(t *testing.T) {
+			testkit.Truncate(t)
+			user := testkit.CreateUser(t)
+			exerciseSeedVocabulary(t, user.ID, "hello", test.answer, enums.LanguageEn, test.language)
+
+			result, err := services.CreateRandomExerciseOfTypes(user.ID, enums.ExerciseTypeCharactersDirect)
+			require.NoError(t, err)
+			assert.Equal(t, enums.ExerciseTypeCharactersDirect, result.Type)
+			assert.Equal(t, enums.LanguageEn, result.Language)
+			assert.Equal(t, test.language, result.AnswerLanguage)
+			assert.ElementsMatch(t, services.AnswerCharacters(test.answer), result.Options)
+
+			verified, err := services.VerifyExerciseAnswer(result.ExerciseID, user.ID, test.answer)
+			require.NoError(t, err)
+			assert.Equal(t, "correct", verified.Result)
+		})
+	}
+}
+
 func TestVerifyCharacterExerciseDirectAndReversed(t *testing.T) {
 	for _, testCase := range []struct {
 		name          string

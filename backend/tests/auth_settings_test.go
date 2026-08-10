@@ -196,6 +196,8 @@ func TestGetSettingsPublic(t *testing.T) {
 	assert.Equal(t, enums.AllLanguages(), body.Languages)
 	assert.Contains(t, body.Languages, "en")
 	assert.Contains(t, body.Languages, "ru")
+	assert.Contains(t, body.Languages, "pt")
+	assert.Contains(t, body.Languages, "uk")
 }
 
 // ---------------------------------------------------------------------------
@@ -281,6 +283,26 @@ func TestUpdateSettingsHappyPath(t *testing.T) {
 	assert.Equal(t, "Europe/Berlin", me.Settings.TimeZone)
 	require.Len(t, me.Settings.Telegram.DailyQuestionsSchedule, 1)
 	assert.Equal(t, "09:00", me.Settings.Telegram.DailyQuestionsSchedule[0].From)
+}
+
+func TestUpdateSettingsSupportsPortugueseAndUkrainian(t *testing.T) {
+	testkit.Truncate(t)
+	user := testkit.CreateUser(t)
+	payload := authSettingsValidPayload()
+	payload["main_learning_language"] = "uk"
+	payload["translation_source_language"] = "pt"
+	payload["translation_target_language"] = "uk"
+	payload["ignored_audio_languages"] = []string{"pt", "uk"}
+
+	rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/settings", payload)
+	testkit.RequireStatus(t, rec, http.StatusOK)
+
+	var got models.User
+	testkit.DecodeJSON(t, rec, &got)
+	assert.Equal(t, enums.LanguageUk, got.Settings.MainLearningLanguage)
+	assert.Equal(t, enums.LanguagePt, got.Settings.TranslationSourceLanguage)
+	assert.Equal(t, enums.LanguageUk, got.Settings.TranslationTargetLanguage)
+	assert.Equal(t, []enums.Language{enums.LanguagePt, enums.LanguageUk}, got.Settings.IgnoredAudioLanguages)
 }
 
 func TestUpdateSettingsInvalidJSON(t *testing.T) {

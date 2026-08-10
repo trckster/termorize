@@ -78,25 +78,23 @@ func detectMessageTranslationLanguages(user *models.User, text string) (enums.La
 		}
 	}
 
-	if predominantlyUsesScript(text, unicode.Cyrillic) {
-		if sourceLanguage == enums.LanguageRu {
-			return sourceLanguage, targetLanguage, nil
-		}
-
-		if targetLanguage == enums.LanguageRu {
-			return targetLanguage, sourceLanguage, nil
-		}
-	}
-
 	// Language detection is unreliable for short words that exist in several
-	// languages. When Russian is paired with one of the supported Latin-script
-	// languages, the script still gives us an unambiguous fallback direction.
-	if predominantlyUsesScript(text, unicode.Latin) {
-		if sourceLanguage == enums.LanguageRu {
+	// languages. When exactly one configured language uses Cyrillic, the script
+	// still gives us an unambiguous fallback direction for Russian or Ukrainian.
+	sourceUsesCyrillic := usesCyrillicScript(sourceLanguage)
+	targetUsesCyrillic := usesCyrillicScript(targetLanguage)
+	if sourceUsesCyrillic != targetUsesCyrillic {
+		if predominantlyUsesScript(text, unicode.Cyrillic) {
+			if sourceUsesCyrillic {
+				return sourceLanguage, targetLanguage, nil
+			}
 			return targetLanguage, sourceLanguage, nil
 		}
 
-		if targetLanguage == enums.LanguageRu {
+		if predominantlyUsesScript(text, unicode.Latin) {
+			if sourceUsesCyrillic {
+				return targetLanguage, sourceLanguage, nil
+			}
 			return sourceLanguage, targetLanguage, nil
 		}
 	}
@@ -112,6 +110,10 @@ func detectMessageTranslationLanguages(user *models.User, text string) (enums.La
 	}
 
 	return sourceLanguage, targetLanguage, nil
+}
+
+func usesCyrillicScript(language enums.Language) bool {
+	return language == enums.LanguageRu || language == enums.LanguageUk
 }
 
 func buildVocabularyTranslationText(sourceLanguage enums.Language, sourceWord string, translatedWord string, targetLanguage enums.Language) string {

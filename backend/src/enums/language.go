@@ -11,6 +11,8 @@ const (
 	LanguageFr Language = "fr"
 	LanguagePl Language = "pl"
 	LanguageTr Language = "tr"
+	LanguagePt Language = "pt"
+	LanguageUk Language = "uk"
 )
 
 func AllLanguages() []string {
@@ -23,6 +25,8 @@ func AllLanguages() []string {
 		string(LanguageFr),
 		string(LanguagePl),
 		string(LanguageTr),
+		string(LanguagePt),
+		string(LanguageUk),
 	}
 }
 
@@ -61,6 +65,10 @@ func (l Language) DisplayName() string {
 		return "Polish"
 	case LanguageTr:
 		return "Turkish"
+	case LanguagePt:
+		return "Portuguese"
+	case LanguageUk:
+		return "Ukrainian"
 	default:
 		return string(l)
 	}
@@ -88,6 +96,10 @@ func (l Language) Flag() string {
 		return "🇵🇱"
 	case LanguageTr:
 		return "🇹🇷"
+	case LanguagePt:
+		return "🇵🇹"
+	case LanguageUk:
+		return "🇺🇦"
 	default:
 		return "🏳️"
 	}

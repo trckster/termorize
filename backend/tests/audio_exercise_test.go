@@ -50,6 +50,38 @@ func TestAudioExerciseDirectionsAndBasicScoring(t *testing.T) {
 	assert.Equal(t, services.ExerciseBasicAlmostProgressDelta, reversedResult.ProgressDelta)
 }
 
+func TestAudioExercisesSupportPortugueseAndUkrainian(t *testing.T) {
+	tests := []struct {
+		language enums.Language
+		word     string
+	}{
+		{enums.LanguagePt, "olá"},
+		{enums.LanguageUk, "привіт"},
+	}
+
+	for _, test := range tests {
+		t.Run(string(test.language), func(t *testing.T) {
+			testkit.Truncate(t)
+			user := testkit.CreateUser(t)
+			vocabulary := exerciseSeedVocabulary(t, user.ID, "hello", test.word, enums.LanguageEn, test.language)
+
+			direct, err := services.CreateRandomExerciseOfTypes(user.ID, enums.ExerciseTypeAudioDirect)
+			require.NoError(t, err)
+			require.NotNil(t, direct.AudioWordID)
+			assert.Equal(t, vocabulary.Translation.Original.ID, *direct.AudioWordID)
+			assert.Equal(t, enums.LanguageEn, direct.Language)
+			assert.Equal(t, test.language, direct.AnswerLanguage)
+
+			reversed, err := services.CreateRandomExerciseOfTypes(user.ID, enums.ExerciseTypeAudioReversed)
+			require.NoError(t, err)
+			require.NotNil(t, reversed.AudioWordID)
+			assert.Equal(t, vocabulary.Translation.Translation.ID, *reversed.AudioWordID)
+			assert.Equal(t, test.language, reversed.Language)
+			assert.Equal(t, enums.LanguageEn, reversed.AnswerLanguage)
+		})
+	}
+}
+
 func TestIgnoredAudioLanguageFiltersOnlyItsSpokenDirection(t *testing.T) {
 	testkit.Truncate(t)
 	user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{
@@ -273,19 +305,19 @@ func TestIgnoredAudioSettingsAreValidatedCanonicalAndRemovable(t *testing.T) {
 	testkit.Truncate(t)
 	user := testkit.CreateUser(t)
 	payload := authSettingsValidPayload()
-	payload["ignored_audio_languages"] = []string{"tr", "en", "tr"}
+	payload["ignored_audio_languages"] = []string{"uk", "pt", "uk"}
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/settings", payload)
 	testkit.RequireStatus(t, rec, http.StatusOK)
 	var updated models.User
 	testkit.DecodeJSON(t, rec, &updated)
-	assert.Equal(t, []enums.Language{enums.LanguageEn, enums.LanguageTr}, updated.Settings.IgnoredAudioLanguages)
+	assert.Equal(t, []enums.Language{enums.LanguagePt, enums.LanguageUk}, updated.Settings.IgnoredAudioLanguages)
 
 	for range 2 {
-		rec = testkit.AuthedRequest(t, user, http.MethodDelete, "/api/settings/ignored-audio-languages/en", nil)
+		rec = testkit.AuthedRequest(t, user, http.MethodDelete, "/api/settings/ignored-audio-languages/pt", nil)
 		testkit.RequireStatus(t, rec, http.StatusOK)
 		testkit.DecodeJSON(t, rec, &updated)
-		assert.Equal(t, []enums.Language{enums.LanguageTr}, updated.Settings.IgnoredAudioLanguages)
+		assert.Equal(t, []enums.Language{enums.LanguageUk}, updated.Settings.IgnoredAudioLanguages)
 	}
 
 	payload = authSettingsValidPayload()
