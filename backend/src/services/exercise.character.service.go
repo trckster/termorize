@@ -253,7 +253,7 @@ func characterBoardSide(characterCount int) int {
 	if characterCount <= 0 {
 		return 0
 	}
-	return int(math.Ceil(math.Sqrt(float64(characterCount + 1))))
+	return int(math.Ceil(math.Sqrt(float64(characterCount))))
 }
 
 func characterBoardSlotCount(characterCount int) int {
@@ -261,11 +261,14 @@ func characterBoardSlotCount(characterCount int) int {
 	if side == 0 {
 		return 0
 	}
-	return side*side - 1
+	return side * side
 }
 
 func validCharacterState(state characterStateJSON, characterCount int) bool {
-	if len(state.Order) != characterBoardSlotCount(characterCount) || len(state.Chosen) > characterCount {
+	currentSlotCount := characterBoardSlotCount(characterCount)
+	legacySide := int(math.Ceil(math.Sqrt(float64(characterCount + 1))))
+	legacySlotCount := legacySide*legacySide - 1
+	if (len(state.Order) != currentSlotCount && len(state.Order) != legacySlotCount) || len(state.Chosen) > characterCount {
 		return false
 	}
 

@@ -270,12 +270,12 @@ func groupExerciseButtons(buttons []inlineKeyboardButton, buttonsPerRow int) [][
 	return rows
 }
 
-func buildCharacterKeyboard(exerciseID uuid.UUID, board *services.CharacterBoardState) [][]inlineKeyboardButton {
+func buildCharacterKeyboard(exerciseID uuid.UUID, board *services.CharacterBoardState, t BotTexts) [][]inlineKeyboardButton {
 	if board == nil || len(board.Characters) == 0 {
 		return [][]inlineKeyboardButton{}
 	}
 
-	side := int(math.Ceil(math.Sqrt(float64(len(board.Characters) + 1))))
+	side := int(math.Ceil(math.Sqrt(float64(len(board.Order)))))
 	compactExerciseID := compactCallbackUUID(exerciseID)
 	noopCallback := callbackTypeExercise + ":" + exerciseActionCharacterNoop
 	chosen := make(map[int]bool, len(board.Chosen))
@@ -283,19 +283,11 @@ func buildCharacterKeyboard(exerciseID uuid.UUID, board *services.CharacterBoard
 		chosen[index] = true
 	}
 
-	rows := make([][]inlineKeyboardButton, side)
+	rows := make([][]inlineKeyboardButton, 0, side+1)
 	for rowIndex := 0; rowIndex < side; rowIndex++ {
-		rows[rowIndex] = make([]inlineKeyboardButton, 0, side)
+		row := make([]inlineKeyboardButton, 0, side)
 		for columnIndex := 0; columnIndex < side; columnIndex++ {
 			slot := rowIndex*side + columnIndex
-			if slot == side*side-1 {
-				rows[rowIndex] = append(rows[rowIndex], inlineKeyboardButton{
-					Text:         "⌫",
-					CallbackData: callbackTypeExercise + ":" + exerciseActionCharacterBackspace + ":" + compactExerciseID,
-				})
-				continue
-			}
-
 			button := inlineKeyboardButton{Text: " ", CallbackData: noopCallback}
 			if slot < len(board.Order) {
 				canonical := board.Order[slot]
@@ -306,9 +298,20 @@ func buildCharacterKeyboard(exerciseID uuid.UUID, board *services.CharacterBoard
 					}
 				}
 			}
-			rows[rowIndex] = append(rows[rowIndex], button)
+			row = append(row, button)
 		}
+		rows = append(rows, row)
 	}
+	rows = append(rows, []inlineKeyboardButton{
+		{
+			Text:         "⌫",
+			CallbackData: callbackTypeExercise + ":" + exerciseActionCharacterBackspace + ":" + compactExerciseID,
+		},
+		{
+			Text:         t.ButtonExerciseIDK,
+			CallbackData: callbackTypeExercise + ":" + exerciseActionIDK + ":" + exerciseID.String(),
+		},
+	})
 
 	return rows
 }

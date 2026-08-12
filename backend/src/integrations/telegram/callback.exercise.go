@@ -79,6 +79,12 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 	if err != nil {
 		return err
 	}
+	if exercise == nil && !hasAnswer {
+		exercise, err = recoverPendingCharacterExerciseFromCallback(callback, exerciseID)
+		if err != nil {
+			return err
+		}
+	}
 
 	if exercise == nil || exercise.ExerciseID != exerciseID {
 		return nil
@@ -103,7 +109,8 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 	}
 
 	if !hasAnswer && exercise.ExerciseType != enums.ExerciseTypeBasicDirect && exercise.ExerciseType != enums.ExerciseTypeBasicReversed &&
-		exercise.ExerciseType != enums.ExerciseTypeAudioDirect && exercise.ExerciseType != enums.ExerciseTypeAudioReversed {
+		exercise.ExerciseType != enums.ExerciseTypeAudioDirect && exercise.ExerciseType != enums.ExerciseTypeAudioReversed &&
+		exercise.ExerciseType != enums.ExerciseTypeCharactersDirect && exercise.ExerciseType != enums.ExerciseTypeCharactersReversed {
 		return nil
 	}
 

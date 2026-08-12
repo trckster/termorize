@@ -757,7 +757,7 @@ func TestTelegramWebhookCharacterExerciseUsesSquareBoardAndCompletes(t *testing.
 		enums.ExerciseStatusPending,
 		vocabulary.ID,
 	)
-	require.NoError(t, services.StartCharacterExercise(exercise.ID, messageID, []int{5, -1, 0, 4, -1, 1, 3, 2}))
+	require.NoError(t, services.StartCharacterExercise(exercise.ID, messageID, []int{5, -1, 0, 4, -1, 1, 3, 2, -1}))
 
 	sendCharacterCallback := func(callbackID string, action string, updateID int) {
 		t.Helper()
@@ -796,8 +796,8 @@ func TestTelegramWebhookCharacterExerciseUsesSquareBoardAndCompletes(t *testing.
 	require.True(t, ok)
 	keyboard, ok := replyMarkup["inline_keyboard"].([]any)
 	require.True(t, ok)
-	require.Len(t, keyboard, 3, "six characters plus backspace should use a 3x3 board")
-	for _, rowValue := range keyboard {
+	require.Len(t, keyboard, 4, "the 3x3 character grid should have a separate action row")
+	for _, rowValue := range keyboard[:3] {
 		row, ok := rowValue.([]any)
 		require.True(t, ok)
 		require.Len(t, row, 3)
@@ -805,10 +805,14 @@ func TestTelegramWebhookCharacterExerciseUsesSquareBoardAndCompletes(t *testing.
 	firstRow := keyboard[0].([]any)
 	firstRowMiddle := firstRow[1].(map[string]any)
 	assert.Equal(t, "exercise:cn", firstRowMiddle["callback_data"], "empty cells should be distributed inside the board")
-	lastRow := keyboard[2].([]any)
-	backspaceButton := lastRow[2].(map[string]any)
+	actionRow := keyboard[3].([]any)
+	require.Len(t, actionRow, 2)
+	backspaceButton := actionRow[0].(map[string]any)
 	assert.Equal(t, "⌫", backspaceButton["text"])
 	assert.Equal(t, "exercise:cc:"+compactExerciseID, backspaceButton["callback_data"])
+	idkButton := actionRow[1].(map[string]any)
+	assert.Equal(t, telegram.GetBotTexts(enums.LanguageRu).ButtonExerciseIDK, idkButton["text"])
+	assert.Equal(t, "exercise:idk:"+exercise.ID.String(), idkButton["callback_data"])
 	assert.Contains(t, edited["text"], "l ＿ ＿ ＿ ＿ ＿")
 
 	sendCharacterCallback("cb-character-backspace", "cc:"+compactExerciseID, 71)
@@ -872,6 +876,58 @@ func TestTelegramWebhookCharacterExerciseUsesSquareBoardAndCompletes(t *testing.
 	var retryEdit map[string]any
 	require.NoError(t, json.Unmarshal(retryEdits[len(retryEdits)-1].Body, &retryEdit))
 	assert.Contains(t, retryEdit["text"], "l e t t e r")
+}
+
+func TestTelegramWebhookCharacterExerciseCanBeFailedWithIDK(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+
+	const telegramID int64 = 555014
+	const messageID int64 = 105
+	user := testkit.CreateUser(t, testkit.WithTelegramID(telegramID))
+	vocabulary := exerciseSeedVocabulary(t, user.ID, "carta", "letter", enums.LanguageIt, enums.LanguageEn)
+	exercise := exerciseSeedExercise(
+		t,
+		user.ID,
+		enums.ExerciseTypeCharactersDirect,
+		enums.ExerciseStatusPending,
+		vocabulary.ID,
+	)
+	require.NoError(t, services.StartCharacterExercise(exercise.ID, messageID, []int{5, -1, 0, 4, -1, 1, 3, 2, -1}))
+
+	update := map[string]any{
+		"update_id": 79,
+		"callback_query": map[string]any{
+			"id":   "cb-character-idk",
+			"data": "exercise:idk:" + exercise.ID.String(),
+			"from": map[string]any{
+				"id":     telegramID,
+				"is_bot": false,
+			},
+			"message": map[string]any{
+				"message_id": messageID,
+				"chat": map[string]any{
+					"id":   telegramID,
+					"type": "private",
+				},
+			},
+		},
+	}
+
+	rec := telegramUpdate(t, update)
+	testkit.RequireStatus(t, rec, http.StatusOK)
+
+	stored := exerciseReload(t, exercise.ID)
+	assert.Equal(t, enums.ExerciseStatusFailed, stored.Status)
+	link := exerciseLink(t, exercise.ID, vocabulary.ID)
+	require.NotNil(t, link.Result)
+	require.NotNil(t, link.ResultReason)
+	assert.Equal(t, services.ExerciseVocabularyResultIgnored, *link.Result)
+	assert.Equal(t, services.ExerciseVocabularyResultReasonSkipped, *link.ResultReason)
+	require.Len(t, tg.RequestsFor("editMessageReplyMarkup"), 1)
+	require.Len(t, tg.RequestsFor("sendMessage"), 1)
+	assert.Contains(t, string(tg.RequestsFor("sendMessage")[0].Body), "carta")
+	assert.Contains(t, string(tg.RequestsFor("sendMessage")[0].Body), "letter")
 }
 
 func TestTelegramWebhookCharacterTapReportsDeletedVocabulary(t *testing.T) {
@@ -991,7 +1047,11 @@ func TestTelegramWebhookCharacterBackspaceRecoversPendingMessage(t *testing.T) {
 		{
 			{"text": "t", "callback_data": tap(3)},
 			{"text": "t", "callback_data": tap(2)},
+			{"text": " ", "callback_data": "exercise:cn"},
+		},
+		{
 			{"text": "⌫", "callback_data": "exercise:cc:" + compactExerciseID},
+			{"text": "Не знаю", "callback_data": "exercise:idk:" + exercise.ID.String()},
 		},
 	}
 
@@ -1032,7 +1092,7 @@ func TestTelegramWebhookCharacterBackspaceRecoversPendingMessage(t *testing.T) {
 		Chosen []int `json:"chosen"`
 	}
 	require.NoError(t, json.Unmarshal([]byte(*stored.CharacterState), &state))
-	assert.Equal(t, []int{5, -1, 0, 4, -1, 1, 3, 2}, state.Order)
+	assert.Equal(t, []int{5, -1, 0, 4, -1, 1, 3, 2, -1}, state.Order)
 	assert.Empty(t, state.Chosen)
 }
 

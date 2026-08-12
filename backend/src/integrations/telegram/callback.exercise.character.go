@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"errors"
+	"math"
 	"strconv"
 	"strings"
 	"termorize/src/enums"
@@ -109,7 +110,7 @@ func handleCharacterTap(callback *callbackQuery, payload []string, t BotTexts) e
 			callback.Message.Chat.ID,
 			callback.Message.MessageID,
 			buildCharacterBoardText(questionText, board),
-			buildCharacterKeyboard(exercise.ExerciseID, board),
+			buildCharacterKeyboard(exercise.ExerciseID, board, t),
 		)
 	}
 
@@ -225,7 +226,7 @@ func handleCharacterBackspace(callback *callbackQuery, payload []string, t BotTe
 		callback.Message.Chat.ID,
 		callback.Message.MessageID,
 		buildCharacterBoardText(questionText, board),
-		buildCharacterKeyboard(exercise.ExerciseID, board),
+		buildCharacterKeyboard(exercise.ExerciseID, board, t),
 	)
 }
 
@@ -261,26 +262,26 @@ func extractCharacterOrderFromReplyMarkup(markup *inlineKeyboardMarkup, exercise
 		return nil, false
 	}
 
-	side := len(markup.InlineKeyboard)
-	if side == 0 {
+	if len(markup.InlineKeyboard) < 2 {
 		return nil, false
 	}
-	expectedSide := 1
-	for expectedSide*expectedSide < characterCount+1 {
-		expectedSide++
-	}
+	side := len(markup.InlineKeyboard) - 1
+	expectedSide := int(math.Ceil(math.Sqrt(float64(characterCount))))
 	if side != expectedSide {
 		return nil, false
 	}
+	actionRow := markup.InlineKeyboard[side]
+	if len(actionRow) != 2 {
+		return nil, false
+	}
 
-	order := make([]int, 0, side*side-1)
+	order := make([]int, 0, side*side)
 	seen := make(map[int]bool, characterCount)
-	backspaceSeen := false
-	for rowIndex, row := range markup.InlineKeyboard {
+	for _, row := range markup.InlineKeyboard[:side] {
 		if len(row) != side {
 			return nil, false
 		}
-		for columnIndex, button := range row {
+		for _, button := range row {
 			handlerType, payload, ok := parseCallbackData(button.CallbackData)
 			if !ok || handlerType != callbackTypeExercise || len(payload) == 0 {
 				return nil, false
@@ -289,19 +290,6 @@ func extractCharacterOrderFromReplyMarkup(markup *inlineKeyboardMarkup, exercise
 				order = append(order, -1)
 				continue
 			}
-			if payload[0] == exerciseActionCharacterBackspace {
-				buttonExerciseID, ok := parseExerciseCharacterBackspacePayload(payload)
-				if !ok ||
-					buttonExerciseID != exerciseID ||
-					backspaceSeen ||
-					rowIndex != side-1 ||
-					columnIndex != side-1 {
-					return nil, false
-				}
-				backspaceSeen = true
-				continue
-			}
-
 			buttonExerciseID, canonical, ok := parseExerciseCharacterPayload(payload)
 			if !ok || buttonExerciseID != exerciseID || canonical >= characterCount || seen[canonical] {
 				return nil, false
@@ -311,10 +299,35 @@ func extractCharacterOrderFromReplyMarkup(markup *inlineKeyboardMarkup, exercise
 		}
 	}
 
-	if !backspaceSeen || len(order) != side*side-1 || len(seen) != characterCount {
+	backspaceExerciseID, ok := parseExerciseCharacterBackspacePayloadFromData(actionRow[0].CallbackData)
+	if !ok || backspaceExerciseID != exerciseID {
+		return nil, false
+	}
+	idkExerciseID, ok := parseExerciseIDKPayloadFromData(actionRow[1].CallbackData)
+	if !ok || idkExerciseID != exerciseID {
+		return nil, false
+	}
+
+	if len(order) != side*side || len(seen) != characterCount {
 		return nil, false
 	}
 	return order, true
+}
+
+func parseExerciseCharacterBackspacePayloadFromData(data string) (uuid.UUID, bool) {
+	handlerType, payload, ok := parseCallbackData(data)
+	if !ok || handlerType != callbackTypeExercise {
+		return uuid.Nil, false
+	}
+	return parseExerciseCharacterBackspacePayload(payload)
+}
+
+func parseExerciseIDKPayloadFromData(data string) (uuid.UUID, bool) {
+	handlerType, payload, ok := parseCallbackData(data)
+	if !ok || handlerType != callbackTypeExercise {
+		return uuid.Nil, false
+	}
+	return parseExerciseIDKPayload(payload)
 }
 
 func characterExerciseAnswer(exercise *services.TelegramMessageExercise) string {

@@ -138,3 +138,27 @@ func TestMatchExerciseKeyboardUsesSingleColumnForLongWords(t *testing.T) {
 		})
 	}
 }
+
+func TestCharacterExerciseKeyboardKeepsActionsBelowSquareGrid(t *testing.T) {
+	exerciseID := uuid.MustParse("52fdfc07-2182-454f-963f-5f0f9a621d72")
+	board := &services.CharacterBoardState{
+		Characters: []string{"l", "e", "t", "t", "e", "r"},
+		Order:      []int{5, -1, 0, 4, -1, 1, 3, 2, -1},
+	}
+
+	keyboard := buildCharacterKeyboard(exerciseID, board, botTextsEn)
+
+	require.Len(t, keyboard, 4)
+	for _, row := range keyboard[:3] {
+		require.Len(t, row, 3)
+	}
+	require.Len(t, keyboard[3], 2)
+	assertCharacterActionButton(t, keyboard[3][0], "⌫", exerciseActionCharacterBackspace)
+	assertCharacterActionButton(t, keyboard[3][1], botTextsEn.ButtonExerciseIDK, exerciseActionIDK)
+}
+
+func assertCharacterActionButton(t *testing.T, button inlineKeyboardButton, text string, action string) {
+	t.Helper()
+	require.Equal(t, text, button.Text)
+	require.Contains(t, button.CallbackData, callbackTypeExercise+":"+action+":")
+}

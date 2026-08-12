@@ -151,6 +151,7 @@ func sendCharacterExercise(user models.User, texts telegram.BotTexts) {
 		questionText,
 		result.ExerciseID,
 		board,
+		texts,
 	)
 	if err != nil {
 		fatal("failed to send character exercise to telegram", err)
