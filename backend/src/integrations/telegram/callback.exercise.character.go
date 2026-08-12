@@ -262,23 +262,76 @@ func extractCharacterOrderFromReplyMarkup(markup *inlineKeyboardMarkup, exercise
 		return nil, false
 	}
 
-	if len(markup.InlineKeyboard) < 2 {
-		return nil, false
+	if order, ok := extractCurrentCharacterOrder(markup.InlineKeyboard, exerciseID, characterCount); ok {
+		return order, true
 	}
-	side := len(markup.InlineKeyboard) - 1
+
+	return extractLegacyCharacterOrder(markup.InlineKeyboard, exerciseID, characterCount)
+}
+
+func extractCurrentCharacterOrder(rows [][]inlineKeyboardButton, exerciseID uuid.UUID, characterCount int) ([]int, bool) {
 	expectedSide := int(math.Ceil(math.Sqrt(float64(characterCount))))
-	if side != expectedSide {
+	if len(rows) != expectedSide+1 {
 		return nil, false
 	}
-	actionRow := markup.InlineKeyboard[side]
+	actionRow := rows[expectedSide]
 	if len(actionRow) != 2 {
 		return nil, false
 	}
 
+	order, ok := extractCharacterGridOrder(rows[:expectedSide], expectedSide, false, exerciseID, characterCount)
+	if !ok {
+		return nil, false
+	}
+
+	backspaceExerciseID, ok := parseExerciseCharacterBackspacePayloadFromData(actionRow[0].CallbackData)
+	if !ok || backspaceExerciseID != exerciseID {
+		return nil, false
+	}
+	idkExerciseID, ok := parseExerciseIDKPayloadFromData(actionRow[1].CallbackData)
+	if !ok || idkExerciseID != exerciseID {
+		return nil, false
+	}
+
+	return order, true
+}
+
+func extractLegacyCharacterOrder(rows [][]inlineKeyboardButton, exerciseID uuid.UUID, characterCount int) ([]int, bool) {
+	expectedSide := int(math.Ceil(math.Sqrt(float64(characterCount + 1))))
+	if len(rows) != expectedSide {
+		return nil, false
+	}
+
+	gridRows := make([][]inlineKeyboardButton, len(rows))
+	for rowIndex, row := range rows {
+		gridRows[rowIndex] = append([]inlineKeyboardButton(nil), row...)
+	}
+	if len(gridRows[expectedSide-1]) != expectedSide {
+		return nil, false
+	}
+	lastColumn := expectedSide - 1
+	backspaceExerciseID, ok := parseExerciseCharacterBackspacePayloadFromData(gridRows[expectedSide-1][lastColumn].CallbackData)
+	if !ok || backspaceExerciseID != exerciseID {
+		return nil, false
+	}
+	gridRows[expectedSide-1] = gridRows[expectedSide-1][:lastColumn]
+
+	order, ok := extractCharacterGridOrder(gridRows, expectedSide, true, exerciseID, characterCount)
+	if !ok || len(order) != expectedSide*expectedSide-1 {
+		return nil, false
+	}
+	return order, true
+}
+
+func extractCharacterGridOrder(rows [][]inlineKeyboardButton, side int, shortLastRow bool, exerciseID uuid.UUID, characterCount int) ([]int, bool) {
 	order := make([]int, 0, side*side)
 	seen := make(map[int]bool, characterCount)
-	for _, row := range markup.InlineKeyboard[:side] {
-		if len(row) != side {
+	for rowIndex, row := range rows {
+		expectedWidth := side
+		if shortLastRow && rowIndex == side-1 {
+			expectedWidth--
+		}
+		if len(row) != expectedWidth {
 			return nil, false
 		}
 		for _, button := range row {
@@ -299,16 +352,7 @@ func extractCharacterOrderFromReplyMarkup(markup *inlineKeyboardMarkup, exercise
 		}
 	}
 
-	backspaceExerciseID, ok := parseExerciseCharacterBackspacePayloadFromData(actionRow[0].CallbackData)
-	if !ok || backspaceExerciseID != exerciseID {
-		return nil, false
-	}
-	idkExerciseID, ok := parseExerciseIDKPayloadFromData(actionRow[1].CallbackData)
-	if !ok || idkExerciseID != exerciseID {
-		return nil, false
-	}
-
-	if len(order) != side*side || len(seen) != characterCount {
+	if len(seen) != characterCount {
 		return nil, false
 	}
 	return order, true
