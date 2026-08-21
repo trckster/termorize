@@ -51,7 +51,8 @@ func handleExerciseAnswer(message *message) (bool, error) {
 	if exercise.ExerciseType == enums.ExerciseTypeChoiceDirect ||
 		exercise.ExerciseType == enums.ExerciseTypeChoiceReversed ||
 		exercise.ExerciseType == enums.ExerciseTypeCharactersDirect ||
-		exercise.ExerciseType == enums.ExerciseTypeCharactersReversed {
+		exercise.ExerciseType == enums.ExerciseTypeCharactersReversed ||
+		exercise.ExerciseType == enums.ExerciseTypeMatchPairs {
 		return true, SendReplyMessage(message.Chat.ID, t.ExerciseUseButtons, message.MessageID)
 	}
 

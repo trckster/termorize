@@ -3,6 +3,7 @@ package http
 import (
 	"sync"
 	"termorize/src/config"
+	"termorize/src/controllers"
 	"termorize/src/http/middlewares"
 	"termorize/src/http/validators"
 	"termorize/src/logger"
@@ -54,6 +55,7 @@ func registerCustomValidators() {
 			v.RegisterValidation("enum", validators.ValidateEnum)
 			v.RegisterValidation("timezone", validators.ValidateTimezone)
 			v.RegisterValidation("hhmm", validators.ValidateHHMM)
+			v.RegisterStructValidation(validators.ValidateHHMMInterval, controllers.UpdateSettingsTelegramScheduleItemRequest{})
 		}
 	})
 }

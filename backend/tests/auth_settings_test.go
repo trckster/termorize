@@ -381,6 +381,26 @@ func TestUpdateSettingsRejectsInvalidFieldValues(t *testing.T) {
 			wantField: "DailyQuestionsCount",
 			wantTag:   "max",
 		},
+		{
+			name: "schedule interval ends before it starts",
+			mutate: func(payload map[string]any) {
+				payload["telegram"].(map[string]any)["daily_questions_schedule"] = []map[string]any{
+					{"from": "22:00", "to": "06:00"},
+				}
+			},
+			wantField: "To",
+			wantTag:   "hhmminterval",
+		},
+		{
+			name: "schedule interval ends at its start",
+			mutate: func(payload map[string]any) {
+				payload["telegram"].(map[string]any)["daily_questions_schedule"] = []map[string]any{
+					{"from": "10:00", "to": "10:00"},
+				}
+			},
+			wantField: "To",
+			wantTag:   "hhmminterval",
+		},
 	}
 
 	for _, tt := range tests {
