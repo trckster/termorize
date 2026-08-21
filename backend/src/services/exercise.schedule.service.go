@@ -65,6 +65,11 @@ func GenerateExercises(user models.User, targetDate time.Time) int {
 		return 0
 	}
 
+	if totalMinutes <= 0 {
+		logger.L().Errorw("user has no valid daily questions schedule intervals", "user_id", user.ID)
+		return 0
+	}
+
 	candidateLimit := requestedExercisesCount * 10
 	if candidateLimit < requestedExercisesCount {
 		candidateLimit = requestedExercisesCount

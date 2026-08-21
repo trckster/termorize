@@ -44,6 +44,12 @@ type exerciseProgressDeltas struct {
 	Wrong   int
 }
 
+// ExerciseWrongProgressDeltaForType returns the progress penalty applied when
+// the given exercise type is failed or skipped.
+func ExerciseWrongProgressDeltaForType(exerciseType enums.ExerciseType) int {
+	return exerciseProgressDeltasForType(exerciseType).Wrong
+}
+
 const (
 	ExerciseVocabularyResultCorrect = "correct"
 	ExerciseVocabularyResultAlmost  = "almost"
