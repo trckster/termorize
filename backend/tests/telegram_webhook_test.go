@@ -924,6 +924,8 @@ func TestTelegramWebhookCharacterExerciseCanBeFailedWithIDK(t *testing.T) {
 	require.NotNil(t, link.ResultReason)
 	assert.Equal(t, services.ExerciseVocabularyResultIgnored, *link.Result)
 	assert.Equal(t, services.ExerciseVocabularyResultReasonSkipped, *link.ResultReason)
+	require.NotNil(t, link.ProgressDelta)
+	assert.Equal(t, services.ExerciseCharacterWrongProgressDelta, *link.ProgressDelta)
 	require.Len(t, tg.RequestsFor("editMessageReplyMarkup"), 1)
 	require.Len(t, tg.RequestsFor("sendMessage"), 1)
 	assert.Contains(t, string(tg.RequestsFor("sendMessage")[0].Body), "carta")
@@ -1543,6 +1545,56 @@ func TestTelegramWebhookUnblockBotEnablesUser(t *testing.T) {
 	var refreshed models.User
 	require.NoError(t, db.DB.Where("id = ?", user.ID).First(&refreshed).Error)
 	assert.True(t, refreshed.Settings.Telegram.BotEnabled, "unblocking the bot should enable it")
+}
+
+// A text reply to a match-pairs board must be rejected with a hint while the
+// board keyboard stays intact. Previously the reply stripped the keyboard and
+// then failed verification silently, leaving the exercise stuck until expiry.
+func TestTelegramWebhookMatchPairsTextReplyKeepsBoard(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+
+	const telegramID int64 = 555021
+	const messageID int64 = 110
+	user := testkit.CreateUser(t, testkit.WithTelegramID(telegramID))
+
+	vocabularyIDs := make([]uuid.UUID, 0, services.MatchPairsVocabularyCount)
+	for index := 0; index < services.MatchPairsVocabularyCount; index++ {
+		vocabulary := exerciseSeedVocabulary(
+			t, user.ID,
+			"original-"+strconv.Itoa(index), "translation-"+strconv.Itoa(index),
+			enums.LanguageEn, enums.LanguageIt,
+		)
+		vocabularyIDs = append(vocabularyIDs, vocabulary.ID)
+	}
+	exercise := exerciseSeedMatchPairsExercise(t, user.ID, enums.ExerciseStatusPending, vocabularyIDs)
+	require.NoError(t, services.StartMatchExercise(exercise.ID, messageID, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}))
+
+	update := telegramPrivateMessage(telegramID, "rilasciare")
+	update["update_id"] = 91
+	update["message"].(map[string]any)["reply_to_message"] = map[string]any{
+		"message_id": messageID,
+		"chat":       map[string]any{"id": telegramID, "type": "private"},
+	}
+
+	rec := telegramUpdate(t, update)
+	testkit.RequireStatus(t, rec, http.StatusOK)
+
+	assert.Empty(
+		t,
+		tg.RequestsFor("editMessageReplyMarkup"),
+		"a text reply must not strip the match board keyboard",
+	)
+	replies := tg.RequestsFor("sendMessage")
+	require.Len(t, replies, 1, "the user must get an explicit use-buttons hint")
+	assert.Contains(t, string(replies[0].Body), "кнопок")
+
+	stored := exerciseReload(t, exercise.ID)
+	assert.Equal(t, enums.ExerciseStatusInProgress, stored.Status, "the exercise must stay answerable via its board")
+	for _, vocabularyID := range vocabularyIDs {
+		link := exerciseLink(t, exercise.ID, vocabularyID)
+		assert.Nil(t, link.Result, "a text reply must not score the exercise")
+	}
 }
 
 // telegramMyChatMember builds a my_chat_member update transitioning between the
