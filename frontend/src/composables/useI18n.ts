@@ -98,14 +98,17 @@ const en = {
     // Settings - Common section
     settingsCommonTitle: 'Common',
     settingsCommonDescription: 'Basic account information from your profile.',
+    settingsCommonGuestDescription: 'Basic information for this temporary account.',
     settingsCommonFieldId: 'ID',
     settingsCommonFieldIdExplanation: 'Unique account identifier in Termorize.',
     settingsCommonFieldCreatedAt: 'Creation Date',
     settingsCommonFieldCreatedAtExplanation: 'Date and time when your Termorize account was created.',
     settingsCommonFieldName: 'Name',
     settingsCommonFieldNameExplanation: 'Your Telegram name.',
+    settingsCommonFieldGuestNameExplanation: 'A randomly generated name for this temporary account.',
     settingsCommonFieldUsername: 'Username',
     settingsCommonFieldUsernameExplanation: 'Your Telegram username.',
+    settingsCommonFieldGuestUsernameExplanation: 'A randomly generated username for this temporary account.',
     settingsCommonFieldTimezone: 'Timezone',
     settingsCommonFieldTimezoneExplanation: 'Your preferred timezone used for daily schedule and time-based features.',
     settingsCommonTimezonePlaceholder: 'Select timezone',
@@ -161,6 +164,13 @@ const en = {
     settingsTelegramScheduleValidationFormat: 'All times must use HH:mm format and stay in range 00:00 to 23:59.',
     settingsTelegramScheduleValidationOrder: 'Each schedule interval must have "from" earlier than "to".',
     settingsTelegramScheduleValidationOverlap: 'Schedule intervals cannot overlap.',
+    settingsTelegramGuestDisabledTitle: 'Unavailable for temporary accounts',
+    settingsTelegramGuestDisabledDescription: 'Telegram bot and notification controls require a Telegram account.',
+
+    // Settings - Guest account warning
+    settingsGuestWarningTitle: 'Temporary account',
+    settingsGuestWarningDescription: 'This temporary account will be permanently deleted on',
+    settingsGuestWarningNote: 'Create a Telegram account if you want to keep using Termorize after this date.',
 
     // Common actions
     save: 'Save',
@@ -601,14 +611,17 @@ const ru: typeof en = {
     // Settings - Common section
     settingsCommonTitle: 'Основные',
     settingsCommonDescription: 'Основная информация аккаунта из вашего профиля.',
+    settingsCommonGuestDescription: 'Основная информация этого временного аккаунта.',
     settingsCommonFieldId: 'ID',
     settingsCommonFieldIdExplanation: 'Уникальный идентификатор аккаунта в Termorize.',
     settingsCommonFieldCreatedAt: 'Дата создания',
     settingsCommonFieldCreatedAtExplanation: 'Дата и время создания вашего аккаунта в Termorize.',
     settingsCommonFieldName: 'Имя',
     settingsCommonFieldNameExplanation: 'Ваше имя в Telegram.',
+    settingsCommonFieldGuestNameExplanation: 'Случайно созданное имя для этого временного аккаунта.',
     settingsCommonFieldUsername: 'Имя пользователя',
     settingsCommonFieldUsernameExplanation: 'Ваш username в Telegram.',
+    settingsCommonFieldGuestUsernameExplanation: 'Случайно созданный username для этого временного аккаунта.',
     settingsCommonFieldTimezone: 'Часовой пояс',
     settingsCommonFieldTimezoneExplanation:
         'Предпочтительный часовой пояс для ежедневного расписания и функций на основе времени.',
@@ -665,6 +678,14 @@ const ru: typeof en = {
     settingsTelegramScheduleValidationFormat: 'Все времена должны быть в формате ЧЧ:мм и в диапазоне 00:00 до 23:59.',
     settingsTelegramScheduleValidationOrder: 'Каждый интервал расписания должен иметь "с" раньше, чем "по".',
     settingsTelegramScheduleValidationOverlap: 'Интервалы расписания не должны пересекаться.',
+    settingsTelegramGuestDisabledTitle: 'Недоступно для временных аккаунтов',
+    settingsTelegramGuestDisabledDescription: 'Для управления Telegram-ботом и уведомлениями нужен аккаунт Telegram.',
+
+    // Settings - Guest account warning
+    settingsGuestWarningTitle: 'Временный аккаунт',
+    settingsGuestWarningDescription: 'Этот временный аккаунт будет навсегда удалён',
+    settingsGuestWarningNote:
+        'Создайте аккаунт через Telegram, чтобы продолжить пользоваться Termorize после этой даты.',
 
     // Common actions
     save: 'Сохранить',
