@@ -46,14 +46,22 @@
                             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div class="space-y-2">
                                     <label for="vocab-word2" class="text-sm font-medium">{{ t.vocabularyWord2 }}</label>
-                                    <input
-                                        id="vocab-word2"
-                                        v-model="newTranslation.word2"
-                                        type="text"
-                                        :placeholder="t.vocabularyWord2Placeholder"
-                                        maxlength="500"
-                                        class="min-h-11 w-full rounded-md border border-border bg-background px-3 py-2 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm"
-                                    />
+                                    <div class="relative">
+                                        <input
+                                            id="vocab-word2"
+                                            v-model="newTranslation.word2"
+                                            type="text"
+                                            :placeholder="t.vocabularyWord2Placeholder"
+                                            :aria-busy="isSuggestingTranslation"
+                                            maxlength="500"
+                                            class="min-h-11 w-full rounded-md border border-border bg-background px-3 py-2 pr-9 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm"
+                                            @input="handleTranslationTargetInput"
+                                        />
+                                        <Loader2
+                                            v-if="isSuggestingTranslation"
+                                            class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground"
+                                        />
+                                    </div>
                                 </div>
                                 <div class="space-y-2">
                                     <label class="text-sm font-medium">{{ t.vocabularyLanguage2 }}</label>
@@ -304,6 +312,7 @@
 
 <script setup lang="ts">
 import { vocabularyApi, type VocabularyItem } from '@/api/vocabulary.ts'
+import { translationApi } from '@/api/translation.ts'
 import { onBeforeUnmount, onMounted, ref, computed, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth.ts'
 import { useSettingsStore } from '@/stores/settings.ts'
@@ -328,6 +337,7 @@ import { formatRelativeTime, formatDate, formatNumber } from '@/lib/utils.ts'
 import { Progress } from '@/components/ui/progress'
 import { Trash2, Loader2, Plus } from 'lucide-vue-next'
 import { useToast } from '@/composables/useToast.ts'
+import { createTranslationAutofill } from '@/lib/translationAutofill.ts'
 
 const { t } = useI18n()
 
@@ -343,6 +353,7 @@ const paginationData = ref<PaginationData>(defaultPaginationData())
 const deletingId = ref<string | null>(null)
 const isAddDialogOpen = ref(false)
 const isAdding = ref(false)
+const isSuggestingTranslation = ref(false)
 const isLoadingVocabulary = ref(false)
 const vocabularyErrorMessage = ref('')
 const searchInput = ref('')
@@ -385,6 +396,26 @@ const defaultNewTranslation = (): NewTranslationForm => ({
 
 const newTranslation = ref<NewTranslationForm>(defaultNewTranslation())
 
+const translationAutofill = createTranslationAutofill({
+    translate: async ({ text, sourceLanguage, targetLanguage }) => {
+        const result = await translationApi.translate({
+            from_word: text,
+            from_language: sourceLanguage,
+            to_language: targetLanguage,
+        })
+        return result.translation
+    },
+    onSuggestion: (suggestion) => {
+        newTranslation.value.word2 = suggestion
+    },
+    onLoadingChange: (isLoading) => {
+        isSuggestingTranslation.value = isLoading
+    },
+    onError: (error) => {
+        console.error('Failed to suggest a vocabulary translation:', error)
+    },
+})
+
 const isFormValid = computed(() => {
     return newTranslation.value.word1.trim().length > 0 && newTranslation.value.word2.trim().length > 0
 })
@@ -396,8 +427,22 @@ const resetForm = () => {
 watch(isAddDialogOpen, (isOpen) => {
     if (isOpen) {
         resetForm()
+        translationAutofill.activate()
+    } else {
+        translationAutofill.deactivate()
     }
 })
+
+watch(
+    [() => newTranslation.value.word1, () => newTranslation.value.language1, () => newTranslation.value.language2],
+    ([text, sourceLanguage, targetLanguage]) => {
+        translationAutofill.queue({ text, sourceLanguage, targetLanguage })
+    }
+)
+
+const handleTranslationTargetInput = () => {
+    translationAutofill.markTargetEdited()
+}
 
 watch(searchInput, (value) => {
     if (searchDebounceTimer) {
@@ -516,6 +561,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+    translationAutofill.deactivate()
     if (searchDebounceTimer) {
         clearTimeout(searchDebounceTimer)
     }
