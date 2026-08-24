@@ -1,20 +1,34 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { ArrowUpDown, Play } from 'lucide-vue-next'
+import { ArrowUpDown, Loader2, Play } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { settingsApi } from '@/api/settings.ts'
 import { translationApi } from '@/api/translation.ts'
+import { vocabularyApi } from '@/api/vocabulary.ts'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import PronunciationButton from '@/components/PronunciationButton.vue'
 import { Kbd } from '@/components/ui/kbd'
 import { Button } from '@/components/ui/button'
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { useToast } from '@/composables/useToast.ts'
 import { usePhoneViewport } from '@/composables/usePhoneViewport.ts'
 import { useAuthStore } from '@/stores/auth.ts'
+import { useSettingsStore } from '@/stores/settings.ts'
 import { useI18n } from '@/composables/useI18n'
 import {
     createProgrammaticChangeGuard,
     getLanguageChangeDirection,
+    hasMeaningfulVocabularyEdits,
+    isEditableVocabularyShortcut,
+    type EditableVocabularyPair,
     type TranslationField,
 } from '@/lib/translationPageState.ts'
 
@@ -23,6 +37,7 @@ type LanguageSelectorInstance = {
 }
 
 const authStore = useAuthStore()
+const settingsStore = useSettingsStore()
 const router = useRouter()
 const { isPhoneViewport } = usePhoneViewport()
 const { t } = useI18n()
@@ -62,6 +77,20 @@ const translationId = ref<string | null>(null)
 const sourceWordId = ref<string | null>(null)
 const targetWordId = ref<string | null>(null)
 const isSavingVocabulary = ref(false)
+const isEditVocabularyDialogOpen = ref(false)
+const editableTranslationRef = ref<HTMLTextAreaElement | null>(null)
+const editableVocabularyPair = ref<EditableVocabularyPair>({
+    original: '',
+    translation: '',
+})
+const editableVocabularySnapshot = ref<
+    | (EditableVocabularyPair & {
+          translationId: string
+          originalLanguage: string
+          translationLanguage: string
+      })
+    | null
+>(null)
 const programmaticTextChanges = createProgrammaticChangeGuard<'source' | 'target'>()
 
 const { addToast } = useToast()
@@ -82,6 +111,14 @@ const translationSourceLabel = computed(() => {
     if (translationSource.value === 'google') return t.value.translationSourceGoogle
     return translationSource.value
 })
+const isEditableVocabularyPairValid = computed(
+    () =>
+        editableVocabularyPair.value.original.trim().length > 0 &&
+        editableVocabularyPair.value.translation.trim().length > 0
+)
+
+const getLanguageLabel = (language: string) =>
+    settingsStore.getLanguageName(language, authStore.user?.settings.system_language ?? 'en')
 
 const invalidateTranslationResult = () => {
     latestTranslationRequestId += 1
@@ -372,13 +409,122 @@ const handleTextareaTab = (field: 'source' | 'target', event: KeyboardEvent) => 
     void focusTextarea(field === 'source' ? 'target' : 'source')
 }
 
-const saveTranslationToVocabulary = async () => {
-    if (!translationId.value) {
+const showNoTranslationToast = () => {
+    addToast({
+        title: t.value.translationToastNoTranslationTitle,
+        description: t.value.translationToastNoTranslationDescription,
+        duration: 3000,
+    })
+}
+
+const showVocabularySavedToast = () => {
+    addToast({
+        title: t.value.translationToastVocabSuccessTitle,
+        description: t.value.translationToastVocabSuccessDescription,
+        variant: 'success',
+        duration: 3000,
+    })
+}
+
+const showVocabularySaveError = (error: unknown) => {
+    const apiError = error as { status?: number }
+    if (apiError.status === 409) {
         addToast({
-            title: t.value.translationToastNoTranslationTitle,
-            description: t.value.translationToastNoTranslationDescription,
+            title: t.value.translationToastAlreadyExistsTitle,
+            description: t.value.translationToastAlreadyExistsDescription,
             duration: 3000,
         })
+        return
+    }
+
+    addToast({
+        title: t.value.translationToastVocabErrorTitle,
+        description: t.value.translationToastVocabErrorDescription,
+        variant: 'destructive',
+        duration: 5000,
+    })
+}
+
+const openEditableVocabularyDialog = () => {
+    if (!translationId.value || !sourceText.value.trim() || !translatedText.value.trim()) {
+        showNoTranslationToast()
+        return
+    }
+
+    if (isSavingVocabulary.value) {
+        return
+    }
+
+    editableVocabularySnapshot.value = {
+        translationId: translationId.value,
+        original: sourceText.value,
+        translation: translatedText.value,
+        originalLanguage: sourceLang.value,
+        translationLanguage: targetLang.value,
+    }
+    editableVocabularyPair.value = {
+        original: sourceText.value,
+        translation: translatedText.value,
+    }
+    isEditVocabularyDialogOpen.value = true
+}
+
+const handleEditVocabularyDialogOpenChange = (isOpen: boolean) => {
+    if (!isOpen && isSavingVocabulary.value) {
+        return
+    }
+
+    isEditVocabularyDialogOpen.value = isOpen
+    if (!isOpen) {
+        editableVocabularySnapshot.value = null
+    }
+}
+
+const focusEditableTranslation = () => {
+    const textarea = editableTranslationRef.value
+    if (!textarea) return
+
+    textarea.focus()
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length)
+}
+
+const saveEditableTranslationToVocabulary = async () => {
+    const snapshot = editableVocabularySnapshot.value
+    if (!snapshot || !isEditableVocabularyPairValid.value || isSavingVocabulary.value) {
+        return
+    }
+
+    const editedPair = {
+        original: editableVocabularyPair.value.original.trim(),
+        translation: editableVocabularyPair.value.translation.trim(),
+    }
+
+    isSavingVocabulary.value = true
+    try {
+        if (hasMeaningfulVocabularyEdits(snapshot, editedPair)) {
+            await vocabularyApi.addVocabulary(
+                editedPair.original,
+                editedPair.translation,
+                snapshot.originalLanguage,
+                snapshot.translationLanguage
+            )
+        } else {
+            await translationApi.addVocabularyByTranslation(snapshot.translationId)
+        }
+
+        isEditVocabularyDialogOpen.value = false
+        editableVocabularySnapshot.value = null
+        showVocabularySavedToast()
+    } catch (error) {
+        showVocabularySaveError(error)
+    } finally {
+        isSavingVocabulary.value = false
+    }
+}
+
+const saveTranslationToVocabulary = async () => {
+    if (!translationId.value) {
+        showNoTranslationToast()
         return
     }
 
@@ -389,35 +535,31 @@ const saveTranslationToVocabulary = async () => {
     isSavingVocabulary.value = true
     try {
         await translationApi.addVocabularyByTranslation(translationId.value)
-        addToast({
-            title: t.value.translationToastVocabSuccessTitle,
-            description: t.value.translationToastVocabSuccessDescription,
-            variant: 'success',
-            duration: 3000,
-        })
+        showVocabularySavedToast()
     } catch (error) {
-        const apiError = error as { status?: number }
-        if (apiError.status === 409) {
-            addToast({
-                title: t.value.translationToastAlreadyExistsTitle,
-                description: t.value.translationToastAlreadyExistsDescription,
-                duration: 3000,
-            })
-            return
-        }
-
-        addToast({
-            title: t.value.translationToastVocabErrorTitle,
-            description: t.value.translationToastVocabErrorDescription,
-            variant: 'destructive',
-            duration: 5000,
-        })
+        showVocabularySaveError(error)
     } finally {
         isSavingVocabulary.value = false
     }
 }
 
 const handleShortcut = (event: KeyboardEvent) => {
+    if (isEditableVocabularyShortcut(event)) {
+        event.preventDefault()
+
+        if (!isEditVocabularyDialogOpen.value) {
+            openEditableVocabularyDialog()
+        }
+        return
+    }
+
+    if (isEditVocabularyDialogOpen.value) {
+        if (event.ctrlKey && (event.code === 'KeyL' || event.code === 'KeyS')) {
+            event.preventDefault()
+        }
+        return
+    }
+
     if (event.ctrlKey && event.code === 'KeyL') {
         event.preventDefault()
 
@@ -469,6 +611,97 @@ onBeforeUnmount(() => {
     <main class="px-4 py-4 sm:px-6 sm:py-8">
         <div class="mx-auto max-w-6xl">
             <h1 class="sr-only">{{ t.navHome }}</h1>
+
+            <Dialog :open="isEditVocabularyDialogOpen" @update:open="handleEditVocabularyDialogOpenChange">
+                <DialogContent
+                    class="sm:max-w-xl"
+                    :hide-close="isSavingVocabulary"
+                    @open-auto-focus.prevent="focusEditableTranslation"
+                >
+                    <DialogHeader>
+                        <DialogTitle>{{ t.translationEditDialogTitle }}</DialogTitle>
+                        <DialogDescription>
+                            {{ t.translationEditDialogDescription }}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <form
+                        class="space-y-5 pt-2"
+                        :aria-busy="isSavingVocabulary"
+                        @submit.prevent="saveEditableTranslationToVocabulary"
+                        @keydown.esc.stop.prevent="handleEditVocabularyDialogOpenChange(false)"
+                    >
+                        <div class="space-y-2">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <label for="editable-vocabulary-original" class="text-sm font-medium text-foreground">
+                                    {{ t.translationEditOriginalLabel }}
+                                </label>
+                                <span
+                                    v-if="editableVocabularySnapshot"
+                                    id="editable-vocabulary-original-language"
+                                    class="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground"
+                                >
+                                    {{ getLanguageLabel(editableVocabularySnapshot.originalLanguage) }}
+                                </span>
+                            </div>
+                            <textarea
+                                id="editable-vocabulary-original"
+                                v-model="editableVocabularyPair.original"
+                                maxlength="5000"
+                                rows="3"
+                                aria-describedby="editable-vocabulary-original-language"
+                                class="min-h-24 w-full resize-y rounded-lg border border-border bg-background px-3 py-2.5 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm"
+                                @keydown.enter.exact.prevent="saveEditableTranslationToVocabulary"
+                            />
+                        </div>
+
+                        <div class="space-y-2">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <label
+                                    for="editable-vocabulary-translation"
+                                    class="text-sm font-medium text-foreground"
+                                >
+                                    {{ t.translationEditTranslationLabel }}
+                                </label>
+                                <span
+                                    v-if="editableVocabularySnapshot"
+                                    id="editable-vocabulary-translation-language"
+                                    class="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground"
+                                >
+                                    {{ getLanguageLabel(editableVocabularySnapshot.translationLanguage) }}
+                                </span>
+                            </div>
+                            <textarea
+                                id="editable-vocabulary-translation"
+                                ref="editableTranslationRef"
+                                v-model="editableVocabularyPair.translation"
+                                maxlength="5000"
+                                rows="3"
+                                aria-describedby="editable-vocabulary-translation-language"
+                                class="min-h-24 w-full resize-y rounded-lg border border-border bg-background px-3 py-2.5 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm"
+                                @keydown.enter.exact.prevent="saveEditableTranslationToVocabulary"
+                            />
+                        </div>
+
+                        <p class="text-xs leading-5 text-muted-foreground">
+                            {{ t.translationEditKeyboardHint }}
+                        </p>
+
+                        <DialogFooter>
+                            <DialogClose as-child>
+                                <Button type="button" variant="outline" :disabled="isSavingVocabulary">
+                                    {{ t.cancel }}
+                                </Button>
+                            </DialogClose>
+                            <Button type="submit" :disabled="isSavingVocabulary || !isEditableVocabularyPairValid">
+                                <Loader2 v-if="isSavingVocabulary" class="motion-safe:animate-spin" />
+                                {{ isSavingVocabulary ? t.translationSaving : t.translationSaveToVocabulary }}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
             <div
                 class="grid grid-cols-1 gap-1 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-5 xl:gap-6"
             >
@@ -613,6 +846,8 @@ onBeforeUnmount(() => {
                 >
                     <span class="justify-self-end text-right">{{ t.translationShortcutSave }}</span>
                     <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + S</Kbd>
+                    <span class="justify-self-end text-right">{{ t.translationShortcutEditBeforeSave }}</span>
+                    <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + E</Kbd>
                     <span class="justify-self-end text-right">{{ t.translationShortcutSwap }}</span>
                     <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + Shift + S</Kbd>
                     <span class="justify-self-end text-right">{{ t.translationShortcutFocusFirst }}</span>
