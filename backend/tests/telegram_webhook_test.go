@@ -924,8 +924,6 @@ func TestTelegramWebhookCharacterExerciseCanBeFailedWithIDK(t *testing.T) {
 	require.NotNil(t, link.ResultReason)
 	assert.Equal(t, services.ExerciseVocabularyResultIgnored, *link.Result)
 	assert.Equal(t, services.ExerciseVocabularyResultReasonSkipped, *link.ResultReason)
-	// IDK on a character exercise must apply the character wrong delta (-20),
-	// not the basic one (-15).
 	require.NotNil(t, link.ProgressDelta)
 	assert.Equal(t, services.ExerciseCharacterWrongProgressDelta, *link.ProgressDelta)
 	require.Len(t, tg.RequestsFor("editMessageReplyMarkup"), 1)

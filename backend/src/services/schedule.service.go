@@ -1,29 +1,18 @@
 package services
 
 import (
-	"strconv"
-	"strings"
 	"termorize/src/logger"
 	"termorize/src/models"
+	"time"
 )
 
 func parseHHMM(value string) (int, int, bool) {
-	parts := strings.Split(value, ":")
-	if len(parts) != 2 {
-		return 0, 0, false
-	}
-
-	hour, err := strconv.Atoi(parts[0])
+	parsed, err := time.Parse("15:04", value)
 	if err != nil {
 		return 0, 0, false
 	}
 
-	minute, err := strconv.Atoi(parts[1])
-	if err != nil {
-		return 0, 0, false
-	}
-
-	return hour, minute, true
+	return parsed.Hour(), parsed.Minute(), true
 }
 
 // scheduleIntervalMinutes returns the inclusive minute count of a schedule
