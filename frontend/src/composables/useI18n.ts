@@ -308,7 +308,7 @@ const en = {
     translationEditDialogDescription: 'Edit either text before adding it to vocabulary. The languages stay fixed.',
     translationEditOriginalLabel: 'Original',
     translationEditTranslationLabel: 'Translation',
-    translationEditKeyboardHint: 'Press Shift + Enter to save or Esc to cancel. Enter adds a new line.',
+    translationEditKeyboardHint: 'Press Shift + Enter to save or Esc to cancel.',
     translationCharacters: 'characters',
     pronunciationListen: 'Listen to {word}',
     pronunciationPause: 'Pause {word}',
@@ -819,8 +819,7 @@ const ru: typeof en = {
         'Измените любой текст перед добавлением в словарь. Выбранные языки останутся прежними.',
     translationEditOriginalLabel: 'Оригинал',
     translationEditTranslationLabel: 'Перевод',
-    translationEditKeyboardHint:
-        'Нажмите Shift + Enter, чтобы сохранить, или Esc, чтобы отменить. Enter добавляет новую строку.',
+    translationEditKeyboardHint: 'Нажмите Shift + Enter, чтобы сохранить, или Esc, чтобы отменить.',
     translationCharacters: 'символов',
     pronunciationListen: 'Прослушать {word}',
     pronunciationPause: 'Приостановить {word}',
