@@ -16,6 +16,11 @@ export const useAuthStore = defineStore('auth', () => {
         hasCheckedAuth.value = true
     }
 
+    const continueAsGuest = async () => {
+        user.value = await authApi.continueAsGuest()
+        hasCheckedAuth.value = true
+    }
+
     const logout = async () => {
         await authApi.logout()
         user.value = null
@@ -38,6 +43,7 @@ export const useAuthStore = defineStore('auth', () => {
         hasCheckedAuth,
         startTelegramLogin,
         completeTelegramLogin,
+        continueAsGuest,
         logout,
         getCurrentUser,
     }

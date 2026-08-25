@@ -2,8 +2,12 @@ package telegram
 
 func handleMessage(message *message) error {
 	if message.Chat.Type == Private {
-		if err := ensurePrivateMessageUser(message); err != nil {
+		active, err := ensurePrivateMessageUser(message)
+		if err != nil {
 			return err
+		}
+		if !active {
+			return nil
 		}
 	}
 

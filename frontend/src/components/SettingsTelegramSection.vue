@@ -12,6 +12,7 @@ import { ToggleSwitch } from '@/components/ui/toggle-switch'
 
 const props = defineProps<{
     settings?: UserSettings
+    isGuest?: boolean
 }>()
 
 const authStore = useAuthStore()
@@ -192,20 +193,28 @@ watch(
             <CardTitle>{{ t.settingsTelegramTitle }}</CardTitle>
             <CardDescription>{{ t.settingsTelegramDescription }}</CardDescription>
         </CardHeader>
-        <CardContent class="relative" :disabled="!props.settings?.telegram.bot_enabled">
+        <CardContent class="relative" :disabled="props.isGuest || !props.settings?.telegram.bot_enabled">
             <template v-slot:disable-reason>
                 <div
                     class="flex max-w-sm flex-col items-center rounded-lg border border-border bg-card p-5 text-center shadow-sm"
                 >
-                    <span> {{ t.settingsTelegramEnableBotNote }} </span>
-                    <a
-                        href="https://t.me/termorize_bot"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="inline-flex min-h-11 items-center text-info underline underline-offset-4"
-                    >
-                        @termorize_bot
-                    </a>
+                    <template v-if="props.isGuest">
+                        <p class="font-semibold text-foreground">{{ t.settingsTelegramGuestDisabledTitle }}</p>
+                        <p class="mt-2 text-sm leading-6 text-muted-foreground">
+                            {{ t.settingsTelegramGuestDisabledDescription }}
+                        </p>
+                    </template>
+                    <template v-else>
+                        <span> {{ t.settingsTelegramEnableBotNote }} </span>
+                        <a
+                            href="https://t.me/termorize_bot"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="inline-flex min-h-11 items-center text-info underline underline-offset-4"
+                        >
+                            @termorize_bot
+                        </a>
+                    </template>
                 </div>
             </template>
 

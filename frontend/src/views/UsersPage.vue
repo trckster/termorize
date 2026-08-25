@@ -70,7 +70,9 @@ onMounted(() => void fetchUsers())
                 <div v-if="isLoading" class="divide-y divide-border" aria-label="Loading users">
                     <div v-for="index in 8" :key="index" class="flex gap-6 px-4 py-4 sm:px-5">
                         <span class="h-5 w-28 animate-pulse rounded bg-muted motion-reduce:animate-none" />
-                        <span class="hidden h-5 flex-1 animate-pulse rounded bg-muted motion-reduce:animate-none sm:block" />
+                        <span
+                            class="hidden h-5 flex-1 animate-pulse rounded bg-muted motion-reduce:animate-none sm:block"
+                        />
                         <span class="ml-auto h-5 w-32 animate-pulse rounded bg-muted motion-reduce:animate-none" />
                     </div>
                 </div>
@@ -92,11 +94,26 @@ onMounted(() => void fetchUsers())
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border">
-                            <tr v-for="user in users" :key="user.id" class="hover:bg-muted/25">
+                            <tr
+                                v-for="user in users"
+                                :key="user.id"
+                                :class="user.deleted_at ? 'bg-muted/15 hover:bg-muted/30' : 'hover:bg-muted/25'"
+                            >
                                 <td class="px-5 py-3.5 font-mono text-xs tabular-nums text-muted-foreground">
                                     {{ user.id }}
                                 </td>
-                                <td class="px-5 py-3.5 font-medium text-foreground">{{ user.name || t.usersNotAvailable }}</td>
+                                <td class="px-5 py-3.5 font-medium text-foreground">
+                                    <div class="flex items-center gap-2">
+                                        <span>{{ user.name || t.usersNotAvailable }}</span>
+                                        <span
+                                            v-if="user.deleted_at"
+                                            :title="formatDate(user.deleted_at)"
+                                            class="inline-flex shrink-0 items-center rounded-md border border-destructive/30 bg-destructive/10 px-1.5 py-0.5 text-[0.6875rem] font-semibold leading-none text-destructive"
+                                        >
+                                            {{ t.usersDeleted }}
+                                        </span>
+                                    </div>
+                                </td>
                                 <td class="px-5 py-3.5 text-muted-foreground">
                                     {{ user.username ? `@${user.username}` : t.usersNotAvailable }}
                                 </td>
@@ -105,12 +122,14 @@ onMounted(() => void fetchUsers())
                                 </td>
                                 <td class="px-5 py-3.5 text-right">
                                     <time
+                                        v-if="user.latest_usage"
                                         :datetime="user.latest_usage"
                                         :title="formatDate(user.latest_usage)"
                                         class="text-foreground"
                                     >
                                         {{ formatRelativeTime(user.latest_usage) }}
                                     </time>
+                                    <span v-else class="text-muted-foreground">{{ t.usersNotAvailable }}</span>
                                 </td>
                             </tr>
                         </tbody>

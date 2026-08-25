@@ -39,6 +39,7 @@ func GetDuePendingExercises(now time.Time) ([]PendingExercise, error) {
 		JOIN words AS original ON original.id = t.original_id
 		JOIN words AS translated ON translated.id = t.translation_id
 		WHERE e.deleted_at IS NULL
+			AND u.deleted_at IS NULL
 			AND e.status = ?
 			AND e.type IN (?, ?, ?, ?, ?, ?, ?, ?)
 			AND e.scheduled_for <= ?
@@ -66,6 +67,7 @@ func GetDuePendingMatchExercises(now time.Time) ([]PendingMatchExercise, error) 
 		FROM exercises AS e
 		JOIN users AS u ON u.id = e.user_id
 		WHERE e.deleted_at IS NULL
+			AND u.deleted_at IS NULL
 			AND e.status = ?
 			AND e.type = ?
 			AND e.scheduled_for <= ?
@@ -162,6 +164,7 @@ func GetExerciseByTelegramMessage(telegramMessageID int64, telegramID int64) (*T
 		Joins("JOIN users AS u ON u.id = exercises.user_id").
 		Where("exercises.telegram_message_id = ?", telegramMessageID).
 		Where("u.telegram_id = ?", telegramID).
+		Where("u.deleted_at IS NULL").
 		First(&exercise).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -182,6 +185,7 @@ func GetExerciseByTelegramExerciseID(exerciseID uuid.UUID, telegramID int64) (*T
 		Joins("JOIN users AS u ON u.id = exercises.user_id").
 		Where("exercises.id = ?", exerciseID).
 		Where("u.telegram_id = ?", telegramID).
+		Where("u.deleted_at IS NULL").
 		First(&exercise).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

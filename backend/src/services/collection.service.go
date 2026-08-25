@@ -382,7 +382,7 @@ func ListCollections(userID uint, page, pageSize int, search string, languageFil
 	offset := (page - 1) * pageSize
 	if err := baseQuery().
 		Select("collections.*, users.username as owner_username").
-		Joins("LEFT JOIN users ON users.id = collections.owner_id").
+		Joins("LEFT JOIN users ON users.id = collections.owner_id AND users.deleted_at IS NULL").
 		Order("COALESCE(add_counts.add_count, 0) DESC, collections.title ASC, collections.id ASC").
 		Offset(offset).
 		Limit(pageSize).

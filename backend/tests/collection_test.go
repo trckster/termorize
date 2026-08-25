@@ -9,6 +9,7 @@ import (
 	"termorize/src/enums"
 	"termorize/src/integrations/openrouter"
 	"termorize/src/models"
+	"termorize/src/services"
 	"termorize/src/testkit"
 
 	"github.com/google/uuid"
@@ -1517,4 +1518,36 @@ func TestJoinCollectionDeletedCollectionToken(t *testing.T) {
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collection-invites/"+collection.InviteToken, nil)
 	testkit.RequireStatus(t, rec, http.StatusNotFound, "token of a deleted collection is invalid")
+}
+
+func TestPublishedGlobalCollectionSurvivesOwnerDeletion(t *testing.T) {
+	testkit.Truncate(t)
+
+	owner := testkit.CreateUser(t, testkit.WithAdmin())
+	learner := testkit.CreateUser(t)
+	collection := collectionSeed(t, "Preserved global collection", uintPtr(owner.ID), true, true)
+	require.NoError(t, db.DB.Create(&models.CollectionUserAdd{
+		CollectionID: collection.ID,
+		UserID:       learner.ID,
+	}).Error)
+	require.NoError(t, db.DB.Delete(&owner).Error)
+
+	list, err := services.ListCollections(learner.ID, 1, 20, "", nil)
+	require.NoError(t, err)
+	require.Len(t, list.Data, 1)
+	assert.Equal(t, collection.ID, list.Data[0].ID)
+
+	detail, err := services.GetCollection(learner.ID, collection.ID)
+	require.NoError(t, err)
+	assert.Equal(t, collection.ID, detail.ID)
+
+	var additions int64
+	require.NoError(t, db.DB.Model(&models.CollectionUserAdd{}).
+		Where("collection_id = ? AND user_id = ?", collection.ID, learner.ID).
+		Count(&additions).Error)
+	assert.Equal(t, int64(1), additions)
+
+	var preservedOwner models.User
+	require.NoError(t, db.DB.Unscoped().First(&preservedOwner, owner.ID).Error)
+	assert.True(t, preservedOwner.DeletedAt.Valid)
 }

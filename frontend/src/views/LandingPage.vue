@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { getTelegramWebAppInitData, isTelegramWebApp } from '@/lib/telegram'
@@ -7,7 +7,9 @@ import { getTelegramWebAppInitData, isTelegramWebApp } from '@/lib/telegram'
 const router = useRouter()
 const authStore = useAuthStore()
 
-const isLoading = ref(false)
+const isTelegramLoading = ref(false)
+const isGuestLoading = ref(false)
+const isLoading = computed(() => isTelegramLoading.value || isGuestLoading.value)
 const error = ref<string | null>(null)
 const isInsideTelegram = isTelegramWebApp()
 const menuOpen = ref(false)
@@ -68,7 +70,7 @@ const startTelegramLogin = async () => {
     if (isLoading.value) return
     try {
         error.value = null
-        isLoading.value = true
+        isTelegramLoading.value = true
 
         const initData = getTelegramWebAppInitData()
         if (initData) {
@@ -81,19 +83,33 @@ const startTelegramLogin = async () => {
         window.location.assign(authUrl)
     } catch (err) {
         error.value = getErrorMessage(err)
-        isLoading.value = false
+        isTelegramLoading.value = false
     }
 }
 
-function getErrorMessage(err: unknown): string {
+const tryWithoutRegistration = async () => {
+    if (isLoading.value) return
+
+    try {
+        error.value = null
+        isGuestLoading.value = true
+        await authStore.continueAsGuest()
+        await router.replace({ name: 'translation' })
+    } catch (err) {
+        error.value = getErrorMessage(err, 'Could not create a temporary account. Please try again.')
+        isGuestLoading.value = false
+    }
+}
+
+function getErrorMessage(err: unknown, fallback = 'Login failed. Please try again.'): string {
     if (err instanceof Error) {
         return err.message
     }
     if (typeof err === 'object' && err !== null && 'body' in err) {
         const body = (err as { body?: { error?: string; details?: string; message?: string } }).body
-        return body?.details || body?.error || body?.message || 'Login failed. Please try again.'
+        return body?.details || body?.error || body?.message || fallback
     }
-    return 'Login failed. Please try again.'
+    return fallback
 }
 </script>
 
@@ -156,7 +172,9 @@ function getErrorMessage(err: unknown): string {
                                 fill="currentColor"
                             />
                         </svg>
-                        <span v-if="isLoading">{{ isInsideTelegram ? 'Signing in...' : 'Redirecting...' }}</span>
+                        <span v-if="isTelegramLoading">{{
+                            isInsideTelegram ? 'Signing in...' : 'Redirecting...'
+                        }}</span>
                         <span v-else>Continue via Telegram</span>
                     </button>
                 </div>
@@ -178,6 +196,24 @@ function getErrorMessage(err: unknown): string {
                         site, with a Telegram bot that keeps you learning on the go.
                     </p>
                     <div class="hero-actions">
+                        <div class="guest-action">
+                            <button
+                                type="button"
+                                class="btn btn-green btn-lg"
+                                :disabled="isLoading"
+                                aria-describedby="guest-account-note"
+                                @click="tryWithoutRegistration"
+                            >
+                                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                    <path d="M8 5v14l11-7z" />
+                                </svg>
+                                <span v-if="isGuestLoading">Preparing your account...</span>
+                                <span v-else>Try without registration</span>
+                            </button>
+                            <p id="guest-account-note" class="guest-note">
+                                No signup. Start with 50 example words. Temporary accounts are deleted after 7 days.
+                            </p>
+                        </div>
                         <button class="btn btn-tg btn-lg" :disabled="isLoading" @click="startTelegramLogin">
                             <svg viewBox="0 0 24 24" fill="none">
                                 <path
@@ -185,10 +221,11 @@ function getErrorMessage(err: unknown): string {
                                     fill="currentColor"
                                 />
                             </svg>
-                            <span v-if="isLoading">{{ isInsideTelegram ? 'Signing in...' : 'Redirecting...' }}</span>
+                            <span v-if="isTelegramLoading">{{
+                                isInsideTelegram ? 'Signing in...' : 'Redirecting...'
+                            }}</span>
                             <span v-else>Continue via Telegram</span>
                         </button>
-                        <a href="#features" class="btn btn-outline btn-lg">See how it works</a>
                     </div>
                     <div v-if="error" class="hero-error">{{ error }}</div>
                     <div class="hero-meta">
@@ -482,7 +519,9 @@ function getErrorMessage(err: unknown): string {
                                     fill="currentColor"
                                 />
                             </svg>
-                            <span v-if="isLoading">{{ isInsideTelegram ? 'Signing in...' : 'Redirecting...' }}</span>
+                            <span v-if="isTelegramLoading">{{
+                                isInsideTelegram ? 'Signing in...' : 'Redirecting...'
+                            }}</span>
                             <span v-else>Continue via Telegram</span>
                         </button>
                     </div>
@@ -498,6 +537,18 @@ function getErrorMessage(err: unknown): string {
                     One account.
                 </p>
                 <div class="final-actions">
+                    <button
+                        type="button"
+                        class="btn btn-green btn-lg"
+                        :disabled="isLoading"
+                        @click="tryWithoutRegistration"
+                    >
+                        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <path d="M8 5v14l11-7z" />
+                        </svg>
+                        <span v-if="isGuestLoading">Preparing your practice...</span>
+                        <span v-else>Try without registration</span>
+                    </button>
                     <button class="btn btn-tg btn-lg" :disabled="isLoading" @click="startTelegramLogin">
                         <svg viewBox="0 0 24 24" fill="none">
                             <path
@@ -505,10 +556,11 @@ function getErrorMessage(err: unknown): string {
                                 fill="currentColor"
                             />
                         </svg>
-                        <span v-if="isLoading">{{ isInsideTelegram ? 'Signing in...' : 'Redirecting...' }}</span>
+                        <span v-if="isTelegramLoading">{{
+                            isInsideTelegram ? 'Signing in...' : 'Redirecting...'
+                        }}</span>
                         <span v-else>Continue via Telegram</span>
                     </button>
-                    <a href="#features" class="btn btn-outline btn-lg">Explore features</a>
                 </div>
             </div>
         </section>

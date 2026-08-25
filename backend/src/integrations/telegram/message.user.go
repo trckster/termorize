@@ -5,20 +5,24 @@ import (
 	"termorize/src/services"
 )
 
-func ensurePrivateMessageUser(message *message) error {
+func ensurePrivateMessageUser(message *message) (bool, error) {
 	telegramID, username, firstName, lastName := extractMessageUser(message)
 
-	if err := services.EnsureUserByTelegramID(telegramID, username, firstName, lastName); err != nil {
+	active, err := services.EnsureUserByTelegramID(telegramID, username, firstName, lastName)
+	if err != nil {
 		logger.L().Warnw("failed to ensure telegram user", "error", err, "telegram_id", telegramID)
-		return err
+		return false, err
+	}
+	if !active {
+		return false, nil
 	}
 
 	if err := services.UpdateUserTelegramBotEnabled(telegramID, true); err != nil {
 		logger.L().Warnw("failed to enable telegram bot for user", "error", err, "telegram_id", telegramID)
-		return err
+		return false, err
 	}
 
-	return nil
+	return true, nil
 }
 
 func extractMessageUser(message *message) (int64, string, string, string) {

@@ -16,6 +16,7 @@ export interface User {
     name: string
     settings: UserSettings
     is_admin: boolean
+    guest_expires_at: string | null
     created_at: string
 }
 
@@ -52,6 +53,17 @@ export const authApi = {
         return apiCall<User>('/telegram/login/callback', 'POST', payload, {
             'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
         }).then(unwrapBody)
+    },
+
+    async continueAsGuest(): Promise<User> {
+        return apiCall<User>(
+            '/guest/login',
+            'POST',
+            {},
+            {
+                'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+            }
+        ).then(unwrapBody)
     },
 
     async getCurrentUser(): Promise<User | null> {

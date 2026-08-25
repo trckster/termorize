@@ -8,6 +8,7 @@ import (
 	"strings"
 	"termorize/src/auth"
 	"termorize/src/config"
+	"termorize/src/enums"
 	"termorize/src/http/validators"
 	"termorize/src/services"
 	"time"
@@ -93,12 +94,28 @@ func CompleteTelegramLogin(c *gin.Context) {
 
 	user, err := services.CreateOrUpdateUserByTelegramProfile(*profile, getRequestTimeZone(c))
 	if err != nil {
+		if errors.Is(err, services.ErrUserDeleted) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "telegram login failed"})
+			return
+		}
+
 		ServerError(c, errors.New("failed to save user"))
 		return
 	}
 
 	auth.SetAuthCookie(c, auth.IssueJWT(user.ID))
 	c.JSON(http.StatusOK, user)
+}
+
+func GuestLogin(c *gin.Context) {
+	user, err := services.CreateGuestUser(getRequestTimeZone(c), getRequestSystemLanguage(c))
+	if err != nil {
+		ServerError(c, errors.New("failed to create guest user"))
+		return
+	}
+
+	auth.SetAuthCookie(c, auth.IssueJWT(user.ID))
+	c.JSON(http.StatusCreated, user)
 }
 
 func Me(c *gin.Context) {
@@ -132,6 +149,15 @@ func getRequestTimeZone(c *gin.Context) string {
 	}
 
 	return timezone
+}
+
+func getRequestSystemLanguage(c *gin.Context) enums.Language {
+	language := strings.ToLower(strings.TrimSpace(c.GetHeader("Accept-Language")))
+	if strings.HasPrefix(language, "ru") {
+		return enums.LanguageRu
+	}
+
+	return enums.LanguageEn
 }
 
 func getTelegramLoginRedirectURL(c *gin.Context) string {

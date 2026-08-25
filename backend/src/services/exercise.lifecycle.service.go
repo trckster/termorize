@@ -288,6 +288,7 @@ func GetDueExerciseReminders(now time.Time) ([]PendingExerciseReminder, error) {
 		FROM exercises AS e
 		JOIN users AS u ON u.id = e.user_id
 		WHERE e.deleted_at IS NULL
+			AND u.deleted_at IS NULL
 			AND e.status = ?
 			AND e.telegram_message_id IS NOT NULL
 			AND e.started_at IS NOT NULL

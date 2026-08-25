@@ -32,6 +32,7 @@ func GetExerciseWordsByTelegram(exerciseID uuid.UUID, telegramID int64) (*Exerci
 		JOIN words AS translated ON translated.id = t.translation_id
 		WHERE e.id = ?
 			AND e.deleted_at IS NULL
+			AND u.deleted_at IS NULL
 			AND u.telegram_id = ?
 		LIMIT 1
 	`, exerciseID, telegramID).Scan(&words).Error

@@ -100,13 +100,17 @@ const fields = computed(() => [
         key: 'name',
         label: t.value.settingsCommonFieldName,
         value: props.user?.name || t.value.settingsCommonFieldNotAvailable,
-        explanation: t.value.settingsCommonFieldNameExplanation,
+        explanation: props.user?.guest_expires_at
+            ? t.value.settingsCommonFieldGuestNameExplanation
+            : t.value.settingsCommonFieldNameExplanation,
     },
     {
         key: 'username',
         label: t.value.settingsCommonFieldUsername,
         value: props.user?.username ? `@${props.user.username}` : t.value.settingsCommonFieldNotAvailable,
-        explanation: t.value.settingsCommonFieldUsernameExplanation,
+        explanation: props.user?.guest_expires_at
+            ? t.value.settingsCommonFieldGuestUsernameExplanation
+            : t.value.settingsCommonFieldUsernameExplanation,
     },
 ])
 </script>
@@ -115,7 +119,9 @@ const fields = computed(() => [
     <Card>
         <CardHeader>
             <CardTitle>{{ t.settingsCommonTitle }}</CardTitle>
-            <CardDescription>{{ t.settingsCommonDescription }}</CardDescription>
+            <CardDescription>
+                {{ props.user?.guest_expires_at ? t.settingsCommonGuestDescription : t.settingsCommonDescription }}
+            </CardDescription>
         </CardHeader>
         <CardContent class="space-y-4">
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">

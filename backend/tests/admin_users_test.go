@@ -17,11 +17,12 @@ import (
 
 type adminUsersBody struct {
 	Data []struct {
-		ID             uint      `json:"id"`
-		Name           string    `json:"name"`
-		Username       string    `json:"username"`
-		VocabularySize int64     `json:"vocabulary_size"`
-		LatestUsage    time.Time `json:"latest_usage"`
+		ID             uint       `json:"id"`
+		Name           string     `json:"name"`
+		Username       string     `json:"username"`
+		VocabularySize int64      `json:"vocabulary_size"`
+		LatestUsage    *time.Time `json:"latest_usage"`
+		DeletedAt      *time.Time `json:"deleted_at"`
 	} `json:"data"`
 	Total int64 `json:"total"`
 }
@@ -88,10 +89,36 @@ func TestAdminUsersReturnsRecentActivityForAdmins(t *testing.T) {
 	assert.Equal(t, "Exercise User", body.Data[0].Name)
 	assert.Equal(t, "exercise_user", body.Data[0].Username)
 	assert.Zero(t, body.Data[0].VocabularySize)
-	assert.WithinDuration(t, newer, body.Data[0].LatestUsage, time.Second)
+	require.NotNil(t, body.Data[0].LatestUsage)
+	assert.WithinDuration(t, newer, *body.Data[0].LatestUsage, time.Second)
+	assert.Nil(t, body.Data[0].DeletedAt)
 	assert.Equal(t, vocabularyUser.ID, body.Data[1].ID)
 	assert.Equal(t, int64(1), body.Data[1].VocabularySize)
-	assert.WithinDuration(t, older, body.Data[1].LatestUsage, time.Second)
+	require.NotNil(t, body.Data[1].LatestUsage)
+	assert.WithinDuration(t, older, *body.Data[1].LatestUsage, time.Second)
+	assert.Nil(t, body.Data[1].DeletedAt)
+}
+
+func TestAdminUsersIncludesDeletedUsersWithoutActivity(t *testing.T) {
+	testkit.Truncate(t)
+	admin := testkit.CreateUser(t, testkit.WithAdmin())
+	deletedUser := testkit.CreateUser(t,
+		testkit.WithTelegramID(303), testkit.WithName("Deleted User"), testkit.WithUsername("deleted_user"))
+	require.NoError(t, db.DB.Delete(&deletedUser).Error)
+
+	rec := testkit.AuthedRequest(t, admin, http.MethodGet, "/api/admin/users", nil)
+	testkit.RequireStatus(t, rec, http.StatusOK)
+
+	var body adminUsersBody
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	assert.Equal(t, int64(2), body.Total)
+	require.Len(t, body.Data, 1)
+	assert.Equal(t, deletedUser.ID, body.Data[0].ID)
+	assert.Equal(t, "Deleted User", body.Data[0].Name)
+	assert.Equal(t, "deleted_user", body.Data[0].Username)
+	assert.Zero(t, body.Data[0].VocabularySize)
+	assert.Nil(t, body.Data[0].LatestUsage)
+	assert.NotNil(t, body.Data[0].DeletedAt)
 }
 
 func TestAdminUsersLimitsResultsToFifty(t *testing.T) {
@@ -115,5 +142,7 @@ func TestAdminUsersLimitsResultsToFifty(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 	assert.Equal(t, int64(52), body.Total)
 	require.Len(t, body.Data, 50)
-	assert.True(t, body.Data[0].LatestUsage.After(body.Data[49].LatestUsage))
+	require.NotNil(t, body.Data[0].LatestUsage)
+	require.NotNil(t, body.Data[49].LatestUsage)
+	assert.True(t, body.Data[0].LatestUsage.After(*body.Data[49].LatestUsage))
 }

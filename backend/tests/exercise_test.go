@@ -1472,6 +1472,64 @@ func TestGetDueExerciseRemindersExcludesDeletedVocabulary(t *testing.T) {
 	assert.Equal(t, activeExercise.ID, reminders[0].ExerciseID)
 }
 
+func TestTelegramExerciseQueriesExcludeDeletedUsers(t *testing.T) {
+	testkit.Truncate(t)
+
+	const telegramID int64 = 880055
+	user := testkit.CreateUser(t,
+		testkit.WithTelegramID(telegramID),
+		testkit.WithSettings(models.UserSettings{
+			Telegram: models.UserTelegramSettings{
+				BotEnabled:            true,
+				DailyQuestionsEnabled: true,
+			},
+		}),
+	)
+	vocabularyIDs := exerciseSeedFiveVocabularies(t, user.ID)
+	now := time.Now().UTC()
+
+	pendingExercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusPending, vocabularyIDs[0])
+	require.NoError(t, db.DB.Model(&pendingExercise).Update("scheduled_for", now).Error)
+	pendingMatch := exerciseSeedMatchPairsExercise(t, user.ID, enums.ExerciseStatusPending, vocabularyIDs)
+	require.NoError(t, db.DB.Model(&pendingMatch).Update("scheduled_for", now).Error)
+
+	reminderExercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusInProgress, vocabularyIDs[1])
+	messageID := int64(901)
+	require.NoError(t, db.DB.Model(&reminderExercise).Updates(map[string]any{
+		"started_at":          now.Add(-25 * time.Hour),
+		"telegram_message_id": messageID,
+	}).Error)
+
+	require.NoError(t, db.DB.Delete(&user).Error)
+
+	dailyUsers, err := services.GetUsersWithEnabledDailyQuestions()
+	require.NoError(t, err)
+	assert.Empty(t, dailyUsers)
+	due, err := services.GetDuePendingExercises(now)
+	require.NoError(t, err)
+	assert.Empty(t, due)
+	dueMatches, err := services.GetDuePendingMatchExercises(now)
+	require.NoError(t, err)
+	assert.Empty(t, dueMatches)
+	reminders, err := services.GetDueExerciseReminders(now)
+	require.NoError(t, err)
+	assert.Empty(t, reminders)
+
+	byMessage, err := services.GetExerciseByTelegramMessage(messageID, telegramID)
+	require.NoError(t, err)
+	assert.Nil(t, byMessage)
+	byID, err := services.GetExerciseByTelegramExerciseID(reminderExercise.ID, telegramID)
+	require.NoError(t, err)
+	assert.Nil(t, byID)
+	words, err := services.GetExerciseWordsByTelegram(reminderExercise.ID, telegramID)
+	require.NoError(t, err)
+	assert.Nil(t, words)
+
+	var preservedExercises int64
+	require.NoError(t, db.DB.Model(&models.Exercise{}).Where("user_id = ?", user.ID).Count(&preservedExercises).Error)
+	assert.Equal(t, int64(3), preservedExercises)
+}
+
 // Verifying a match/pairs exercise via the typed endpoint is a 400.
 func TestVerifyExerciseMatchPairsRejected(t *testing.T) {
 	testkit.Truncate(t)

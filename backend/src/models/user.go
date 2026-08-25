@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"termorize/src/enums"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type UserSettings struct {
@@ -77,13 +79,15 @@ func (s UserSettings) WithDefaults() UserSettings {
 }
 
 type User struct {
-	ID            uint                `json:"id"`
-	Username      string              `json:"username"`
-	TelegramID    int64               `json:"-"`
-	Name          string              `json:"name"`
-	Settings      UserSettings        `json:"settings"`
-	IsAdmin       bool                `json:"is_admin" gorm:"default:false"`
-	TelegramState enums.TelegramState `json:"-" gorm:"default:''"`
-	CreatedAt     time.Time           `json:"created_at"`
-	UpdatedAt     time.Time           `json:"-"`
+	ID             uint                `json:"id"`
+	Username       string              `json:"username"`
+	TelegramID     int64               `json:"-"`
+	Name           string              `json:"name"`
+	Settings       UserSettings        `json:"settings"`
+	IsAdmin        bool                `json:"is_admin" gorm:"default:false"`
+	TelegramState  enums.TelegramState `json:"-" gorm:"default:''"`
+	GuestExpiresAt *time.Time          `json:"guest_expires_at"`
+	CreatedAt      time.Time           `json:"created_at"`
+	UpdatedAt      time.Time           `json:"-"`
+	DeletedAt      gorm.DeletedAt      `json:"-"`
 }
