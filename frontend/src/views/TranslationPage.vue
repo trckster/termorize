@@ -27,6 +27,7 @@ import {
     createProgrammaticChangeGuard,
     getLanguageChangeDirection,
     hasMeaningfulVocabularyEdits,
+    isEditableVocabularySaveShortcut,
     isEditableVocabularyShortcut,
     type EditableVocabularyPair,
     type TranslationField,
@@ -488,6 +489,15 @@ const focusEditableTranslation = () => {
     textarea.setSelectionRange(textarea.value.length, textarea.value.length)
 }
 
+const handleEditableVocabularyKeydown = (event: KeyboardEvent) => {
+    if (!isEditableVocabularySaveShortcut(event)) {
+        return
+    }
+
+    event.preventDefault()
+    void saveEditableTranslationToVocabulary()
+}
+
 const saveEditableTranslationToVocabulary = async () => {
     const snapshot = editableVocabularySnapshot.value
     if (!snapshot || !isEditableVocabularyPairValid.value || isSavingVocabulary.value) {
@@ -651,7 +661,7 @@ onBeforeUnmount(() => {
                                 rows="3"
                                 aria-describedby="editable-vocabulary-original-language"
                                 class="min-h-24 w-full resize-y rounded-lg border border-border bg-background px-3 py-2.5 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm"
-                                @keydown.enter.exact.prevent="saveEditableTranslationToVocabulary"
+                                @keydown="handleEditableVocabularyKeydown"
                             />
                         </div>
 
@@ -679,7 +689,7 @@ onBeforeUnmount(() => {
                                 rows="3"
                                 aria-describedby="editable-vocabulary-translation-language"
                                 class="min-h-24 w-full resize-y rounded-lg border border-border bg-background px-3 py-2.5 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm"
-                                @keydown.enter.exact.prevent="saveEditableTranslationToVocabulary"
+                                @keydown="handleEditableVocabularyKeydown"
                             />
                         </div>
 

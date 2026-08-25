@@ -4,6 +4,7 @@ import {
     createProgrammaticChangeGuard,
     getLanguageChangeDirection,
     hasMeaningfulVocabularyEdits,
+    isEditableVocabularySaveShortcut,
     isEditableVocabularyShortcut,
 } from './translationPageState.ts'
 
@@ -102,5 +103,31 @@ describe('isEditableVocabularyShortcut', () => {
         assert.equal(isEditableVocabularyShortcut({ ...shortcut, altKey: true }), false)
         assert.equal(isEditableVocabularyShortcut({ ...shortcut, metaKey: true }), false)
         assert.equal(isEditableVocabularyShortcut({ ...shortcut, shiftKey: true }), false)
+    })
+})
+
+describe('isEditableVocabularySaveShortcut', () => {
+    const shortcut = {
+        altKey: false,
+        ctrlKey: false,
+        isComposing: false,
+        key: 'Enter',
+        metaKey: false,
+        shiftKey: true,
+    }
+
+    it('matches Shift+Enter exactly', () => {
+        assert.equal(isEditableVocabularySaveShortcut(shortcut), true)
+    })
+
+    it('leaves plain Enter available for a new line', () => {
+        assert.equal(isEditableVocabularySaveShortcut({ ...shortcut, shiftKey: false }), false)
+    })
+
+    it('does not save during composition or with extra modifiers', () => {
+        assert.equal(isEditableVocabularySaveShortcut({ ...shortcut, isComposing: true }), false)
+        assert.equal(isEditableVocabularySaveShortcut({ ...shortcut, altKey: true }), false)
+        assert.equal(isEditableVocabularySaveShortcut({ ...shortcut, ctrlKey: true }), false)
+        assert.equal(isEditableVocabularySaveShortcut({ ...shortcut, metaKey: true }), false)
     })
 })
