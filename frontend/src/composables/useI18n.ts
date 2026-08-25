@@ -13,7 +13,8 @@ const en = {
 
     // Admin users page
     usersHeading: 'Users',
-    usersDescription: 'The 50 most recently active users, sorted by vocabulary additions and finished exercises.',
+    usersDescription:
+        'Up to 50 users, with deleted accounts first, followed by recent vocabulary additions and finished exercises.',
     usersTotal: 'Total users',
     usersId: 'User ID',
     usersName: 'Name',
@@ -24,6 +25,7 @@ const en = {
     usersEmpty: 'No recent activity',
     usersEmptyDescription: 'Users will appear after adding vocabulary or finishing an exercise.',
     usersNotAvailable: 'Not available',
+    usersDeleted: 'Deleted',
 
     // Admin word audios page
     wordAudiosLabel: 'Admin',
@@ -525,7 +527,8 @@ const ru: typeof en = {
 
     // Admin users page
     usersHeading: 'Пользователи',
-    usersDescription: '50 последних активных пользователей по добавлениям в словарь и завершённым упражнениям.',
+    usersDescription:
+        'До 50 пользователей: сначала удалённые аккаунты, затем недавние добавления в словарь и завершённые упражнения.',
     usersTotal: 'Всего пользователей',
     usersId: 'ID пользователя',
     usersName: 'Имя',
@@ -536,6 +539,7 @@ const ru: typeof en = {
     usersEmpty: 'Недавней активности нет',
     usersEmptyDescription: 'Пользователи появятся после добавления слов или завершения упражнения.',
     usersNotAvailable: 'Недоступно',
+    usersDeleted: 'Удалён',
 
     // Admin word audios page
     wordAudiosLabel: 'Администрирование',

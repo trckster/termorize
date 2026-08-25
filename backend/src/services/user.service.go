@@ -38,9 +38,13 @@ func CreateOrUpdateUserByTelegramProfile(profile auth.TelegramUserProfile, timez
 	var user models.User
 
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		result := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("telegram_id = ?", profile.ID).First(&user)
+		result := tx.Unscoped().Clauses(clause.Locking{Strength: "UPDATE"}).Where("telegram_id = ?", profile.ID).First(&user)
 
 		if result.Error == nil {
+			if user.DeletedAt.Valid {
+				return ErrUserDeleted
+			}
+
 			user.Name = strings.TrimSpace(profile.Name)
 			user.Username = profile.Username
 			return tx.Save(&user).Error
@@ -220,12 +224,29 @@ func GetUserByTelegramID(telegramID int64) (*models.User, error) {
 	return &user, nil
 }
 
-func EnsureUserByTelegramID(telegramID int64, username string, firstName string, lastName string) error {
-	return db.DB.Transaction(func(tx *gorm.DB) error {
+func IsUserDeletedByTelegramID(telegramID int64) (bool, error) {
+	var user models.User
+
+	err := db.DB.Unscoped().Select("id", "deleted_at").Where("telegram_id = ?", telegramID).First(&user).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	return user.DeletedAt.Valid, nil
+}
+
+func EnsureUserByTelegramID(telegramID int64, username string, firstName string, lastName string) (bool, error) {
+	active := false
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
 		var user models.User
 
-		err := tx.Where("telegram_id = ?", telegramID).First(&user).Error
+		err := tx.Unscoped().Where("telegram_id = ?", telegramID).First(&user).Error
 		if err == nil {
+			active = !user.DeletedAt.Valid
 			return nil
 		}
 
@@ -240,8 +261,15 @@ func EnsureUserByTelegramID(telegramID int64, username string, firstName string,
 			Settings:   defaultUserSettings("", true),
 		}
 
-		return tx.Create(&user).Error
+		if err := tx.Create(&user).Error; err != nil {
+			return err
+		}
+
+		active = true
+		return nil
 	})
+
+	return active, err
 }
 
 func UpdateUserTranslationLanguage(telegramID int64, isSource bool, lang enums.Language) (*models.User, error) {

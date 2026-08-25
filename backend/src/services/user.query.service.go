@@ -14,15 +14,17 @@ const recentUsersLimit = 50
 
 var (
 	ErrUserNotFound  = errors.New("user not found")
+	ErrUserDeleted   = errors.New("user is deleted")
 	ErrAdminRequired = errors.New("admin access required")
 )
 
 type RecentUser struct {
-	ID             uint      `json:"id"`
-	Name           string    `json:"name"`
-	Username       string    `json:"username"`
-	VocabularySize int64     `json:"vocabulary_size"`
-	LatestUsage    time.Time `json:"latest_usage"`
+	ID             uint       `json:"id"`
+	Name           string     `json:"name"`
+	Username       string     `json:"username"`
+	VocabularySize int64      `json:"vocabulary_size"`
+	LatestUsage    *time.Time `json:"latest_usage"`
+	DeletedAt      *time.Time `json:"deleted_at"`
 }
 
 type RecentUsersResponse struct {
@@ -50,7 +52,7 @@ func GetRecentUsersForAdmin(viewerID uint) (*RecentUsersResponse, error) {
 	}
 
 	response := RecentUsersResponse{Data: make([]RecentUser, 0)}
-	if err := db.DB.Model(&models.User{}).Count(&response.Total).Error; err != nil {
+	if err := db.DB.Unscoped().Model(&models.User{}).Count(&response.Total).Error; err != nil {
 		return nil, err
 	}
 
@@ -60,9 +62,10 @@ func GetRecentUsersForAdmin(viewerID uint) (*RecentUsersResponse, error) {
 			users.name,
 			users.username,
 			COALESCE(vocabulary_stats.size, 0) AS vocabulary_size,
-			MAX(activity.used_at) AS latest_usage
+			MAX(activity.used_at) AS latest_usage,
+			users.deleted_at
 		FROM users
-		JOIN (
+		LEFT JOIN (
 			SELECT user_id, created_at AS used_at
 			FROM vocabulary
 			UNION ALL
@@ -76,9 +79,9 @@ func GetRecentUsersForAdmin(viewerID uint) (*RecentUsersResponse, error) {
 			WHERE deleted_at IS NULL
 			GROUP BY user_id
 		) AS vocabulary_stats ON vocabulary_stats.user_id = users.id
-		WHERE users.deleted_at IS NULL
-		GROUP BY users.id, users.name, users.username, vocabulary_stats.size
-		ORDER BY latest_usage DESC, users.id DESC
+		WHERE activity.user_id IS NOT NULL OR users.deleted_at IS NOT NULL
+		GROUP BY users.id, users.name, users.username, users.deleted_at, vocabulary_stats.size
+		ORDER BY users.deleted_at DESC NULLS LAST, latest_usage DESC NULLS LAST, users.id DESC
 		LIMIT ?
 	`, enums.ExerciseStatusCompleted, enums.ExerciseStatusFailed, recentUsersLimit).Scan(&response.Data).Error
 	if err != nil {

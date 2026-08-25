@@ -212,6 +212,10 @@ func TestDeleteExpiredGuestUsersSoftDeletesOnlyExpiredGuests(t *testing.T) {
 		IsPublished: true,
 	}
 	require.NoError(t, db.DB.Create(&collection).Error)
+	require.NoError(t, db.DB.Create(&models.CollectionMember{
+		CollectionID: collection.ID,
+		UserID:       activeGuest.ID,
+	}).Error)
 
 	require.NoError(t, db.DB.Model(expiredGuest).Update("guest_expires_at", now.Add(-time.Minute)).Error)
 	require.NoError(t, db.DB.Model(activeGuest).Update("guest_expires_at", now.Add(time.Minute)).Error)
@@ -240,7 +244,7 @@ func TestDeleteExpiredGuestUsersSoftDeletesOnlyExpiredGuests(t *testing.T) {
 	assert.Equal(t, int64(50), activeVocabularyCount)
 	require.NoError(t, db.DB.First(&models.Exercise{}, "id = ?", exercise.ID).Error)
 	require.NoError(t, db.DB.First(&models.Collection{}, "id = ?", collection.ID).Error)
-	collections, err := services.ListCollections(telegramUser.ID, 1, 20, "", nil)
+	collections, err := services.ListCollections(activeGuest.ID, 1, 20, "", nil)
 	require.NoError(t, err)
 	require.Len(t, collections.Data, 1)
 	assert.Equal(t, collection.ID, collections.Data[0].ID)
@@ -248,10 +252,15 @@ func TestDeleteExpiredGuestUsersSoftDeletesOnlyExpiredGuests(t *testing.T) {
 
 	recentUsers, err := services.GetRecentUsersForAdmin(telegramUser.ID)
 	require.NoError(t, err)
-	assert.Equal(t, int64(2), recentUsers.Total)
+	assert.Equal(t, int64(3), recentUsers.Total)
+	foundDeletedGuest := false
 	for _, recentUser := range recentUsers.Data {
-		assert.NotEqual(t, expiredGuest.ID, recentUser.ID)
+		if recentUser.ID == expiredGuest.ID {
+			foundDeletedGuest = true
+			assert.NotNil(t, recentUser.DeletedAt)
+		}
 	}
+	assert.True(t, foundDeletedGuest)
 }
 
 func guestKnowledgeBand(t *testing.T, progress models.ProgressEntries) string {

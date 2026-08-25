@@ -94,6 +94,11 @@ func CompleteTelegramLogin(c *gin.Context) {
 
 	user, err := services.CreateOrUpdateUserByTelegramProfile(*profile, getRequestTimeZone(c))
 	if err != nil {
+		if errors.Is(err, services.ErrUserDeleted) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "telegram login failed"})
+			return
+		}
+
 		ServerError(c, errors.New("failed to save user"))
 		return
 	}

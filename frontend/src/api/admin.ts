@@ -8,7 +8,8 @@ export type AdminUser = {
     name: string
     username: string
     vocabulary_size: number
-    latest_usage: string
+    latest_usage: string | null
+    deleted_at: string | null
 }
 
 export type AdminUsersResponse = {

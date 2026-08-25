@@ -159,6 +159,31 @@ func TestTelegramLoginInitDataSuccess(t *testing.T) {
 	assert.Equal(t, "grace_hopper", stored.Username)
 }
 
+func TestTelegramLoginRejectsDeletedUser(t *testing.T) {
+	testkit.Truncate(t)
+
+	const telegramID int64 = 9090910
+	user := testkit.CreateUser(t,
+		testkit.WithTelegramID(telegramID),
+		testkit.WithUsername("deleted_user"),
+	)
+	require.NoError(t, db.DB.Delete(&user).Error)
+
+	initData := testkit.BuildTelegramInitData(telegramID, "deleted_user", "Deleted")
+	rec := testkit.Request(t, http.MethodPost, "/api/telegram/login/callback", map[string]any{
+		"init_data": initData,
+	})
+
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
+	assert.Nil(t, telegramLoginAuthCookie(rec.Result()))
+
+	var storedUsers []models.User
+	require.NoError(t, db.DB.Unscoped().Where("telegram_id = ?", telegramID).Find(&storedUsers).Error)
+	require.Len(t, storedUsers, 1)
+	assert.Equal(t, user.ID, storedUsers[0].ID)
+	assert.True(t, storedUsers[0].DeletedAt.Valid)
+}
+
 // TestTelegramLoginInitDataTamperedRejected ensures a tampered init_data payload
 // (valid signature, then mutated) fails HMAC validation.
 func TestTelegramLoginInitDataTamperedRejected(t *testing.T) {

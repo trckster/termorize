@@ -5,12 +5,21 @@ import (
 	"errors"
 	"strings"
 	"termorize/src/logger"
+	"termorize/src/services"
 
 	"github.com/google/uuid"
 )
 
 func handleCallbackQuery(callback *callbackQuery) error {
-	if callback == nil {
+	if callback == nil || callback.From == nil {
+		return nil
+	}
+
+	deleted, err := services.IsUserDeletedByTelegramID(callback.From.ID)
+	if err != nil {
+		return err
+	}
+	if deleted {
 		return nil
 	}
 
@@ -18,10 +27,6 @@ func handleCallbackQuery(callback *callbackQuery) error {
 		if err := answerTelegramCallbackQuery(callback.ID); err != nil {
 			logger.L().Warnw("failed to answer callback query", "error", err, "callback_id", callback.ID)
 		}
-	}
-
-	if callback.From == nil {
-		return nil
 	}
 
 	return routeCallbackData(callback)

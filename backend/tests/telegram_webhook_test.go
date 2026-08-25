@@ -461,6 +461,45 @@ func TestTelegramWebhookStartCommandCreatesUserAndReplies(t *testing.T) {
 	assert.EqualValues(t, telegramID, sent["chat_id"])
 }
 
+func TestTelegramWebhookIgnoresDeletedUser(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+
+	const telegramID int64 = 555011
+	user := testkit.CreateUser(t, testkit.WithTelegramID(telegramID))
+	require.NoError(t, db.DB.Delete(&user).Error)
+
+	rec := telegramUpdate(t, telegramPrivateMessage(telegramID, "/start"))
+	testkit.RequireStatus(t, rec, http.StatusOK)
+
+	rec = telegramUpdate(t, map[string]any{
+		"update_id": 12,
+		"callback_query": map[string]any{
+			"id":   "deleted-user-callback",
+			"data": "menu:statistics",
+			"from": map[string]any{
+				"id":     telegramID,
+				"is_bot": false,
+			},
+			"message": map[string]any{
+				"message_id": 91,
+				"chat": map[string]any{
+					"id":   telegramID,
+					"type": "private",
+				},
+			},
+		},
+	})
+	testkit.RequireStatus(t, rec, http.StatusOK)
+	assert.Empty(t, tg.Requests())
+
+	var storedUsers []models.User
+	require.NoError(t, db.DB.Unscoped().Where("telegram_id = ?", telegramID).Find(&storedUsers).Error)
+	require.Len(t, storedUsers, 1)
+	assert.Equal(t, user.ID, storedUsers[0].ID)
+	assert.True(t, storedUsers[0].DeletedAt.Valid)
+}
+
 func TestTelegramWebhookPlainTextTranslatesAndReplies(t *testing.T) {
 	testkit.Truncate(t)
 	tg := testkit.MockTelegramAPI(t)
