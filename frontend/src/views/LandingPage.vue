@@ -94,7 +94,7 @@ const tryWithoutRegistration = async () => {
         error.value = null
         isGuestLoading.value = true
         await authStore.continueAsGuest()
-        await router.replace({ name: 'quiz' })
+        await router.replace({ name: 'translation' })
     } catch (err) {
         error.value = getErrorMessage(err, 'Could not create a temporary account. Please try again.')
         isGuestLoading.value = false
@@ -196,19 +196,24 @@ function getErrorMessage(err: unknown, fallback = 'Login failed. Please try agai
                         site, with a Telegram bot that keeps you learning on the go.
                     </p>
                     <div class="hero-actions">
-                        <button
-                            type="button"
-                            class="btn btn-green btn-lg"
-                            :disabled="isLoading"
-                            aria-describedby="guest-account-note"
-                            @click="tryWithoutRegistration"
-                        >
-                            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                <path d="M8 5v14l11-7z" />
-                            </svg>
-                            <span v-if="isGuestLoading">Preparing your practice...</span>
-                            <span v-else>Try without registration</span>
-                        </button>
+                        <div class="guest-action">
+                            <button
+                                type="button"
+                                class="btn btn-green btn-lg"
+                                :disabled="isLoading"
+                                aria-describedby="guest-account-note"
+                                @click="tryWithoutRegistration"
+                            >
+                                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                    <path d="M8 5v14l11-7z" />
+                                </svg>
+                                <span v-if="isGuestLoading">Preparing your account...</span>
+                                <span v-else>Try without registration</span>
+                            </button>
+                            <p id="guest-account-note" class="guest-note">
+                                No signup. Start with 50 example words. Temporary accounts are deleted after 7 days.
+                            </p>
+                        </div>
                         <button class="btn btn-tg btn-lg" :disabled="isLoading" @click="startTelegramLogin">
                             <svg viewBox="0 0 24 24" fill="none">
                                 <path
@@ -223,9 +228,6 @@ function getErrorMessage(err: unknown, fallback = 'Login failed. Please try agai
                         </button>
                     </div>
                     <div v-if="error" class="hero-error">{{ error }}</div>
-                    <p id="guest-account-note" class="guest-note">
-                        No signup. Start with 50 example words. Temporary accounts are deleted after 7 days.
-                    </p>
                     <div class="hero-meta">
                         <span class="flags">
                             <span class="flag-set">🇬🇧 🇩🇪 🇪🇸 🇮🇹 🇷🇺</span>

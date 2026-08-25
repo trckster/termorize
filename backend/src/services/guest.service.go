@@ -17,9 +17,24 @@ const GuestAccountLifetime = 7 * 24 * time.Hour
 
 const guestVocabularySeedLock = "termorize_guest_vocabulary_seed"
 
+const (
+	guestEasyVocabularyCount   = 15
+	guestMediumVocabularyCount = 20
+	guestHardVocabularyCount   = 15
+)
+
+type guestVocabularyDifficulty uint8
+
+const (
+	guestVocabularyDifficultyEasy guestVocabularyDifficulty = iota
+	guestVocabularyDifficultyMedium
+	guestVocabularyDifficultyHard
+)
+
 type guestVocabularyPair struct {
 	Original    string
 	Translation string
+	Difficulty  guestVocabularyDifficulty
 }
 
 var guestNameAdjectives = []string{
@@ -35,56 +50,56 @@ var guestNameAnimals = []string{
 }
 
 var guestVocabularySeed = []guestVocabularyPair{
-	{Original: "apple", Translation: "яблоко"},
-	{Original: "book", Translation: "книга"},
-	{Original: "water", Translation: "вода"},
-	{Original: "house", Translation: "дом"},
-	{Original: "friend", Translation: "друг"},
-	{Original: "family", Translation: "семья"},
-	{Original: "school", Translation: "школа"},
-	{Original: "day", Translation: "день"},
-	{Original: "night", Translation: "ночь"},
-	{Original: "city", Translation: "город"},
-	{Original: "road", Translation: "дорога"},
-	{Original: "car", Translation: "автомобиль"},
-	{Original: "train", Translation: "поезд"},
-	{Original: "food", Translation: "еда"},
-	{Original: "coffee", Translation: "кофе"},
-	{Original: "language", Translation: "язык"},
-	{Original: "word", Translation: "слово"},
-	{Original: "happy", Translation: "счастливый"},
-	{Original: "sad", Translation: "грустный"},
-	{Original: "beautiful", Translation: "красивый"},
-	{Original: "important", Translation: "важный"},
-	{Original: "red", Translation: "красный"},
-	{Original: "write", Translation: "писать"},
-	{Original: "listen", Translation: "слушать"},
-	{Original: "understand", Translation: "понимать"},
-	{Original: "ambiguity", Translation: "неоднозначность"},
-	{Original: "candor", Translation: "откровенность"},
-	{Original: "equanimity", Translation: "невозмутимость"},
-	{Original: "feasibility", Translation: "осуществимость"},
-	{Original: "futility", Translation: "тщетность"},
-	{Original: "incompatibility", Translation: "несовместимость"},
-	{Original: "ingenuity", Translation: "изобретательность"},
-	{Original: "longevity", Translation: "долголетие"},
-	{Original: "magnanimity", Translation: "великодушие"},
-	{Original: "unanimity", Translation: "единодушие"},
-	{Original: "vigilance", Translation: "бдительность"},
-	{Original: "vulnerability", Translation: "уязвимость"},
-	{Original: "concise", Translation: "лаконичный"},
-	{Original: "impartial", Translation: "беспристрастный"},
-	{Original: "impeccable", Translation: "безупречный"},
-	{Original: "inadvertent", Translation: "непреднамеренный"},
-	{Original: "inevitable", Translation: "неизбежный"},
-	{Original: "meticulous", Translation: "скрупулёзный"},
-	{Original: "obsolete", Translation: "устаревший"},
-	{Original: "paramount", Translation: "первостепенный"},
-	{Original: "plausible", Translation: "правдоподобный"},
-	{Original: "ubiquitous", Translation: "вездесущий"},
-	{Original: "exacerbate", Translation: "усугублять"},
-	{Original: "elucidate", Translation: "разъяснять"},
-	{Original: "impede", Translation: "препятствовать"},
+	{Original: "apple", Translation: "яблоко", Difficulty: guestVocabularyDifficultyEasy},
+	{Original: "book", Translation: "книга", Difficulty: guestVocabularyDifficultyEasy},
+	{Original: "water", Translation: "вода", Difficulty: guestVocabularyDifficultyEasy},
+	{Original: "house", Translation: "дом", Difficulty: guestVocabularyDifficultyEasy},
+	{Original: "friend", Translation: "друг", Difficulty: guestVocabularyDifficultyEasy},
+	{Original: "family", Translation: "семья", Difficulty: guestVocabularyDifficultyEasy},
+	{Original: "school", Translation: "школа", Difficulty: guestVocabularyDifficultyEasy},
+	{Original: "day", Translation: "день", Difficulty: guestVocabularyDifficultyEasy},
+	{Original: "night", Translation: "ночь", Difficulty: guestVocabularyDifficultyEasy},
+	{Original: "city", Translation: "город", Difficulty: guestVocabularyDifficultyEasy},
+	{Original: "road", Translation: "дорога", Difficulty: guestVocabularyDifficultyEasy},
+	{Original: "car", Translation: "автомобиль", Difficulty: guestVocabularyDifficultyEasy},
+	{Original: "train", Translation: "поезд", Difficulty: guestVocabularyDifficultyEasy},
+	{Original: "food", Translation: "еда", Difficulty: guestVocabularyDifficultyEasy},
+	{Original: "coffee", Translation: "кофе", Difficulty: guestVocabularyDifficultyEasy},
+	{Original: "journey", Translation: "путешествие", Difficulty: guestVocabularyDifficultyMedium},
+	{Original: "decision", Translation: "решение", Difficulty: guestVocabularyDifficultyMedium},
+	{Original: "achievement", Translation: "достижение", Difficulty: guestVocabularyDifficultyMedium},
+	{Original: "responsibility", Translation: "ответственность", Difficulty: guestVocabularyDifficultyMedium},
+	{Original: "opportunity", Translation: "возможность", Difficulty: guestVocabularyDifficultyMedium},
+	{Original: "obstacle", Translation: "препятствие", Difficulty: guestVocabularyDifficultyMedium},
+	{Original: "evidence", Translation: "доказательство", Difficulty: guestVocabularyDifficultyMedium},
+	{Original: "consequence", Translation: "последствие", Difficulty: guestVocabularyDifficultyMedium},
+	{Original: "uncertainty", Translation: "неопределённость", Difficulty: guestVocabularyDifficultyMedium},
+	{Original: "awareness", Translation: "осведомлённость", Difficulty: guestVocabularyDifficultyMedium},
+	{Original: "ambiguity", Translation: "неоднозначность", Difficulty: guestVocabularyDifficultyMedium},
+	{Original: "feasibility", Translation: "осуществимость", Difficulty: guestVocabularyDifficultyMedium},
+	{Original: "incompatibility", Translation: "несовместимость", Difficulty: guestVocabularyDifficultyMedium},
+	{Original: "longevity", Translation: "долголетие", Difficulty: guestVocabularyDifficultyMedium},
+	{Original: "vigilance", Translation: "бдительность", Difficulty: guestVocabularyDifficultyMedium},
+	{Original: "vulnerability", Translation: "уязвимость", Difficulty: guestVocabularyDifficultyMedium},
+	{Original: "concise", Translation: "лаконичный", Difficulty: guestVocabularyDifficultyMedium},
+	{Original: "impartial", Translation: "беспристрастный", Difficulty: guestVocabularyDifficultyMedium},
+	{Original: "inevitable", Translation: "неизбежный", Difficulty: guestVocabularyDifficultyMedium},
+	{Original: "obsolete", Translation: "устаревший", Difficulty: guestVocabularyDifficultyMedium},
+	{Original: "candor", Translation: "откровенность", Difficulty: guestVocabularyDifficultyHard},
+	{Original: "equanimity", Translation: "невозмутимость", Difficulty: guestVocabularyDifficultyHard},
+	{Original: "futility", Translation: "тщетность", Difficulty: guestVocabularyDifficultyHard},
+	{Original: "ingenuity", Translation: "изобретательность", Difficulty: guestVocabularyDifficultyHard},
+	{Original: "magnanimity", Translation: "великодушие", Difficulty: guestVocabularyDifficultyHard},
+	{Original: "unanimity", Translation: "единодушие", Difficulty: guestVocabularyDifficultyHard},
+	{Original: "impeccable", Translation: "безупречный", Difficulty: guestVocabularyDifficultyHard},
+	{Original: "inadvertent", Translation: "непреднамеренный", Difficulty: guestVocabularyDifficultyHard},
+	{Original: "meticulous", Translation: "скрупулёзный", Difficulty: guestVocabularyDifficultyHard},
+	{Original: "paramount", Translation: "первостепенный", Difficulty: guestVocabularyDifficultyHard},
+	{Original: "plausible", Translation: "правдоподобный", Difficulty: guestVocabularyDifficultyHard},
+	{Original: "ubiquitous", Translation: "вездесущий", Difficulty: guestVocabularyDifficultyHard},
+	{Original: "exacerbate", Translation: "усугублять", Difficulty: guestVocabularyDifficultyHard},
+	{Original: "elucidate", Translation: "разъяснять", Difficulty: guestVocabularyDifficultyHard},
+	{Original: "impede", Translation: "препятствовать", Difficulty: guestVocabularyDifficultyHard},
 }
 
 func CreateGuestUser(timezone string, systemLanguage enums.Language) (*models.User, error) {
@@ -137,7 +152,12 @@ func DeleteExpiredGuestUsers(expiredBefore time.Time) (int64, error) {
 }
 
 func seedGuestVocabulary(tx *gorm.DB, userID uint) error {
-	for _, pair := range guestVocabularySeed {
+	seed, err := randomizedGuestVocabularySeed()
+	if err != nil {
+		return err
+	}
+
+	for _, pair := range seed {
 		original, err := GetOrCreateWord(tx, pair.Original, enums.LanguageEn)
 		if err != nil {
 			return err
@@ -153,10 +173,18 @@ func seedGuestVocabulary(tx *gorm.DB, userID uint) error {
 			return err
 		}
 
+		knowledge, err := randomGuestVocabularyKnowledge(pair.Difficulty)
+		if err != nil {
+			return err
+		}
+
 		vocabulary := models.Vocabulary{
 			UserID:        userID,
 			TranslationID: translation.ID,
-			Progress:      models.BuildDefaultProgress(),
+			Progress: models.ProgressEntries{{
+				Knowledge: knowledge,
+				Type:      enums.KnowledgeTypeTranslation,
+			}},
 		}
 		if err := tx.Create(&vocabulary).Error; err != nil {
 			return err
@@ -164,6 +192,81 @@ func seedGuestVocabulary(tx *gorm.DB, userID uint) error {
 	}
 
 	return nil
+}
+
+func randomizedGuestVocabularySeed() ([]guestVocabularyPair, error) {
+	easy := make([]guestVocabularyPair, 0, guestEasyVocabularyCount)
+	medium := make([]guestVocabularyPair, 0, guestMediumVocabularyCount)
+	hard := make([]guestVocabularyPair, 0, guestHardVocabularyCount)
+
+	for _, pair := range guestVocabularySeed {
+		switch pair.Difficulty {
+		case guestVocabularyDifficultyEasy:
+			easy = append(easy, pair)
+		case guestVocabularyDifficultyMedium:
+			medium = append(medium, pair)
+		case guestVocabularyDifficultyHard:
+			hard = append(hard, pair)
+		default:
+			return nil, fmt.Errorf("unknown guest vocabulary difficulty: %d", pair.Difficulty)
+		}
+	}
+
+	if len(easy) != guestEasyVocabularyCount || len(medium) != guestMediumVocabularyCount || len(hard) != guestHardVocabularyCount {
+		return nil, fmt.Errorf("invalid guest vocabulary distribution: easy=%d medium=%d hard=%d", len(easy), len(medium), len(hard))
+	}
+
+	for _, group := range [][]guestVocabularyPair{easy, medium, hard} {
+		if err := shuffleGuestVocabularyPairs(group); err != nil {
+			return nil, err
+		}
+	}
+
+	mediumExtraCount := len(medium) - len(easy)
+	seed := make([]guestVocabularyPair, 0, len(guestVocabularySeed))
+	seed = append(seed, medium[:mediumExtraCount]...)
+	for index := range easy {
+		batch := []guestVocabularyPair{easy[index], medium[mediumExtraCount+index], hard[index]}
+		if err := shuffleGuestVocabularyPairs(batch); err != nil {
+			return nil, err
+		}
+		seed = append(seed, batch...)
+	}
+
+	return seed, nil
+}
+
+func shuffleGuestVocabularyPairs(pairs []guestVocabularyPair) error {
+	for index := len(pairs) - 1; index > 0; index-- {
+		swapIndex, err := secureRandomIndex(index + 1)
+		if err != nil {
+			return err
+		}
+		pairs[index], pairs[swapIndex] = pairs[swapIndex], pairs[index]
+	}
+
+	return nil
+}
+
+func randomGuestVocabularyKnowledge(difficulty guestVocabularyDifficulty) (int, error) {
+	var minimum, maximum int
+	switch difficulty {
+	case guestVocabularyDifficultyEasy:
+		minimum, maximum = 70, 90
+	case guestVocabularyDifficultyMedium:
+		minimum, maximum = 30, 60
+	case guestVocabularyDifficultyHard:
+		minimum, maximum = 0, 10
+	default:
+		return 0, fmt.Errorf("unknown guest vocabulary difficulty: %d", difficulty)
+	}
+
+	offset, err := secureRandomIndex(maximum - minimum + 1)
+	if err != nil {
+		return 0, err
+	}
+
+	return minimum + offset, nil
 }
 
 func getOrCreateGuestSeedTranslation(tx *gorm.DB, original, translated *models.Word) (*models.Translation, error) {

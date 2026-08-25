@@ -76,6 +76,7 @@ func GetRecentUsersForAdmin(viewerID uint) (*RecentUsersResponse, error) {
 			WHERE deleted_at IS NULL
 			GROUP BY user_id
 		) AS vocabulary_stats ON vocabulary_stats.user_id = users.id
+		WHERE users.deleted_at IS NULL
 		GROUP BY users.id, users.name, users.username, vocabulary_stats.size
 		ORDER BY latest_usage DESC, users.id DESC
 		LIMIT ?

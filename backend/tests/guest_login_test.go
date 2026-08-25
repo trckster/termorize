@@ -65,12 +65,27 @@ func TestGuestLoginCreatesReadyToPracticeAccount(t *testing.T) {
 		Preload("Translation").
 		Find(&vocabulary).Error)
 	require.Len(t, vocabulary, 50)
+	knowledgeCounts := map[string]int{}
 	for _, item := range vocabulary {
-		assert.Equal(t, models.BuildDefaultProgress(), item.Progress)
+		knowledgeCounts[guestKnowledgeBand(t, item.Progress)]++
 		require.NotNil(t, item.Translation)
 		assert.Equal(t, enums.TranslationSourceDictionary, item.Translation.Source)
 		assert.Nil(t, item.Translation.UserID)
 	}
+	assert.Equal(t, 15, knowledgeCounts["easy"])
+	assert.Equal(t, 20, knowledgeCounts["medium"])
+	assert.Equal(t, 15, knowledgeCounts["hard"])
+
+	firstPage, err := services.GetVocabulary(user.ID, 1, 20, "")
+	require.NoError(t, err)
+	require.Len(t, firstPage.Data, 20)
+	firstPageKnowledgeCounts := map[string]int{}
+	for _, item := range firstPage.Data {
+		firstPageKnowledgeCounts[guestKnowledgeBand(t, item.Progress)]++
+	}
+	assert.Positive(t, firstPageKnowledgeCounts["easy"])
+	assert.Positive(t, firstPageKnowledgeCounts["medium"])
+	assert.Positive(t, firstPageKnowledgeCounts["hard"])
 
 	meRec := testkit.Request(t, http.MethodGet, "/api/me", nil, authCookie)
 	testkit.RequireStatus(t, meRec, http.StatusOK)
@@ -113,6 +128,48 @@ func TestGuestLoginUsesRussianBrowserLanguage(t *testing.T) {
 	assert.Equal(t, "UTC", user.Settings.TimeZone)
 }
 
+func TestExpiredGuestSessionCannotAccessProtectedData(t *testing.T) {
+	testkit.Truncate(t)
+
+	rec := testkit.Request(t, http.MethodPost, "/api/guest/login", nil)
+	testkit.RequireStatus(t, rec, http.StatusCreated)
+	authCookie := telegramLoginAuthCookie(rec.Result())
+	require.NotNil(t, authCookie)
+
+	var guest models.User
+	testkit.DecodeJSON(t, rec, &guest)
+	now := time.Now().UTC()
+	require.NoError(t, db.DB.Model(&guest).Update("guest_expires_at", now.Add(-time.Minute)).Error)
+
+	vocabularyRec := testkit.Request(
+		t,
+		http.MethodGet,
+		"/api/vocabulary?page=1&page_size=20",
+		nil,
+		authCookie,
+	)
+	testkit.RequireStatus(t, vocabularyRec, http.StatusUnauthorized)
+
+	deleted, err := services.DeleteExpiredGuestUsers(now)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), deleted)
+
+	vocabularyRec = testkit.Request(
+		t,
+		http.MethodGet,
+		"/api/vocabulary?page=1&page_size=20",
+		nil,
+		authCookie,
+	)
+	testkit.RequireStatus(t, vocabularyRec, http.StatusUnauthorized)
+
+	var preservedVocabularyCount int64
+	require.NoError(t, db.DB.Model(&models.Vocabulary{}).
+		Where("user_id = ?", guest.ID).
+		Count(&preservedVocabularyCount).Error)
+	assert.Equal(t, int64(50), preservedVocabularyCount)
+}
+
 func TestGuestLoginReusesSeedTranslations(t *testing.T) {
 	testkit.Truncate(t)
 
@@ -132,7 +189,7 @@ func TestGuestLoginReusesSeedTranslations(t *testing.T) {
 	assert.Equal(t, int64(100), wordCount)
 }
 
-func TestDeleteExpiredGuestUsersDeletesOnlyExpiredGuests(t *testing.T) {
+func TestDeleteExpiredGuestUsersSoftDeletesOnlyExpiredGuests(t *testing.T) {
 	testkit.Truncate(t)
 
 	now := time.Date(2026, time.August, 24, 10, 0, 0, 0, time.UTC)
@@ -140,7 +197,21 @@ func TestDeleteExpiredGuestUsersDeletesOnlyExpiredGuests(t *testing.T) {
 	require.NoError(t, err)
 	activeGuest, err := services.CreateGuestUser("UTC", enums.LanguageEn)
 	require.NoError(t, err)
-	telegramUser := testkit.CreateUser(t)
+	telegramUser := testkit.CreateUser(t, testkit.WithAdmin())
+
+	exercise := models.Exercise{
+		Type:   enums.ExerciseTypeBasicDirect,
+		Status: enums.ExerciseStatusInProgress,
+		UserID: expiredGuest.ID,
+	}
+	require.NoError(t, db.DB.Create(&exercise).Error)
+	expiredGuestID := expiredGuest.ID
+	collection := models.Collection{
+		Title:       "Guest collection",
+		OwnerID:     &expiredGuestID,
+		IsPublished: true,
+	}
+	require.NoError(t, db.DB.Create(&collection).Error)
 
 	require.NoError(t, db.DB.Model(expiredGuest).Update("guest_expires_at", now.Add(-time.Minute)).Error)
 	require.NoError(t, db.DB.Model(activeGuest).Update("guest_expires_at", now.Add(time.Minute)).Error)
@@ -153,6 +224,11 @@ func TestDeleteExpiredGuestUsersDeletesOnlyExpiredGuests(t *testing.T) {
 	require.NoError(t, db.DB.First(&models.User{}, activeGuest.ID).Error)
 	require.NoError(t, db.DB.First(&models.User{}, telegramUser.ID).Error)
 
+	var preservedGuest models.User
+	require.NoError(t, db.DB.Unscoped().First(&preservedGuest, expiredGuest.ID).Error)
+	assert.True(t, preservedGuest.DeletedAt.Valid)
+	assert.False(t, activeGuest.DeletedAt.Valid)
+
 	var expiredVocabularyCount, activeVocabularyCount int64
 	require.NoError(t, db.DB.Model(&models.Vocabulary{}).
 		Where("user_id = ?", expiredGuest.ID).
@@ -160,6 +236,39 @@ func TestDeleteExpiredGuestUsersDeletesOnlyExpiredGuests(t *testing.T) {
 	require.NoError(t, db.DB.Model(&models.Vocabulary{}).
 		Where("user_id = ?", activeGuest.ID).
 		Count(&activeVocabularyCount).Error)
-	assert.Zero(t, expiredVocabularyCount)
+	assert.Equal(t, int64(50), expiredVocabularyCount)
 	assert.Equal(t, int64(50), activeVocabularyCount)
+	require.NoError(t, db.DB.First(&models.Exercise{}, "id = ?", exercise.ID).Error)
+	require.NoError(t, db.DB.First(&models.Collection{}, "id = ?", collection.ID).Error)
+	collections, err := services.ListCollections(telegramUser.ID, 1, 20, "", nil)
+	require.NoError(t, err)
+	require.Len(t, collections.Data, 1)
+	assert.Equal(t, collection.ID, collections.Data[0].ID)
+	assert.Empty(t, collections.Data[0].OwnerUsername)
+
+	recentUsers, err := services.GetRecentUsersForAdmin(telegramUser.ID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), recentUsers.Total)
+	for _, recentUser := range recentUsers.Data {
+		assert.NotEqual(t, expiredGuest.ID, recentUser.ID)
+	}
+}
+
+func guestKnowledgeBand(t *testing.T, progress models.ProgressEntries) string {
+	t.Helper()
+	require.Len(t, progress, 1)
+	require.Equal(t, enums.KnowledgeTypeTranslation, progress[0].Type)
+
+	knowledge := progress[0].Knowledge
+	switch {
+	case knowledge >= 70 && knowledge <= 90:
+		return "easy"
+	case knowledge >= 30 && knowledge <= 60:
+		return "medium"
+	case knowledge >= 0 && knowledge <= 10:
+		return "hard"
+	default:
+		t.Fatalf("unexpected guest vocabulary knowledge: %d", knowledge)
+		return ""
+	}
 }

@@ -169,7 +169,7 @@ const en = {
 
     // Settings - Guest account warning
     settingsGuestWarningTitle: 'Temporary account',
-    settingsGuestWarningDescription: 'This temporary account will be permanently deleted on',
+    settingsGuestWarningDescription: 'This temporary account will be deleted on',
     settingsGuestWarningNote: 'Create a Telegram account if you want to keep using Termorize after this date.',
 
     // Common actions
@@ -683,7 +683,7 @@ const ru: typeof en = {
 
     // Settings - Guest account warning
     settingsGuestWarningTitle: 'Временный аккаунт',
-    settingsGuestWarningDescription: 'Этот временный аккаунт будет навсегда удалён',
+    settingsGuestWarningDescription: 'Этот временный аккаунт будет удалён',
     settingsGuestWarningNote:
         'Создайте аккаунт через Telegram, чтобы продолжить пользоваться Termorize после этой даты.',
 

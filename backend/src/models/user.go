@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"termorize/src/enums"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type UserSettings struct {
@@ -87,4 +89,5 @@ type User struct {
 	GuestExpiresAt *time.Time          `json:"guest_expires_at"`
 	CreatedAt      time.Time           `json:"created_at"`
 	UpdatedAt      time.Time           `json:"-"`
+	DeletedAt      gorm.DeletedAt      `json:"-"`
 }

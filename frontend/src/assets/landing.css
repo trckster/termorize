@@ -314,8 +314,14 @@
 .landing-view .hero-actions {
     display: flex;
     gap: 14px;
-    align-items: center;
+    align-items: flex-start;
     flex-wrap: wrap;
+}
+.landing-view .guest-action {
+    display: flex;
+    max-width: 300px;
+    flex-direction: column;
+    align-items: flex-start;
 }
 .landing-view .hero-error {
     margin-top: 12px;
@@ -323,10 +329,10 @@
     color: var(--color-error);
 }
 .landing-view .guest-note {
-    max-width: 560px;
-    margin-top: 12px;
+    margin-top: 8px;
     color: var(--text-dim);
     font-size: 13.5px;
+    line-height: 1.45;
 }
 .landing-view .hero-meta {
     margin-top: 26px;
@@ -960,6 +966,10 @@
         display: grid;
         width: 100%;
         gap: 10px;
+    }
+    .landing-view .guest-action {
+        width: 100%;
+        max-width: none;
     }
     .landing-view .hero-actions .btn,
     .landing-view .final-actions .btn {
