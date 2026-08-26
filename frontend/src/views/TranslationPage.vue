@@ -35,6 +35,7 @@ import {
 
 type LanguageSelectorInstance = {
     focusInput: () => Promise<void>
+    isInputOpen: () => boolean
 }
 
 const authStore = useAuthStore()
@@ -571,14 +572,15 @@ const handleShortcut = (event: KeyboardEvent) => {
     }
 
     if (event.ctrlKey && event.code === 'KeyL') {
-        event.preventDefault()
+        const languageSelector = event.shiftKey ? targetLanguageSelectorRef.value : sourceLanguageSelectorRef.value
 
-        if (event.shiftKey) {
-            void targetLanguageSelectorRef.value?.focusInput()
+        if (!event.shiftKey && languageSelector?.isInputOpen()) {
             return
         }
 
-        void sourceLanguageSelectorRef.value?.focusInput()
+        event.preventDefault()
+
+        void languageSelector?.focusInput()
         return
     }
 

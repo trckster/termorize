@@ -356,9 +356,9 @@
                             <span v-else class="hidden sm:block" aria-hidden="true" />
                             <div class="col-span-full row-start-1 min-w-0 py-1.5 sm:col-span-1 sm:col-start-2 sm:py-0">
                                 <h3
-                                    class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 font-semibold text-foreground sm:gap-2"
+                                    class="grid min-w-0 grid-cols-1 gap-2 font-semibold text-foreground md:grid-cols-[minmax(0,5fr)_auto_minmax(0,7fr)] md:items-center"
                                 >
-                                    <span class="flex min-w-0 items-center gap-0.5 sm:gap-2">
+                                    <span class="flex w-full min-w-0 items-center gap-2">
                                         <span
                                             class="shrink-0 text-xl"
                                             role="img"
@@ -366,11 +366,11 @@
                                             >{{ settingsStore.getFlag(item.original.language) }}</span
                                         >
                                         <span
-                                            class="min-w-0 flex-1 break-words text-[15px] leading-snug [overflow-wrap:anywhere] min-[400px]:text-base sm:text-lg"
+                                            :lang="item.original.language"
+                                            class="min-w-0 flex-1 break-words hyphens-auto text-[15px] leading-snug min-[400px]:text-base sm:text-lg"
                                             >{{ item.original.word }}</span
                                         >
                                         <PronunciationButton
-                                            class="-mx-1 sm:mx-0"
                                             :word-id="item.original.id"
                                             :word="item.original.word"
                                             :listen-label="t.pronunciationListen"
@@ -379,8 +379,12 @@
                                             :error-label="t.pronunciationError"
                                         />
                                     </span>
-                                    <span class="text-muted-foreground" aria-hidden="true">→</span>
-                                    <span class="flex min-w-0 items-center gap-0.5 sm:gap-2">
+                                    <span
+                                        class="rotate-90 self-center text-muted-foreground md:rotate-0"
+                                        aria-hidden="true"
+                                        >→</span
+                                    >
+                                    <span class="flex w-full min-w-0 items-center gap-2">
                                         <span
                                             class="shrink-0 text-xl"
                                             role="img"
@@ -388,11 +392,11 @@
                                             >{{ settingsStore.getFlag(item.translation.language) }}</span
                                         >
                                         <span
-                                            class="min-w-0 flex-1 break-words text-[15px] leading-snug [overflow-wrap:anywhere] min-[400px]:text-base sm:text-lg"
+                                            :lang="item.translation.language"
+                                            class="min-w-0 flex-1 break-words hyphens-auto text-[15px] leading-snug min-[400px]:text-base sm:text-lg"
                                             >{{ item.translation.word }}</span
                                         >
                                         <PronunciationButton
-                                            class="-mx-1 sm:mx-0"
                                             :word-id="item.translation.id"
                                             :word="item.translation.word"
                                             :listen-label="t.pronunciationListen"
