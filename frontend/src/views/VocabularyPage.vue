@@ -7,9 +7,14 @@
                 </h1>
                 <Dialog v-model:open="isAddDialogOpen">
                     <DialogTrigger as-child>
-                        <Button class="min-h-11 w-full sm:w-auto">
+                        <Button class="min-h-11 w-full sm:w-auto" aria-keyshortcuts="Control+E">
                             <Plus class="h-4 w-4 mr-2" />
                             {{ t.vocabularyAddButton }}
+                            <Kbd
+                                aria-hidden="true"
+                                class="ml-2 bg-primary-foreground/15 px-1.5 text-[10px] text-primary-foreground ring-1 ring-inset ring-primary-foreground/20"
+                                >Ctrl + E</Kbd
+                            >
                         </Button>
                     </DialogTrigger>
                     <DialogContent class="sm:max-w-md">
@@ -337,9 +342,11 @@ import {
 import type { PaginationData } from '@/api/pagination.ts'
 import { formatRelativeTime, formatDate, formatNumber } from '@/lib/utils.ts'
 import { Progress } from '@/components/ui/progress'
+import { Kbd } from '@/components/ui/kbd'
 import { Trash2, Loader2, Plus } from 'lucide-vue-next'
 import { useToast } from '@/composables/useToast.ts'
 import { createTranslationAutofill } from '@/lib/translationAutofill.ts'
+import { isEditableVocabularyShortcut } from '@/lib/translationPageState.ts'
 
 const { t } = useI18n()
 
@@ -558,11 +565,27 @@ const handleDelete = async (id: string) => {
     }
 }
 
+const handleShortcut = (event: KeyboardEvent) => {
+    if (!isEditableVocabularyShortcut(event)) {
+        return
+    }
+
+    event.preventDefault()
+
+    if (isAddDialogOpen.value || (event.target instanceof Element && event.target.closest('[role="dialog"]'))) {
+        return
+    }
+
+    isAddDialogOpen.value = true
+}
+
 onMounted(async () => {
+    window.addEventListener('keydown', handleShortcut)
     await fetchVocabulary(1)
 })
 
 onBeforeUnmount(() => {
+    window.removeEventListener('keydown', handleShortcut)
     translationAutofill.deactivate()
     if (searchDebounceTimer) {
         clearTimeout(searchDebounceTimer)
