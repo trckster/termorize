@@ -7,9 +7,14 @@
                 </h1>
                 <Dialog v-model:open="isAddDialogOpen">
                     <DialogTrigger as-child>
-                        <Button class="min-h-11 w-full sm:w-auto">
+                        <Button class="min-h-11 w-full sm:w-auto" aria-keyshortcuts="Control+E">
                             <Plus class="h-4 w-4 mr-2" />
                             {{ t.vocabularyAddButton }}
+                            <Kbd
+                                aria-hidden="true"
+                                class="ml-2 bg-primary-foreground/15 px-1.5 text-[10px] text-primary-foreground ring-1 ring-inset ring-primary-foreground/20"
+                                >Ctrl + E</Kbd
+                            >
                         </Button>
                     </DialogTrigger>
                     <DialogContent class="sm:max-w-md">
@@ -121,13 +126,15 @@
                     :key="item.id"
                     class="group rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent/50"
                 >
-                    <div class="grid min-w-0 grid-cols-1 gap-4 items-center md:grid-cols-12">
+                    <div
+                        class="grid min-w-0 grid-cols-1 items-center gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(12rem,18rem)_auto]"
+                    >
                         <!-- Part 1: Words -->
-                        <div class="min-w-0 md:col-span-5">
+                        <div class="min-w-0">
                             <h3
-                                class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 font-semibold text-foreground sm:gap-2"
+                                class="grid min-w-0 grid-cols-1 gap-2 font-semibold text-foreground md:grid-cols-[minmax(0,5fr)_auto_minmax(0,7fr)] md:items-center"
                             >
-                                <span class="flex min-w-0 items-center gap-0.5 sm:gap-2">
+                                <span class="flex w-full min-w-0 items-center gap-2">
                                     <span
                                         class="shrink-0 text-xl"
                                         role="img"
@@ -135,11 +142,11 @@
                                         >{{ settingsStore.getFlag(item.translation.original.language) }}</span
                                     >
                                     <span
-                                        class="min-w-0 flex-1 break-words text-sm leading-snug [overflow-wrap:anywhere] min-[400px]:text-base sm:text-lg"
+                                        :lang="item.translation.original.language"
+                                        class="min-w-0 flex-1 break-words hyphens-auto text-sm leading-snug min-[400px]:text-base sm:text-lg"
                                         >{{ item.translation.original.word }}</span
                                     >
                                     <PronunciationButton
-                                        class="-mx-1 sm:mx-0"
                                         :word-id="item.translation.original.id"
                                         :word="item.translation.original.word"
                                         :listen-label="t.pronunciationListen"
@@ -148,8 +155,10 @@
                                         :error-label="t.pronunciationError"
                                     />
                                 </span>
-                                <span class="text-muted-foreground" aria-hidden="true">→</span>
-                                <span class="flex min-w-0 items-center gap-0.5 sm:gap-2">
+                                <span class="rotate-90 self-center text-muted-foreground md:rotate-0" aria-hidden="true"
+                                    >→</span
+                                >
+                                <span class="flex w-full min-w-0 items-center gap-2">
                                     <span
                                         class="shrink-0 text-xl"
                                         role="img"
@@ -157,11 +166,11 @@
                                         >{{ settingsStore.getFlag(item.translation.translation.language) }}</span
                                     >
                                     <span
-                                        class="min-w-0 flex-1 break-words text-sm leading-snug [overflow-wrap:anywhere] min-[400px]:text-base sm:text-lg"
+                                        :lang="item.translation.translation.language"
+                                        class="min-w-0 flex-1 break-words hyphens-auto text-sm leading-snug min-[400px]:text-base sm:text-lg"
                                         >{{ item.translation.translation.word }}</span
                                     >
                                     <PronunciationButton
-                                        class="-mx-1 sm:mx-0"
                                         :word-id="item.translation.translation.id"
                                         :word="item.translation.translation.word"
                                         :listen-label="t.pronunciationListen"
@@ -174,7 +183,7 @@
                         </div>
 
                         <!-- Part 2: Progress -->
-                        <div class="min-w-0 md:col-span-4 flex flex-col gap-3">
+                        <div class="flex min-w-0 flex-col gap-3">
                             <div v-if="item.progress && item.progress.length > 0">
                                 <div v-for="(prog, idx) in item.progress" :key="idx" class="w-full">
                                     <Progress :model-value="prog.knowledge" class="h-2" />
@@ -192,9 +201,7 @@
                         </div>
 
                         <!-- Part 3: Date and Delete -->
-                        <div
-                            class="flex min-w-0 flex-wrap items-center justify-between gap-2 md:col-span-3 md:justify-end"
-                        >
+                        <div class="flex min-w-0 flex-wrap items-center justify-between gap-2 lg:justify-end">
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <span
@@ -335,9 +342,11 @@ import {
 import type { PaginationData } from '@/api/pagination.ts'
 import { formatRelativeTime, formatDate, formatNumber } from '@/lib/utils.ts'
 import { Progress } from '@/components/ui/progress'
+import { Kbd } from '@/components/ui/kbd'
 import { Trash2, Loader2, Plus } from 'lucide-vue-next'
 import { useToast } from '@/composables/useToast.ts'
 import { createTranslationAutofill } from '@/lib/translationAutofill.ts'
+import { isEditableVocabularyShortcut } from '@/lib/translationPageState.ts'
 
 const { t } = useI18n()
 
@@ -556,11 +565,27 @@ const handleDelete = async (id: string) => {
     }
 }
 
+const handleShortcut = (event: KeyboardEvent) => {
+    if (!isEditableVocabularyShortcut(event)) {
+        return
+    }
+
+    event.preventDefault()
+
+    if (isAddDialogOpen.value || (event.target instanceof Element && event.target.closest('[role="dialog"]'))) {
+        return
+    }
+
+    isAddDialogOpen.value = true
+}
+
 onMounted(async () => {
+    window.addEventListener('keydown', handleShortcut)
     await fetchVocabulary(1)
 })
 
 onBeforeUnmount(() => {
+    window.removeEventListener('keydown', handleShortcut)
     translationAutofill.deactivate()
     if (searchDebounceTimer) {
         clearTimeout(searchDebounceTimer)

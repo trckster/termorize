@@ -80,6 +80,8 @@ const focusInput = async () => {
     inputElement?.select()
 }
 
+const isInputOpen = () => isOpen.value
+
 const blurInput = async () => {
     await nextTick()
 
@@ -106,6 +108,7 @@ watch(isOpen, async (open) => {
 
 defineExpose({
     focusInput,
+    isInputOpen,
 })
 </script>
 
