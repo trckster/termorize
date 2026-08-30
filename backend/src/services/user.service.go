@@ -285,11 +285,46 @@ func UpdateUserTranslationLanguage(telegramID int64, isSource bool, lang enums.L
 		}
 
 		settings := user.Settings
+		if (isSource && settings.TranslationTargetLanguage == lang) ||
+			(!isSource && settings.TranslationSourceLanguage == lang) {
+			return nil
+		}
+
 		if isSource {
 			settings.TranslationSourceLanguage = lang
 		} else {
 			settings.TranslationTargetLanguage = lang
 		}
+
+		user.Settings = settings
+		return tx.Model(&user).Update("settings", settings).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if user.ID == 0 {
+		return nil, nil
+	}
+
+	return &user, nil
+}
+
+func SwapUserTranslationLanguages(telegramID int64) (*models.User, error) {
+	var user models.User
+
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("telegram_id = ?", telegramID).First(&user).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil
+			}
+
+			return err
+		}
+
+		settings := user.Settings
+		settings.TranslationSourceLanguage, settings.TranslationTargetLanguage =
+			settings.TranslationTargetLanguage, settings.TranslationSourceLanguage
 
 		user.Settings = settings
 		return tx.Model(&user).Update("settings", settings).Error

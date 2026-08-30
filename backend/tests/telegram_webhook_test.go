@@ -76,6 +76,30 @@ func telegramPrivateMessage(telegramID int64, text string) map[string]any {
 	}
 }
 
+func telegramMenuCallback(telegramID int64, callbackID, action string) map[string]any {
+	return map[string]any{
+		"update_id": 2,
+		"callback_query": map[string]any{
+			"id":   callbackID,
+			"data": "menu:" + action,
+			"from": map[string]any{
+				"id":         telegramID,
+				"is_bot":     false,
+				"first_name": "Ada",
+				"username":   "ada",
+			},
+			"message": map[string]any{
+				"message_id": 77,
+				"date":       1700000000,
+				"chat": map[string]any{
+					"id":   telegramID,
+					"type": "private",
+				},
+			},
+		},
+	}
+}
+
 // -----------------------------------------------------------------------------
 // Middleware auth
 // -----------------------------------------------------------------------------
@@ -461,6 +485,41 @@ func TestTelegramWebhookStartCommandCreatesUserAndReplies(t *testing.T) {
 	assert.EqualValues(t, telegramID, sent["chat_id"])
 }
 
+func TestTelegramWebhookMenuShowsCurrentTranslationPair(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+
+	const telegramID int64 = 555099
+	testkit.CreateUser(t,
+		testkit.WithTelegramID(telegramID),
+		testkit.WithSettings(models.UserSettings{
+			SystemLanguage:            enums.LanguageEn,
+			TranslationSourceLanguage: enums.LanguageIt,
+			TranslationTargetLanguage: enums.LanguageUk,
+		}),
+	)
+
+	rec := telegramUpdate(t, telegramPrivateMessage(telegramID, "/menu"))
+	testkit.RequireStatus(t, rec, http.StatusOK)
+
+	require.Len(t, tg.RequestsFor("sendMessage"), 1)
+	var sent struct {
+		Text        string `json:"text"`
+		ReplyMarkup struct {
+			InlineKeyboard [][]telegramKeyboardButton `json:"inline_keyboard"`
+		} `json:"reply_markup"`
+	}
+	require.NoError(t, json.Unmarshal(tg.RequestsFor("sendMessage")[0].Body, &sent))
+	assert.Equal(t, "📌 *Menu* 📌", sent.Text)
+	assert.NotContains(t, sent.Text, "🇮🇹 Italian → 🇺🇦 Ukrainian")
+	require.NotEmpty(t, sent.ReplyMarkup.InlineKeyboard)
+	require.Len(t, sent.ReplyMarkup.InlineKeyboard[0], 1)
+	assert.Equal(t, "Open App 🌐", sent.ReplyMarkup.InlineKeyboard[0][0].Text)
+	require.Len(t, sent.ReplyMarkup.InlineKeyboard[1], 1)
+	assert.Equal(t, "🇮🇹 Italian → 🇺🇦 Ukrainian", sent.ReplyMarkup.InlineKeyboard[1][0].Text)
+	assert.Equal(t, "menu:translation_pair", sent.ReplyMarkup.InlineKeyboard[1][0].CallbackData)
+}
+
 func TestTelegramWebhookIgnoresDeletedUser(t *testing.T) {
 	testkit.Truncate(t)
 	tg := testkit.MockTelegramAPI(t)
@@ -607,6 +666,77 @@ func TestTelegramWebhookCallbackAnswersAndEdits(t *testing.T) {
 	assert.EqualValues(t, 77, edited["message_id"])
 
 	_ = user
+}
+
+func TestTelegramWebhookTranslationPairEditorChangesAndSwapsPair(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+
+	const telegramID int64 = 555100
+	user := testkit.CreateUser(t,
+		testkit.WithTelegramID(telegramID),
+		testkit.WithSettings(models.UserSettings{
+			SystemLanguage:            enums.LanguageEn,
+			TranslationSourceLanguage: enums.LanguageEn,
+			TranslationTargetLanguage: enums.LanguageRu,
+		}),
+	)
+	require.NoError(t, db.DB.Model(&user).Update("telegram_state", enums.TelegramStateAddingVocabulary).Error)
+
+	rec := telegramUpdate(t, telegramMenuCallback(telegramID, "pair-open", "translation_pair"))
+	testkit.RequireStatus(t, rec, http.StatusOK)
+
+	var refreshed models.User
+	require.NoError(t, db.DB.Where("id = ?", user.ID).First(&refreshed).Error)
+	assert.Equal(t, enums.TelegramStateNone, refreshed.TelegramState)
+
+	var pairEditor struct {
+		Text        string `json:"text"`
+		ReplyMarkup struct {
+			InlineKeyboard [][]telegramKeyboardButton `json:"inline_keyboard"`
+		} `json:"reply_markup"`
+	}
+	require.NoError(t, json.Unmarshal(tg.RequestsFor("editMessageText")[0].Body, &pairEditor))
+	assert.Contains(t, pairEditor.Text, "Translation pair")
+	assert.Contains(t, pairEditor.Text, "🇬🇧 English → 🇷🇺 Russian")
+	_, hasSourceButton := findCallbackButton(pairEditor.ReplyMarkup.InlineKeyboard, "menu:change_pair_source_lang")
+	_, hasTargetButton := findCallbackButton(pairEditor.ReplyMarkup.InlineKeyboard, "menu:change_pair_target_lang")
+	_, hasSwapButton := findCallbackButton(pairEditor.ReplyMarkup.InlineKeyboard, "menu:swap_translation_pair")
+	assert.True(t, hasSourceButton)
+	assert.True(t, hasTargetButton)
+	assert.True(t, hasSwapButton)
+
+	rec = telegramUpdate(t, telegramMenuCallback(telegramID, "pair-source", "change_pair_source_lang"))
+	testkit.RequireStatus(t, rec, http.StatusOK)
+	var picker telegramKeyboardRequest
+	require.NoError(t, json.Unmarshal(tg.RequestsFor("editMessageText")[1].Body, &picker))
+	cancelButton, hasCancelButton := findCallbackButton(picker.ReplyMarkup.InlineKeyboard, "menu:translation_pair")
+	require.True(t, hasCancelButton)
+	assert.Equal(t, "Cancel", cancelButton.Text)
+	_, hasItalianButton := findCallbackButton(picker.ReplyMarkup.InlineKeyboard, "menu:set_pair_source_lang:it")
+	assert.True(t, hasItalianButton)
+
+	rec = telegramUpdate(t, telegramMenuCallback(telegramID, "pair-set-source", "set_pair_source_lang:it"))
+	testkit.RequireStatus(t, rec, http.StatusOK)
+	require.NoError(t, db.DB.Where("id = ?", user.ID).First(&refreshed).Error)
+	assert.Equal(t, enums.LanguageIt, refreshed.Settings.TranslationSourceLanguage)
+	assert.Equal(t, enums.LanguageRu, refreshed.Settings.TranslationTargetLanguage)
+	assert.Contains(t, string(tg.RequestsFor("editMessageText")[2].Body), "Italian")
+	assert.NotContains(t, string(tg.RequestsFor("editMessageText")[2].Body), "Send translation separated by colon")
+
+	rec = telegramUpdate(t, telegramMenuCallback(telegramID, "pair-reject-duplicate", "set_pair_target_lang:it"))
+	testkit.RequireStatus(t, rec, http.StatusOK)
+	require.NoError(t, db.DB.Where("id = ?", user.ID).First(&refreshed).Error)
+	assert.Equal(t, enums.LanguageIt, refreshed.Settings.TranslationSourceLanguage)
+	assert.Equal(t, enums.LanguageRu, refreshed.Settings.TranslationTargetLanguage)
+
+	rec = telegramUpdate(t, telegramMenuCallback(telegramID, "pair-swap", "swap_translation_pair"))
+	testkit.RequireStatus(t, rec, http.StatusOK)
+	require.NoError(t, db.DB.Where("id = ?", user.ID).First(&refreshed).Error)
+	assert.Equal(t, enums.LanguageRu, refreshed.Settings.TranslationSourceLanguage)
+	assert.Equal(t, enums.LanguageIt, refreshed.Settings.TranslationTargetLanguage)
+	assert.Contains(t, string(tg.RequestsFor("editMessageText")[4].Body), "🇷🇺 Russian → 🇮🇹 Italian")
+	assert.Len(t, tg.RequestsFor("answerCallbackQuery"), 5)
 }
 
 func TestTelegramWebhookCallbackDeleteTranslationSetsState(t *testing.T) {

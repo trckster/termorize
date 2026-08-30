@@ -42,9 +42,33 @@ func routeMessageCommand(message *message, command string) error {
 	case "help":
 		return SendMessageMarkdown(message.Chat.ID, t.Help)
 	case "start":
-		return SendMessageWithInlineKeyboardMarkdown(message.Chat.ID, t.Start, getMenuKeyboard(t))
+		user, err := services.GetUserByTelegramID(message.Chat.ID)
+		if err != nil {
+			return err
+		}
+		if user == nil {
+			return nil
+		}
+		return SendMessageWithInlineKeyboardMarkdown(
+			message.Chat.ID,
+			t.Start,
+			getMenuKeyboard(user.Settings.TranslationSourceLanguage, user.Settings.TranslationTargetLanguage, t),
+		)
 	case "menu":
-		return SendMessageWithInlineKeyboardMarkdown(message.Chat.ID, t.Menu, getMenuKeyboard(t))
+		user, err := services.GetUserByTelegramID(message.Chat.ID)
+		if err != nil {
+			return err
+		}
+		if user == nil {
+			return nil
+		}
+		sourceLanguage := user.Settings.TranslationSourceLanguage
+		targetLanguage := user.Settings.TranslationTargetLanguage
+		return SendMessageWithInlineKeyboardMarkdown(
+			message.Chat.ID,
+			t.Menu,
+			getMenuKeyboard(sourceLanguage, targetLanguage, t),
+		)
 	case "cancel":
 		telegramID, _, _, _ := extractMessageUser(message)
 		updated, err := services.UpdateUserTelegramState(telegramID, enums.TelegramStateNone)

@@ -72,6 +72,8 @@ type BotTexts struct {
 	MenuSettingsDisabled             string
 	MenuSettingsFullVersionNote      string
 	MenuWhatsGoingOn                 string
+	TranslationPairTitle             string
+	TranslationPairDescription       string
 
 	ChooseLanguage string
 
@@ -106,6 +108,9 @@ type BotTexts struct {
 	ButtonPronunciation             string
 	ButtonIgnoreAudioLanguageFormat string
 	ButtonRemoveAudioLanguageFormat string
+	ButtonChangeSourceLanguage      string
+	ButtonChangeTargetLanguage      string
+	ButtonSwapDirection             string
 	LanguageNames                   map[enums.Language]string
 
 	ButtonChangeLanguagePrefix string
@@ -182,6 +187,8 @@ var botTextsEn = BotTexts{
 	MenuSettingsEnabled:              "Enabled",
 	MenuSettingsDisabled:             "Disabled",
 	MenuSettingsFullVersionNote:      "All settings are available on the website!",
+	TranslationPairTitle:             "*Translation pair*",
+	TranslationPairDescription:       "This pair is used for quick translations and new vocabulary.",
 	MenuWhatsGoingOn: "*Termorize* is a vocabulary trainer that works in both Telegram and the web app.\n\n" +
 		"You can use it to:\n" +
 		"- translate words and short phrases\n" +
@@ -228,6 +235,9 @@ var botTextsEn = BotTexts{
 	ButtonPronunciation:             "🔊 Pronunciation",
 	ButtonIgnoreAudioLanguageFormat: "Don't send me audio in %s",
 	ButtonRemoveAudioLanguageFormat: "Remove %s from ignored",
+	ButtonChangeSourceLanguage:      "Change source",
+	ButtonChangeTargetLanguage:      "Change target",
+	ButtonSwapDirection:             "Swap direction",
 	LanguageNames: map[enums.Language]string{
 		enums.LanguageEn: "English",
 		enums.LanguageRu: "Russian",
@@ -328,6 +338,8 @@ var botTextsRu = BotTexts{
 	MenuSettingsEnabled:              "Включены",
 	MenuSettingsDisabled:             "Выключены",
 	MenuSettingsFullVersionNote:      "Полная версия настроек доступна на сайте.",
+	TranslationPairTitle:             "*Языковая пара*",
+	TranslationPairDescription:       "Эта пара используется для быстрых переводов и добавления новых слов.",
 	MenuWhatsGoingOn: "*Termorize* — это сервис для изучения слов, который работает и в Telegram, и в веб-приложении.\n\n" +
 		"Здесь можно:\n" +
 		"- переводить слова и короткие фразы\n" +
@@ -374,6 +386,9 @@ var botTextsRu = BotTexts{
 	ButtonPronunciation:             "🔊 Произношение",
 	ButtonIgnoreAudioLanguageFormat: "Не присылать аудио. Язык: %s",
 	ButtonRemoveAudioLanguageFormat: "Разрешить аудио. Язык: %s",
+	ButtonChangeSourceLanguage:      "Сменить исходный",
+	ButtonChangeTargetLanguage:      "Сменить целевой",
+	ButtonSwapDirection:             "Поменять направление",
 	LanguageNames: map[enums.Language]string{
 		enums.LanguageEn: "Английский",
 		enums.LanguageRu: "Русский",
@@ -418,6 +433,23 @@ func localizedLanguageName(language enums.Language, texts BotTexts) string {
 		return name
 	}
 	return language.DisplayName()
+}
+
+func localizedLanguageWithFlag(language enums.Language, texts BotTexts) string {
+	return language.Flag() + " " + localizedLanguageName(language, texts)
+}
+
+func formatTranslationPair(sourceLanguage, targetLanguage enums.Language, texts BotTexts) string {
+	return localizedLanguageWithFlag(sourceLanguage, texts) + " → " + localizedLanguageWithFlag(targetLanguage, texts)
+}
+
+func buildTranslationPairText(sourceLanguage, targetLanguage enums.Language, texts BotTexts) string {
+	return fmt.Sprintf(
+		"%s\n\n%s\n\n%s",
+		texts.TranslationPairTitle,
+		texts.TranslationPairDescription,
+		formatTranslationPair(sourceLanguage, targetLanguage, texts),
+	)
 }
 
 func BuildBasicExerciseQuestion(

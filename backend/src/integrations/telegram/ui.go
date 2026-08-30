@@ -27,12 +27,18 @@ const (
 	menuActionStatistics           = "statistics"
 	menuActionSettings             = "settings"
 	menuActionWhatsGoingOn         = "whats_going_on"
+	menuActionTranslationPair      = "translation_pair"
 	menuActionChangeSourceLang     = "change_source_lang"
 	menuActionChangeTargetLang     = "change_target_lang"
+	menuActionChangePairSourceLang = "change_pair_source_lang"
+	menuActionChangePairTargetLang = "change_pair_target_lang"
 	menuActionChangeSystemLang     = "change_system_lang"
 	menuActionToggleDailyExercises = "toggle_daily_exercises"
 	menuActionSetSourceLang        = "set_source_lang"
 	menuActionSetTargetLang        = "set_target_lang"
+	menuActionSetPairSourceLang    = "set_pair_source_lang"
+	menuActionSetPairTargetLang    = "set_pair_target_lang"
+	menuActionSwapTranslationPair  = "swap_translation_pair"
 	menuActionSetSystemLang        = "set_system_lang"
 
 	exerciseActionAnswer              = "answer"
@@ -53,12 +59,24 @@ const (
 	exerciseCompactButtonMaxRunes = 12
 )
 
-func getMenuKeyboard(t BotTexts) [][]inlineKeyboardButton {
+func getMenuKeyboard(sourceLanguage, targetLanguage enums.Language, t BotTexts) [][]inlineKeyboardButton {
 	return [][]inlineKeyboardButton{
 		{{Text: t.ButtonOpenApp, URL: telegramMiniAppURL}},
+		{{Text: formatTranslationPair(sourceLanguage, targetLanguage, t), CallbackData: callbackTypeMenu + ":" + menuActionTranslationPair}},
 		{{Text: t.ButtonAddTranslation, CallbackData: callbackTypeMenu + ":" + menuActionAddTranslation}, {Text: t.ButtonDeleteWord, CallbackData: callbackTypeMenu + ":" + menuActionDeleteTranslation}},
 		{{Text: t.ButtonVocabulary, CallbackData: callbackTypeMenu + ":" + menuActionVocabulary}, {Text: t.ButtonStatistics, CallbackData: callbackTypeMenu + ":" + menuActionStatistics}},
 		{{Text: t.ButtonSettings, CallbackData: callbackTypeMenu + ":" + menuActionSettings}, {Text: t.ButtonWhatsGoingOn, CallbackData: callbackTypeMenu + ":" + menuActionWhatsGoingOn}},
+	}
+}
+
+func buildTranslationPairKeyboard(sourceLanguage, targetLanguage enums.Language, t BotTexts) [][]inlineKeyboardButton {
+	return [][]inlineKeyboardButton{
+		{
+			{Text: sourceLanguage.Flag() + " " + t.ButtonChangeSourceLanguage, CallbackData: callbackTypeMenu + ":" + menuActionChangePairSourceLang},
+			{Text: targetLanguage.Flag() + " " + t.ButtonChangeTargetLanguage, CallbackData: callbackTypeMenu + ":" + menuActionChangePairTargetLang},
+		},
+		{{Text: t.ButtonSwapDirection, CallbackData: callbackTypeMenu + ":" + menuActionSwapTranslationPair}},
+		{{Text: t.ButtonBack, CallbackData: callbackTypeMenu + ":" + menuActionBack}},
 	}
 }
 
@@ -150,6 +168,19 @@ func buildLanguageSelectionKeyboard(excludeLang1, excludeLang2 enums.Language, i
 		action = menuActionSetSourceLang
 	}
 
+	return buildLanguageSelectionKeyboardForAction(excludeLang1, excludeLang2, action, menuActionAddTranslation, t)
+}
+
+func buildTranslationPairLanguageSelectionKeyboard(excludeLang1, excludeLang2 enums.Language, isSource bool, t BotTexts) [][]inlineKeyboardButton {
+	action := menuActionSetPairTargetLang
+	if isSource {
+		action = menuActionSetPairSourceLang
+	}
+
+	return buildLanguageSelectionKeyboardForAction(excludeLang1, excludeLang2, action, menuActionTranslationPair, t)
+}
+
+func buildLanguageSelectionKeyboardForAction(excludeLang1, excludeLang2 enums.Language, action, cancelAction string, t BotTexts) [][]inlineKeyboardButton {
 	var rows [][]inlineKeyboardButton
 	for _, langStr := range enums.AllLanguages() {
 		lang := enums.Language(langStr)
@@ -157,14 +188,14 @@ func buildLanguageSelectionKeyboard(excludeLang1, excludeLang2 enums.Language, i
 			continue
 		}
 		rows = append(rows, []inlineKeyboardButton{{
-			Text:         lang.DisplayNameWithFlag(),
+			Text:         localizedLanguageWithFlag(lang, t),
 			CallbackData: callbackTypeMenu + ":" + action + ":" + langStr,
 		}})
 	}
 
 	rows = append(rows, []inlineKeyboardButton{{
 		Text:         t.ButtonCancel,
-		CallbackData: callbackTypeMenu + ":" + menuActionAddTranslation,
+		CallbackData: callbackTypeMenu + ":" + cancelAction,
 	}})
 
 	return rows
