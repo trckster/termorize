@@ -21,7 +21,21 @@ func handleStateMessage(message *message) (bool, error) {
 			return true, err
 		}
 
-		return true, SendMessageWithInlineKeyboardMarkdown(message.Chat.ID, t.Menu, getMenuKeyboard(t))
+		user, err := services.GetUserByTelegramID(telegramID)
+		if err != nil {
+			return true, err
+		}
+		if user == nil {
+			return true, nil
+		}
+
+		sourceLanguage := user.Settings.TranslationSourceLanguage
+		targetLanguage := user.Settings.TranslationTargetLanguage
+		return true, SendMessageWithInlineKeyboardMarkdown(
+			message.Chat.ID,
+			t.Menu,
+			getMenuKeyboard(sourceLanguage, targetLanguage, t),
+		)
 	}
 
 	user, err := services.GetUserByTelegramID(telegramID)

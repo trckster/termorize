@@ -22,7 +22,28 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 			return err
 		}
 
-		return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, t.Menu, getMenuKeyboard(t))
+		return editMainMenu(callback, t)
+	}
+
+	if action == menuActionTranslationPair {
+		if _, err := services.UpdateUserTelegramState(callback.From.ID, enums.TelegramStateNone); err != nil {
+			return err
+		}
+
+		user, err := services.GetUserByTelegramID(callback.From.ID)
+		if err != nil {
+			return err
+		}
+		if user == nil {
+			return nil
+		}
+
+		return editTranslationPair(
+			callback,
+			user.Settings.TranslationSourceLanguage,
+			user.Settings.TranslationTargetLanguage,
+			t,
+		)
 	}
 
 	if action == menuActionDeleteTranslation {
@@ -107,6 +128,26 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, t.ChooseLanguage, keyboard)
 	}
 
+	if action == menuActionChangePairSourceLang || action == menuActionChangePairTargetLang {
+		user, err := services.GetUserByTelegramID(callback.From.ID)
+		if err != nil {
+			return err
+		}
+
+		if user == nil {
+			return nil
+		}
+
+		isSource := action == menuActionChangePairSourceLang
+		keyboard := buildTranslationPairLanguageSelectionKeyboard(
+			user.Settings.TranslationSourceLanguage,
+			user.Settings.TranslationTargetLanguage,
+			isSource,
+			t,
+		)
+		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, t.ChooseLanguage, keyboard)
+	}
+
 	if action == menuActionChangeSystemLang {
 		keyboard := buildSystemLanguageSelectionKeyboard(t)
 		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, t.ChooseLanguage, keyboard)
@@ -118,6 +159,9 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 		}
 
 		langCode := enums.Language(payload[1])
+		if !enums.IsSupportedLanguage(langCode) {
+			return nil
+		}
 		isSource := action == menuActionSetSourceLang
 
 		user, err := services.UpdateUserTranslationLanguage(callback.From.ID, isSource, langCode)
@@ -136,6 +180,50 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 		)
 		keyboard := buildAddTranslationKeyboard(user.Settings.TranslationSourceLanguage, user.Settings.TranslationTargetLanguage, t)
 		return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, messageText, keyboard)
+	}
+
+	if action == menuActionSetPairSourceLang || action == menuActionSetPairTargetLang {
+		if len(payload) != 2 {
+			return nil
+		}
+
+		langCode := enums.Language(payload[1])
+		if !enums.IsSupportedLanguage(langCode) {
+			return nil
+		}
+
+		isSource := action == menuActionSetPairSourceLang
+		user, err := services.UpdateUserTranslationLanguage(callback.From.ID, isSource, langCode)
+		if err != nil {
+			return err
+		}
+		if user == nil {
+			return nil
+		}
+
+		return editTranslationPair(
+			callback,
+			user.Settings.TranslationSourceLanguage,
+			user.Settings.TranslationTargetLanguage,
+			t,
+		)
+	}
+
+	if action == menuActionSwapTranslationPair {
+		user, err := services.SwapUserTranslationLanguages(callback.From.ID)
+		if err != nil {
+			return err
+		}
+		if user == nil {
+			return nil
+		}
+
+		return editTranslationPair(
+			callback,
+			user.Settings.TranslationSourceLanguage,
+			user.Settings.TranslationTargetLanguage,
+			t,
+		)
 	}
 
 	if action == menuActionSetSystemLang {
@@ -207,4 +295,32 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 	}
 
 	return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, selectionText, getMenuBackKeyboard(t))
+}
+
+func editMainMenu(callback *callbackQuery, t BotTexts) error {
+	user, err := services.GetUserByTelegramID(callback.From.ID)
+	if err != nil {
+		return err
+	}
+	if user == nil {
+		return nil
+	}
+
+	sourceLanguage := user.Settings.TranslationSourceLanguage
+	targetLanguage := user.Settings.TranslationTargetLanguage
+	return EditMessageTextWithInlineKeyboardMarkdown(
+		callback.Message.Chat.ID,
+		callback.Message.MessageID,
+		t.Menu,
+		getMenuKeyboard(sourceLanguage, targetLanguage, t),
+	)
+}
+
+func editTranslationPair(callback *callbackQuery, sourceLanguage, targetLanguage enums.Language, t BotTexts) error {
+	return EditMessageTextWithInlineKeyboardMarkdown(
+		callback.Message.Chat.ID,
+		callback.Message.MessageID,
+		buildTranslationPairText(sourceLanguage, targetLanguage, t),
+		buildTranslationPairKeyboard(sourceLanguage, targetLanguage, t),
+	)
 }
