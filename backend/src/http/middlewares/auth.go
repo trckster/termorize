@@ -12,7 +12,7 @@ import (
 
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		tokenString, err := auth.GetAuthCookie(c)
+		tokenString, err := auth.GetAuthToken(c)
 		if err != nil {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
