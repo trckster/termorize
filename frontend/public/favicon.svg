@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+    <defs>
+        <linearGradient id="brandGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="oklch(0.68 0.16 152)" />
+            <stop offset="1" stop-color="oklch(0.46 0.13 152)" />
+        </linearGradient>
+    </defs>
+    <rect x="2" y="2" width="60" height="60" rx="17" fill="url(#brandGrad)" />
+    <g stroke="#06140c" stroke-width="6.2" stroke-linecap="round">
+        <g opacity="0.22" transform="translate(7 7)">
+            <path d="M20 23h24M32 23v23" />
+        </g>
+        <g opacity="0.45" transform="translate(3.5 3.5)">
+            <path d="M20 23h24M32 23v23" />
+        </g>
+        <path d="M20 23h24M32 23v23" />
+    </g>
+</svg>
