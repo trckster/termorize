@@ -1095,6 +1095,29 @@
     height: 30px;
 }
 
+.footer-meta {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.footer-link {
+    color: var(--landing-muted);
+    font-size: 0.82rem;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 4px;
+    transition:
+        color 150ms ease,
+        text-decoration-color 150ms ease;
+}
+
+.footer-link:hover,
+.footer-link:focus-visible {
+    color: var(--landing-text);
+    text-decoration-color: currentColor;
+}
+
 .footer-note {
     color: var(--landing-muted);
     font-size: 0.82rem;
@@ -1580,6 +1603,12 @@
 
     .footer-note {
         max-width: 34ch;
+    }
+
+    .footer-meta {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 7px;
     }
 }
 

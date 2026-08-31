@@ -1,33 +1,48 @@
 {
-    "manifest_version": 3,
-    "name": "Termorize for Google Translate",
-    "version": "1.0.0",
-    "description": "Save Google Translate word pairs directly to your Termorize vocabulary.",
-    "minimum_chrome_version": "102",
-    "permissions": ["cookies"],
-    "host_permissions": ["https://translate.google.com/*", "https://termorize.daniil.online/*"],
-    "background": {
-        "service_worker": "background.js"
+  "manifest_version": 3,
+  "name": "Termorize for Google Translate™",
+  "short_name": "Termorize",
+  "version": "1.0.0",
+  "description": "Save Google Translate word pairs directly to your Termorize vocabulary.",
+  "homepage_url": "https://termorize.daniil.online",
+  "minimum_chrome_version": "102",
+  "permissions": ["cookies"],
+  "host_permissions": [
+    "https://translate.google.com/*",
+    "https://termorize.daniil.online/*"
+  ],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "commands": {
+    "save-with-editing": {
+      "suggested_key": "Ctrl+E",
+      "description": "Review the Google Translate word pair before saving"
     },
-    "commands": {
-        "save-with-editing": {
-            "suggested_key": "Ctrl+E",
-            "description": "Review the Google Translate word pair before saving"
-        },
-        "save-without-editing": {
-            "suggested_key": "Ctrl+S",
-            "description": "Save the Google Translate word pair immediately"
-        }
-    },
-    "content_scripts": [
-        {
-            "matches": ["https://translate.google.com/*"],
-            "js": ["content.js"],
-            "css": ["content.css"],
-            "run_at": "document_idle"
-        }
-    ],
-    "action": {
-        "default_title": "Termorize: Ctrl+E to review, Ctrl+S to save"
+    "save-without-editing": {
+      "suggested_key": "Ctrl+S",
+      "description": "Save the Google Translate word pair immediately"
     }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://translate.google.com/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    },
+    "default_title": "Termorize: Ctrl+E to review, Ctrl+S to save"
+  }
 }

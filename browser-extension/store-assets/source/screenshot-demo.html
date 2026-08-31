@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Termorize extension store screenshot</title>
+    <link rel="stylesheet" href="../../content.css" />
+    <style>
+      :root {
+        color-scheme: light;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", ui-sans-serif,
+          system-ui, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-width: 1280px;
+        min-height: 800px;
+        margin: 0;
+        color: #202124;
+        background: #f7f9f8;
+      }
+
+      .browser-bar {
+        display: flex;
+        height: 72px;
+        align-items: center;
+        gap: 18px;
+        padding: 0 28px;
+        border-bottom: 1px solid #dde3df;
+        background: #fff;
+      }
+
+      .window-controls {
+        display: flex;
+        gap: 8px;
+      }
+
+      .window-controls span {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: #d8dfdb;
+      }
+
+      .address {
+        display: flex;
+        height: 40px;
+        flex: 1;
+        align-items: center;
+        padding: 0 17px;
+        border: 1px solid #e1e6e3;
+        border-radius: 10px;
+        color: #58635d;
+        background: #f5f7f6;
+        font-size: 13px;
+      }
+
+      .page-header {
+        display: flex;
+        height: 74px;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 52px;
+        border-bottom: 1px solid #e2e7e4;
+        background: #fff;
+      }
+
+      .page-title {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 650;
+        letter-spacing: -0.02em;
+      }
+
+      .extension-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        color: #476055;
+        font-size: 13px;
+        font-weight: 650;
+      }
+
+      .extension-badge::before {
+        display: inline-grid;
+        width: 28px;
+        height: 28px;
+        place-items: center;
+        border-radius: 8px;
+        color: #f6fff9;
+        background: #217a4b;
+        content: "T";
+      }
+
+      .translator-shell {
+        width: min(1120px, calc(100% - 96px));
+        margin: 54px auto 0;
+      }
+
+      .language-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        border: 1px solid #dbe2de;
+        border-bottom: 0;
+        border-radius: 16px 16px 0 0;
+        background: #fff;
+      }
+
+      .language-row span {
+        padding: 17px 24px;
+        color: #52635a;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .language-row span + span {
+        border-left: 1px solid #e2e8e4;
+      }
+
+      .translation-grid {
+        display: grid;
+        min-height: 310px;
+        grid-template-columns: 1fr 1fr;
+        border: 1px solid #dbe2de;
+        border-radius: 0 0 16px 16px;
+        overflow: hidden;
+        background: #fff;
+        box-shadow: 0 16px 46px rgb(24 48 36 / 8%);
+      }
+
+      .translation-grid textarea {
+        width: 100%;
+        min-height: 310px;
+        resize: none;
+        padding: 30px 28px;
+        color: #1f2b25;
+        background: #fff;
+        border: 0;
+        outline: 0;
+        font: 500 30px/1.35 inherit;
+      }
+
+      .translation-grid textarea + textarea {
+        border-left: 1px solid #e2e8e4;
+        background: #fbfcfb;
+      }
+
+      .shortcut-note {
+        margin: 18px 2px 0;
+        color: #66756d;
+        font-size: 13px;
+      }
+
+      .shortcut-note kbd {
+        padding: 3px 7px;
+        border: 1px solid #cfd8d3;
+        border-radius: 5px;
+        color: #34463c;
+        background: #fff;
+        font: 650 12px/1.4 inherit;
+      }
+    </style>
+    <script>
+      window.__termorizeListeners = [];
+      window.chrome = {
+        runtime: {
+          id: "termorize-store-demo",
+          lastError: null,
+          onMessage: {
+            addListener(listener) {
+              window.__termorizeListeners.push(listener);
+            },
+          },
+          sendMessage(_message, callback) {
+            callback({ ok: true });
+          },
+        },
+      };
+    </script>
+  </head>
+  <body>
+    <div class="browser-bar" aria-hidden="true">
+      <div class="window-controls"><span></span><span></span><span></span></div>
+      <div class="address">translate.google.com</div>
+    </div>
+    <header class="page-header">
+      <h1 class="page-title">Google Translate™</h1>
+      <span class="extension-badge">Termorize connected</span>
+    </header>
+    <main class="translator-shell">
+      <div class="language-row"><span>Italian</span><span>English</span></div>
+      <div class="translation-grid">
+        <textarea aria-label="Source text">buongiorno</textarea>
+        <textarea jsname="YPqjbf" lang="en" aria-label="Translation">
+good morning</textarea
+        >
+      </div>
+      <p class="shortcut-note">
+        <kbd>Ctrl</kbd> + <kbd>E</kbd> review before saving · <kbd>Ctrl</kbd> +
+        <kbd>S</kbd> save immediately
+      </p>
+    </main>
+
+    <script src="../../content.js"></script>
+    <script>
+      window.addEventListener("load", () => {
+        const state =
+          new URLSearchParams(window.location.search).get("state") || "review";
+        const action = state === "saved" ? "save" : "edit";
+        const listener = window.__termorizeListeners[0];
+        listener?.(
+          { type: "TRIGGER_SHORTCUT", action },
+          { id: chrome.runtime.id },
+          () => {},
+        );
+      });
+    </script>
+  </body>
+</html>

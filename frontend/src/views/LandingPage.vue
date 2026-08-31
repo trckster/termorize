@@ -519,7 +519,10 @@ function getErrorMessage(err: unknown, fallback = 'Login failed. Please try agai
                     </span>
                     <span>Termorize</span>
                 </a>
-                <span class="footer-note">© 2026 · Vocabulary exercises, delivered daily</span>
+                <div class="footer-meta">
+                    <a class="footer-link" href="/extension-privacy.html">Extension privacy</a>
+                    <span class="footer-note">© 2026 · Vocabulary exercises, delivered daily</span>
+                </div>
             </div>
         </footer>
     </div>
