@@ -31,8 +31,22 @@ export type CollectionSummary = {
 }
 
 export type CollectionDetail = CollectionSummary & {
-    invite_token?: string
+    share_path?: string
     owner_username?: string
+    translations: CollectionTranslation[]
+}
+
+export type PublicCollectionDetail = {
+    id: string
+    title: string
+    is_admin: boolean
+    is_published: boolean
+    owner_username?: string
+    languages: string[]
+    translation_count: number
+    user_add_count: number
+    created_at: string
+    share_path: string
     translations: CollectionTranslation[]
 }
 
@@ -116,8 +130,20 @@ export const collectionsApi = {
         return apiCall<CollectionPracticeRound>(`/collections/${id}/practice`, 'POST').then(unwrapBody)
     },
 
-    async joinByToken(token: string): Promise<CollectionDetail> {
-        return apiCall<CollectionDetail>(`/collection-invites/${token}`, 'POST').then(unwrapBody)
+    async joinByShareIdentifier(identifier: string): Promise<CollectionDetail> {
+        return apiCall<CollectionDetail>(`/collection-invites/${encodeURIComponent(identifier)}`, 'POST').then(
+            unwrapBody
+        )
+    },
+
+    async getPublicCollection(id: string): Promise<PublicCollectionDetail> {
+        return apiCall<PublicCollectionDetail>(`/public/collections/${encodeURIComponent(id)}`).then(unwrapBody)
+    },
+
+    async getPublicCollectionByShareIdentifier(identifier: string): Promise<PublicCollectionDetail> {
+        return apiCall<PublicCollectionDetail>(`/public/collection-invites/${encodeURIComponent(identifier)}`).then(
+            unwrapBody
+        )
     },
 
     async generate(prompt: string): Promise<CollectionDetail> {

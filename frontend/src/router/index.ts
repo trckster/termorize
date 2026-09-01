@@ -22,6 +22,16 @@ const router = createRouter({
             meta: { guest: true },
         },
         {
+            path: '/collections/join/:shareId',
+            name: 'collection-join',
+            component: () => import('@/views/CollectionJoinPage.vue'),
+        },
+        {
+            path: '/collections/:id',
+            name: 'collection-detail',
+            component: () => import('@/views/CollectionRoutePage.vue'),
+        },
+        {
             path: '/quiz',
             name: 'quiz',
             component: () => import('@/views/QuizPage.vue'),
@@ -52,16 +62,6 @@ const router = createRouter({
                     path: 'collections',
                     name: 'collections',
                     component: () => import('@/views/CollectionsPage.vue'),
-                },
-                {
-                    path: 'collections/join/:token',
-                    name: 'collection-join',
-                    component: () => import('@/views/CollectionJoinPage.vue'),
-                },
-                {
-                    path: 'collections/:id',
-                    name: 'collection-detail',
-                    component: () => import('@/views/CollectionDetailPage.vue'),
                 },
                 {
                     path: 'exercises',

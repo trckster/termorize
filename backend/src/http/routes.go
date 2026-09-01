@@ -45,7 +45,7 @@ func defineProtectedRoutes(group *gin.RouterGroup) {
 	group.POST("/collections/:id/practice/exercises", controllers.CreateCollectionPracticeExercise)
 	group.POST("/collections/:id/publish", controllers.PublishCollection)
 	group.POST("/collection-generate", controllers.GenerateCollection)
-	group.POST("/collection-invites/:token", controllers.JoinCollection)
+	group.POST("/collection-invites/:identifier", controllers.JoinCollection)
 
 	group.POST("/translate", controllers.Translate)
 }
@@ -61,6 +61,9 @@ func definePublicRoutes(group *gin.RouterGroup) {
 	group.POST("/logout", controllers.Logout)
 
 	group.GET("/settings", controllers.GetSettings)
+	group.GET("/public/collections/:id", controllers.GetPublicCollection)
+	group.GET("/public/collection-invites/:identifier", controllers.GetPublicCollectionByShareIdentifier)
+	group.GET("/public/collection-share-metadata", controllers.GetCollectionShareMetadata)
 
 	group.POST("/telegram/webhook", middlewares.TelegramWebhookMiddleware(), telegram.HandleWebhook)
 }

@@ -4,6 +4,7 @@ import { useRoute, useRouter, type LocationQueryValue } from 'vue-router'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/stores/auth'
+import { takePostAuthPath } from '@/lib/postAuthRedirect'
 
 const route = useRoute()
 const router = useRouter()
@@ -32,7 +33,7 @@ onMounted(async () => {
 
     try {
         await authStore.completeTelegramLogin({ code, state })
-        await router.replace({ name: 'translation' })
+        await router.replace(takePostAuthPath() || { name: 'translation' })
     } catch (err) {
         error.value = getErrorMessage(err, 'Telegram login failed')
         isLoading.value = false

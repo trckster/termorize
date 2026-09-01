@@ -123,10 +123,11 @@
                                 {{ collection.is_published ? t.collectionUnpublish : t.collectionPublish }}
                             </Button>
                             <Button
-                                v-if="inviteLink"
                                 variant="outline"
                                 size="sm"
                                 class="w-full sm:w-auto"
+                                :disabled="!inviteLink"
+                                :aria-describedby="!inviteLink ? 'collection-share-hint' : undefined"
                                 @click="isShareDialogOpen = true"
                             >
                                 <Share2 class="mr-2 h-4 w-4" />
@@ -177,6 +178,13 @@
                             class="mt-1 text-xs text-muted-foreground lg:ml-auto lg:max-w-sm lg:text-right"
                         >
                             {{ t.collectionPracticeUnavailable }}
+                        </p>
+                        <p
+                            v-if="!inviteLink"
+                            id="collection-share-hint"
+                            class="mt-1 text-xs text-muted-foreground lg:ml-auto lg:max-w-sm lg:text-right"
+                        >
+                            {{ t.collectionShareUnavailable }}
                         </p>
                     </div>
                 </div>
@@ -621,7 +629,7 @@ const canManage = computed(
 )
 
 const inviteLink = computed(() =>
-    collection.value?.invite_token ? `${window.location.origin}/collections/join/${collection.value.invite_token}` : ''
+    collection.value?.share_path ? `${window.location.origin}${collection.value.share_path}` : ''
 )
 
 const selectedCount = computed(() => selectedIds.value.size)

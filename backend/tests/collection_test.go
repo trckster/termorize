@@ -26,7 +26,7 @@ import (
 func collectionSeed(t *testing.T, title string, ownerID *uint, isAdmin, isPublished bool) models.Collection {
 	t.Helper()
 
-	token, err := uuid.NewRandom()
+	token, err := services.GenerateInviteToken()
 	require.NoError(t, err)
 
 	collection := models.Collection{
@@ -34,7 +34,7 @@ func collectionSeed(t *testing.T, title string, ownerID *uint, isAdmin, isPublis
 		OwnerID:     ownerID,
 		IsAdmin:     isAdmin,
 		IsPublished: isPublished,
-		InviteToken: token.String(),
+		InviteToken: token,
 	}
 	require.NoError(t, db.DB.Create(&collection).Error)
 	return collection
@@ -288,7 +288,7 @@ func TestCreateCollectionHappyPath(t *testing.T) {
 		IsAdmin     bool      `json:"is_admin"`
 		IsOwner     bool      `json:"is_owner"`
 		IsPublished bool      `json:"is_published"`
-		InviteToken string    `json:"invite_token"`
+		SharePath   string    `json:"share_path"`
 	}
 	testkit.DecodeJSON(t, rec, &body)
 
@@ -297,7 +297,7 @@ func TestCreateCollectionHappyPath(t *testing.T) {
 	assert.False(t, body.IsAdmin)
 	assert.True(t, body.IsOwner)
 	assert.True(t, body.IsPublished, "user collections are published by default")
-	assert.NotEmpty(t, body.InviteToken, "owner sees the invite token for non-admin collections")
+	assert.Contains(t, body.SharePath, "/collections/join/my-collection-", "published collections expose a share path")
 
 	stored := collectionFindByID(t, body.ID)
 	require.NotNil(t, stored.OwnerID)
@@ -375,13 +375,13 @@ func TestCreateCollectionAdminByAdmin(t *testing.T) {
 	testkit.RequireStatus(t, rec, http.StatusCreated)
 
 	var body struct {
-		ID          uuid.UUID `json:"id"`
-		IsAdmin     bool      `json:"is_admin"`
-		InviteToken string    `json:"invite_token"`
+		ID        uuid.UUID `json:"id"`
+		IsAdmin   bool      `json:"is_admin"`
+		SharePath string    `json:"share_path"`
 	}
 	testkit.DecodeJSON(t, rec, &body)
 	assert.True(t, body.IsAdmin)
-	assert.Empty(t, body.InviteToken, "admin collections do not expose an invite token")
+	assert.Contains(t, body.SharePath, "/collections/join/global-", "published global collections expose a share path")
 
 	stored := collectionFindByID(t, body.ID)
 	assert.True(t, stored.IsAdmin)
@@ -443,7 +443,7 @@ func TestGetCollectionHappyPathWithTranslations(t *testing.T) {
 		Title            string    `json:"title"`
 		IsOwner          bool      `json:"is_owner"`
 		TranslationCount int       `json:"translation_count"`
-		InviteToken      string    `json:"invite_token"`
+		SharePath        string    `json:"share_path"`
 		Translations     []struct {
 			ID       uuid.UUID `json:"id"`
 			Original struct {
@@ -460,7 +460,7 @@ func TestGetCollectionHappyPathWithTranslations(t *testing.T) {
 	// Ordered by position ASC.
 	assert.Equal(t, tr1, body.Translations[0].ID)
 	assert.Equal(t, tr2, body.Translations[1].ID)
-	assert.NotEmpty(t, body.InviteToken, "owner of non-admin collection sees invite token")
+	assert.Contains(t, body.SharePath, "/collections/join/animals-", "owner sees the published share path")
 }
 
 func TestGetCollectionUnpublishedAdminHidden(t *testing.T) {
@@ -490,12 +490,12 @@ func TestGetCollectionMemberCanAccess(t *testing.T) {
 	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
-		IsOwner     bool   `json:"is_owner"`
-		InviteToken string `json:"invite_token"`
+		IsOwner   bool   `json:"is_owner"`
+		SharePath string `json:"share_path"`
 	}
 	testkit.DecodeJSON(t, rec, &body)
 	assert.False(t, body.IsOwner, "member is not owner")
-	assert.Empty(t, body.InviteToken, "non-owner does not see invite token")
+	assert.Contains(t, body.SharePath, "/collections/join/shared-", "every viewer sees the published share path")
 }
 
 // ===========================================================================
@@ -1129,15 +1129,34 @@ func TestAddCollectionToVocabularyAccessForbidden(t *testing.T) {
 
 	owner := testkit.CreateUser(t, testkit.WithName("Owner"))
 	stranger := testkit.CreateUser(t, testkit.WithName("Stranger"))
-	// Private, non-published... actually published but owned by someone else and
-	// not admin → stranger has no access → treated as not found (404).
-	collection := collectionSeed(t, "Private", uintPtr(owner.ID), false, true)
+	// Unpublished collections remain unavailable to everyone except their owner.
+	collection := collectionSeed(t, "Private", uintPtr(owner.ID), false, false)
 	tr := collectionSeedTranslation(t, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
 	collectionLink(t, collection.ID, tr, 0)
 
 	rec := testkit.AuthedRequest(t, stranger, http.MethodPost,
 		"/api/collections/"+collection.ID.String()+"/add-to-vocabulary", map[string]any{})
-	testkit.RequireStatus(t, rec, http.StatusNotFound, "stranger cannot access a private user collection")
+	testkit.RequireStatus(t, rec, http.StatusNotFound, "stranger cannot access an unpublished user collection")
+}
+
+func TestAddPublishedCollectionToVocabularyWithoutMembership(t *testing.T) {
+	testkit.Truncate(t)
+
+	owner := testkit.CreateUser(t, testkit.WithName("Owner"))
+	viewer := testkit.CreateUser(t, testkit.WithName("Viewer"))
+	collection := collectionSeed(t, "Published", uintPtr(owner.ID), false, true)
+	translationID := collectionSeedTranslation(t, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
+	collectionLink(t, collection.ID, translationID, 0)
+
+	rec := testkit.AuthedRequest(t, viewer, http.MethodPost,
+		"/api/collections/"+collection.ID.String()+"/add-to-vocabulary", map[string]any{})
+	testkit.RequireStatus(t, rec, http.StatusOK)
+
+	var body struct {
+		Added int `json:"added"`
+	}
+	testkit.DecodeJSON(t, rec, &body)
+	assert.Equal(t, 1, body.Added)
 }
 
 // ===========================================================================
@@ -1410,7 +1429,7 @@ func TestGenerateCollectionNoUsablePairs(t *testing.T) {
 }
 
 // ===========================================================================
-// POST /api/collection-invites/:token (JoinCollection)
+// POST /api/collection-invites/:identifier (JoinCollection)
 // ===========================================================================
 
 func TestJoinCollectionRequiresAuth(t *testing.T) {
@@ -1427,7 +1446,7 @@ func TestJoinCollectionHappyPath(t *testing.T) {
 	joiner := testkit.CreateUser(t, testkit.WithName("Joiner"))
 	collection := collectionSeed(t, "Shared", uintPtr(owner.ID), false, true)
 
-	rec := testkit.AuthedRequest(t, joiner, http.MethodPost, "/api/collection-invites/"+collection.InviteToken, nil)
+	rec := testkit.AuthedRequest(t, joiner, http.MethodPost, "/api/collection-invites/"+services.CollectionShareIdentifier(&collection), nil)
 	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
@@ -1466,9 +1485,9 @@ func TestJoinCollectionIdempotent(t *testing.T) {
 	joiner := testkit.CreateUser(t, testkit.WithName("Joiner"))
 	collection := collectionSeed(t, "Shared", uintPtr(owner.ID), false, true)
 
-	first := testkit.AuthedRequest(t, joiner, http.MethodPost, "/api/collection-invites/"+collection.InviteToken, nil)
+	first := testkit.AuthedRequest(t, joiner, http.MethodPost, "/api/collection-invites/"+services.CollectionShareIdentifier(&collection), nil)
 	testkit.RequireStatus(t, first, http.StatusOK)
-	second := testkit.AuthedRequest(t, joiner, http.MethodPost, "/api/collection-invites/"+collection.InviteToken, nil)
+	second := testkit.AuthedRequest(t, joiner, http.MethodPost, "/api/collection-invites/"+services.CollectionShareIdentifier(&collection), nil)
 	testkit.RequireStatus(t, second, http.StatusOK)
 
 	// Still only one membership row (OnConflict DoNothing).
@@ -1481,7 +1500,7 @@ func TestJoinCollectionOwnerDoesNotCreateMembership(t *testing.T) {
 	owner := testkit.CreateUser(t, testkit.WithName("Owner"))
 	collection := collectionSeed(t, "Shared", uintPtr(owner.ID), false, true)
 
-	rec := testkit.AuthedRequest(t, owner, http.MethodPost, "/api/collection-invites/"+collection.InviteToken, nil)
+	rec := testkit.AuthedRequest(t, owner, http.MethodPost, "/api/collection-invites/"+services.CollectionShareIdentifier(&collection), nil)
 	testkit.RequireStatus(t, rec, http.StatusOK)
 
 	var body struct {
@@ -1505,6 +1524,30 @@ func TestJoinCollectionInvalidToken(t *testing.T) {
 	assert.Equal(t, "invalid invite link", body["error"])
 }
 
+func TestJoinCollectionRejectsLegacyCodeOnlyLink(t *testing.T) {
+	testkit.Truncate(t)
+
+	owner := testkit.CreateUser(t, testkit.WithName("Owner"))
+	user := testkit.CreateUser(t)
+	collection := collectionSeed(t, "Shared", uintPtr(owner.ID), false, true)
+
+	rec := testkit.AuthedRequest(t, user, http.MethodPost,
+		"/api/collection-invites/"+collection.InviteToken, nil)
+	testkit.RequireStatus(t, rec, http.StatusNotFound)
+}
+
+func TestJoinCollectionRejectsUnpublishedCollection(t *testing.T) {
+	testkit.Truncate(t)
+
+	owner := testkit.CreateUser(t, testkit.WithName("Owner"))
+	user := testkit.CreateUser(t)
+	collection := collectionSeed(t, "Draft", uintPtr(owner.ID), false, false)
+
+	rec := testkit.AuthedRequest(t, user, http.MethodPost,
+		"/api/collection-invites/"+services.CollectionShareIdentifier(&collection), nil)
+	testkit.RequireStatus(t, rec, http.StatusNotFound)
+}
+
 func TestJoinCollectionDeletedCollectionToken(t *testing.T) {
 	testkit.Truncate(t)
 
@@ -1516,7 +1559,7 @@ func TestJoinCollectionDeletedCollectionToken(t *testing.T) {
 	require.NoError(t, db.DB.Model(&models.Collection{}).
 		Where("id = ?", collection.ID).Update("deleted_at", now).Error)
 
-	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collection-invites/"+collection.InviteToken, nil)
+	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/collection-invites/"+services.CollectionShareIdentifier(&collection), nil)
 	testkit.RequireStatus(t, rec, http.StatusNotFound, "token of a deleted collection is invalid")
 }
 
