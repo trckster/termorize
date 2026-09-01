@@ -23,8 +23,12 @@ export const rememberPostAuthPath = (path: string) => {
     }
 }
 
+export const clearPostAuthPath = () => {
+    window.sessionStorage.removeItem(POST_AUTH_PATH_KEY)
+}
+
 export const takePostAuthPath = (): string | null => {
     const storedPath = window.sessionStorage.getItem(POST_AUTH_PATH_KEY)
-    window.sessionStorage.removeItem(POST_AUTH_PATH_KEY)
+    clearPostAuthPath()
     return storedPath ? safeCollectionPath(storedPath) : null
 }

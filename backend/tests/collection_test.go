@@ -1129,7 +1129,6 @@ func TestAddCollectionToVocabularyAccessForbidden(t *testing.T) {
 
 	owner := testkit.CreateUser(t, testkit.WithName("Owner"))
 	stranger := testkit.CreateUser(t, testkit.WithName("Stranger"))
-	// Unpublished collections remain unavailable to everyone except their owner.
 	collection := collectionSeed(t, "Private", uintPtr(owner.ID), false, false)
 	tr := collectionSeedTranslation(t, "dog", "Hund", enums.LanguageEn, enums.LanguageDe)
 	collectionLink(t, collection.ID, tr, 0)

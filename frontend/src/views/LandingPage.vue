@@ -15,6 +15,7 @@ import {
 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { getTelegramWebAppInitData, isTelegramWebApp } from '@/lib/telegram'
+import { clearPostAuthPath } from '@/lib/postAuthRedirect'
 
 type ActionSource =
     | 'telegram-auto'
@@ -62,6 +63,7 @@ const startTelegramLogin = async (source: ActionSource) => {
     if (isLoading.value) return
 
     try {
+        clearPostAuthPath()
         error.value = null
         activeAction.value = source
         isTelegramLoading.value = true

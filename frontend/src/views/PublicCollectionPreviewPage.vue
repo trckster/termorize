@@ -11,7 +11,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
 import { formatNumber } from '@/lib/utils'
 import { getTelegramWebAppInitData, isTelegramWebApp } from '@/lib/telegram'
-import { rememberPostAuthPath } from '@/lib/postAuthRedirect'
+import { clearPostAuthPath, rememberPostAuthPath } from '@/lib/postAuthRedirect'
 
 const props = defineProps<{
     mode: 'direct' | 'join'
@@ -93,6 +93,7 @@ const startTelegramLogin = async () => {
         const authURL = await authStore.startTelegramLogin()
         window.location.assign(authURL)
     } catch (error) {
+        clearPostAuthPath()
         loginError.value = getErrorMessage(error, t.value.loginStartError)
         isTelegramLoading.value = false
     }

@@ -7,6 +7,7 @@ import TelegramLogin from '@/components/TelegramLogin.vue'
 import { getTelegramWebAppInitData, isTelegramWebApp } from '@/lib/telegram'
 import { useAuthStore } from '@/stores/auth'
 import { useI18n } from '@/composables/useI18n'
+import { clearPostAuthPath } from '@/lib/postAuthRedirect'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -53,6 +54,7 @@ const startTelegramLogin = async () => {
     }
 
     try {
+        clearPostAuthPath()
         error.value = null
         isLoading.value = true
 
