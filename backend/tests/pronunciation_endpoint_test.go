@@ -18,12 +18,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestWordPronunciationRequiresAuth(t *testing.T) {
+func TestWordPronunciationIsPublic(t *testing.T) {
 	testkit.Truncate(t)
+	word := createPronunciationWord(t, "ciao")
+	audio := []byte("public-mp3")
+	_, err := services.StoreWordPronunciation(
+		word.ID,
+		config.GetOpenRouterTTSModel(),
+		config.GetOpenRouterTTSVoice(),
+		audio,
+	)
+	require.NoError(t, err)
 
-	rec := testkit.Request(t, http.MethodGet, "/api/words/"+uuid.NewString()+"/pronunciation", nil)
+	rec := testkit.Request(t, http.MethodGet, "/api/words/"+word.ID.String()+"/pronunciation", nil)
 
-	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
+	testkit.RequireStatus(t, rec, http.StatusOK)
+	assert.Equal(t, "public, max-age=86400", rec.Header().Get("Cache-Control"))
+	assert.Equal(t, audio, rec.Body.Bytes())
 }
 
 func TestWordPronunciationCacheMissGeneratesStoresAndReturnsMP3(t *testing.T) {
@@ -43,7 +54,7 @@ func TestWordPronunciationCacheMissGeneratesStoresAndReturnsMP3(t *testing.T) {
 	testkit.RequireStatus(t, rec, http.StatusOK)
 	assert.Equal(t, models.PronunciationMIMETypeMP3, rec.Header().Get("Content-Type"))
 	assert.Equal(t, `inline; filename="pronunciation.mp3"`, rec.Header().Get("Content-Disposition"))
-	assert.Equal(t, "private, max-age=86400", rec.Header().Get("Cache-Control"))
+	assert.Equal(t, "public, max-age=86400", rec.Header().Get("Cache-Control"))
 	assert.Equal(t, audio, rec.Body.Bytes())
 	assert.Equal(t, 1, generated)
 

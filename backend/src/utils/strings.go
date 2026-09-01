@@ -5,6 +5,41 @@ import (
 	"unicode"
 )
 
+const kebabSlugMaxLength = 80
+
+func KebabSlug(value string) string {
+	var builder strings.Builder
+	runeCount := 0
+	pendingSeparator := false
+
+	for _, character := range strings.TrimSpace(value) {
+		if unicode.IsLetter(character) || unicode.IsDigit(character) {
+			if pendingSeparator && builder.Len() > 0 && runeCount < kebabSlugMaxLength {
+				builder.WriteByte('-')
+				runeCount++
+			}
+
+			if runeCount >= kebabSlugMaxLength {
+				break
+			}
+
+			builder.WriteRune(unicode.ToLower(character))
+			runeCount++
+			pendingSeparator = false
+			continue
+		}
+
+		pendingSeparator = builder.Len() > 0
+	}
+
+	result := strings.TrimSuffix(builder.String(), "-")
+	if result == "" {
+		return "collection"
+	}
+
+	return result
+}
+
 var italianArticles = map[string]bool{
 	"il":  true,
 	"lo":  true,

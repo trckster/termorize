@@ -2,6 +2,27 @@ package utils
 
 import "testing"
 
+func TestKebabSlug(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    string
+		expected string
+	}{
+		{name: "punctuation", value: "Forest best words!!!", expected: "forest-best-words"},
+		{name: "collapsed separators", value: "  Sea  &  Sky -- Words  ", expected: "sea-sky-words"},
+		{name: "unicode", value: "Лучшие слова!", expected: "лучшие-слова"},
+		{name: "fallback", value: "!!! 🌲 !!!", expected: "collection"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if result := KebabSlug(test.value); result != test.expected {
+				t.Fatalf("expected %q, got %q", test.expected, result)
+			}
+		})
+	}
+}
+
 func TestNormalizeWordCasingForLanguageLowercasesItalianArticlePhrase(t *testing.T) {
 	result := NormalizeWordCasingForLanguage("Il Cane", "it")
 

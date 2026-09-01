@@ -63,7 +63,21 @@ type CollectionDetail struct {
 	VocabularyCount  int                  `json:"vocabulary_count"`
 	UserAddCount     int                  `json:"user_add_count"`
 	CreatedAt        time.Time            `json:"created_at"`
-	InviteToken      string               `json:"invite_token,omitempty"`
+	SharePath        string               `json:"share_path,omitempty"`
+	Translations     []models.Translation `json:"translations"`
+}
+
+type PublicCollectionDetail struct {
+	ID               uuid.UUID            `json:"id"`
+	Title            string               `json:"title"`
+	IsAdmin          bool                 `json:"is_admin"`
+	IsPublished      bool                 `json:"is_published"`
+	OwnerUsername    string               `json:"owner_username,omitempty"`
+	Languages        []enums.Language     `json:"languages"`
+	TranslationCount int                  `json:"translation_count"`
+	UserAddCount     int                  `json:"user_add_count"`
+	CreatedAt        time.Time            `json:"created_at"`
+	SharePath        string               `json:"share_path"`
 	Translations     []models.Translation `json:"translations"`
 }
 
@@ -135,6 +149,8 @@ func AIGenerationFailedError(err error) bool {
 }
 
 const collectionTitleMaxLength = 255
+const collectionInviteTokenBytes = 16
+const collectionInviteTokenLength = (collectionInviteTokenBytes*8 + 5) / 6
 
 func truncateTitle(title string) string {
 	if runes := []rune(title); len(runes) > collectionTitleMaxLength {
@@ -144,11 +160,45 @@ func truncateTitle(title string) string {
 }
 
 func GenerateInviteToken() (string, error) {
-	bytes := make([]byte, 16)
+	bytes := make([]byte, collectionInviteTokenBytes)
 	if _, err := rand.Read(bytes); err != nil {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(bytes), nil
+}
+
+func CollectionShareIdentifier(collection *models.Collection) string {
+	return utils.KebabSlug(collection.Title) + "-" + collection.InviteToken
+}
+
+func CollectionSharePath(collection *models.Collection) string {
+	return "/collections/join/" + CollectionShareIdentifier(collection)
+}
+
+func getPublishedCollectionByShareIdentifier(conn *gorm.DB, identifier string) (*models.Collection, error) {
+	identifier = strings.TrimSpace(identifier)
+	separatorIndex := len(identifier) - collectionInviteTokenLength - 1
+	if separatorIndex <= 0 || identifier[separatorIndex] != '-' {
+		return nil, ErrInvalidInviteToken
+	}
+
+	token := identifier[separatorIndex+1:]
+	var collection models.Collection
+	err := conn.
+		Where("invite_token = ? AND is_published = ? AND deleted_at IS NULL", token, true).
+		First(&collection).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrInvalidInviteToken
+		}
+		return nil, err
+	}
+
+	if CollectionShareIdentifier(&collection) != identifier {
+		return nil, ErrInvalidInviteToken
+	}
+
+	return &collection, nil
 }
 
 func userIsAdmin(conn *gorm.DB, userID uint) (bool, error) {
@@ -172,7 +222,7 @@ func getAccessibleCollection(conn *gorm.DB, userID uint, collectionID uuid.UUID)
 		return nil, err
 	}
 
-	if (collection.IsAdmin && collection.IsPublished) || collection.IsOwnedBy(userID) {
+	if collection.IsPublished || collection.IsOwnedBy(userID) {
 		return &collection, nil
 	}
 
@@ -457,14 +507,9 @@ func ListCollections(userID uint, page, pageSize int, search string, languageFil
 	}, nil
 }
 
-func GetCollection(userID uint, collectionID uuid.UUID) (*CollectionDetail, error) {
-	collection, err := getAccessibleCollection(db.DB, userID, collectionID)
-	if err != nil {
-		return nil, err
-	}
-
+func getCollectionTranslations(conn *gorm.DB, collectionID uuid.UUID) ([]models.Translation, error) {
 	var translations []models.Translation
-	if err := db.DB.
+	if err := conn.
 		Model(&models.Translation{}).
 		Joins("JOIN collection_translations ct ON ct.translation_id = translations.id").
 		Where("ct.collection_id = ?", collectionID).
@@ -474,7 +519,10 @@ func GetCollection(userID uint, collectionID uuid.UUID) (*CollectionDetail, erro
 		Find(&translations).Error; err != nil {
 		return nil, err
 	}
+	return translations, nil
+}
 
+func collectionLanguageList(translations []models.Translation) []enums.Language {
 	languageSet := make(map[enums.Language]bool)
 	languages := make([]enums.Language, 0)
 	for i := range translations {
@@ -488,11 +536,42 @@ func GetCollection(userID uint, collectionID uuid.UUID) (*CollectionDetail, erro
 			}
 		}
 	}
+	return languages
+}
+
+func collectionOwnerUsername(conn *gorm.DB, collection *models.Collection) string {
+	if collection.IsAdmin || collection.OwnerID == nil {
+		return ""
+	}
+
+	var ownerUsername string
+	if err := conn.Model(&models.User{}).
+		Select("username").
+		Where("id = ?", *collection.OwnerID).
+		Scan(&ownerUsername).Error; err != nil {
+		return ""
+	}
+	return ownerUsername
+}
+
+func collectionUserAddCount(conn *gorm.DB, collectionID uuid.UUID) int {
+	var userAddCount int64
+	conn.Model(&models.CollectionUserAdd{}).Where("collection_id = ?", collectionID).Count(&userAddCount)
+	return int(userAddCount)
+}
+
+func GetCollection(userID uint, collectionID uuid.UUID) (*CollectionDetail, error) {
+	collection, err := getAccessibleCollection(db.DB, userID, collectionID)
+	if err != nil {
+		return nil, err
+	}
+
+	translations, err := getCollectionTranslations(db.DB, collectionID)
+	if err != nil {
+		return nil, err
+	}
 
 	isOwner := collection.IsOwnedBy(userID)
-
-	var userAddCount int64
-	db.DB.Model(&models.CollectionUserAdd{}).Where("collection_id = ?", collectionID).Count(&userAddCount)
 
 	vocabularyCounts, err := countCollectionVocabulary(db.DB, userID, []uuid.UUID{collectionID})
 	if err != nil {
@@ -505,26 +584,64 @@ func GetCollection(userID uint, collectionID uuid.UUID) (*CollectionDetail, erro
 		IsAdmin:          collection.IsAdmin,
 		IsOwner:          isOwner,
 		IsPublished:      collection.IsPublished,
-		Languages:        languages,
+		OwnerUsername:    collectionOwnerUsername(db.DB, collection),
+		Languages:        collectionLanguageList(translations),
 		TranslationCount: len(translations),
 		VocabularyCount:  vocabularyCounts[collectionID],
-		UserAddCount:     int(userAddCount),
+		UserAddCount:     collectionUserAddCount(db.DB, collectionID),
 		CreatedAt:        collection.CreatedAt,
 		Translations:     translations,
 	}
 
-	if !collection.IsAdmin && collection.OwnerID != nil {
-		var ownerUsername string
-		if err := db.DB.Model(&models.User{}).Select("username").Where("id = ?", *collection.OwnerID).Scan(&ownerUsername).Error; err == nil && ownerUsername != "" {
-			detail.OwnerUsername = ownerUsername
-		}
-	}
-
-	if isOwner && !collection.IsAdmin {
-		detail.InviteToken = collection.InviteToken
+	if collection.IsPublished && collection.InviteToken != "" {
+		detail.SharePath = CollectionSharePath(collection)
 	}
 
 	return detail, nil
+}
+
+func getPublicCollectionDetail(collection *models.Collection) (*PublicCollectionDetail, error) {
+	translations, err := getCollectionTranslations(db.DB, collection.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PublicCollectionDetail{
+		ID:               collection.ID,
+		Title:            collection.Title,
+		IsAdmin:          collection.IsAdmin,
+		IsPublished:      collection.IsPublished,
+		OwnerUsername:    collectionOwnerUsername(db.DB, collection),
+		Languages:        collectionLanguageList(translations),
+		TranslationCount: len(translations),
+		UserAddCount:     collectionUserAddCount(db.DB, collection.ID),
+		CreatedAt:        collection.CreatedAt,
+		SharePath:        CollectionSharePath(collection),
+		Translations:     translations,
+	}, nil
+}
+
+func GetPublicCollectionByID(collectionID uuid.UUID) (*PublicCollectionDetail, error) {
+	var collection models.Collection
+	err := db.DB.
+		Where("id = ? AND is_published = ? AND deleted_at IS NULL", collectionID, true).
+		First(&collection).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrCollectionNotFound
+		}
+		return nil, err
+	}
+
+	return getPublicCollectionDetail(&collection)
+}
+
+func GetPublicCollectionByShareIdentifier(identifier string) (*PublicCollectionDetail, error) {
+	collection, err := getPublishedCollectionByShareIdentifier(db.DB, identifier)
+	if err != nil {
+		return nil, err
+	}
+	return getPublicCollectionDetail(collection)
 }
 
 func CreateCollection(userID uint, req CreateCollectionRequest) (*CollectionDetail, error) {
@@ -896,18 +1013,9 @@ func UpdateCollectionTitle(userID uint, collectionID uuid.UUID, req UpdateCollec
 	return GetCollection(userID, collectionID)
 }
 
-func JoinCollectionByToken(userID uint, token string) (*CollectionDetail, error) {
-	token = strings.TrimSpace(token)
-	if token == "" {
-		return nil, ErrInvalidInviteToken
-	}
-
-	var collection models.Collection
-	err := db.DB.Where("invite_token = ? AND deleted_at IS NULL", token).First(&collection).Error
+func JoinCollectionByShareIdentifier(userID uint, identifier string) (*CollectionDetail, error) {
+	collection, err := getPublishedCollectionByShareIdentifier(db.DB, identifier)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrInvalidInviteToken
-		}
 		return nil, err
 	}
 

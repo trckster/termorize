@@ -22,7 +22,6 @@ func defineProtectedRoutes(group *gin.RouterGroup) {
 	group.POST("/vocabulary", controllers.CreateVocabulary)
 	group.POST("/vocabulary/translation", controllers.CreateVocabularyByTranslation)
 	group.DELETE("/vocabulary/:id", controllers.DeleteVocabulary)
-	group.GET("/words/:id/pronunciation", controllers.GetWordPronunciation)
 	group.GET("/exercises", controllers.GetExercises)
 	group.GET("/exercises/by-ids", controllers.GetExercisesByIDs)
 	group.GET("/exercises/statistics", controllers.GetExerciseStatistics)
@@ -45,7 +44,7 @@ func defineProtectedRoutes(group *gin.RouterGroup) {
 	group.POST("/collections/:id/practice/exercises", controllers.CreateCollectionPracticeExercise)
 	group.POST("/collections/:id/publish", controllers.PublishCollection)
 	group.POST("/collection-generate", controllers.GenerateCollection)
-	group.POST("/collection-invites/:token", controllers.JoinCollection)
+	group.POST("/collection-invites/:identifier", controllers.JoinCollection)
 
 	group.POST("/translate", controllers.Translate)
 }
@@ -61,6 +60,10 @@ func definePublicRoutes(group *gin.RouterGroup) {
 	group.POST("/logout", controllers.Logout)
 
 	group.GET("/settings", controllers.GetSettings)
+	group.GET("/words/:id/pronunciation", controllers.GetWordPronunciation)
+	group.GET("/public/collections/:id", controllers.GetPublicCollection)
+	group.GET("/public/collection-invites/:identifier", controllers.GetPublicCollectionByShareIdentifier)
+	group.GET("/public/collection-share-metadata", controllers.GetCollectionShareMetadata)
 
 	group.POST("/telegram/webhook", middlewares.TelegramWebhookMiddleware(), telegram.HandleWebhook)
 }
