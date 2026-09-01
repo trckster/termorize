@@ -25,7 +25,7 @@
             </div>
 
             <div v-else-if="collection">
-                <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div class="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
                     <div class="min-w-0">
                         <div class="flex flex-wrap items-center gap-2">
                             <h1
@@ -93,83 +93,91 @@
                         </div>
                     </div>
 
-                    <div class="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
-                        <div class="flex min-w-0 flex-col items-start gap-1">
+                    <div class="w-full lg:w-auto lg:max-w-lg">
+                        <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap lg:justify-end">
                             <Button
+                                size="sm"
                                 class="w-full sm:w-auto"
                                 :disabled="collection.vocabulary_count === 0"
+                                :aria-describedby="
+                                    collection.vocabulary_count === 0 ? 'collection-practice-hint' : undefined
+                                "
                                 @click="startPractice"
                             >
                                 <Play class="mr-2 h-4 w-4" />
                                 {{ t.collectionPracticeStart }}
                             </Button>
-                            <p v-if="collection.vocabulary_count === 0" class="max-w-64 text-xs text-muted-foreground">
-                                {{ t.collectionPracticeUnavailable }}
-                            </p>
+                            <Button
+                                v-if="canManage && collection.is_admin"
+                                :variant="collection.is_published ? 'outline' : 'default'"
+                                size="sm"
+                                class="w-full sm:w-auto"
+                                :disabled="isPublishing"
+                                @click="handleTogglePublish"
+                            >
+                                <Loader2 v-if="isPublishing" class="mr-2 h-4 w-4 animate-spin" />
+                                <template v-else>
+                                    <EyeOff v-if="collection.is_published" class="mr-2 h-4 w-4" />
+                                    <Globe v-else class="mr-2 h-4 w-4" />
+                                </template>
+                                {{ collection.is_published ? t.collectionUnpublish : t.collectionPublish }}
+                            </Button>
+                            <Button
+                                v-if="inviteLink"
+                                variant="outline"
+                                size="sm"
+                                class="w-full sm:w-auto"
+                                @click="isShareDialogOpen = true"
+                            >
+                                <Share2 class="mr-2 h-4 w-4" />
+                                {{ t.collectionShare }}
+                            </Button>
+                            <Dialog v-if="canManage">
+                                <DialogTrigger as-child>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        class="col-span-2 w-full text-destructive hover:bg-destructive/10 sm:col-span-1 sm:w-auto"
+                                    >
+                                        <Trash2 class="mr-2 h-4 w-4" />
+                                        {{ t.collectionDelete }}
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent class="sm:max-w-md">
+                                    <DialogHeader>
+                                        <DialogTitle>{{ t.collectionDeleteDialogTitle }}</DialogTitle>
+                                        <DialogDescription>
+                                            {{ t.collectionDeleteConfirmPrefix
+                                            }}<span class="font-medium text-foreground">{{ collection.title }}</span
+                                            >{{ t.collectionDeleteConfirmSuffix }}
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <DialogFooter class="flex gap-2 sm:justify-end">
+                                        <DialogClose as-child>
+                                            <Button type="button" variant="secondary">{{ t.cancel }}</Button>
+                                        </DialogClose>
+                                        <DialogClose as-child>
+                                            <Button
+                                                type="button"
+                                                variant="destructive"
+                                                :disabled="isDeleting"
+                                                @click="handleDelete"
+                                            >
+                                                <Loader2 v-if="isDeleting" class="mr-2 h-4 w-4 animate-spin" />
+                                                {{ isDeleting ? t.deleting : t.delete }}
+                                            </Button>
+                                        </DialogClose>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
                         </div>
-                        <Button
-                            v-if="canManage && collection.is_admin"
-                            :variant="collection.is_published ? 'outline' : 'default'"
-                            size="sm"
-                            class="w-full sm:w-auto"
-                            :disabled="isPublishing"
-                            @click="handleTogglePublish"
+                        <p
+                            v-if="collection.vocabulary_count === 0"
+                            id="collection-practice-hint"
+                            class="mt-1 text-xs text-muted-foreground lg:ml-auto lg:max-w-sm lg:text-right"
                         >
-                            <Loader2 v-if="isPublishing" class="mr-2 h-4 w-4 animate-spin" />
-                            <template v-else>
-                                <EyeOff v-if="collection.is_published" class="mr-2 h-4 w-4" />
-                                <Globe v-else class="mr-2 h-4 w-4" />
-                            </template>
-                            {{ collection.is_published ? t.collectionUnpublish : t.collectionPublish }}
-                        </Button>
-                        <Button
-                            v-if="inviteLink"
-                            variant="outline"
-                            size="sm"
-                            class="w-full sm:w-auto"
-                            @click="isShareDialogOpen = true"
-                        >
-                            <Share2 class="mr-2 h-4 w-4" />
-                            {{ t.collectionShare }}
-                        </Button>
-                        <Dialog v-if="canManage">
-                            <DialogTrigger as-child>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    class="w-full text-destructive hover:bg-destructive/10 sm:w-auto"
-                                >
-                                    <Trash2 class="mr-2 h-4 w-4" />
-                                    {{ t.collectionDelete }}
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent class="sm:max-w-md">
-                                <DialogHeader>
-                                    <DialogTitle>{{ t.collectionDeleteDialogTitle }}</DialogTitle>
-                                    <DialogDescription>
-                                        {{ t.collectionDeleteConfirmPrefix
-                                        }}<span class="font-medium text-foreground">{{ collection.title }}</span
-                                        >{{ t.collectionDeleteConfirmSuffix }}
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <DialogFooter class="flex gap-2 sm:justify-end">
-                                    <DialogClose as-child>
-                                        <Button type="button" variant="secondary">{{ t.cancel }}</Button>
-                                    </DialogClose>
-                                    <DialogClose as-child>
-                                        <Button
-                                            type="button"
-                                            variant="destructive"
-                                            :disabled="isDeleting"
-                                            @click="handleDelete"
-                                        >
-                                            <Loader2 v-if="isDeleting" class="mr-2 h-4 w-4 animate-spin" />
-                                            {{ isDeleting ? t.deleting : t.delete }}
-                                        </Button>
-                                    </DialogClose>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
+                            {{ t.collectionPracticeUnavailable }}
+                        </p>
                     </div>
                 </div>
 
