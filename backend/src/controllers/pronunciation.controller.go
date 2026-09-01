@@ -27,7 +27,7 @@ func GetWordPronunciation(c *gin.Context) {
 		return
 	}
 
-	c.Header("Cache-Control", "private, max-age=86400")
+	c.Header("Cache-Control", "public, max-age=86400")
 	c.Header("Content-Disposition", `inline; filename="pronunciation.mp3"`)
 	c.Header("X-Content-Type-Options", "nosniff")
 	c.Data(nethttp.StatusOK, pronunciation.MIMEType, pronunciation.Audio)

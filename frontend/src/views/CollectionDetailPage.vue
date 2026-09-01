@@ -128,10 +128,13 @@
                                 class="w-full sm:w-auto"
                                 :disabled="!inviteLink"
                                 :aria-describedby="!inviteLink ? 'collection-share-hint' : undefined"
-                                @click="isShareDialogOpen = true"
+                                @click="copyInviteLink"
                             >
-                                <Share2 class="mr-2 h-4 w-4" />
-                                {{ t.collectionShare }}
+                                <Check v-if="justCopied" class="mr-2 h-4 w-4 text-success" />
+                                <Share2 v-else class="mr-2 h-4 w-4" />
+                                <span aria-live="polite">{{
+                                    justCopied ? t.collectionCopied : t.collectionShare
+                                }}</span>
                             </Button>
                             <Dialog v-if="canManage">
                                 <DialogTrigger as-child>
@@ -474,28 +477,6 @@
                 </div>
             </div>
         </div>
-
-        <Dialog v-if="collection && inviteLink" v-model:open="isShareDialogOpen">
-            <DialogContent class="sm:max-w-lg">
-                <DialogHeader>
-                    <DialogTitle>{{ t.collectionShareDialogTitle }}</DialogTitle>
-                    <DialogDescription>{{ t.collectionShareDialogDescription }}</DialogDescription>
-                </DialogHeader>
-                <div class="flex flex-col gap-3 py-2">
-                    <div
-                        ref="linkRef"
-                        class="w-full overflow-x-auto whitespace-nowrap rounded-md border border-border bg-muted px-3 py-3 text-sm font-mono text-foreground"
-                    >
-                        {{ inviteLink }}
-                    </div>
-                    <Button variant="outline" size="sm" class="w-full" @click="copyInviteLink">
-                        <Check v-if="justCopied" class="mr-2 h-4 w-4 text-success" />
-                        <Copy v-else class="mr-2 h-4 w-4" />
-                        {{ justCopied ? t.collectionCopied : t.collectionCopyLink }}
-                    </Button>
-                </div>
-            </DialogContent>
-        </Dialog>
     </main>
 </template>
 
@@ -528,7 +509,6 @@ import {
     ArrowLeft,
     BookmarkPlus,
     Check,
-    Copy,
     EyeOff,
     Globe,
     GripVertical,
@@ -557,7 +537,6 @@ const collection = ref<CollectionDetail | null>(null)
 const isLoading = ref(false)
 const errorMessage = ref('')
 const isAddingToVocabulary = ref(false)
-const isShareDialogOpen = ref(false)
 const isDeleting = ref(false)
 const isPublishing = ref(false)
 const removingId = ref<string | null>(null)
@@ -574,7 +553,6 @@ const openAddTranslationAgain = ref(false)
 const isEditTitleOpen = ref(false)
 const isSavingTitle = ref(false)
 const editTitle = ref('')
-const linkRef = ref<HTMLDivElement | null>(null)
 const newTranslationWord1Ref = ref<HTMLInputElement | null>(null)
 
 type NewTranslationForm = {
@@ -916,7 +894,7 @@ const handleTogglePublish = async () => {
 }
 
 const copyInviteLink = () => {
-    if (!inviteLink.value || !linkRef.value) return
+    if (!inviteLink.value) return
 
     const showSuccess = () => {
         if (copyTimeoutId) clearTimeout(copyTimeoutId)
@@ -935,26 +913,27 @@ const copyInviteLink = () => {
     const showError = () => {
         addToast({
             title: t.value.toastErrorTitle,
-            description:
-                t.value.collectionLinkCopiedErrorDescription || 'Unable to copy. Please copy the link manually.',
+            description: t.value.collectionLinkCopiedErrorDescription,
             variant: 'destructive',
             duration: 5000,
         })
     }
 
     const fallbackCopy = (): boolean => {
-        const selection = window.getSelection()
-        const range = document.createRange()
-        range.selectNodeContents(linkRef.value!)
-        selection?.removeAllRanges()
-        selection?.addRange(range)
+        const textArea = document.createElement('textarea')
+        textArea.value = inviteLink.value
+        textArea.setAttribute('readonly', '')
+        textArea.style.position = 'fixed'
+        textArea.style.opacity = '0'
+        document.body.appendChild(textArea)
+        textArea.select()
         let ok = false
         try {
             ok = document.execCommand('copy')
         } catch {
             ok = false
         }
-        selection?.removeAllRanges()
+        textArea.remove()
         return ok
     }
 
@@ -991,5 +970,6 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
     translationAutofill.deactivate()
+    if (copyTimeoutId) clearTimeout(copyTimeoutId)
 })
 </script>

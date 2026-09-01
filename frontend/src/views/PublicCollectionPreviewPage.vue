@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ArrowRight, BookOpen, Globe2, Loader2, UserRound } from 'lucide-vue-next'
 import { useRoute } from 'vue-router'
 import { collectionsApi, type PublicCollectionDetail } from '@/api/collections'
+import PronunciationButton from '@/components/PronunciationButton.vue'
 import { Button } from '@/components/ui/button'
 import TelegramLogin from '@/components/TelegramLogin.vue'
 import { useI18n } from '@/composables/useI18n'
@@ -258,18 +259,45 @@ onBeforeUnmount(() => {
                         <li
                             v-for="(item, index) in collection.translations"
                             :key="item.id"
-                            class="grid min-h-20 grid-cols-[2rem_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 py-4 sm:grid-cols-[3rem_minmax(0,1fr)_3rem_minmax(0,1fr)] sm:gap-5"
+                            class="grid min-h-20 grid-cols-[2rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2 py-4 sm:grid-cols-[3rem_minmax(0,1fr)_3rem_minmax(0,1fr)] sm:gap-5"
                         >
                             <span class="text-xs tabular-nums text-muted-foreground">{{ index + 1 }}</span>
                             <div class="min-w-0">
-                                <p class="break-words text-base font-medium sm:text-lg">{{ item.original.word }}</p>
+                                <div class="flex min-w-0 items-center gap-2">
+                                    <p class="min-w-0 flex-1 break-words text-base font-medium sm:text-lg">
+                                        {{ item.original.word }}
+                                    </p>
+                                    <PronunciationButton
+                                        :word-id="item.original.id"
+                                        :word="item.original.word"
+                                        :listen-label="t.pronunciationListen"
+                                        :pause-label="t.pronunciationPause"
+                                        :loading-label="t.pronunciationLoading"
+                                        :error-label="t.pronunciationError"
+                                    />
+                                </div>
                                 <p class="mt-1 text-xs uppercase tracking-wide text-muted-foreground">
                                     {{ getLanguageName(item.original.language) }}
                                 </p>
                             </div>
-                            <ArrowRight class="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                            <ArrowRight
+                                class="h-4 w-4 rotate-90 justify-self-center text-muted-foreground sm:rotate-0"
+                                aria-hidden="true"
+                            />
                             <div class="min-w-0">
-                                <p class="break-words text-base font-medium sm:text-lg">{{ item.translation.word }}</p>
+                                <div class="flex min-w-0 items-center gap-2">
+                                    <p class="min-w-0 flex-1 break-words text-base font-medium sm:text-lg">
+                                        {{ item.translation.word }}
+                                    </p>
+                                    <PronunciationButton
+                                        :word-id="item.translation.id"
+                                        :word="item.translation.word"
+                                        :listen-label="t.pronunciationListen"
+                                        :pause-label="t.pronunciationPause"
+                                        :loading-label="t.pronunciationLoading"
+                                        :error-label="t.pronunciationError"
+                                    />
+                                </div>
                                 <p class="mt-1 text-xs uppercase tracking-wide text-muted-foreground">
                                     {{ getLanguageName(item.translation.language) }}
                                 </p>
