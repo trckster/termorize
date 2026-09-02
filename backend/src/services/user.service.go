@@ -86,7 +86,7 @@ func UpdateUserSettings(userID uint, settings models.UserSettings) (*models.User
 
 		user.Settings = settings
 
-		if err := tx.Save(&user).Error; err != nil {
+		if err := tx.Model(&user).Update("settings", settings).Error; err != nil {
 			return err
 		}
 
