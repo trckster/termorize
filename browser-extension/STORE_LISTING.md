@@ -17,6 +17,7 @@ Translate selected text anywhere, then edit or save it to your Termorize vocabul
 Move useful words from any page into Termorize without copying and pasting.
 
 - Select text anywhere and press Alt+T to translate it in a compact on-page editor.
+- Translate text inside a cross-origin embedded frame from the selection context menu.
 - Click the Termorize icon to translate the current selection in the extension popup.
 - Change the target language and get an updated translation immediately.
 - Edit either side before saving, or save the generated translation unchanged.
@@ -63,7 +64,11 @@ Reads only the `auth` cookie for `termorize.daniil.online` when the user opens o
 
 **`activeTab`**
 
-Temporarily accesses only the active tab after the user clicks the extension icon or invokes Alt+T. This access is used to read the text the user selected.
+Temporarily accesses only the active tab after the user clicks the extension icon, invokes Alt+T, or chooses the Termorize selection context-menu action. This access is used to read or display the text the user selected.
+
+**`contextMenus`**
+
+Adds a single selection-only action that translates text inside cross-origin embedded frames without requesting permanent access to every website.
 
 **`scripting`**
 
@@ -98,10 +103,11 @@ No private test account is required.
 
 1. Open https://termorize.daniil.online and choose **Just Try** to create a temporary guest session.
 2. Select a phrase on any ordinary HTTPS page and press **Alt+T**. Confirm that the on-page panel detects its language and displays a translation.
-3. Change the target language and confirm the translation updates. Edit either field and save it.
-4. Open https://translate.google.com/?sl=it&tl=en&text=buongiorno&op=translate and confirm that the Ctrl+E and Ctrl+S hints are visible.
-5. Press **Ctrl+E** to review the pair, then test **Ctrl+S** with a different word.
-6. Return to Termorize and open **Vocabulary** to confirm the saved pairs.
+3. Select text inside a cross-origin embedded frame, right-click it, and choose **Translate selection with Termorize**. Confirm that the same editor opens over the main page.
+4. Change the target language and confirm the translation updates. Edit either field and save it.
+5. Open https://translate.google.com/?sl=it&tl=en&text=buongiorno&op=translate and confirm that the Ctrl+E and Ctrl+S hints are visible.
+6. Press **Ctrl+E** to review the pair, then test **Ctrl+S** with a different word.
+7. Return to Termorize and open **Vocabulary** to confirm the saved pairs.
 
 If either shortcut is already assigned by the review browser, trigger the command from `chrome://extensions/shortcuts` after assigning a temporary key combination.
 

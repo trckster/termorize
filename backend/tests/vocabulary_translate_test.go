@@ -1109,10 +1109,6 @@ func TestTranslateSameSourceAndTargetLanguage(t *testing.T) {
 	assert.Equal(t, "nefield", body.Errors["ToLanguage"])
 }
 
-// ===========================================================================
-// POST /api/translate/selection (TranslateSelection)
-// ===========================================================================
-
 func TestTranslateSelectionRequiresAuth(t *testing.T) {
 	testkit.Truncate(t)
 

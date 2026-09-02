@@ -59,6 +59,8 @@ function languageName(code) {
 function setBusy(busy, label = 'Translating…') {
     elements.targetLanguage.disabled = busy
     elements.retry.disabled = busy
+    elements.sourceText.disabled = busy
+    elements.translatedText.disabled = busy
     elements.save.disabled = busy || !currentTranslation
     if (busy) {
         elements.translatedText.value = ''
@@ -67,6 +69,14 @@ function setBusy(busy, label = 'Translating…') {
     } else {
         elements.translatedText.placeholder = ''
     }
+}
+
+function setSaving(saving) {
+    elements.targetLanguage.disabled = saving
+    elements.retry.disabled = saving
+    elements.sourceText.disabled = saving
+    elements.translatedText.disabled = saving
+    elements.save.disabled = saving || !currentTranslation
 }
 
 function showSignedOut() {
@@ -101,6 +111,10 @@ function showWorkspace(session, selection) {
         if (selection.reason === 'too-long') {
             elements.empty.querySelector('h2').textContent = 'Selection is too long'
             elements.empty.querySelector('p').textContent = 'Select up to 5,000 characters and open Termorize again.'
+        } else if (selection.reason === 'frame-unavailable') {
+            elements.empty.querySelector('h2').textContent = 'Embedded selection'
+            elements.empty.querySelector('p').textContent =
+                'Right-click the selected text and choose “Translate selection with Termorize.”'
         }
         return
     }
@@ -180,7 +194,7 @@ async function save(event) {
     }
 
     const edited = original !== currentTranslation.original || translated !== currentTranslation.translated
-    elements.save.disabled = true
+    setSaving(true)
     elements.save.textContent = 'Saving…'
     setMessage('Saving to your vocabulary…')
 
@@ -196,6 +210,7 @@ async function save(event) {
         },
     })
 
+    setSaving(false)
     elements.save.textContent = response.ok ? 'Saved' : 'Save to vocabulary'
     elements.save.disabled = response.ok
 

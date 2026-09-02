@@ -21,6 +21,8 @@
     let elements = null
     let anchorRect = null
     let resizeObserver = null
+    let overlayGeneration = 0
+    let previouslyFocused = null
 
     function runtimeMessage(message) {
         return new Promise((resolve) => {
@@ -39,6 +41,8 @@
     }
 
     function close() {
+        const focusTarget = previouslyFocused
+        overlayGeneration += 1
         resizeObserver?.disconnect()
         resizeObserver = null
         host?.remove()
@@ -47,6 +51,19 @@
         currentTranslation = null
         anchorRect = null
         latestRequest += 1
+        previouslyFocused = null
+        if (focusTarget?.isConnected) focusTarget.focus({ preventScroll: true })
+    }
+
+    function isCurrentOverlay(generation, overlayElements) {
+        return generation === overlayGeneration && overlayElements === elements
+    }
+
+    function trustedListener(action) {
+        return (event) => {
+            if (!event.isTrusted) return
+            void action(event)
+        }
     }
 
     function positionHost(rect) {
@@ -201,6 +218,8 @@
     function setBusy(busy) {
         elements.target.disabled = busy
         elements.retry.disabled = busy
+        elements.source.disabled = busy
+        elements.translated.disabled = busy
         elements.save.disabled = busy || !currentTranslation
         if (busy) {
             elements.translated.value = ''
@@ -209,6 +228,14 @@
         } else {
             elements.translated.placeholder = ''
         }
+    }
+
+    function setSaving(saving) {
+        elements.target.disabled = saving
+        elements.retry.disabled = saving
+        elements.source.disabled = saving
+        elements.translated.disabled = saving
+        elements.save.disabled = saving || !currentTranslation
     }
 
     function fillLanguages(languages, selected) {
@@ -233,28 +260,31 @@
         return 'Termorize could not translate this selection. Try again in a moment.'
     }
 
-    async function translate() {
-        const text = elements.source.value.trim()
+    async function translate(generation = overlayGeneration) {
+        const overlayElements = elements
+        if (!isCurrentOverlay(generation, overlayElements)) return
+
+        const text = overlayElements.source.value.trim()
         if (!text) {
             currentTranslation = null
-            elements.translated.value = ''
-            elements.save.disabled = true
+            overlayElements.translated.value = ''
+            overlayElements.save.disabled = true
             setMessage('Enter or select text to translate.', 'warning')
             return
         }
 
         const requestId = ++latestRequest
         currentTranslation = null
-        elements.sourceLanguage.textContent = 'Detecting…'
-        elements.translatedLanguage.textContent = languageName(elements.target.value)
+        overlayElements.sourceLanguage.textContent = 'Detecting…'
+        overlayElements.translatedLanguage.textContent = languageName(overlayElements.target.value)
         setBusy(true)
 
         const response = await runtimeMessage({
             type: 'TRANSLATE_SELECTION',
             text,
-            targetLanguage: elements.target.value,
+            targetLanguage: overlayElements.target.value,
         })
-        if (requestId !== latestRequest || !elements) return
+        if (requestId !== latestRequest || !isCurrentOverlay(generation, overlayElements)) return
         setBusy(false)
 
         if (!response.ok) {
@@ -262,51 +292,56 @@
                 showState('signed-out')
                 return
             }
-            elements.sourceLanguage.textContent = response.detectedLanguage
+            overlayElements.sourceLanguage.textContent = response.detectedLanguage
                 ? languageName(response.detectedLanguage)
                 : 'Auto-detected'
-            elements.translated.value = ''
+            overlayElements.translated.value = ''
             setMessage(errorMessage(response), response.reason === 'same-language' ? 'warning' : 'error')
             return
         }
 
         currentTranslation = response.translation
-        elements.source.value = response.translation.original
-        elements.translated.value = response.translation.translated
-        elements.sourceLanguage.textContent = languageName(response.translation.originalLanguage)
-        elements.translatedLanguage.textContent = languageName(response.translation.targetLanguage)
-        elements.save.disabled = false
+        overlayElements.source.value = response.translation.original
+        overlayElements.translated.value = response.translation.translated
+        overlayElements.sourceLanguage.textContent = languageName(response.translation.originalLanguage)
+        overlayElements.translatedLanguage.textContent = languageName(response.translation.targetLanguage)
+        overlayElements.save.disabled = false
         setMessage('Ready to save. You can edit either field first.')
         positionHost(anchorRect)
     }
 
-    async function changeTarget() {
+    async function changeTarget(generation = overlayGeneration) {
+        const overlayElements = elements
+        if (!isCurrentOverlay(generation, overlayElements)) return
+
         currentTranslation = null
-        elements.save.disabled = true
-        elements.save.textContent = 'Save to vocabulary'
-        const targetLanguage = elements.target.value
+        overlayElements.save.disabled = true
+        overlayElements.save.textContent = 'Save to vocabulary'
+        const targetLanguage = overlayElements.target.value
         const [settingsResponse] = await Promise.all([
             runtimeMessage({ type: 'UPDATE_TARGET_LANGUAGE', targetLanguage }),
-            translate(),
+            translate(generation),
         ])
-        if (!elements) return
+        if (!isCurrentOverlay(generation, overlayElements)) return
         if (!settingsResponse.ok && settingsResponse.reason === 'unauthorized') showState('signed-out')
         else if (!settingsResponse.ok)
             setMessage('Translation updated, but the language preference was not saved.', 'warning')
     }
 
-    async function save() {
+    async function save(generation = overlayGeneration) {
+        const overlayElements = elements
+        if (!isCurrentOverlay(generation, overlayElements)) return
         if (!currentTranslation) return
-        const original = elements.source.value.trim()
-        const translated = elements.translated.value.trim()
+        const original = overlayElements.source.value.trim()
+        const translated = overlayElements.translated.value.trim()
         if (!original || !translated) {
             setMessage('Both fields are required before saving.', 'warning')
             return
         }
 
         const edited = original !== currentTranslation.original || translated !== currentTranslation.translated
-        elements.save.disabled = true
-        elements.save.textContent = 'Saving…'
+        setSaving(true)
+        overlayElements.save.textContent = 'Saving…'
         setMessage('Saving to your vocabulary…')
 
         const response = await runtimeMessage({
@@ -321,9 +356,10 @@
             },
         })
 
-        if (!elements) return
-        elements.save.textContent = response.ok ? 'Saved' : 'Save to vocabulary'
-        elements.save.disabled = response.ok
+        if (!isCurrentOverlay(generation, overlayElements)) return
+        setSaving(false)
+        overlayElements.save.textContent = response.ok ? 'Saved' : 'Save to vocabulary'
+        overlayElements.save.disabled = response.ok
         if (response.ok) setMessage('Saved to your Termorize vocabulary.', 'success')
         else if (response.reason === 'duplicate') setMessage('This word pair is already in your vocabulary.', 'warning')
         else if (response.reason === 'unauthorized') showState('signed-out')
@@ -332,44 +368,57 @@
                 response.reason === 'network' ? 'Connection failed. Try again.' : 'Could not save this word pair.',
                 'error'
             )
-            elements.save.disabled = false
+            overlayElements.save.disabled = false
         }
     }
 
-    async function initialize(selection) {
+    async function initialize(selection, generation = overlayGeneration) {
+        const overlayElements = elements
+        if (!isCurrentOverlay(generation, overlayElements)) return
+
         if (!selection?.ok) {
             showState('empty')
             if (selection?.reason === 'too-long') {
-                elements.empty.querySelector('h2').textContent = 'Selection is too long'
-                elements.empty.querySelector('p').textContent =
+                overlayElements.empty.querySelector('h2').textContent = 'Selection is too long'
+                overlayElements.empty.querySelector('p').textContent =
                     'Select up to 5,000 characters, then press Alt + T again.'
+                positionHost(anchorRect)
+            } else if (selection?.reason === 'frame-unavailable') {
+                overlayElements.empty.querySelector('h2').textContent = 'Embedded selection'
+                overlayElements.empty.querySelector('p').textContent =
+                    'Right-click the selected text and choose “Translate selection with Termorize.”'
                 positionHost(anchorRect)
             }
             return
         }
 
         const session = await runtimeMessage({ type: 'GET_SESSION' })
-        if (!elements) return
+        if (!isCurrentOverlay(generation, overlayElements)) return
         if (!session.ok) {
             showState('signed-out')
             return
         }
 
         showState('workspace')
-        elements.account.textContent = `Signed in as ${session.user.name}`
+        overlayElements.account.textContent = `Signed in as ${session.user.name}`
         fillLanguages(session.languages, session.user.settings.translation_target_language || 'ru')
-        elements.source.value = selection.text
-        await translate()
+        overlayElements.source.value = selection.text
+        await translate(generation)
     }
 
     function open(selection) {
         close()
+        const generation = overlayGeneration
+        previouslyFocused = document.activeElement
+        while (previouslyFocused?.shadowRoot?.activeElement) {
+            previouslyFocused = previouslyFocused.shadowRoot.activeElement
+        }
         anchorRect = selection?.rect || null
         host = document.createElement('div')
         host.id = 'termorize-selection-overlay'
         host.style.position = 'fixed'
         host.style.zIndex = '2147483647'
-        const shadow = host.attachShadow({ mode: 'open' })
+        const shadow = host.attachShadow({ mode: 'closed' })
         shadow.innerHTML = template()
         document.documentElement.append(host)
 
@@ -392,13 +441,15 @@
             save: shadow.querySelector('.save'),
         }
 
-        shadow.querySelector('.close').addEventListener('click', close)
-        shadow.querySelector('.login').addEventListener('click', () => void runtimeMessage({ type: 'OPEN_TERMORIZE' }))
-        elements.retry.addEventListener('click', translate)
-        elements.save.addEventListener('click', save)
-        elements.target.addEventListener('change', changeTarget)
+        shadow.querySelector('.close').addEventListener('click', trustedListener(close))
+        shadow
+            .querySelector('.login')
+            .addEventListener('click', trustedListener(() => runtimeMessage({ type: 'OPEN_TERMORIZE' })))
+        elements.retry.addEventListener('click', trustedListener(() => translate(generation)))
+        elements.save.addEventListener('click', trustedListener(() => save(generation)))
+        elements.target.addEventListener('change', trustedListener(() => changeTarget(generation)))
         shadow.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape') {
+            if (event.isTrusted && event.key === 'Escape') {
                 event.preventDefault()
                 close()
             }
@@ -406,7 +457,7 @@
 
         positionHost(anchorRect)
         shadow.querySelector('.close').focus()
-        void initialize(selection)
+        void initialize(selection, generation)
     }
 
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

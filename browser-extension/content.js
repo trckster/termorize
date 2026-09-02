@@ -146,7 +146,10 @@ function createElement(tag, className, text) {
 function createButton(label, className, onClick) {
     const button = createElement('button', className, label)
     button.type = 'button'
-    button.addEventListener('click', onClick)
+    button.addEventListener('click', (event) => {
+        if (!event.isTrusted) return
+        onClick(event)
+    })
     return button
 }
 
@@ -177,12 +180,19 @@ function createShortcutHints() {
 }
 
 function createUi() {
+    const extensionHost = createElement('div', 'termorize-extension-host')
+    extensionHost.id = 'termorize-extension-host'
+    const shadow = extensionHost.attachShadow({ mode: 'closed' })
+    const stylesheet = createElement('link')
+    stylesheet.rel = 'stylesheet'
+    stylesheet.href = chrome.runtime.getURL('content.css')
     const root = createElement('div', 'termorize-extension-root')
     const toastViewport = createElement('div', 'termorize-toast-viewport')
     toastViewport.setAttribute('aria-live', 'polite')
     toastViewport.setAttribute('aria-atomic', 'true')
     root.append(toastViewport, createShortcutHints())
-    document.body.append(root)
+    shadow.append(stylesheet, root)
+    document.body.append(extensionHost)
 
     let toastTimer = null
     let dialog = null
@@ -367,6 +377,20 @@ function createUi() {
         const cancel = createButton('Cancel', 'termorize-button termorize-button--secondary', closeDialog)
         const save = createElement('button', 'termorize-button termorize-button--primary', 'Save to vocabulary')
         save.type = 'submit'
+        let trustedSubmit = false
+        const allowTrustedSubmit = () => {
+            trustedSubmit = true
+            queueMicrotask(() => {
+                trustedSubmit = false
+            })
+        }
+        save.addEventListener('click', (event) => {
+            if (!event.isTrusted) {
+                event.preventDefault()
+                return
+            }
+            allowTrustedSubmit()
+        })
         actions.append(cancel, save)
         footer.append(hint, actions)
 
@@ -378,6 +402,8 @@ function createUi() {
 
         form.addEventListener('submit', async (event) => {
             event.preventDefault()
+            if (!trustedSubmit) return
+            trustedSubmit = false
             const editedPair = {
                 ...pair,
                 original: normalizedText(originalInput.value),
@@ -403,12 +429,14 @@ function createUi() {
         })
 
         overlay.addEventListener('mousedown', (event) => {
-            if (event.target === overlay) closeDialog()
+            if (event.isTrusted && event.target === overlay) closeDialog()
         })
 
         panel.addEventListener('keydown', (event) => {
+            if (!event.isTrusted) return
             if (event.key === 'Enter' && event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey) {
                 event.preventDefault()
+                allowTrustedSubmit()
                 form.requestSubmit()
                 return
             }
@@ -417,10 +445,11 @@ function createUi() {
                 const focusable = [...panel.querySelectorAll('button:not([disabled]), textarea:not([disabled])')]
                 const first = focusable[0]
                 const last = focusable[focusable.length - 1]
-                if (event.shiftKey && document.activeElement === first) {
+                const activeElement = panel.getRootNode().activeElement
+                if (event.shiftKey && activeElement === first) {
                     event.preventDefault()
                     last.focus()
-                } else if (!event.shiftKey && document.activeElement === last) {
+                } else if (!event.shiftKey && activeElement === last) {
                     event.preventDefault()
                     first.focus()
                 }
@@ -441,11 +470,11 @@ function createUi() {
 }
 
 function bootstrap() {
-    if (document.querySelector('.termorize-extension-root')) return
+    if (document.querySelector('#termorize-extension-host')) return
     const ui = createUi()
 
     function handleAction(action) {
-        if (ui.isDialogOpen()) return
+        if (ui.isDialogOpen()) return false
         const pair = extractGoogleTranslation()
         const validation = validatePair(pair)
         if (!validation.ok) {
@@ -454,19 +483,21 @@ function bootstrap() {
                 description: validation.message,
                 variant: 'warning',
             })
-            return
+            return false
         }
 
         if (action === 'edit') ui.openEditor(pair)
         else if (action === 'save') void ui.saveDirect(pair)
+        return true
     }
 
     window.addEventListener(
         'keydown',
         (event) => {
-            if (shouldCloseEditor(event, ui.isDialogOpen()) && ui.closeDialog()) {
+            if (shouldCloseEditor(event, ui.isDialogOpen())) {
                 event.preventDefault()
                 event.stopImmediatePropagation()
+                ui.closeDialog()
                 return
             }
 
@@ -486,8 +517,8 @@ function bootstrap() {
             if (sender.id !== chrome.runtime.id || message?.type !== 'TRIGGER_SHORTCUT') return false
             if (message.action !== 'edit' && message.action !== 'save') return false
 
-            handleAction(message.action)
-            sendResponse({ ok: true })
+            const handled = handleAction(message.action)
+            sendResponse({ ok: true, handled })
             return false
         })
     }

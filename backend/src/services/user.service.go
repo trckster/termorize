@@ -107,6 +107,34 @@ func UpdateUserSettings(userID uint, settings models.UserSettings) (*models.User
 	return &user, nil
 }
 
+func UpdateUserTranslationTargetLanguageByID(userID uint, language enums.Language) (*models.User, error) {
+	var user models.User
+
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", userID).First(&user).Error; err != nil {
+			return err
+		}
+
+		settings := user.Settings
+		if settings.TranslationTargetLanguage == language {
+			return nil
+		}
+
+		if settings.TranslationSourceLanguage == language {
+			settings.TranslationSourceLanguage = settings.TranslationTargetLanguage
+		}
+		settings.TranslationTargetLanguage = language
+		user.Settings = settings
+
+		return tx.Model(&user).Update("settings", settings).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
 func UpdateUserTelegramBotEnabled(telegramID int64, botEnabled bool) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		var user models.User

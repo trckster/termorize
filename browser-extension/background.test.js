@@ -2,12 +2,14 @@ const assert = require('node:assert/strict')
 const { describe, it } = require('node:test')
 const {
     ME_ENDPOINT,
-    SETTINGS_ENDPOINT,
+    TARGET_LANGUAGE_ENDPOINT,
     TRANSLATE_SELECTION_ENDPOINT,
     VOCABULARY_ENDPOINT,
+    captureTabSelection,
     commandAction,
     getSession,
     handleCommand,
+    handleContextMenu,
     isValidVocabularyPayload,
     saveSelection,
     saveVocabulary,
@@ -109,6 +111,153 @@ describe('handleCommand', () => {
         )
 
         assert.equal(handled, false)
+    })
+})
+
+describe('handleContextMenu', () => {
+    it('opens a top-frame overlay for text selected inside an inaccessible frame', async () => {
+        const tab = { id: 41, url: 'https://example.com/with-embedded-content' }
+        let received
+
+        const handled = await handleContextMenu(
+            { menuItemId: 'translate-selection', selectionText: ' iframe selection ' },
+            tab,
+            {},
+            {
+                showSelectionOverlay: async (...args) => {
+                    received = args
+                },
+            }
+        )
+
+        assert.equal(handled, true)
+        assert.deepEqual(received.slice(0, 3), [
+            tab,
+            { ok: true, text: 'iframe selection', rect: null, frameId: 0 },
+            0,
+        ])
+    })
+})
+
+describe('captureTabSelection', () => {
+    it('follows the active frame chain after the popup takes document focus', async () => {
+        const response = await captureTabSelection(29, {
+            scripting: {
+                executeScript: async () => [
+                    {
+                        frameId: 0,
+                        result: {
+                            text: 'stale parent text',
+                            rect: null,
+                            focused: false,
+                            focusDelegatedToFrame: true,
+                            activeFrameChain: true,
+                        },
+                    },
+                    {
+                        frameId: 7,
+                        result: {
+                            text: 'current child text',
+                            rect: { left: 1, top: 2, right: 3, bottom: 4 },
+                            focused: false,
+                            focusDelegatedToFrame: false,
+                            activeFrameChain: true,
+                        },
+                    },
+                ],
+            },
+        })
+
+        assert.deepEqual(response, {
+            ok: true,
+            text: 'current child text',
+            rect: { left: 1, top: 2, right: 3, bottom: 4 },
+            frameId: 7,
+        })
+    })
+
+    it('keeps the current top-frame selection ahead of a stale child selection', async () => {
+        const response = await captureTabSelection(31, {
+            scripting: {
+                executeScript: async () => [
+                    {
+                        frameId: 0,
+                        result: {
+                            text: 'current parent text',
+                            rect: null,
+                            focused: false,
+                            focusDelegatedToFrame: false,
+                            activeFrameChain: true,
+                        },
+                    },
+                    {
+                        frameId: 9,
+                        result: {
+                            text: 'stale child text',
+                            rect: null,
+                            focused: false,
+                            focusDelegatedToFrame: false,
+                            activeFrameChain: false,
+                        },
+                    },
+                ],
+            },
+        })
+
+        assert.equal(response.text, 'current parent text')
+        assert.equal(response.frameId, 0)
+    })
+
+    it('does not reuse stale parent text when the active child selection is empty', async () => {
+        const response = await captureTabSelection(37, {
+            scripting: {
+                executeScript: async () => [
+                    {
+                        frameId: 0,
+                        result: {
+                            text: 'stale parent text',
+                            rect: null,
+                            focused: false,
+                            focusDelegatedToFrame: true,
+                            activeFrameChain: true,
+                        },
+                    },
+                    {
+                        frameId: 12,
+                        result: {
+                            text: '',
+                            rect: null,
+                            focused: false,
+                            focusDelegatedToFrame: false,
+                            activeFrameChain: true,
+                        },
+                    },
+                ],
+            },
+        })
+
+        assert.deepEqual(response, { ok: false, reason: 'empty' })
+    })
+
+    it('directs inaccessible active-frame selections to the context-menu fallback', async () => {
+        const response = await captureTabSelection(43, {
+            scripting: {
+                executeScript: async () => [
+                    {
+                        frameId: 0,
+                        result: {
+                            text: 'stale parent text',
+                            rect: null,
+                            focused: false,
+                            focusDelegatedToFrame: true,
+                            activeFrameChain: true,
+                        },
+                    },
+                ],
+            },
+        })
+
+        assert.deepEqual(response, { ok: false, reason: 'frame-unavailable' })
     })
 })
 
@@ -258,34 +407,12 @@ describe('translateSelectedText', () => {
 })
 
 describe('updateTargetLanguage', () => {
-    it('preserves the rest of the account settings', async () => {
-        const requests = []
+    it('patches only the requested account setting', async () => {
+        let request
         const response = await updateTargetLanguage('de', {
             chromeApi: chromeWithCookie({ value: 'session-jwt' }),
             fetchApi: async (url, options) => {
-                requests.push({ url, options })
-                if (url === ME_ENDPOINT) {
-                    return {
-                        ok: true,
-                        status: 200,
-                        json: async () => ({
-                            name: 'Daniil',
-                            settings: {
-                                system_language: 'en',
-                                main_learning_language: 'it',
-                                translation_source_language: 'en',
-                                translation_target_language: 'ru',
-                                ignored_audio_languages: [],
-                                time_zone: 'Europe/Rome',
-                                telegram: {
-                                    daily_questions_enabled: false,
-                                    daily_questions_count: 10,
-                                    daily_questions_schedule: [],
-                                },
-                            },
-                        }),
-                    }
-                }
+                request = { url, options }
                 return {
                     ok: true,
                     status: 200,
@@ -296,51 +423,47 @@ describe('updateTargetLanguage', () => {
             },
         })
 
-        assert.equal(requests[1].url, SETTINGS_ENDPOINT)
-        const payload = JSON.parse(requests[1].options.body)
-        assert.equal(payload.system_language, 'en')
-        assert.equal(payload.main_learning_language, 'it')
-        assert.equal(payload.translation_target_language, 'de')
+        assert.equal(request.url, TARGET_LANGUAGE_ENDPOINT)
+        assert.equal(request.options.method, 'PATCH')
+        assert.deepEqual(JSON.parse(request.options.body), { translation_target_language: 'de' })
         assert.equal(response.settings.translation_target_language, 'de')
     })
 
-    it('swaps the source to the previous target when the new target would match it', async () => {
+    it('serializes rapid changes so the last choice is persisted last', async () => {
         const requests = []
-        const response = await updateTargetLanguage('en', {
+        let releaseFirst
+        const firstResponse = new Promise((resolve) => {
+            releaseFirst = resolve
+        })
+        const dependencies = {
             chromeApi: chromeWithCookie({ value: 'session-jwt' }),
             fetchApi: async (url, options) => {
                 requests.push({ url, options })
-                if (url === ME_ENDPOINT) {
-                    return {
-                        ok: true,
-                        status: 200,
-                        json: async () => ({
-                            name: 'Daniil',
-                            settings: {
-                                system_language: 'en',
-                                main_learning_language: 'it',
-                                translation_source_language: 'en',
-                                translation_target_language: 'ru',
-                                ignored_audio_languages: [],
-                                time_zone: 'Europe/Rome',
-                                telegram: {
-                                    daily_questions_enabled: false,
-                                    daily_questions_count: 10,
-                                    daily_questions_schedule: [],
-                                },
-                            },
-                        }),
-                    }
+                if (requests.length === 1) return firstResponse
+                return {
+                    ok: true,
+                    status: 200,
+                    json: async () => ({ settings: { translation_target_language: 'it' } }),
                 }
-                return { ok: true, status: 200, json: async () => null }
             },
-        })
+        }
 
-        const payload = JSON.parse(requests[1].options.body)
-        assert.equal(payload.translation_source_language, 'ru')
-        assert.equal(payload.translation_target_language, 'en')
-        assert.equal(response.settings.translation_source_language, 'ru')
-        assert.equal(response.settings.translation_target_language, 'en')
+        const first = updateTargetLanguage('de', dependencies)
+        const second = updateTargetLanguage('it', dependencies)
+        await new Promise((resolve) => setImmediate(resolve))
+
+        assert.equal(requests.length, 1)
+        releaseFirst({
+            ok: true,
+            status: 200,
+            json: async () => ({ settings: { translation_target_language: 'de' } }),
+        })
+        await Promise.all([first, second])
+
+        assert.deepEqual(
+            requests.map((request) => JSON.parse(request.options.body).translation_target_language),
+            ['de', 'it']
+        )
     })
 })
 

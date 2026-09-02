@@ -3,6 +3,7 @@ const VOCABULARY_ENDPOINT = `${TERMORIZE_ORIGIN}/api/vocabulary`
 const TRANSLATE_SELECTION_ENDPOINT = `${TERMORIZE_ORIGIN}/api/translate/selection`
 const ME_ENDPOINT = `${TERMORIZE_ORIGIN}/api/me`
 const SETTINGS_ENDPOINT = `${TERMORIZE_ORIGIN}/api/settings`
+const TARGET_LANGUAGE_ENDPOINT = `${SETTINGS_ENDPOINT}/translation-target-language`
 const SUPPORTED_LANGUAGE_CODES = ['en', 'ru', 'it', 'de', 'es', 'fr', 'pl', 'tr', 'pt', 'uk']
 const SUPPORTED_LANGUAGES = new Set(SUPPORTED_LANGUAGE_CODES)
 const MAX_TEXT_LENGTH = 5000
@@ -11,6 +12,8 @@ const COMMAND_ACTIONS = {
     'save-without-editing': 'save',
     'translate-selection': 'translate',
 }
+const SELECTION_CONTEXT_MENU_ID = 'translate-selection'
+let targetLanguageUpdateQueue = Promise.resolve()
 
 function normalizedText(value) {
     return typeof value === 'string' ? value.trim() : ''
@@ -154,32 +157,14 @@ async function translateSelectedText(text, targetLanguage, dependencies = {}) {
     }
 }
 
-async function updateTargetLanguage(targetLanguage, dependencies = {}) {
+async function persistTargetLanguage(targetLanguage, dependencies = {}) {
     if (!SUPPORTED_LANGUAGES.has(targetLanguage)) return { ok: false, reason: 'invalid' }
 
-    const session = await getSession(dependencies)
-    if (!session.ok) return session
-
-    const currentSettings = session.user.settings
-    if (currentSettings.translation_target_language === targetLanguage) {
-        return { ok: true, settings: currentSettings }
-    }
-
-    const nextSourceLanguage =
-        currentSettings.translation_source_language === targetLanguage
-            ? currentSettings.translation_target_language
-            : currentSettings.translation_source_language
-    const nextSettings = {
-        ...currentSettings,
-        translation_source_language: nextSourceLanguage,
-        translation_target_language: targetLanguage,
-    }
-
     const response = await authenticatedRequest(
-        SETTINGS_ENDPOINT,
+        TARGET_LANGUAGE_ENDPOINT,
         {
-            method: 'PUT',
-            body: JSON.stringify(nextSettings),
+            method: 'PATCH',
+            body: JSON.stringify({ translation_target_language: targetLanguage }),
         },
         dependencies
     )
@@ -187,8 +172,18 @@ async function updateTargetLanguage(targetLanguage, dependencies = {}) {
     if (!response.ok) return { ok: false, reason: response.reason || 'server' }
     return {
         ok: true,
-        settings: response.body?.settings || nextSettings,
+        settings: response.body?.settings,
     }
+}
+
+function updateTargetLanguage(targetLanguage, dependencies = {}) {
+    const update = () => persistTargetLanguage(targetLanguage, dependencies)
+    const response = targetLanguageUpdateQueue.then(update, update)
+    targetLanguageUpdateQueue = response.then(
+        () => undefined,
+        () => undefined
+    )
+    return response
 }
 
 async function saveVocabulary(payload, dependencies = {}) {
@@ -253,13 +248,31 @@ function commandAction(command, tabUrl) {
 }
 
 function selectedTextInPage() {
+    function deepestActiveElement(documentApi) {
+        let element = documentApi.activeElement
+        while (element?.shadowRoot?.activeElement) {
+            element = element.shadowRoot.activeElement
+        }
+        return element
+    }
+
+    function isInActiveFrameChain() {
+        let frameWindow = window
+        try {
+            while (frameWindow !== frameWindow.top) {
+                if (deepestActiveElement(frameWindow.parent.document) !== frameWindow.frameElement) return false
+                frameWindow = frameWindow.parent
+            }
+            return true
+        } catch {
+            return false
+        }
+    }
+
     let text = ''
     let rect = null
-    let activeElement = document.activeElement
-
-    while (activeElement?.shadowRoot?.activeElement) {
-        activeElement = activeElement.shadowRoot.activeElement
-    }
+    const activeElement = deepestActiveElement(document)
+    const focusDelegatedToFrame = ['FRAME', 'IFRAME'].includes(activeElement?.tagName)
 
     if (
         (activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement) &&
@@ -289,7 +302,13 @@ function selectedTextInPage() {
         }
     }
 
-    return { text: text.trim().slice(0, 5001), rect }
+    return {
+        text: text.trim().slice(0, 5001),
+        rect,
+        focused: document.hasFocus(),
+        focusDelegatedToFrame,
+        activeFrameChain: isInActiveFrameChain(),
+    }
 }
 
 async function captureTabSelection(tabId, chromeApi = chrome) {
@@ -305,8 +324,21 @@ async function captureTabSelection(tabId, chromeApi = chrome) {
         return { ok: false, reason: 'unavailable' }
     }
 
-    const selected = results?.find((entry) => normalizedText(entry.result?.text))
-    if (!selected) return { ok: false, reason: 'empty' }
+    const frameResults = results || []
+    const activeLeaf = frameResults.find(
+        (entry) => entry.result?.activeFrameChain && !entry.result.focusDelegatedToFrame
+    )
+    const activeBranch = frameResults.find((entry) => entry.result?.activeFrameChain)
+    if (!activeLeaf && activeBranch?.result?.focusDelegatedToFrame) {
+        return { ok: false, reason: 'frame-unavailable' }
+    }
+
+    const selected =
+        activeLeaf ||
+        frameResults.find((entry) => entry.result?.focused && !entry.result.focusDelegatedToFrame) ||
+        frameResults.find((entry) => entry.result?.focused) ||
+        frameResults.find((entry) => normalizedText(entry.result?.text))
+    if (!selected || !normalizedText(selected.result?.text)) return { ok: false, reason: 'empty' }
     if (selected.result.text.length > MAX_TEXT_LENGTH) return { ok: false, reason: 'too-long' }
 
     return {
@@ -346,7 +378,11 @@ async function openSelectionOverlay(tab, chromeApi = chrome) {
     if (!tab?.id || !chromeApi.scripting?.executeScript) return
 
     const selection = await captureTabSelection(tab.id, chromeApi)
-    const frameId = selection.frameId || 0
+    await showSelectionOverlay(tab, selection, selection.frameId || 0, chromeApi)
+}
+
+async function showSelectionOverlay(tab, selection, frameId = 0, chromeApi = chrome) {
+    if (!tab?.id || !chromeApi.scripting?.executeScript) return false
 
     try {
         await chromeApi.scripting.executeScript({
@@ -354,13 +390,29 @@ async function openSelectionOverlay(tab, chromeApi = chrome) {
             files: ['selection-overlay.js'],
         })
     } catch {
-        return
+        return false
     }
 
     await sendTabMessage(chromeApi, tab.id, frameId, {
         type: 'OPEN_SELECTION_OVERLAY',
         selection,
     })
+    return true
+}
+
+function selectionFromContextMenu(text) {
+    const selection = normalizedText(text)
+    if (!selection) return { ok: false, reason: 'empty', frameId: 0 }
+    if (selection.length > MAX_TEXT_LENGTH) return { ok: false, reason: 'too-long', frameId: 0 }
+    return { ok: true, text: selection, rect: null, frameId: 0 }
+}
+
+async function handleContextMenu(info, tab, chromeApi = chrome, dependencies = {}) {
+    if (info?.menuItemId !== SELECTION_CONTEXT_MENU_ID || !tab?.id) return false
+
+    const showSelection = dependencies.showSelectionOverlay || showSelectionOverlay
+    await showSelection(tab, selectionFromContextMenu(info.selectionText), 0, chromeApi)
+    return true
 }
 
 async function commandTab(tab, chromeApi = chrome) {
@@ -433,15 +485,31 @@ function registerCommandHandler(chromeApi = chrome) {
     })
 }
 
+function registerContextMenuHandler(chromeApi = chrome) {
+    chromeApi.contextMenus.create(
+        {
+            id: SELECTION_CONTEXT_MENU_ID,
+            title: 'Translate selection with Termorize',
+            contexts: ['selection'],
+        },
+        () => void chromeApi.runtime.lastError
+    )
+    chromeApi.contextMenus.onClicked.addListener((info, tab) => {
+        void handleContextMenu(info, tab, chromeApi).catch(() => {})
+    })
+}
+
 if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
     registerMessageHandler()
     if (chrome.commands?.onCommand) registerCommandHandler()
+    if (chrome.contextMenus?.onClicked) registerContextMenuHandler()
 }
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         ME_ENDPOINT,
         SETTINGS_ENDPOINT,
+        TARGET_LANGUAGE_ENDPOINT,
         TERMORIZE_ORIGIN,
         TRANSLATE_SELECTION_ENDPOINT,
         VOCABULARY_ENDPOINT,
@@ -449,6 +517,7 @@ if (typeof module !== 'undefined' && module.exports) {
         commandAction,
         getSession,
         handleCommand,
+        handleContextMenu,
         isValidVocabularyPayload,
         saveSelection,
         saveVocabulary,

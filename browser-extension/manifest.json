@@ -6,7 +6,7 @@
   "description": "Translate selected text anywhere and save useful word pairs to Termorize.",
   "homepage_url": "https://termorize.daniil.online",
   "minimum_chrome_version": "102",
-  "permissions": ["activeTab", "cookies", "scripting"],
+  "permissions": ["activeTab", "contextMenus", "cookies", "scripting"],
   "host_permissions": [
     "https://translate.google.com/*",
     "https://termorize.daniil.online/*"
@@ -44,8 +44,13 @@
     {
       "matches": ["https://translate.google.com/*"],
       "js": ["content.js"],
-      "css": ["content.css"],
       "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["content.css"],
+      "matches": ["https://translate.google.com/*"]
     }
   ],
   "action": {
