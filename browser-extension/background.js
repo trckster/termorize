@@ -255,7 +255,11 @@ function commandAction(command, tabUrl) {
 function selectedTextInPage() {
     let text = ''
     let rect = null
-    const activeElement = document.activeElement
+    let activeElement = document.activeElement
+
+    while (activeElement?.shadowRoot?.activeElement) {
+        activeElement = activeElement.shadowRoot.activeElement
+    }
 
     if (
         (activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement) &&
@@ -359,6 +363,34 @@ async function openSelectionOverlay(tab, chromeApi = chrome) {
     })
 }
 
+async function commandTab(tab, chromeApi = chrome) {
+    if (tab?.id) return tab
+
+    try {
+        const tabs = await chromeApi.tabs.query({ active: true, currentWindow: true })
+        return tabs?.[0] || null
+    } catch {
+        return null
+    }
+}
+
+async function handleCommand(command, tab, chromeApi = chrome, dependencies = {}) {
+    const resolvedTab = await commandTab(tab, chromeApi)
+    const action = commandAction(command, resolvedTab?.url)
+    if (!action || !resolvedTab?.id) return false
+
+    if (action === 'translate') {
+        const showSelection = dependencies.openSelectionOverlay || openSelectionOverlay
+        await showSelection(resolvedTab, chromeApi)
+        return true
+    }
+
+    chromeApi.tabs.sendMessage(resolvedTab.id, { type: 'TRIGGER_SHORTCUT', action }, () => {
+        void chromeApi.runtime.lastError
+    })
+    return true
+}
+
 function registerMessageHandler(chromeApi = chrome) {
     chromeApi.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (sender.id !== chromeApi.runtime.id) {
@@ -397,17 +429,7 @@ function registerMessageHandler(chromeApi = chrome) {
 
 function registerCommandHandler(chromeApi = chrome) {
     chromeApi.commands.onCommand.addListener((command, tab) => {
-        const action = commandAction(command, tab?.url)
-        if (!action || !tab?.id) return
-
-        if (action === 'translate') {
-            void openSelectionOverlay(tab, chromeApi)
-            return
-        }
-
-        chromeApi.tabs.sendMessage(tab.id, { type: 'TRIGGER_SHORTCUT', action }, () => {
-            void chromeApi.runtime.lastError
-        })
+        void handleCommand(command, tab, chromeApi).catch(() => {})
     })
 }
 
@@ -426,9 +448,11 @@ if (typeof module !== 'undefined' && module.exports) {
         captureTabSelection,
         commandAction,
         getSession,
+        handleCommand,
         isValidVocabularyPayload,
         saveSelection,
         saveVocabulary,
+        selectedTextInPage,
         translateSelectedText,
         updateTargetLanguage,
     }

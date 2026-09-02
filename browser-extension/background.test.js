@@ -7,6 +7,7 @@ const {
     VOCABULARY_ENDPOINT,
     commandAction,
     getSession,
+    handleCommand,
     isValidVocabularyPayload,
     saveSelection,
     saveVocabulary,
@@ -54,6 +55,60 @@ describe('commandAction', () => {
     it('maps selected-text translation on any normal page', () => {
         assert.equal(commandAction('translate-selection', 'https://example.com/article'), 'translate')
         assert.equal(commandAction('translate-selection', undefined), 'translate')
+    })
+})
+
+describe('handleCommand', () => {
+    it('opens selected-text translation for the tab supplied by the browser', async () => {
+        const tab = { id: 17, url: 'https://example.com/article' }
+        let openedTab
+        const chromeApi = { tabs: {} }
+
+        const handled = await handleCommand('translate-selection', tab, chromeApi, {
+            openSelectionOverlay: async (receivedTab) => {
+                openedTab = receivedTab
+            },
+        })
+
+        assert.equal(handled, true)
+        assert.equal(openedTab, tab)
+    })
+
+    it('falls back to the active tab when the browser omits the command tab', async () => {
+        const tab = { id: 23, url: 'https://example.com/selection' }
+        let openedTab
+        const chromeApi = {
+            tabs: {
+                query: async (query) => {
+                    assert.deepEqual(query, { active: true, currentWindow: true })
+                    return [tab]
+                },
+            },
+        }
+
+        const handled = await handleCommand('translate-selection', undefined, chromeApi, {
+            openSelectionOverlay: async (receivedTab) => {
+                openedTab = receivedTab
+            },
+        })
+
+        assert.equal(handled, true)
+        assert.equal(openedTab, tab)
+    })
+
+    it('ignores commands when no accessible active tab exists', async () => {
+        const handled = await handleCommand(
+            'translate-selection',
+            undefined,
+            { tabs: { query: async () => [] } },
+            {
+                openSelectionOverlay: async () => {
+                    assert.fail('the overlay should not open')
+                },
+            }
+        )
+
+        assert.equal(handled, false)
     })
 })
 
