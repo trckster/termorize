@@ -47,6 +47,7 @@ func defineProtectedRoutes(group *gin.RouterGroup) {
 	group.POST("/collection-invites/:identifier", controllers.JoinCollection)
 
 	group.POST("/translate", controllers.Translate)
+	group.POST("/translate/selection", controllers.TranslateSelection)
 }
 
 func definePublicRoutes(group *gin.RouterGroup) {

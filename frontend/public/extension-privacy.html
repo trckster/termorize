@@ -100,15 +100,6 @@
                 padding-block: 72px 80px;
             }
 
-            .eyebrow {
-                margin: 0 0 12px;
-                color: var(--primary);
-                font-size: 12px;
-                font-weight: 800;
-                letter-spacing: 0.12em;
-                text-transform: uppercase;
-            }
-
             h1,
             h2 {
                 font-family: 'Avenir Next', 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
@@ -243,21 +234,21 @@
         </header>
 
         <main>
-            <p class="eyebrow">Browser extension</p>
-            <h1>Privacy, in plain language.</h1>
+            <h1>Extension privacy, in plain language.</h1>
             <p class="lede">
-                Termorize for Google Translate™ reads a word pair only when you ask it to save, then sends that pair
-                directly to your Termorize vocabulary.
+                Termorize reads text only after you click its icon, invoke its translation shortcut, or use a save
+                shortcut on Google Translate. It uses that text to translate or save the word pair you requested.
             </p>
-            <span class="meta">Effective 31 August 2026</span>
+            <span class="meta">Effective 2 September 2026</span>
 
             <article>
                 <section>
                     <h2>What the extension does</h2>
                     <p>
-                        The extension lets you save the source text, translation, and selected language codes currently
-                        displayed on Google Translate. It runs only on <code>translate.google.com</code> and acts when
-                        you use one of its save shortcuts.
+                        The extension translates text you select on the active page and lets you edit or save the
+                        result. On Google Translate, it also shows shortcut hints and can save the visible word pair.
+                        Access to other pages is temporary and begins only when you click the extension icon or invoke
+                        its selected-text shortcut.
                     </p>
                 </section>
 
@@ -265,26 +256,34 @@
                     <h2>Data it handles</h2>
                     <ul>
                         <li>
-                            <strong>Website content:</strong> the visible source text, translation, and source and
-                            target language codes on Google Translate.
+                            <strong>Website content:</strong> text you explicitly select, or the visible source text,
+                            translation, and language codes on Google Translate after a save command.
                         </li>
                         <li>
                             <strong>Authentication information:</strong> the Termorize <code>auth</code> session cookie,
-                            read only to authenticate a save request to <code>termorize.daniil.online</code>.
+                            read only to authenticate settings, translation, and save requests to
+                            <code>termorize.daniil.online</code>.
                         </li>
                     </ul>
                     <p>
-                        The extension does not collect browsing history, activity on other sites, location, financial or
-                        health information, personal communications, or advertising identifiers.
+                        The extension does not collect browsing history, general activity on other sites, location,
+                        financial or health information, or advertising identifiers. Selected text can contain personal
+                        content, so translate only text you intend to send.
                     </p>
                 </section>
 
                 <section class="callout">
                     <h2>How the data is used</h2>
                     <p>
-                        The word pair and language codes are sent over HTTPS to the Termorize vocabulary API solely to
-                        provide the save-to-vocabulary feature. The authentication cookie remains managed by your
-                        browser; the extension does not keep a separate copy.
+                        Selected text and the target language are sent over HTTPS to Termorize. The Termorize server
+                        uses Google Cloud Translation to detect the source language and produce the translation.
+                        Translation records may be retained so Termorize can serve and reuse results. A word pair is
+                        associated with your vocabulary only after you choose to save it.
+                    </p>
+                    <p>
+                        The authentication cookie remains managed by your browser; the extension does not keep a
+                        separate copy. Changing the target language in the extension updates the same language setting
+                        used by your Termorize account.
                     </p>
                     <p>
                         Extension data is not sold, used for advertising or profiling, used to determine

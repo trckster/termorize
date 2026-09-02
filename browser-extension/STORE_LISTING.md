@@ -1,6 +1,6 @@
 # Chrome Web Store listing
 
-This is the copy-and-paste source of truth for the Termorize extension listing. It matches version `1.0.0` and the disclosures in the public privacy policy.
+This is the copy-and-paste source of truth for the Termorize extension listing. It matches version `1.1.0` and the disclosures in the public privacy policy.
 
 ## Product details
 
@@ -10,15 +10,19 @@ Termorize for Google Translate™
 
 **Summary**
 
-Save Google Translate™ word pairs to your Termorize vocabulary with two keyboard shortcuts.
+Translate selected text anywhere, then edit or save it to your Termorize vocabulary.
 
 **Detailed description**
 
-Move useful words from Google Translate™ into Termorize without copying and pasting.
+Move useful words from any page into Termorize without copying and pasting.
 
+- Select text anywhere and press Alt+T to translate it in a compact on-page editor.
+- Click the Termorize icon to translate the current selection in the extension popup.
+- Change the target language and get an updated translation immediately.
+- Edit either side before saving, or save the generated translation unchanged.
 - Press Ctrl+E to review and edit the current word pair before saving it.
 - Press Ctrl+S to save the current word pair immediately.
-- Keep the source language, target language, original text, and translation together in your Termorize vocabulary.
+- See the Ctrl+E and Ctrl+S shortcut hints directly on Google Translate™.
 - Continue practicing the saved words on the Termorize website or through its Telegram bot.
 
 The extension supports English, Russian, Italian, German, Spanish, French, Polish, Turkish, Portuguese, and Ukrainian. Choose explicit source and target languages in Google Translate before saving.
@@ -49,21 +53,29 @@ https://termorize.daniil.online/extension-privacy.html
 
 ## Single purpose
 
-Save the current Google Translate word pair to the signed-in user's Termorize vocabulary, either immediately or after review.
+Translate text selected by the user and optionally save the resulting word pair to the signed-in user's Termorize vocabulary.
 
 ## Permission justifications
 
 **`cookies`**
 
-Reads only the `auth` cookie for `termorize.daniil.online` when the user asks to save a word. The cookie authenticates the save request to the user's Termorize account. The extension does not read cookies from Google Translate or other sites.
+Reads only the `auth` cookie for `termorize.daniil.online` when the user opens or invokes Termorize. The cookie authenticates account settings, translation, and save requests. The extension does not read cookies from other sites.
+
+**`activeTab`**
+
+Temporarily accesses only the active tab after the user clicks the extension icon or invokes Alt+T. This access is used to read the text the user selected.
+
+**`scripting`**
+
+Runs the packaged selection reader and translation overlay in the active tab after an explicit icon click or shortcut. It does not inject remote code or run continuously across browsing sessions.
 
 **Host access: `https://translate.google.com/*`**
 
-Runs the content script on Google Translate so it can read the visible source text, translation, and selected language codes after the user invokes a save shortcut.
+Runs the packaged Google Translate integration so it can show shortcut hints and read the visible source text, translation, and selected language codes after the user invokes a save shortcut.
 
 **Host access: `https://termorize.daniil.online/*`**
 
-Reads the Termorize authentication cookie and sends the selected word pair to the Termorize vocabulary API. It also opens the Termorize sign-in page when authentication is missing.
+Reads the Termorize authentication cookie, loads and updates the account's target language, sends selected text to the translation API, and saves an approved word pair. It also opens the Termorize sign-in page when authentication is missing.
 
 **Remote code**
 
@@ -74,9 +86,9 @@ No. All executable JavaScript and CSS is included in the uploaded extension pack
 Declare these data types:
 
 - **Authentication information:** the Termorize session cookie is read to authenticate an explicit save request.
-- **Website content:** the visible source text, translation, and selected language codes are read from Google Translate after an explicit keyboard shortcut.
+- **Website content:** text explicitly selected by the user, plus the visible source text, translation, and selected language codes on Google Translate after an explicit command.
 
-Do not declare web history, user activity, location, financial information, health information, or personal communications: the extension does not collect them.
+Do not declare web history, general user activity, location, financial information, health information, or advertising identifiers: the extension does not collect them. Selected text may contain personal content, but the extension handles it only after the user explicitly invokes translation.
 
 Select **App functionality** as the only use of the declared data. Confirm that the data is not sold, used for advertising, used for creditworthiness or lending, or transferred for purposes unrelated to the extension's single purpose.
 
@@ -85,10 +97,11 @@ Select **App functionality** as the only use of the declared data. Confirm that 
 No private test account is required.
 
 1. Open https://termorize.daniil.online and choose **Just Try** to create a temporary guest session.
-2. Open https://translate.google.com/?sl=it&tl=en&text=buongiorno&op=translate and wait for the English translation.
-3. Press **Ctrl+E**. Confirm that the Termorize review dialog contains the Italian source and English translation. Edit either field if desired, then press **Shift+Enter** or click **Save to vocabulary**.
-4. Press **Ctrl+S** to test immediate saving with a different word pair.
-5. Return to Termorize and open **Vocabulary** to confirm the saved pair.
+2. Select a phrase on any ordinary HTTPS page and press **Alt+T**. Confirm that the on-page panel detects its language and displays a translation.
+3. Change the target language and confirm the translation updates. Edit either field and save it.
+4. Open https://translate.google.com/?sl=it&tl=en&text=buongiorno&op=translate and confirm that the Ctrl+E and Ctrl+S hints are visible.
+5. Press **Ctrl+E** to review the pair, then test **Ctrl+S** with a different word.
+6. Return to Termorize and open **Vocabulary** to confirm the saved pairs.
 
 If either shortcut is already assigned by the review browser, trigger the command from `chrome://extensions/shortcuts` after assigning a temporary key combination.
 

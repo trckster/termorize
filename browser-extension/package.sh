@@ -15,6 +15,10 @@ mkdir -p "$(dirname -- "$output")"
         background.js \
         content.js \
         content.css \
+        popup.html \
+        popup.css \
+        popup.js \
+        selection-overlay.js \
         icons/icon-16.png \
         icons/icon-32.png \
         icons/icon-48.png \
