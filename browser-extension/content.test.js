@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict')
 const { describe, it } = require('node:test')
-const { extractGoogleTranslation, shortcutAction, validatePair } = require('./content.js')
+const { extractGoogleTranslation, shouldCloseEditor, shortcutAction, validatePair } = require('./content.js')
 
 function element({ value = '', textContent = '', lang = '' } = {}) {
     return {
@@ -33,7 +33,10 @@ describe('extractGoogleTranslation', () => {
         const documentApi = fixture({
             selectors: {
                 'textarea[aria-label="Source text"]': element({ value: ' hello ' }),
-                'textarea[jsname="YPqjbf"][lang]': element({ value: ' ciao ', lang: 'it' }),
+                'textarea[jsname="YPqjbf"][lang]': element({
+                    value: ' ciao ',
+                    lang: 'it',
+                }),
             },
         })
 
@@ -56,7 +59,10 @@ describe('extractGoogleTranslation', () => {
                 'textarea[jsname="YPqjbf"][lang]': result,
             },
             selectorLists: {
-                '[data-language-for-alternatives] span.ryNqvb': [element({ textContent: 'guten' }), element({ textContent: 'Morgen' })],
+                '[data-language-for-alternatives] span.ryNqvb': [
+                    element({ textContent: 'guten' }),
+                    element({ textContent: 'Morgen' }),
+                ],
             },
         })
 
@@ -84,10 +90,38 @@ describe('shortcutAction', () => {
         assert.equal(shortcutAction({ ...event, code: 'KeyS' }), 'save')
     })
 
+    it('uses physical keys when a non-Latin keyboard layout is active', () => {
+        assert.equal(shortcutAction({ ...event, key: 'у', code: 'KeyE' }), 'edit')
+        assert.equal(shortcutAction({ ...event, key: 'ы', code: 'KeyS' }), 'save')
+    })
+
     it('ignores synthetic and additionally modified shortcuts', () => {
         assert.equal(shortcutAction({ ...event, isTrusted: false }), null)
         assert.equal(shortcutAction({ ...event, altKey: true }), null)
         assert.equal(shortcutAction({ ...event, shiftKey: true }), null)
+    })
+})
+
+describe('shouldCloseEditor', () => {
+    const event = {
+        altKey: false,
+        code: 'Escape',
+        ctrlKey: false,
+        isComposing: false,
+        key: 'Escape',
+        metaKey: false,
+        shiftKey: false,
+    }
+
+    it('closes an open review dialog with bare Escape', () => {
+        assert.equal(shouldCloseEditor(event, true), true)
+        assert.equal(shouldCloseEditor({ ...event, key: '' }, true), true)
+    })
+
+    it('leaves closed dialogs, composition, and modified shortcuts alone', () => {
+        assert.equal(shouldCloseEditor(event, false), false)
+        assert.equal(shouldCloseEditor({ ...event, isComposing: true }, true), false)
+        assert.equal(shouldCloseEditor({ ...event, ctrlKey: true }, true), false)
     })
 })
 

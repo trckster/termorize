@@ -504,3 +504,77 @@ func TestUpdateSettingsPreservesBotEnabled(t *testing.T) {
 	testkit.DecodeJSON(t, rec, &got)
 	assert.True(t, got.Settings.Telegram.BotEnabled, "BotEnabled must be preserved across settings update")
 }
+
+func TestUpdateTranslationTargetLanguageRequiresAuth(t *testing.T) {
+	testkit.Truncate(t)
+
+	rec := testkit.Request(t, http.MethodPatch, "/api/settings/translation-target-language", map[string]any{
+		"translation_target_language": "it",
+	})
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
+}
+
+func TestUpdateTranslationTargetLanguagePreservesOtherSettings(t *testing.T) {
+	testkit.Truncate(t)
+
+	settings := models.UserSettings{
+		SystemLanguage:            enums.LanguageEn,
+		MainLearningLanguage:      enums.LanguageDe,
+		TranslationSourceLanguage: enums.LanguageEn,
+		TranslationTargetLanguage: enums.LanguageRu,
+		IgnoredAudioLanguages:     []enums.Language{enums.LanguagePt},
+		TimeZone:                  "Europe/Rome",
+		Telegram: models.UserTelegramSettings{
+			BotEnabled:            true,
+			DailyQuestionsEnabled: true,
+			DailyQuestionsCount:   7,
+		},
+	}
+	user := testkit.CreateUser(t, testkit.WithSettings(settings))
+
+	rec := testkit.AuthedRequest(t, user, http.MethodPatch, "/api/settings/translation-target-language", map[string]any{
+		"translation_target_language": "it",
+	})
+	testkit.RequireStatus(t, rec, http.StatusOK)
+
+	var got models.User
+	testkit.DecodeJSON(t, rec, &got)
+	assert.Equal(t, enums.LanguageIt, got.Settings.TranslationTargetLanguage)
+	assert.Equal(t, settings.SystemLanguage, got.Settings.SystemLanguage)
+	assert.Equal(t, settings.MainLearningLanguage, got.Settings.MainLearningLanguage)
+	assert.Equal(t, settings.TranslationSourceLanguage, got.Settings.TranslationSourceLanguage)
+	assert.Equal(t, settings.IgnoredAudioLanguages, got.Settings.IgnoredAudioLanguages)
+	assert.Equal(t, settings.TimeZone, got.Settings.TimeZone)
+	assert.Equal(t, settings.Telegram, got.Settings.Telegram)
+}
+
+func TestUpdateTranslationTargetLanguageSwapsMatchingSource(t *testing.T) {
+	testkit.Truncate(t)
+
+	settings := models.UserSettings{
+		TranslationSourceLanguage: enums.LanguageEn,
+		TranslationTargetLanguage: enums.LanguageRu,
+		TimeZone:                  "UTC",
+	}
+	user := testkit.CreateUser(t, testkit.WithSettings(settings))
+
+	rec := testkit.AuthedRequest(t, user, http.MethodPatch, "/api/settings/translation-target-language", map[string]any{
+		"translation_target_language": "en",
+	})
+	testkit.RequireStatus(t, rec, http.StatusOK)
+
+	var got models.User
+	testkit.DecodeJSON(t, rec, &got)
+	assert.Equal(t, enums.LanguageRu, got.Settings.TranslationSourceLanguage)
+	assert.Equal(t, enums.LanguageEn, got.Settings.TranslationTargetLanguage)
+}
+
+func TestUpdateTranslationTargetLanguageRejectsUnsupportedLanguage(t *testing.T) {
+	testkit.Truncate(t)
+	user := testkit.CreateUser(t)
+
+	rec := testkit.AuthedRequest(t, user, http.MethodPatch, "/api/settings/translation-target-language", map[string]any{
+		"translation_target_language": "ja",
+	})
+	testkit.RequireStatus(t, rec, http.StatusBadRequest)
+}

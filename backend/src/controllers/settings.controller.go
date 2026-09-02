@@ -34,6 +34,10 @@ type UpdateSettingsTelegramScheduleItemRequest struct {
 	To   string `json:"to" binding:"required,hhmm"`
 }
 
+type UpdateTranslationTargetLanguageRequest struct {
+	TranslationTargetLanguage enums.Language `json:"translation_target_language" binding:"required,enum=Language"`
+}
+
 func GetSettings(c *gin.Context) {
 	c.JSON(nethttp.StatusOK, gin.H{
 		"languages": enums.AllLanguages(),
@@ -69,6 +73,28 @@ func UpdateSettings(c *gin.Context) {
 	}
 
 	user, err := services.UpdateUserSettings(userID, settings)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(nethttp.StatusNotFound, gin.H{"error": "user not found"})
+			return
+		}
+
+		ServerError(c, err)
+		return
+	}
+
+	c.JSON(nethttp.StatusOK, user)
+}
+
+func UpdateTranslationTargetLanguage(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+
+	var req UpdateTranslationTargetLanguageRequest
+	if !validators.BindJSONWithErrors(c, &req) {
+		return
+	}
+
+	user, err := services.UpdateUserTranslationTargetLanguageByID(userID, req.TranslationTargetLanguage)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(nethttp.StatusNotFound, gin.H{"error": "user not found"})

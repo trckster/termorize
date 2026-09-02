@@ -2,11 +2,11 @@
   "manifest_version": 3,
   "name": "Termorize for Google Translate™",
   "short_name": "Termorize",
-  "version": "1.0.0",
-  "description": "Save Google Translate word pairs directly to your Termorize vocabulary.",
+  "version": "1.1.0",
+  "description": "Translate selected text anywhere and save useful word pairs to Termorize.",
   "homepage_url": "https://termorize.daniil.online",
   "minimum_chrome_version": "102",
-  "permissions": ["cookies"],
+  "permissions": ["activeTab", "contextMenus", "cookies", "scripting"],
   "host_permissions": [
     "https://translate.google.com/*",
     "https://termorize.daniil.online/*"
@@ -21,12 +21,22 @@
     "service_worker": "background.js"
   },
   "commands": {
+    "translate-selection": {
+      "suggested_key": {
+        "default": "Alt+T"
+      },
+      "description": "Translate the selected text with Termorize"
+    },
     "save-with-editing": {
-      "suggested_key": "Ctrl+E",
+      "suggested_key": {
+        "default": "Ctrl+E"
+      },
       "description": "Review the Google Translate word pair before saving"
     },
     "save-without-editing": {
-      "suggested_key": "Ctrl+S",
+      "suggested_key": {
+        "default": "Ctrl+S"
+      },
       "description": "Save the Google Translate word pair immediately"
     }
   },
@@ -34,15 +44,21 @@
     {
       "matches": ["https://translate.google.com/*"],
       "js": ["content.js"],
-      "css": ["content.css"],
       "run_at": "document_idle"
     }
   ],
+  "web_accessible_resources": [
+    {
+      "resources": ["content.css"],
+      "matches": ["https://translate.google.com/*"]
+    }
+  ],
   "action": {
+    "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png"
     },
-    "default_title": "Termorize: Ctrl+E to review, Ctrl+S to save"
+    "default_title": "Translate selected text with Termorize"
   }
 }

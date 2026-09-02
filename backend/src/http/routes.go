@@ -12,6 +12,7 @@ import (
 func defineProtectedRoutes(group *gin.RouterGroup) {
 	group.GET("/me", controllers.Me)
 	group.PUT("/settings", controllers.UpdateSettings)
+	group.PATCH("/settings/translation-target-language", controllers.UpdateTranslationTargetLanguage)
 	group.DELETE("/settings/ignored-audio-languages/:language", controllers.RemoveIgnoredAudioLanguage)
 	group.GET("/admin/users", controllers.GetAdminUsers)
 	group.GET("/admin/word-pronunciations", controllers.GetAdminWordPronunciations)
@@ -47,6 +48,7 @@ func defineProtectedRoutes(group *gin.RouterGroup) {
 	group.POST("/collection-invites/:identifier", controllers.JoinCollection)
 
 	group.POST("/translate", controllers.Translate)
+	group.POST("/translate/selection", controllers.TranslateSelection)
 }
 
 func definePublicRoutes(group *gin.RouterGroup) {

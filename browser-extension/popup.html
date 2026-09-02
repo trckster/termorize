@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Termorize</title>
+        <link rel="stylesheet" href="popup.css" />
+    </head>
+    <body>
+        <main class="popup-shell">
+            <header class="brand-bar">
+                <div class="brand-lockup">
+                    <img src="icons/icon-32.png" width="32" height="32" alt="" />
+                    <div>
+                        <h1>Termorize</h1>
+                        <p>Translate what you selected</p>
+                    </div>
+                </div>
+                <button
+                    id="open-app"
+                    class="icon-link"
+                    type="button"
+                    aria-label="Open Termorize website"
+                    title="Open Termorize"
+                >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M15 4h5v5M13 11l7-7M20 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5" />
+                    </svg>
+                </button>
+            </header>
+
+            <section id="loading-state" class="loading-state" aria-label="Loading Termorize" role="status">
+                <div class="skeleton skeleton-line skeleton-line--short"></div>
+                <div class="skeleton skeleton-control"></div>
+                <div class="skeleton skeleton-copy"></div>
+                <div class="skeleton skeleton-copy"></div>
+            </section>
+
+            <section id="signed-out-state" class="state-panel" hidden>
+                <div class="state-mark" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 15v2M8 10V7a4 4 0 0 1 8 0v3M6 10h12v10H6z" />
+                    </svg>
+                </div>
+                <h2>Sign in to translate</h2>
+                <p>Your Termorize account supplies the target language and keeps saved words in sync.</p>
+                <button id="sign-in" class="button button--primary" type="button">Sign in to Termorize</button>
+                <button id="check-session" class="text-button" type="button">I’ve signed in — check again</button>
+            </section>
+
+            <section id="workspace" hidden>
+                <div class="account-row">
+                    <span class="presence-dot" aria-hidden="true"></span>
+                    <span id="account-name">Signed in</span>
+                </div>
+
+                <label class="field field--select" for="target-language">
+                    <span>Translate to</span>
+                    <select id="target-language"></select>
+                </label>
+
+                <div id="selection-empty" class="empty-state" hidden>
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M7 4h10M7 8h8M7 12h10M7 16h6M5 2v20M19 2v20" />
+                    </svg>
+                    <h2>Select text on the page</h2>
+                    <p>
+                        Highlight a word or phrase, then open Termorize again. You can also press <kbd>Alt</kbd> +
+                        <kbd>T</kbd>.
+                    </p>
+                </div>
+
+                <form id="translation-form" hidden>
+                    <label class="field" for="source-text">
+                        <span class="field-heading">
+                            <span>Selected text</span>
+                            <span id="source-language" class="language-label">Detecting…</span>
+                        </span>
+                        <textarea id="source-text" maxlength="5000" rows="3"></textarea>
+                    </label>
+
+                    <div class="translation-divider" aria-hidden="true">
+                        <span></span>
+                        <svg viewBox="0 0 24 24"><path d="m8 10 4 4 4-4" /></svg>
+                        <span></span>
+                    </div>
+
+                    <label class="field" for="translated-text">
+                        <span class="field-heading">
+                            <span>Translation</span>
+                            <span id="translated-language" class="language-label"></span>
+                        </span>
+                        <textarea id="translated-text" maxlength="5000" rows="3"></textarea>
+                    </label>
+
+                    <div id="message" class="message" role="status" aria-live="polite"></div>
+
+                    <div class="form-actions">
+                        <button id="retry-translation" class="button button--secondary" type="button">
+                            Translate again
+                        </button>
+                        <button id="save-translation" class="button button--primary" type="submit">
+                            Save to vocabulary
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <footer class="shortcut-note">
+                <span>Select text anywhere</span>
+                <span><kbd>Alt</kbd> + <kbd>T</kbd></span>
+            </footer>
+        </main>
+        <script src="popup.js"></script>
+    </body>
+</html>

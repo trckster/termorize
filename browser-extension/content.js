@@ -50,9 +50,13 @@ function extractGoogleTranslation(documentApi = document, href = location.href) 
         ])
 
     const url = new URL(href)
-    const targetElement = documentApi.querySelector('textarea[jsname="YPqjbf"][lang], textarea[lang]:not([aria-label="Source text"])')
+    const targetElement = documentApi.querySelector(
+        'textarea[jsname="YPqjbf"][lang], textarea[lang]:not([aria-label="Source text"])'
+    )
     const sourceLanguage = normalizedText(url.searchParams.get('sl')).toLowerCase()
-    const targetLanguage = normalizedText(url.searchParams.get('tl') || targetElement?.getAttribute('lang')).toLowerCase()
+    const targetLanguage = normalizedText(
+        url.searchParams.get('tl') || targetElement?.getAttribute('lang')
+    ).toLowerCase()
 
     return {
         original: source,
@@ -69,25 +73,52 @@ function shortcutAction(event) {
     return null
 }
 
+function shouldCloseEditor(event, isOpen) {
+    return (
+        isOpen &&
+        !event.isComposing &&
+        !event.altKey &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.shiftKey &&
+        (event.key === 'Escape' || event.code === 'Escape')
+    )
+}
+
 function validatePair(pair) {
     if (!pair.original || !pair.translation) {
-        return { ok: false, message: 'Enter a word and wait for its translation before saving.' }
+        return {
+            ok: false,
+            message: 'Enter a word and wait for its translation before saving.',
+        }
     }
 
     if (pair.original_language === 'auto') {
-        return { ok: false, message: 'Choose the source language in Google Translate before saving.' }
+        return {
+            ok: false,
+            message: 'Choose the source language in Google Translate before saving.',
+        }
     }
 
     if (!TERMORIZE_SUPPORTED_LANGUAGES.has(pair.original_language)) {
-        return { ok: false, message: `Termorize does not support source language “${pair.original_language || 'unknown'}” yet.` }
+        return {
+            ok: false,
+            message: `Termorize does not support source language “${pair.original_language || 'unknown'}” yet.`,
+        }
     }
 
     if (!TERMORIZE_SUPPORTED_LANGUAGES.has(pair.translation_language)) {
-        return { ok: false, message: `Termorize does not support target language “${pair.translation_language || 'unknown'}” yet.` }
+        return {
+            ok: false,
+            message: `Termorize does not support target language “${pair.translation_language || 'unknown'}” yet.`,
+        }
     }
 
     if (pair.original_language === pair.translation_language) {
-        return { ok: false, message: 'Choose two different languages before saving.' }
+        return {
+            ok: false,
+            message: 'Choose two different languages before saving.',
+        }
     }
 
     return { ok: true }
@@ -115,17 +146,53 @@ function createElement(tag, className, text) {
 function createButton(label, className, onClick) {
     const button = createElement('button', className, label)
     button.type = 'button'
-    button.addEventListener('click', onClick)
+    button.addEventListener('click', (event) => {
+        if (!event.isTrusted) return
+        onClick(event)
+    })
     return button
 }
 
+function createShortcutHints() {
+    const hints = createElement('aside', 'termorize-shortcut-hints')
+    hints.setAttribute('aria-label', 'Termorize keyboard shortcuts')
+
+    const heading = createElement('div', 'termorize-shortcut-heading')
+    const mark = createElement('span', 'termorize-shortcut-mark', 'T')
+    mark.setAttribute('aria-hidden', 'true')
+    heading.append(mark, createElement('strong', 'termorize-shortcut-title', 'Save to Termorize'))
+
+    const list = createElement('div', 'termorize-shortcut-list')
+    const shortcuts = [
+        ['Review before saving', 'Ctrl', 'E'],
+        ['Save immediately', 'Ctrl', 'S'],
+    ]
+    for (const [label, modifier, key] of shortcuts) {
+        const row = createElement('div', 'termorize-shortcut-row')
+        const keys = createElement('span', 'termorize-shortcut-keys')
+        keys.append(createElement('kbd', 'termorize-kbd', modifier), ' + ', createElement('kbd', 'termorize-kbd', key))
+        row.append(createElement('span', 'termorize-shortcut-label', label), keys)
+        list.append(row)
+    }
+
+    hints.append(heading, list)
+    return hints
+}
+
 function createUi() {
+    const extensionHost = createElement('div', 'termorize-extension-host')
+    extensionHost.id = 'termorize-extension-host'
+    const shadow = extensionHost.attachShadow({ mode: 'closed' })
+    const stylesheet = createElement('link')
+    stylesheet.rel = 'stylesheet'
+    stylesheet.href = chrome.runtime.getURL('content.css')
     const root = createElement('div', 'termorize-extension-root')
     const toastViewport = createElement('div', 'termorize-toast-viewport')
     toastViewport.setAttribute('aria-live', 'polite')
     toastViewport.setAttribute('aria-atomic', 'true')
-    root.append(toastViewport)
-    document.body.append(root)
+    root.append(toastViewport, createShortcutHints())
+    shadow.append(stylesheet, root)
+    document.body.append(extensionHost)
 
     let toastTimer = null
     let dialog = null
@@ -164,11 +231,12 @@ function createUi() {
     }
 
     function closeDialog() {
-        if (!dialog || isSaving) return
+        if (!dialog || isSaving) return false
         dialog.remove()
         dialog = null
         previouslyFocused?.focus?.()
         previouslyFocused = null
+        return true
     }
 
     function handleResponse(response) {
@@ -220,7 +288,10 @@ function createUi() {
             button.textContent = 'Saving…'
         }
 
-        const response = await sendRuntimeMessage({ type: 'SAVE_VOCABULARY', payload: pair })
+        const response = await sendRuntimeMessage({
+            type: 'SAVE_VOCABULARY',
+            payload: pair,
+        })
         isSaving = false
         if (button) {
             button.disabled = false
@@ -252,7 +323,14 @@ function createUi() {
         const headingGroup = createElement('div', 'termorize-dialog-heading')
         const title = createElement('h2', 'termorize-dialog-title', 'Review before saving')
         title.id = 'termorize-dialog-title'
-        headingGroup.append(title, createElement('p', 'termorize-dialog-description', 'Edit either side of the word pair. Languages stay fixed.'))
+        headingGroup.append(
+            title,
+            createElement(
+                'p',
+                'termorize-dialog-description',
+                'Edit either side of the word pair. Languages stay fixed.'
+            )
+        )
         const close = createButton('Close', 'termorize-icon-button termorize-dialog-close', closeDialog)
         close.setAttribute('aria-label', 'Close review dialog')
         header.append(headingGroup, close)
@@ -262,7 +340,11 @@ function createUi() {
         const originalLabel = createElement('span', 'termorize-field-header')
         originalLabel.append(
             createElement('span', 'termorize-field-label', 'Original'),
-            createElement('span', 'termorize-language-chip', TERMORIZE_LANGUAGE_NAMES[pair.original_language] || pair.original_language)
+            createElement(
+                'span',
+                'termorize-language-chip',
+                TERMORIZE_LANGUAGE_NAMES[pair.original_language] || pair.original_language
+            )
         )
         const originalInput = createElement('textarea', 'termorize-textarea')
         originalInput.value = pair.original
@@ -274,7 +356,11 @@ function createUi() {
         const translationLabel = createElement('span', 'termorize-field-header')
         translationLabel.append(
             createElement('span', 'termorize-field-label', 'Translation'),
-            createElement('span', 'termorize-language-chip', TERMORIZE_LANGUAGE_NAMES[pair.translation_language] || pair.translation_language)
+            createElement(
+                'span',
+                'termorize-language-chip',
+                TERMORIZE_LANGUAGE_NAMES[pair.translation_language] || pair.translation_language
+            )
         )
         const translationInput = createElement('textarea', 'termorize-textarea')
         translationInput.value = pair.translation
@@ -291,6 +377,20 @@ function createUi() {
         const cancel = createButton('Cancel', 'termorize-button termorize-button--secondary', closeDialog)
         const save = createElement('button', 'termorize-button termorize-button--primary', 'Save to vocabulary')
         save.type = 'submit'
+        let trustedSubmit = false
+        const allowTrustedSubmit = () => {
+            trustedSubmit = true
+            queueMicrotask(() => {
+                trustedSubmit = false
+            })
+        }
+        save.addEventListener('click', (event) => {
+            if (!event.isTrusted) {
+                event.preventDefault()
+                return
+            }
+            allowTrustedSubmit()
+        })
         actions.append(cancel, save)
         footer.append(hint, actions)
 
@@ -302,6 +402,8 @@ function createUi() {
 
         form.addEventListener('submit', async (event) => {
             event.preventDefault()
+            if (!trustedSubmit) return
+            trustedSubmit = false
             const editedPair = {
                 ...pair,
                 original: normalizedText(originalInput.value),
@@ -309,7 +411,11 @@ function createUi() {
             }
             const validation = validatePair(editedPair)
             if (!validation.ok) {
-                showToast({ title: 'Word pair is not ready', description: validation.message, variant: 'warning' })
+                showToast({
+                    title: 'Word pair is not ready',
+                    description: validation.message,
+                    variant: 'warning',
+                })
                 return
             }
 
@@ -323,18 +429,14 @@ function createUi() {
         })
 
         overlay.addEventListener('mousedown', (event) => {
-            if (event.target === overlay) closeDialog()
+            if (event.isTrusted && event.target === overlay) closeDialog()
         })
 
         panel.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape') {
-                event.preventDefault()
-                closeDialog()
-                return
-            }
-
+            if (!event.isTrusted) return
             if (event.key === 'Enter' && event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey) {
                 event.preventDefault()
+                allowTrustedSubmit()
                 form.requestSubmit()
                 return
             }
@@ -343,10 +445,11 @@ function createUi() {
                 const focusable = [...panel.querySelectorAll('button:not([disabled]), textarea:not([disabled])')]
                 const first = focusable[0]
                 const last = focusable[focusable.length - 1]
-                if (event.shiftKey && document.activeElement === first) {
+                const activeElement = panel.getRootNode().activeElement
+                if (event.shiftKey && activeElement === first) {
                     event.preventDefault()
                     last.focus()
-                } else if (!event.shiftKey && document.activeElement === last) {
+                } else if (!event.shiftKey && activeElement === last) {
                     event.preventDefault()
                     first.focus()
                 }
@@ -357,29 +460,47 @@ function createUi() {
         translationInput.setSelectionRange(translationInput.value.length, translationInput.value.length)
     }
 
-    return { showToast, saveDirect, openEditor, isDialogOpen: () => Boolean(dialog) }
+    return {
+        showToast,
+        saveDirect,
+        openEditor,
+        closeDialog,
+        isDialogOpen: () => Boolean(dialog),
+    }
 }
 
 function bootstrap() {
-    if (document.querySelector('.termorize-extension-root')) return
+    if (document.querySelector('#termorize-extension-host')) return
     const ui = createUi()
 
     function handleAction(action) {
-        if (ui.isDialogOpen()) return
+        if (ui.isDialogOpen()) return false
         const pair = extractGoogleTranslation()
         const validation = validatePair(pair)
         if (!validation.ok) {
-            ui.showToast({ title: 'Word pair is not ready', description: validation.message, variant: 'warning' })
-            return
+            ui.showToast({
+                title: 'Word pair is not ready',
+                description: validation.message,
+                variant: 'warning',
+            })
+            return false
         }
 
         if (action === 'edit') ui.openEditor(pair)
         else if (action === 'save') void ui.saveDirect(pair)
+        return true
     }
 
     window.addEventListener(
         'keydown',
         (event) => {
+            if (shouldCloseEditor(event, ui.isDialogOpen())) {
+                event.preventDefault()
+                event.stopImmediatePropagation()
+                ui.closeDialog()
+                return
+            }
+
             const action = shortcutAction(event)
             if (!action) return
 
@@ -396,8 +517,8 @@ function bootstrap() {
             if (sender.id !== chrome.runtime.id || message?.type !== 'TRIGGER_SHORTCUT') return false
             if (message.action !== 'edit' && message.action !== 'save') return false
 
-            handleAction(message.action)
-            sendResponse({ ok: true })
+            const handled = handleAction(message.action)
+            sendResponse({ ok: true, handled })
             return false
         })
     }
@@ -410,6 +531,7 @@ if (typeof chrome !== 'undefined' && chrome.runtime && typeof document !== 'unde
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         extractGoogleTranslation,
+        shouldCloseEditor,
         shortcutAction,
         validatePair,
     }

@@ -1108,3 +1108,90 @@ func TestTranslateSameSourceAndTargetLanguage(t *testing.T) {
 	testkit.DecodeJSON(t, rec, &body)
 	assert.Equal(t, "nefield", body.Errors["ToLanguage"])
 }
+
+func TestTranslateSelectionRequiresAuth(t *testing.T) {
+	testkit.Truncate(t)
+
+	rec := testkit.Request(t, http.MethodPost, "/api/translate/selection", map[string]any{
+		"from_word":   "buongiorno",
+		"to_language": "en",
+	})
+	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
+}
+
+func TestTranslateSelectionDetectsSourceLanguage(t *testing.T) {
+	testkit.Truncate(t)
+
+	testkit.MockGoogleTranslate(t, &testkit.FakeGoogleTranslate{
+		DetectFunc: func(text string) (string, error) {
+			assert.Equal(t, "buongiorno", text)
+			return "it", nil
+		},
+		TranslateFunc: func(text, source, target string) (string, error) {
+			assert.Equal(t, "buongiorno", text)
+			assert.Equal(t, "it", source)
+			assert.Equal(t, "en", target)
+			return "good morning", nil
+		},
+	})
+
+	user := testkit.CreateUser(t)
+	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/translate/selection", map[string]any{
+		"from_word":   "buongiorno",
+		"to_language": "en",
+	})
+	testkit.RequireStatus(t, rec, http.StatusOK)
+
+	var body struct {
+		ID               uuid.UUID      `json:"id"`
+		OriginalLanguage enums.Language `json:"original_language"`
+		Translation      string         `json:"translation"`
+	}
+	testkit.DecodeJSON(t, rec, &body)
+	assert.NotEqual(t, uuid.Nil, body.ID)
+	assert.Equal(t, enums.LanguageIt, body.OriginalLanguage)
+	assert.Equal(t, "good morning", body.Translation)
+}
+
+func TestTranslateSelectionRejectsUnsupportedDetectedLanguage(t *testing.T) {
+	testkit.Truncate(t)
+
+	testkit.MockGoogleTranslate(t, &testkit.FakeGoogleTranslate{
+		DetectFunc: func(string) (string, error) { return "ja", nil },
+		TranslateFunc: func(string, string, string) (string, error) {
+			t.Fatal("Translate must not run for an unsupported detected language")
+			return "", nil
+		},
+	})
+
+	user := testkit.CreateUser(t)
+	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/translate/selection", map[string]any{
+		"from_word":   "おはよう",
+		"to_language": "en",
+	})
+	testkit.RequireStatus(t, rec, http.StatusUnprocessableEntity)
+
+	var body map[string]any
+	testkit.DecodeJSON(t, rec, &body)
+	assert.Equal(t, "unsupported source language", body["error"])
+	assert.Equal(t, "ja", body["detected_language"])
+}
+
+func TestTranslateSelectionRejectsMatchingTargetLanguage(t *testing.T) {
+	testkit.Truncate(t)
+	testkit.MockGoogleTranslate(t, &testkit.FakeGoogleTranslate{
+		DetectFunc: func(string) (string, error) { return "it", nil },
+	})
+
+	user := testkit.CreateUser(t)
+	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/translate/selection", map[string]any{
+		"from_word":   "buongiorno",
+		"to_language": "it",
+	})
+	testkit.RequireStatus(t, rec, http.StatusUnprocessableEntity)
+
+	var body map[string]any
+	testkit.DecodeJSON(t, rec, &body)
+	assert.Equal(t, "source language matches target language", body["error"])
+	assert.Equal(t, "it", body["detected_language"])
+}
