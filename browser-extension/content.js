@@ -73,6 +73,18 @@ function shortcutAction(event) {
     return null
 }
 
+function shouldCloseEditor(event, isOpen) {
+    return (
+        isOpen &&
+        !event.isComposing &&
+        !event.altKey &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.shiftKey &&
+        (event.key === 'Escape' || event.code === 'Escape')
+    )
+}
+
 function validatePair(pair) {
     if (!pair.original || !pair.translation) {
         return {
@@ -209,11 +221,12 @@ function createUi() {
     }
 
     function closeDialog() {
-        if (!dialog || isSaving) return
+        if (!dialog || isSaving) return false
         dialog.remove()
         dialog = null
         previouslyFocused?.focus?.()
         previouslyFocused = null
+        return true
     }
 
     function handleResponse(response) {
@@ -394,12 +407,6 @@ function createUi() {
         })
 
         panel.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape') {
-                event.preventDefault()
-                closeDialog()
-                return
-            }
-
             if (event.key === 'Enter' && event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey) {
                 event.preventDefault()
                 form.requestSubmit()
@@ -428,6 +435,7 @@ function createUi() {
         showToast,
         saveDirect,
         openEditor,
+        closeDialog,
         isDialogOpen: () => Boolean(dialog),
     }
 }
@@ -456,6 +464,12 @@ function bootstrap() {
     window.addEventListener(
         'keydown',
         (event) => {
+            if (shouldCloseEditor(event, ui.isDialogOpen()) && ui.closeDialog()) {
+                event.preventDefault()
+                event.stopImmediatePropagation()
+                return
+            }
+
             const action = shortcutAction(event)
             if (!action) return
 
@@ -486,6 +500,7 @@ if (typeof chrome !== 'undefined' && chrome.runtime && typeof document !== 'unde
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         extractGoogleTranslation,
+        shouldCloseEditor,
         shortcutAction,
         validatePair,
     }

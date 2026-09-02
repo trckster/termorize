@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict')
 const { describe, it } = require('node:test')
-const { extractGoogleTranslation, shortcutAction, validatePair } = require('./content.js')
+const { extractGoogleTranslation, shouldCloseEditor, shortcutAction, validatePair } = require('./content.js')
 
 function element({ value = '', textContent = '', lang = '' } = {}) {
     return {
@@ -99,6 +99,29 @@ describe('shortcutAction', () => {
         assert.equal(shortcutAction({ ...event, isTrusted: false }), null)
         assert.equal(shortcutAction({ ...event, altKey: true }), null)
         assert.equal(shortcutAction({ ...event, shiftKey: true }), null)
+    })
+})
+
+describe('shouldCloseEditor', () => {
+    const event = {
+        altKey: false,
+        code: 'Escape',
+        ctrlKey: false,
+        isComposing: false,
+        key: 'Escape',
+        metaKey: false,
+        shiftKey: false,
+    }
+
+    it('closes an open review dialog with bare Escape', () => {
+        assert.equal(shouldCloseEditor(event, true), true)
+        assert.equal(shouldCloseEditor({ ...event, key: '' }, true), true)
+    })
+
+    it('leaves closed dialogs, composition, and modified shortcuts alone', () => {
+        assert.equal(shouldCloseEditor(event, false), false)
+        assert.equal(shouldCloseEditor({ ...event, isComposing: true }, true), false)
+        assert.equal(shouldCloseEditor({ ...event, ctrlKey: true }, true), false)
     })
 })
 
