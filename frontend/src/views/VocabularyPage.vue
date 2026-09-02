@@ -120,15 +120,16 @@
                 </div>
             </div>
 
-            <div v-if="vocabulary.length > 0" class="space-y-2 mb-8">
+            <div
+                v-if="vocabulary.length > 0"
+                class="mb-8 grid grid-cols-1 gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(12rem,18rem)_auto]"
+            >
                 <div
                     v-for="item in vocabulary"
                     :key="item.id"
-                    class="group rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent/50"
+                    class="group grid min-w-0 grid-cols-1 items-center gap-4 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent/50 lg:col-span-3 lg:grid-cols-subgrid"
                 >
-                    <div
-                        class="grid min-w-0 grid-cols-1 items-center gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(12rem,18rem)_auto]"
-                    >
+                    <div class="contents">
                         <!-- Part 1: Words -->
                         <div class="min-w-0">
                             <h3
@@ -155,7 +156,9 @@
                                         :error-label="t.pronunciationError"
                                     />
                                 </span>
-                                <span class="rotate-90 self-center text-muted-foreground md:rotate-0" aria-hidden="true"
+                                <span
+                                    class="w-fit rotate-90 place-self-center text-muted-foreground md:rotate-0"
+                                    aria-hidden="true"
                                     >→</span
                                 >
                                 <span class="flex w-full min-w-0 items-center gap-2">
