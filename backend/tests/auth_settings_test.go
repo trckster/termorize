@@ -1,9 +1,11 @@
 package tests
 
 import (
+	"database/sql"
 	"net/http"
 	"testing"
 
+	"termorize/src/data/db"
 	"termorize/src/enums"
 	"termorize/src/models"
 	"termorize/src/testkit"
@@ -283,6 +285,25 @@ func TestUpdateSettingsHappyPath(t *testing.T) {
 	assert.Equal(t, "Europe/Berlin", me.Settings.TimeZone)
 	require.Len(t, me.Settings.Telegram.DailyQuestionsSchedule, 1)
 	assert.Equal(t, "09:00", me.Settings.Telegram.DailyQuestionsSchedule[0].From)
+}
+
+func TestUpdateSettingsPreservesNullTelegramIDs(t *testing.T) {
+	testkit.Truncate(t)
+
+	users := []models.User{
+		{Username: "guest_one", Name: "Guest One"},
+		{Username: "guest_two", Name: "Guest Two"},
+	}
+	for i := range users {
+		require.NoError(t, db.DB.Omit("TelegramID").Create(&users[i]).Error)
+
+		rec := testkit.AuthedRequest(t, users[i], http.MethodPut, "/api/settings", authSettingsValidPayload())
+		testkit.RequireStatus(t, rec, http.StatusOK)
+
+		var telegramID sql.NullInt64
+		require.NoError(t, db.DB.Raw("SELECT telegram_id FROM users WHERE id = ?", users[i].ID).Scan(&telegramID).Error)
+		assert.False(t, telegramID.Valid)
+	}
 }
 
 func TestUpdateSettingsSupportsPortugueseAndUkrainian(t *testing.T) {
