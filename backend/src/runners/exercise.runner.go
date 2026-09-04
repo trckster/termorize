@@ -100,6 +100,24 @@ func processDueExercises() {
 				}
 				continue
 			}
+			eligible, checkErr = services.IsDescriptionLanguageEligible(exercise.UserID, exercise.OriginalLanguage)
+			if checkErr != nil {
+				logger.L().Warnw("failed final description language check", "error", checkErr, "exercise_id", exercise.ExerciseID)
+				continue
+			}
+			pending, pendingErr := services.IsPendingDescriptionExercise(exercise.ExerciseID)
+			if pendingErr != nil {
+				logger.L().Warnw("failed final description exercise check", "error", pendingErr, "exercise_id", exercise.ExerciseID)
+				continue
+			}
+			if !eligible || !pending {
+				if !eligible {
+					if _, replaceErr := services.ReplacePendingDescriptionExercise(exercise.ExerciseID, false); replaceErr != nil {
+						logger.L().Warnw("failed to replace newly ineligible description exercise", "error", replaceErr, "exercise_id", exercise.ExerciseID)
+					}
+				}
+				continue
+			}
 			questionText = telegram.BuildDescriptionExerciseQuestion(description.Description, exercise.OriginalLanguage, texts)
 		}
 

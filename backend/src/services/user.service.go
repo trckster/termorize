@@ -86,8 +86,9 @@ func UpdateUserSettings(userID uint, settings models.UserSettings) (*models.User
 		settings.Telegram.BotEnabled = user.Settings.Telegram.BotEnabled
 		settings = settings.WithDefaults()
 		newlyIgnoredLanguages := newlyIgnoredAudioLanguages(previousIgnoredAudioLanguages, settings.IgnoredAudioLanguages)
+		newlyIgnoredDescriptionLanguages := newlyIgnoredAudioLanguages(previousIgnoredDescriptionLanguages, settings.IgnoredDescriptionLanguages)
 		descriptionEligibilityChanged := previousMainLearningLanguage != settings.MainLearningLanguage ||
-			!sameLanguages(previousIgnoredDescriptionLanguages, settings.IgnoredDescriptionLanguages)
+			len(newlyIgnoredDescriptionLanguages) > 0
 
 		user.Settings = settings
 
@@ -117,18 +118,6 @@ func UpdateUserSettings(userID uint, settings models.UserSettings) (*models.User
 	}
 
 	return &user, nil
-}
-
-func sameLanguages(left, right []enums.Language) bool {
-	if len(left) != len(right) {
-		return false
-	}
-	for index := range left {
-		if left[index] != right[index] {
-			return false
-		}
-	}
-	return true
 }
 
 func UpdateUserTranslationTargetLanguageByID(userID uint, language enums.Language) (*models.User, error) {

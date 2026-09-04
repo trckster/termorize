@@ -9,6 +9,7 @@ import (
 	"termorize/src/enums"
 	"termorize/src/integrations/openrouter"
 	"termorize/src/models"
+	"termorize/src/utils"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,6 +18,8 @@ import (
 )
 
 var ErrDescriptionGenerationFailed = errors.New("description generation failed")
+
+var descriptionWordPattern = regexp.MustCompile(`[\pL\pN]+(?:['’][\pL\pN]+)?`)
 
 type pendingDescriptionReplacement struct {
 	ExerciseID   uuid.UUID `gorm:"column:exercise_id"`
@@ -30,6 +33,16 @@ func IsDescriptionLanguageEligible(userID uint, language enums.Language) (bool, 
 	}
 	return user.Settings.MainLearningLanguage == language &&
 		!containsLanguage(user.Settings.IgnoredDescriptionLanguages, language), nil
+}
+
+func IsPendingDescriptionExercise(exerciseID uuid.UUID) (bool, error) {
+	var count int64
+	if err := db.DB.Model(&models.Exercise{}).
+		Where("id = ? AND status = ? AND type = ?", exerciseID, enums.ExerciseStatusPending, enums.ExerciseTypeDescriptionReversed).
+		Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count == 1, nil
 }
 
 func replacePendingDescriptionExercises(tx *gorm.DB, userID uint) error {
@@ -153,18 +166,47 @@ func descriptionMentionsAnswer(description, answer string) bool {
 	}
 
 	candidates := []string{normalizedAnswer}
-	for _, article := range []string{"a ", "an ", "the ", "il ", "lo ", "la ", "l'", "l’", "i ", "gli ", "le ", "el ", "los ", "las ", "un ", "una ", "une ", "der ", "die ", "das ", "ein ", "eine ", "o ", "os ", "as "} {
-		if withoutArticle := strings.TrimSpace(strings.TrimPrefix(normalizedAnswer, article)); withoutArticle != normalizedAnswer && withoutArticle != "" {
-			candidates = append(candidates, withoutArticle)
+	for _, prefix := range []string{"a ", "an ", "the ", "to ", "il ", "lo ", "la ", "l'", "l’", "i ", "gli ", "le ", "el ", "los ", "las ", "un ", "una ", "une ", "der ", "die ", "das ", "ein ", "eine ", "o ", "os ", "as "} {
+		if withoutPrefix := strings.TrimSpace(strings.TrimPrefix(normalizedAnswer, prefix)); withoutPrefix != normalizedAnswer && withoutPrefix != "" {
+			candidates = append(candidates, withoutPrefix)
 			break
 		}
 	}
 
+	descriptionWords := descriptionWordPattern.FindAllString(normalizedDescription, -1)
 	for _, candidate := range candidates {
 		pattern := `(^|[^\pL\pN])` + regexp.QuoteMeta(candidate) + `([^\pL\pN]|$)`
 		if regexp.MustCompile(pattern).FindStringIndex(normalizedDescription) != nil {
 			return true
 		}
+		if strings.Contains(candidate, " ") {
+			continue
+		}
+
+		candidateRunes := []rune(candidate)
+		if len(candidateRunes) < 4 {
+			continue
+		}
+		for _, descriptionWord := range descriptionWords {
+			wordRunes := []rune(descriptionWord)
+			if utils.DamerauLevenshteinDistance(candidate, descriptionWord) <= 1 ||
+				(len(wordRunes) >= len(candidateRunes) && commonRunePrefix(candidateRunes, wordRunes) >= len(candidateRunes)-1) {
+				return true
+			}
+		}
 	}
 	return false
+}
+
+func commonRunePrefix(left, right []rune) int {
+	limit := len(left)
+	if len(right) < limit {
+		limit = len(right)
+	}
+	for index := 0; index < limit; index++ {
+		if left[index] != right[index] {
+			return index
+		}
+	}
+	return limit
 }

@@ -107,6 +107,31 @@ func TestIgnoringDescriptionLanguageReplacesQueuedExerciseAtSameTime(t *testing.
 	assert.WithinDuration(t, scheduledFor, *replacement.ScheduledFor, time.Microsecond)
 }
 
+func TestAllowingDescriptionLanguageKeepsQueuedExercise(t *testing.T) {
+	testkit.Truncate(t)
+	user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{
+		MainLearningLanguage:        enums.LanguageEn,
+		IgnoredDescriptionLanguages: []enums.Language{enums.LanguageEn},
+	}))
+	vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
+	queued := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeDescriptionReversed, enums.ExerciseStatusPending, vocabulary.ID)
+	scheduledFor := time.Now().UTC().Add(time.Hour)
+	require.NoError(t, db.DB.Model(&queued).Updates(map[string]any{
+		"scheduled_for": scheduledFor,
+		"started_at":    nil,
+	}).Error)
+
+	payload := authSettingsValidPayload()
+	payload["main_learning_language"] = "en"
+	payload["ignored_description_languages"] = []string{}
+	rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/settings", payload)
+	testkit.RequireStatus(t, rec, http.StatusOK)
+
+	var active models.Exercise
+	require.NoError(t, db.DB.Where("id = ?", queued.ID).Take(&active).Error)
+	assert.False(t, active.DeletedAt.Valid)
+}
+
 func TestIgnoredDescriptionLanguageValidationRejectsUnsupportedCode(t *testing.T) {
 	testkit.Truncate(t)
 	user := testkit.CreateUser(t)
@@ -204,4 +229,33 @@ func TestDescriptionCacheUniquePerTranslationAndModel(t *testing.T) {
 		Description:   "Second clue.",
 	}
 	assert.Error(t, db.DB.Create(&duplicate).Error)
+}
+
+func TestStartingConcurrentlyCancelledDescriptionKeepsTelegramMessageReference(t *testing.T) {
+	testkit.Truncate(t)
+	const messageID int64 = 902
+	user := testkit.CreateUser(t, testkit.WithTelegramID(700902))
+	vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
+	exercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeDescriptionReversed, enums.ExerciseStatusPending, vocabulary.ID)
+
+	pending, err := services.IsPendingDescriptionExercise(exercise.ID)
+	require.NoError(t, err)
+	assert.True(t, pending)
+	require.NoError(t, db.DB.Delete(&exercise).Error)
+	pending, err = services.IsPendingDescriptionExercise(exercise.ID)
+	require.NoError(t, err)
+	assert.False(t, pending)
+
+	err = services.StartTelegramExercise(exercise.ID, messageID)
+	assert.ErrorIs(t, err, services.ErrExerciseNotInProgress)
+
+	var cancelled models.Exercise
+	require.NoError(t, db.DB.Unscoped().Where("id = ?", exercise.ID).Take(&cancelled).Error)
+	require.NotNil(t, cancelled.TelegramMessageID)
+	assert.Equal(t, messageID, *cancelled.TelegramMessageID)
+	loaded, err := services.GetExerciseByTelegramMessage(messageID, user.TelegramID)
+	require.NoError(t, err)
+	require.NotNil(t, loaded)
+	assert.True(t, loaded.Deleted)
+	assert.Equal(t, enums.ExerciseTypeDescriptionReversed, loaded.ExerciseType)
 }

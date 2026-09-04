@@ -271,11 +271,11 @@ func StartTelegramExercise(exerciseID uuid.UUID, telegramMessageID int64) error 
 	}
 	if result.RowsAffected == 0 {
 		// Delivery happens before this transition. If a concurrent language
-		// ignore soft-deleted the row after Telegram accepted the audio, retain
+		// setting soft-deleted the row after Telegram accepted the message, retain
 		// the message id so replies resolve to the cancelled exercise.
 		cancelled := db.DB.Unscoped().Model(&models.Exercise{}).
 			Where("id = ? AND deleted_at IS NOT NULL AND telegram_message_id IS NULL", exerciseID).
-			Where("type IN ?", []enums.ExerciseType{enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed}).
+			Where("type IN ?", []enums.ExerciseType{enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed, enums.ExerciseTypeDescriptionReversed}).
 			Update("telegram_message_id", telegramMessageID)
 		if cancelled.Error != nil {
 			return cancelled.Error

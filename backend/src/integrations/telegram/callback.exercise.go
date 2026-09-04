@@ -90,7 +90,7 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 		return nil
 	}
 	if exercise.Deleted {
-		return SendMessage(callback.From.ID, t.ExerciseAudioCancelled)
+		return SendMessage(callback.From.ID, cancelledExerciseText(exercise.ExerciseType, t))
 	}
 
 	switch exercise.Status {

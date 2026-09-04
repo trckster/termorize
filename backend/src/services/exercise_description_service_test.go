@@ -8,7 +8,9 @@ import (
 
 func TestDescriptionMentionsAnswerUsesWordBoundariesAndIgnoresArticles(t *testing.T) {
 	assert.False(t, descriptionMentionsAnswer("The object belongs to someone.", "he"))
+	assert.False(t, descriptionMentionsAnswer("A thin material used for printing.", "paper"))
 	assert.True(t, descriptionMentionsAnswer("You write on paper.", "paper"))
+	assert.True(t, descriptionMentionsAnswer("You write words by hand.", "to write"))
 	assert.True(t, descriptionMentionsAnswer("This clue accidentally says carta.", "la carta"))
-	assert.True(t, descriptionMentionsAnswer("Эта подсказка называет ёлку.", "ёлку"))
+	assert.True(t, descriptionMentionsAnswer("Игрушка висит на ёлке.", "ёлка"))
 }
