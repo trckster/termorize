@@ -31,6 +31,9 @@ import (
 //	go run ./cmd/test/ choice     # choice exercise, random direction
 //	go run ./cmd/test/ characters # character exercise, random direction
 //	go run ./cmd/test/ audio      # audio exercise, random direction
+//	go run ./cmd/test/ description          # description exercise, random direction
+//	go run ./cmd/test/ description-direct   # direct description exercise
+//	go run ./cmd/test/ description-reversed # reversed description exercise
 //	go run ./cmd/test/ repeat     # known-vocabulary repetition, random direction
 const (
 	testExerciseRunnerBuffer = time.Hour
@@ -85,10 +88,19 @@ func main() {
 		sendCharacterExercise(user, texts)
 	case "audio":
 		sendAudioExercise(user, texts)
+	case "description":
+		sendDescriptionExercise(user, texts,
+			enums.ExerciseTypeDescriptionDirect,
+			enums.ExerciseTypeDescriptionReversed,
+		)
+	case "description-direct":
+		sendDescriptionExercise(user, texts, enums.ExerciseTypeDescriptionDirect)
+	case "description-reversed":
+		sendDescriptionExercise(user, texts, enums.ExerciseTypeDescriptionReversed)
 	case "repeat":
 		sendRepetitionExercise(user, texts)
 	default:
-		fatal("unknown mode", errors.New("supported modes: match, basic, choice, characters, audio, repeat"))
+		fatal("unknown mode", errors.New("supported modes: match, basic, choice, characters, audio, description, description-direct, description-reversed, repeat"))
 	}
 }
 
@@ -223,6 +235,46 @@ func sendAudioExercise(user models.User, texts telegram.BotTexts) {
 	logger.L().Infow("audio exercise sent to telegram",
 		"exercise_id", result.ExerciseID,
 		"exercise_type", result.Type,
+		"telegram_id", user.TelegramID,
+		"message_id", *messageID,
+	)
+}
+
+func sendDescriptionExercise(user models.User, texts telegram.BotTexts, exerciseTypes ...enums.ExerciseType) {
+	result, err := services.CreateRandomExerciseOfTypes(user.ID, exerciseTypes...)
+	if err != nil {
+		fatal("failed to create description exercise", err)
+	}
+	if result.Description == "" {
+		fatal("description exercise has no generated description", errors.New("description is missing"))
+	}
+
+	questionText := telegram.BuildDescriptionExerciseQuestion(result.Description, result.Language, texts)
+	messageID, err := telegram.SendDescriptionExerciseMessage(
+		user.TelegramID,
+		questionText,
+		result.ExerciseID,
+		result.Language,
+		result.ShowIgnoreLanguageSuggestion,
+		texts,
+	)
+	if err != nil {
+		fatal("failed to send description exercise to telegram", err)
+	}
+	if messageID == nil {
+		fatal("telegram did not return a message id", errors.New("user may have blocked the bot or disabled it"))
+	}
+
+	if err := db.DB.Model(&models.Exercise{}).
+		Where("id = ?", result.ExerciseID).
+		Update("telegram_message_id", *messageID).Error; err != nil {
+		fatal("failed to store telegram message id", err)
+	}
+
+	logger.L().Infow("description exercise sent to telegram",
+		"exercise_id", result.ExerciseID,
+		"exercise_type", result.Type,
+		"language", result.Language,
 		"telegram_id", user.TelegramID,
 		"message_id", *messageID,
 	)
