@@ -275,7 +275,8 @@ func GetOrCreateWordDescription(wordID uuid.UUID) (*models.WordDescription, erro
 			return err
 		}
 
-		generated, err := openrouter.NewClient().GenerateDescription(
+		client := openrouter.NewClient()
+		generated, err := client.GenerateDescription(
 			word.Word,
 			word.Language.DisplayName(),
 			word.Language.DisplayName(),
@@ -288,10 +289,16 @@ func GetOrCreateWordDescription(wordID uuid.UUID) (*models.WordDescription, erro
 			descriptionMentionsAnswer(generatedText, word.Word) {
 			return ErrDescriptionGenerationFailed
 		}
-		for _, forbiddenForm := range generated.ForbiddenForms {
-			if descriptionMentionsAnswer(generatedText, forbiddenForm) {
-				return ErrDescriptionGenerationFailed
-			}
+		containsAnswerForm, err := client.DescriptionContainsAnswerForm(
+			word.Word,
+			word.Language.DisplayName(),
+			generatedText,
+		)
+		if err != nil {
+			return errors.Join(ErrDescriptionGenerationFailed, err)
+		}
+		if containsAnswerForm {
+			return ErrDescriptionGenerationFailed
 		}
 
 		detectedLanguage, supported, err := DetectLanguage(generatedText)

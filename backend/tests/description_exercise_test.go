@@ -75,6 +75,7 @@ func TestDescriptionExerciseDirectionsUseAndCacheWordDefinitions(t *testing.T) {
 			})
 
 			calls := 0
+			validationCalls := 0
 			testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{
 				GenerateDescriptionFunc: func(word, wordLanguage, descriptionLanguage string) (*openrouter.GeneratedDescription, error) {
 					calls++
@@ -82,6 +83,13 @@ func TestDescriptionExerciseDirectionsUseAndCacheWordDefinitions(t *testing.T) {
 					assert.Equal(t, test.expectedLanguage.DisplayName(), wordLanguage)
 					assert.Equal(t, test.expectedLanguage.DisplayName(), descriptionLanguage)
 					return &openrouter.GeneratedDescription{Description: test.description}, nil
+				},
+				DescriptionContainsAnswerFormFunc: func(word, wordLanguage, description string) (bool, error) {
+					validationCalls++
+					assert.Equal(t, test.expectedWord, word)
+					assert.Equal(t, test.expectedLanguage.DisplayName(), wordLanguage)
+					assert.Equal(t, test.description, description)
+					return false, nil
 				},
 			})
 
@@ -98,6 +106,7 @@ func TestDescriptionExerciseDirectionsUseAndCacheWordDefinitions(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, first.Description, second.Description)
 			assert.Equal(t, 1, calls)
+			assert.Equal(t, 1, validationCalls)
 
 			var descriptions []models.WordDescription
 			require.NoError(t, db.DB.Where("word_id = ?", expectedWordID).Find(&descriptions).Error)
@@ -364,7 +373,6 @@ func TestDescriptionExerciseRejectsModelReportedInflectedForms(t *testing.T) {
 		language        enums.Language
 		translationLang enums.Language
 		description     string
-		forbiddenForms  []string
 	}{
 		{
 			name:            "short irregular English verb",
@@ -373,7 +381,6 @@ func TestDescriptionExerciseRejectsModelReportedInflectedForms(t *testing.T) {
 			language:        enums.LanguageEn,
 			translationLang: enums.LanguageIt,
 			description:     "An action involving going from one place to another.",
-			forbiddenForms:  []string{"to go", "go", "goes", "went", "gone", "going"},
 		},
 		{
 			name:            "irregular German verb",
@@ -382,7 +389,6 @@ func TestDescriptionExerciseRejectsModelReportedInflectedForms(t *testing.T) {
 			language:        enums.LanguageDe,
 			translationLang: enums.LanguageIt,
 			description:     "Eine Person ging von einem Ort zu einem anderen.",
-			forbiddenForms:  []string{"gehen", "geht", "ging", "gegangen"},
 		},
 	}
 
@@ -395,10 +401,13 @@ func TestDescriptionExerciseRejectsModelReportedInflectedForms(t *testing.T) {
 			exerciseSeedVocabulary(t, user.ID, test.word, test.translation, test.language, test.translationLang)
 			testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{
 				GenerateDescriptionFunc: func(string, string, string) (*openrouter.GeneratedDescription, error) {
-					return &openrouter.GeneratedDescription{
-						Description:    test.description,
-						ForbiddenForms: test.forbiddenForms,
-					}, nil
+					return &openrouter.GeneratedDescription{Description: test.description}, nil
+				},
+				DescriptionContainsAnswerFormFunc: func(word, wordLanguage, description string) (bool, error) {
+					assert.Equal(t, test.word, word)
+					assert.Equal(t, test.language.DisplayName(), wordLanguage)
+					assert.Equal(t, test.description, description)
+					return true, nil
 				},
 			})
 

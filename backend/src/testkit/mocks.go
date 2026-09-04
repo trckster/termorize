@@ -41,22 +41,23 @@ func MockGoogleTranslate(t *testing.T, fake *FakeGoogleTranslate) *FakeGoogleTra
 }
 
 type FakeOpenRouter struct {
-	GenerateFunc            func(prompt string, allowedLanguages []string) (*openrouter.GeneratedCollection, error)
-	GenerateDescriptionFunc func(word, wordLanguage, descriptionLanguage string) (*openrouter.GeneratedDescription, error)
+	GenerateFunc                      func(prompt string, allowedLanguages []string) (*openrouter.GeneratedCollection, error)
+	GenerateDescriptionFunc           func(word, wordLanguage, descriptionLanguage string) (*openrouter.GeneratedDescription, error)
+	DescriptionContainsAnswerFormFunc func(word, wordLanguage, description string) (bool, error)
 }
 
 func (f *FakeOpenRouter) GenerateDescription(word, wordLanguage, descriptionLanguage string) (*openrouter.GeneratedDescription, error) {
 	if f.GenerateDescriptionFunc != nil {
-		generated, err := f.GenerateDescriptionFunc(word, wordLanguage, descriptionLanguage)
-		if generated != nil && len(generated.ForbiddenForms) == 0 {
-			generated.ForbiddenForms = []string{word}
-		}
-		return generated, err
+		return f.GenerateDescriptionFunc(word, wordLanguage, descriptionLanguage)
 	}
-	return &openrouter.GeneratedDescription{
-		Description:    "A short clue in " + descriptionLanguage + ".",
-		ForbiddenForms: []string{word},
-	}, nil
+	return &openrouter.GeneratedDescription{Description: "A short clue in " + descriptionLanguage + "."}, nil
+}
+
+func (f *FakeOpenRouter) DescriptionContainsAnswerForm(word, wordLanguage, description string) (bool, error) {
+	if f.DescriptionContainsAnswerFormFunc != nil {
+		return f.DescriptionContainsAnswerFormFunc(word, wordLanguage, description)
+	}
+	return false, nil
 }
 
 type FakeOpenRouterSpeech struct {

@@ -19,6 +19,12 @@ func TestDescriptionPromptRequiresAClueInTheRequestedLanguage(t *testing.T) {
 	require.Contains(t, prompt, "in Ukrainian")
 	require.Contains(t, prompt, "Do not include the given text")
 	require.Contains(t, prompt, "a direct translation")
-	require.Contains(t, prompt, "inflected, conjugated, declined, and irregular forms")
-	require.Contains(t, prompt, `{"description": string, "forbidden_forms": string[]}`)
+	require.Contains(t, prompt, `{"description": string}`)
+}
+
+func TestDescriptionValidationPromptChecksMorphology(t *testing.T) {
+	prompt := buildDescriptionValidationSystemPrompt()
+
+	require.Contains(t, prompt, "inflected, conjugated, declined, irregular, derived")
+	require.Contains(t, prompt, `{"contains_answer_form": boolean}`)
 }
