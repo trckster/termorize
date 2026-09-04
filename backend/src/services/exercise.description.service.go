@@ -31,8 +31,23 @@ func IsDescriptionLanguageEligible(userID uint, language enums.Language) (bool, 
 	if err := db.DB.Select("settings").Where("id = ?", userID).Take(&user).Error; err != nil {
 		return false, err
 	}
-	return user.Settings.MainLearningLanguage == language &&
-		!containsLanguage(user.Settings.IgnoredDescriptionLanguages, language), nil
+	return descriptionLanguageEligible(user.Settings, language), nil
+}
+
+func lockDescriptionLanguageEligibility(tx *gorm.DB, userID uint, language enums.Language) (bool, error) {
+	var user models.User
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Select("settings").
+		Where("id = ?", userID).
+		Take(&user).Error; err != nil {
+		return false, err
+	}
+	return descriptionLanguageEligible(user.Settings, language), nil
+}
+
+func descriptionLanguageEligible(settings models.UserSettings, language enums.Language) bool {
+	return settings.MainLearningLanguage == language &&
+		!containsLanguage(settings.IgnoredDescriptionLanguages, language)
 }
 
 func IsPendingDescriptionExercise(exerciseID uuid.UUID) (bool, error) {
@@ -166,7 +181,15 @@ func descriptionMentionsAnswer(description, answer string) bool {
 	}
 
 	candidates := []string{normalizedAnswer}
-	for _, prefix := range []string{"a ", "an ", "the ", "to ", "il ", "lo ", "la ", "l'", "l’", "i ", "gli ", "le ", "el ", "los ", "las ", "un ", "una ", "une ", "der ", "die ", "das ", "ein ", "eine ", "o ", "os ", "as "} {
+	for _, prefix := range []string{
+		"de la ", "de l'", "de l’",
+		"a ", "an ", "the ", "to ",
+		"il ", "lo ", "la ", "l'", "l’", "i ", "gli ", "le ", "un ", "uno ", "una ",
+		"el ", "los ", "las ", "unos ", "unas ",
+		"les ", "des ", "du ", "une ",
+		"der ", "die ", "das ", "den ", "dem ", "ein ", "eine ", "einen ", "einem ", "einer ", "eines ",
+		"o ", "os ", "as ", "um ", "uma ", "uns ", "umas ",
+	} {
 		if withoutPrefix := strings.TrimSpace(strings.TrimPrefix(normalizedAnswer, prefix)); withoutPrefix != normalizedAnswer && withoutPrefix != "" {
 			candidates = append(candidates, withoutPrefix)
 			break

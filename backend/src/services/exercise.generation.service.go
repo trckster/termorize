@@ -152,6 +152,42 @@ func createRandomExerciseForVocabulary(userID uint, vocabularyID uuid.UUID, requ
 	}
 
 	err = db.DB.Transaction(func(tx *gorm.DB) error {
+		if isDescriptionExerciseType(exerciseType) {
+			eligible, eligibilityErr := lockDescriptionLanguageEligibility(
+				tx,
+				userID,
+				vocabulary.Translation.Original.Language,
+			)
+			if eligibilityErr != nil {
+				return eligibilityErr
+			}
+			if !eligible {
+				if len(requestedTypes) > 0 {
+					remainingTypes := make([]enums.ExerciseType, 0, len(requestedTypes))
+					for _, requestedType := range requestedTypes {
+						if !isDescriptionExerciseType(requestedType) {
+							remainingTypes = append(remainingTypes, requestedType)
+						}
+					}
+					if len(remainingTypes) == 0 {
+						return ErrNoVocabularyForExercise
+					}
+					exerciseType, options, err = selectRequestedExerciseTypeAndOptions(userID, vocabulary, remainingTypes)
+				} else {
+					exerciseType, options, err = selectExerciseTypeAndOptionsWithConfig(tx, userID, vocabulary, false, excludeAudio, true)
+				}
+				if err != nil {
+					return err
+				}
+				questionWord, language, answerLanguage, err = buildExerciseQuestionData(vocabulary, exerciseType)
+				if err != nil {
+					return err
+				}
+				description = ""
+			}
+		}
+
+		exercise.Type = exerciseType
 		if err := tx.Create(&exercise).Error; err != nil {
 			return err
 		}

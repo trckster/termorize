@@ -189,6 +189,29 @@ func createCollectionPracticeTargetExercise(
 	}
 
 	err = db.DB.Transaction(func(tx *gorm.DB) error {
+		if isDescriptionExerciseType(exerciseType) {
+			eligible, eligibilityErr := lockDescriptionLanguageEligibility(
+				tx,
+				userID,
+				vocabulary.Translation.Original.Language,
+			)
+			if eligibilityErr != nil {
+				return eligibilityErr
+			}
+			if !eligible {
+				exerciseType, options, err = selectCollectionPracticeExerciseType(optionsByType, excludeAudio, true)
+				if err != nil {
+					return err
+				}
+				questionWord, language, answerLanguage, err = buildExerciseQuestionData(vocabulary, exerciseType)
+				if err != nil {
+					return err
+				}
+				description = ""
+			}
+		}
+
+		exercise.Type = exerciseType
 		if err := tx.Create(&exercise).Error; err != nil {
 			return err
 		}

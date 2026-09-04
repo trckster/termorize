@@ -88,7 +88,7 @@ func UpdateUserSettings(userID uint, settings models.UserSettings) (*models.User
 		newlyIgnoredLanguages := newlyIgnoredAudioLanguages(previousIgnoredAudioLanguages, settings.IgnoredAudioLanguages)
 		newlyIgnoredDescriptionLanguages := newlyIgnoredAudioLanguages(previousIgnoredDescriptionLanguages, settings.IgnoredDescriptionLanguages)
 		descriptionEligibilityChanged := previousMainLearningLanguage != settings.MainLearningLanguage ||
-			len(newlyIgnoredDescriptionLanguages) > 0
+			containsLanguage(newlyIgnoredDescriptionLanguages, settings.MainLearningLanguage)
 
 		user.Settings = settings
 

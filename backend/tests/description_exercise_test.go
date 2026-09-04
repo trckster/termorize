@@ -132,6 +132,30 @@ func TestAllowingDescriptionLanguageKeepsQueuedExercise(t *testing.T) {
 	assert.False(t, active.DeletedAt.Valid)
 }
 
+func TestIgnoringUnrelatedDescriptionLanguageKeepsQueuedExercise(t *testing.T) {
+	testkit.Truncate(t)
+	user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{
+		MainLearningLanguage: enums.LanguageEn,
+	}))
+	vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
+	queued := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeDescriptionReversed, enums.ExerciseStatusPending, vocabulary.ID)
+	scheduledFor := time.Now().UTC().Add(time.Hour)
+	require.NoError(t, db.DB.Model(&queued).Updates(map[string]any{
+		"scheduled_for": scheduledFor,
+		"started_at":    nil,
+	}).Error)
+
+	payload := authSettingsValidPayload()
+	payload["main_learning_language"] = "en"
+	payload["ignored_description_languages"] = []string{"de"}
+	rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/settings", payload)
+	testkit.RequireStatus(t, rec, http.StatusOK)
+
+	var active models.Exercise
+	require.NoError(t, db.DB.Where("id = ?", queued.ID).Take(&active).Error)
+	assert.False(t, active.DeletedAt.Valid)
+}
+
 func TestIgnoredDescriptionLanguageValidationRejectsUnsupportedCode(t *testing.T) {
 	testkit.Truncate(t)
 	user := testkit.CreateUser(t)
@@ -206,6 +230,55 @@ func TestDescriptionExercisePropagatesOpenRouterFailureWhenExplicitlyRequested(t
 
 	_, err := services.CreateRandomExerciseOfTypes(user.ID, enums.ExerciseTypeDescriptionReversed)
 	assert.ErrorIs(t, err, services.ErrDescriptionGenerationFailed)
+
+	var count int64
+	require.NoError(t, db.DB.Model(&models.Exercise{}).Count(&count).Error)
+	assert.Zero(t, count)
+}
+
+func TestDescriptionExerciseRechecksEligibilityAfterGeneration(t *testing.T) {
+	testkit.Truncate(t)
+	user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{MainLearningLanguage: enums.LanguageEn}))
+	exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
+	generationStarted := make(chan struct{})
+	releaseGeneration := make(chan struct{})
+	testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{
+		GenerateDescriptionFunc: func(string, string, string) (*openrouter.GeneratedDescription, error) {
+			close(generationStarted)
+			<-releaseGeneration
+			return &openrouter.GeneratedDescription{Description: "A thin material used for writing or printing."}, nil
+		},
+	})
+
+	type creationResult struct {
+		exercise *services.RandomExerciseResult
+		err      error
+	}
+	created := make(chan creationResult, 1)
+	go func() {
+		exercise, err := services.CreateRandomExerciseOfTypes(user.ID, enums.ExerciseTypeDescriptionReversed)
+		created <- creationResult{exercise: exercise, err: err}
+	}()
+
+	select {
+	case <-generationStarted:
+	case <-time.After(5 * time.Second):
+		t.Fatal("description generation did not start")
+	}
+	payload := authSettingsValidPayload()
+	payload["main_learning_language"] = "en"
+	payload["ignored_description_languages"] = []string{"en"}
+	rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/settings", payload)
+	testkit.RequireStatus(t, rec, http.StatusOK)
+	close(releaseGeneration)
+
+	select {
+	case result := <-created:
+		assert.Nil(t, result.exercise)
+		assert.ErrorIs(t, result.err, services.ErrNoVocabularyForExercise)
+	case <-time.After(5 * time.Second):
+		t.Fatal("description creation did not finish")
+	}
 
 	var count int64
 	require.NoError(t, db.DB.Model(&models.Exercise{}).Count(&count).Error)
