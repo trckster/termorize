@@ -21,6 +21,8 @@ var ErrDescriptionGenerationFailed = errors.New("description generation failed")
 
 var descriptionWordPattern = regexp.MustCompile(`[\pL\pN]+(?:['’][\pL\pN]+)?`)
 
+const maxDescriptionRunes = 300
+
 type pendingDescriptionReplacement struct {
 	ExerciseID   uuid.UUID `gorm:"column:exercise_id"`
 	ScheduledFor time.Time `gorm:"column:scheduled_for"`
@@ -147,7 +149,9 @@ func GetOrCreateTranslationDescription(translationID uuid.UUID) (*models.Transla
 		return nil, errors.Join(ErrDescriptionGenerationFailed, err)
 	}
 	description := strings.TrimSpace(generated.Description)
-	if description == "" || descriptionMentionsAnswer(description, translation.Original.Word) {
+	if description == "" || len([]rune(description)) > maxDescriptionRunes ||
+		descriptionMentionsAnswer(description, translation.Original.Word) ||
+		descriptionMentionsAnswer(description, translation.Translation.Word) {
 		return nil, ErrDescriptionGenerationFailed
 	}
 

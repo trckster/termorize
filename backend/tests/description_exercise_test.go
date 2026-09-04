@@ -3,6 +3,7 @@ package tests
 import (
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -201,12 +202,37 @@ func TestDescriptionExerciseOnlyUsesEligibleLearningLanguage(t *testing.T) {
 }
 
 func TestDescriptionExerciseRejectsClueContainingAnswer(t *testing.T) {
+	for _, clue := range []string{
+		"Paper used for writing.",
+		"Carta is used for writing.",
+	} {
+		t.Run(clue, func(t *testing.T) {
+			testkit.Truncate(t)
+			user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{MainLearningLanguage: enums.LanguageEn}))
+			exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
+			testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{
+				GenerateDescriptionFunc: func(string, string, string) (*openrouter.GeneratedDescription, error) {
+					return &openrouter.GeneratedDescription{Description: clue}, nil
+				},
+			})
+
+			_, err := services.CreateRandomExerciseOfTypes(user.ID, enums.ExerciseTypeDescriptionReversed)
+			assert.ErrorIs(t, err, services.ErrDescriptionGenerationFailed)
+
+			var count int64
+			require.NoError(t, db.DB.Model(&models.TranslationDescription{}).Count(&count).Error)
+			assert.Zero(t, count)
+		})
+	}
+}
+
+func TestDescriptionExerciseRejectsOversizedClue(t *testing.T) {
 	testkit.Truncate(t)
 	user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{MainLearningLanguage: enums.LanguageEn}))
 	exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
 	testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{
 		GenerateDescriptionFunc: func(string, string, string) (*openrouter.GeneratedDescription, error) {
-			return &openrouter.GeneratedDescription{Description: "Paper used for writing."}, nil
+			return &openrouter.GeneratedDescription{Description: strings.Repeat("x", 301)}, nil
 		},
 	})
 
