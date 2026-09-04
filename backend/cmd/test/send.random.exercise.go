@@ -194,6 +194,7 @@ func sendAudioExercise(user models.User, texts telegram.BotTexts) {
 		fatal("failed to create audio exercise", err)
 	}
 	if result.AudioWordID == nil {
+		cleanupUndeliveredExercise(user.ID, result, services.ExerciseLanguageSuggestionFamilyAudio)
 		fatal("audio exercise has no spoken word", errors.New("audio_word_id is missing"))
 	}
 
@@ -205,6 +206,7 @@ func sendAudioExercise(user models.User, texts telegram.BotTexts) {
 		pronunciation, err = services.GetOrCreateWordPronunciation(*result.AudioWordID)
 	}
 	if err != nil {
+		cleanupUndeliveredExercise(user.ID, result, services.ExerciseLanguageSuggestionFamilyAudio)
 		fatal("failed to prepare audio exercise pronunciation", err)
 	}
 
@@ -218,9 +220,11 @@ func sendAudioExercise(user models.User, texts telegram.BotTexts) {
 		texts,
 	)
 	if err != nil {
+		cleanupUndeliveredExercise(user.ID, result, services.ExerciseLanguageSuggestionFamilyAudio)
 		fatal("failed to send audio exercise to telegram", err)
 	}
 	if messageID == nil {
+		cleanupUndeliveredExercise(user.ID, result, services.ExerciseLanguageSuggestionFamilyAudio)
 		fatal("telegram did not return a message id", errors.New("user may have blocked the bot or disabled it"))
 	}
 
@@ -246,6 +250,7 @@ func sendDescriptionExercise(user models.User, texts telegram.BotTexts, exercise
 		fatal("failed to create description exercise", err)
 	}
 	if result.Description == "" {
+		cleanupUndeliveredExercise(user.ID, result, services.ExerciseLanguageSuggestionFamilyDescription)
 		fatal("description exercise has no generated description", errors.New("description is missing"))
 	}
 
@@ -259,11 +264,11 @@ func sendDescriptionExercise(user models.User, texts telegram.BotTexts, exercise
 		texts,
 	)
 	if err != nil {
-		cleanupUndeliveredDescriptionExercise(user.ID, result)
+		cleanupUndeliveredExercise(user.ID, result, services.ExerciseLanguageSuggestionFamilyDescription)
 		fatal("failed to send description exercise to telegram", err)
 	}
 	if messageID == nil {
-		cleanupUndeliveredDescriptionExercise(user.ID, result)
+		cleanupUndeliveredExercise(user.ID, result, services.ExerciseLanguageSuggestionFamilyDescription)
 		fatal("telegram did not return a message id", errors.New("user may have blocked the bot or disabled it"))
 	}
 
@@ -282,21 +287,21 @@ func sendDescriptionExercise(user models.User, texts telegram.BotTexts, exercise
 	)
 }
 
-func cleanupUndeliveredDescriptionExercise(userID uint, result *services.RandomExerciseResult) {
+func cleanupUndeliveredExercise(userID uint, result *services.RandomExerciseResult, suggestionFamily string) {
 	if result == nil {
 		return
 	}
 	if result.ShowIgnoreLanguageSuggestion {
 		if err := services.ReleaseExerciseLanguageSuggestion(
 			userID,
-			services.ExerciseLanguageSuggestionFamilyDescription,
+			suggestionFamily,
 			result.Language,
 		); err != nil {
-			logger.L().Warnw("failed to release undelivered description language suggestion", "error", err, "exercise_id", result.ExerciseID)
+			logger.L().Warnw("failed to release undelivered exercise language suggestion", "error", err, "exercise_id", result.ExerciseID)
 		}
 	}
 	if err := db.DB.Delete(&models.Exercise{}, "id = ?", result.ExerciseID).Error; err != nil {
-		logger.L().Warnw("failed to cancel undelivered description exercise", "error", err, "exercise_id", result.ExerciseID)
+		logger.L().Warnw("failed to cancel undelivered exercise", "error", err, "exercise_id", result.ExerciseID)
 	}
 }
 
