@@ -105,6 +105,9 @@ func IgnoreDescriptionLanguageForExercise(exerciseID uuid.UUID, userID uint) (*m
 			}
 		}
 		if newlyIgnored {
+			if err := cancelInProgressDescriptionExercises(tx, userID); err != nil {
+				return err
+			}
 			return replacePendingDescriptionExercises(tx, userID)
 		}
 		return nil
@@ -284,6 +287,11 @@ func GetOrCreateWordDescription(wordID uuid.UUID) (*models.WordDescription, erro
 		if generatedText == "" || len([]rune(generatedText)) > maxDescriptionRunes ||
 			descriptionMentionsAnswer(generatedText, word.Word) {
 			return ErrDescriptionGenerationFailed
+		}
+		for _, forbiddenForm := range generated.ForbiddenForms {
+			if descriptionMentionsAnswer(generatedText, forbiddenForm) {
+				return ErrDescriptionGenerationFailed
+			}
 		}
 
 		detectedLanguage, supported, err := DetectLanguage(generatedText)

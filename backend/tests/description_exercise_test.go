@@ -165,6 +165,8 @@ func TestIgnoreDescriptionLanguageEndpointCancelsAndCanBeUndone(t *testing.T) {
 	}))
 	vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
 	exercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeDescriptionDirect, enums.ExerciseStatusInProgress, vocabulary.ID)
+	otherVocabulary := exerciseSeedVocabulary(t, user.ID, "chair", "sedia", enums.LanguageEn, enums.LanguageIt)
+	otherExercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeDescriptionDirect, enums.ExerciseStatusInProgress, otherVocabulary.ID)
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/exercises/"+exercise.ID.String()+"/ignore-description-language", nil)
 	testkit.RequireStatus(t, rec, http.StatusOK)
@@ -175,6 +177,10 @@ func TestIgnoreDescriptionLanguageEndpointCancelsAndCanBeUndone(t *testing.T) {
 	var cancelled models.Exercise
 	require.NoError(t, db.DB.Unscoped().Where("id = ?", exercise.ID).Take(&cancelled).Error)
 	assert.True(t, cancelled.DeletedAt.Valid)
+	cancelled = models.Exercise{}
+	require.NoError(t, db.DB.Unscoped().Where("id = ?", otherExercise.ID).Take(&cancelled).Error)
+	assert.True(t, cancelled.DeletedAt.Valid)
+	assert.Nil(t, exerciseLink(t, otherExercise.ID, otherVocabulary.ID).Result)
 
 	rec = testkit.AuthedRequest(t, user, http.MethodDelete, "/api/settings/ignored-description-languages/en", nil)
 	testkit.RequireStatus(t, rec, http.StatusOK)
@@ -346,6 +352,58 @@ func TestDescriptionExerciseRejectsClueContainingDescribedWord(t *testing.T) {
 			var count int64
 			require.NoError(t, db.DB.Model(&models.WordDescription{}).Count(&count).Error)
 			assert.Zero(t, count)
+		})
+	}
+}
+
+func TestDescriptionExerciseRejectsModelReportedInflectedForms(t *testing.T) {
+	tests := []struct {
+		name            string
+		word            string
+		translation     string
+		language        enums.Language
+		translationLang enums.Language
+		description     string
+		forbiddenForms  []string
+	}{
+		{
+			name:            "short irregular English verb",
+			word:            "to go",
+			translation:     "andare",
+			language:        enums.LanguageEn,
+			translationLang: enums.LanguageIt,
+			description:     "An action involving going from one place to another.",
+			forbiddenForms:  []string{"to go", "go", "goes", "went", "gone", "going"},
+		},
+		{
+			name:            "irregular German verb",
+			word:            "gehen",
+			translation:     "andare",
+			language:        enums.LanguageDe,
+			translationLang: enums.LanguageIt,
+			description:     "Eine Person ging von einem Ort zu einem anderen.",
+			forbiddenForms:  []string{"gehen", "geht", "ging", "gegangen"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			testkit.Truncate(t)
+			user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{
+				MainLearningLanguage: test.language,
+			}))
+			exerciseSeedVocabulary(t, user.ID, test.word, test.translation, test.language, test.translationLang)
+			testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{
+				GenerateDescriptionFunc: func(string, string, string) (*openrouter.GeneratedDescription, error) {
+					return &openrouter.GeneratedDescription{
+						Description:    test.description,
+						ForbiddenForms: test.forbiddenForms,
+					}, nil
+				},
+			})
+
+			_, err := services.CreateRandomExerciseOfTypes(user.ID, enums.ExerciseTypeDescriptionDirect)
+			assert.ErrorIs(t, err, services.ErrDescriptionGenerationFailed)
 		})
 	}
 }

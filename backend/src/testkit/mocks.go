@@ -47,9 +47,16 @@ type FakeOpenRouter struct {
 
 func (f *FakeOpenRouter) GenerateDescription(word, wordLanguage, descriptionLanguage string) (*openrouter.GeneratedDescription, error) {
 	if f.GenerateDescriptionFunc != nil {
-		return f.GenerateDescriptionFunc(word, wordLanguage, descriptionLanguage)
+		generated, err := f.GenerateDescriptionFunc(word, wordLanguage, descriptionLanguage)
+		if generated != nil && len(generated.ForbiddenForms) == 0 {
+			generated.ForbiddenForms = []string{word}
+		}
+		return generated, err
 	}
-	return &openrouter.GeneratedDescription{Description: "A short clue in " + descriptionLanguage + "."}, nil
+	return &openrouter.GeneratedDescription{
+		Description:    "A short clue in " + descriptionLanguage + ".",
+		ForbiddenForms: []string{word},
+	}, nil
 }
 
 type FakeOpenRouterSpeech struct {

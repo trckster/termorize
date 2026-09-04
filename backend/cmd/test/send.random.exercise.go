@@ -259,9 +259,11 @@ func sendDescriptionExercise(user models.User, texts telegram.BotTexts, exercise
 		texts,
 	)
 	if err != nil {
+		cleanupUndeliveredDescriptionExercise(user.ID, result)
 		fatal("failed to send description exercise to telegram", err)
 	}
 	if messageID == nil {
+		cleanupUndeliveredDescriptionExercise(user.ID, result)
 		fatal("telegram did not return a message id", errors.New("user may have blocked the bot or disabled it"))
 	}
 
@@ -278,6 +280,24 @@ func sendDescriptionExercise(user models.User, texts telegram.BotTexts, exercise
 		"telegram_id", user.TelegramID,
 		"message_id", *messageID,
 	)
+}
+
+func cleanupUndeliveredDescriptionExercise(userID uint, result *services.RandomExerciseResult) {
+	if result == nil {
+		return
+	}
+	if result.ShowIgnoreLanguageSuggestion {
+		if err := services.ReleaseExerciseLanguageSuggestion(
+			userID,
+			services.ExerciseLanguageSuggestionFamilyDescription,
+			result.Language,
+		); err != nil {
+			logger.L().Warnw("failed to release undelivered description language suggestion", "error", err, "exercise_id", result.ExerciseID)
+		}
+	}
+	if err := db.DB.Delete(&models.Exercise{}, "id = ?", result.ExerciseID).Error; err != nil {
+		logger.L().Warnw("failed to cancel undelivered description exercise", "error", err, "exercise_id", result.ExerciseID)
+	}
 }
 
 func sendRepetitionExercise(user models.User, texts telegram.BotTexts) {
