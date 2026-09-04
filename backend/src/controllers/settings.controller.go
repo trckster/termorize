@@ -130,3 +130,24 @@ func RemoveIgnoredAudioLanguage(c *gin.Context) {
 
 	c.JSON(nethttp.StatusOK, user)
 }
+
+func RemoveIgnoredDescriptionLanguage(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+	language := enums.Language(c.Param("language"))
+	if !enums.IsSupportedLanguage(language) {
+		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid language"})
+		return
+	}
+
+	user, err := services.RemoveIgnoredDescriptionLanguage(userID, language)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(nethttp.StatusNotFound, gin.H{"error": "user not found"})
+			return
+		}
+		ServerError(c, err)
+		return
+	}
+
+	c.JSON(nethttp.StatusOK, user)
+}

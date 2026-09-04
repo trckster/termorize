@@ -14,6 +14,7 @@ func defineProtectedRoutes(group *gin.RouterGroup) {
 	group.PUT("/settings", controllers.UpdateSettings)
 	group.PATCH("/settings/translation-target-language", controllers.UpdateTranslationTargetLanguage)
 	group.DELETE("/settings/ignored-audio-languages/:language", controllers.RemoveIgnoredAudioLanguage)
+	group.DELETE("/settings/ignored-description-languages/:language", controllers.RemoveIgnoredDescriptionLanguage)
 	group.GET("/admin/users", controllers.GetAdminUsers)
 	group.GET("/admin/word-pronunciations", controllers.GetAdminWordPronunciations)
 	group.GET("/admin/word-pronunciations/:id/audio", controllers.GetAdminWordPronunciationAudio)
@@ -30,6 +31,7 @@ func defineProtectedRoutes(group *gin.RouterGroup) {
 	group.POST("/exercises/:id/verify", controllers.VerifyExercise)
 	group.POST("/exercises/:id/ignore", controllers.IgnoreExercise)
 	group.POST("/exercises/:id/ignore-audio-language", controllers.IgnoreAudioLanguage)
+	group.POST("/exercises/:id/ignore-description-language", controllers.IgnoreDescriptionLanguage)
 	group.POST("/exercises/:id/match-pairs/complete", controllers.CompleteMatchPairsExercise)
 
 	group.GET("/collections", controllers.GetCollections)

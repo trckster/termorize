@@ -17,7 +17,10 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-var ErrDescriptionGenerationFailed = errors.New("description generation failed")
+var (
+	ErrDescriptionGenerationFailed = errors.New("description generation failed")
+	ErrExerciseNotDescription      = errors.New("exercise is not a description exercise")
+)
 
 var descriptionWordPattern = regexp.MustCompile(`[\pL\pN]+(?:['’][\pL\pN]+)?`)
 
@@ -55,6 +58,114 @@ func lockDescriptionLanguageEligibility(tx *gorm.DB, userID uint, language enums
 func descriptionLanguageEligible(settings models.UserSettings, language enums.Language) bool {
 	return settings.MainLearningLanguage == language &&
 		!containsLanguage(settings.IgnoredDescriptionLanguages, language)
+}
+
+func IgnoreDescriptionLanguageForExercise(exerciseID uuid.UUID, userID uint) (*models.User, error) {
+	var user models.User
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", userID).Take(&user).Error; err != nil {
+			return err
+		}
+
+		var exercise models.Exercise
+		if err := tx.Unscoped().Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ? AND user_id = ?", exerciseID, userID).
+			Take(&exercise).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrExerciseNotFound
+			}
+			return err
+		}
+		if !isDescriptionExerciseType(exercise.Type) {
+			return ErrExerciseNotDescription
+		}
+		if !exercise.DeletedAt.Valid && exercise.Status != enums.ExerciseStatusPending && exercise.Status != enums.ExerciseStatusInProgress {
+			return ErrExerciseNotInProgress
+		}
+
+		descriptionLanguage, err := getDescriptionExerciseLanguage(tx, exercise)
+		if err != nil {
+			return err
+		}
+		newlyIgnored := !containsLanguage(user.Settings.IgnoredDescriptionLanguages, descriptionLanguage)
+		if newlyIgnored {
+			settings := user.Settings
+			settings.IgnoredDescriptionLanguages = canonicalIgnoredDescriptionLanguages(
+				append(settings.IgnoredDescriptionLanguages, descriptionLanguage),
+			)
+			user.Settings = settings
+			if err := tx.Model(&user).Update("settings", settings).Error; err != nil {
+				return err
+			}
+		}
+
+		if !exercise.DeletedAt.Valid {
+			if err := tx.Delete(&exercise).Error; err != nil {
+				return err
+			}
+		}
+		if newlyIgnored {
+			return replacePendingDescriptionExercises(tx, userID)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func RemoveIgnoredDescriptionLanguage(userID uint, language enums.Language) (*models.User, error) {
+	var user models.User
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", userID).Take(&user).Error; err != nil {
+			return err
+		}
+
+		filtered := make([]enums.Language, 0, len(user.Settings.IgnoredDescriptionLanguages))
+		for _, ignored := range user.Settings.IgnoredDescriptionLanguages {
+			if ignored != language {
+				filtered = append(filtered, ignored)
+			}
+		}
+		settings := user.Settings
+		settings.IgnoredDescriptionLanguages = canonicalIgnoredDescriptionLanguages(filtered)
+		user.Settings = settings
+		return tx.Model(&user).Update("settings", settings).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func canonicalIgnoredDescriptionLanguages(languages []enums.Language) []enums.Language {
+	settings := models.UserSettings{IgnoredDescriptionLanguages: languages}.WithDefaults()
+	return settings.IgnoredDescriptionLanguages
+}
+
+func getDescriptionExerciseLanguage(tx *gorm.DB, exercise models.Exercise) (enums.Language, error) {
+	var details audioExerciseLanguageDetails
+	if err := tx.Raw(`
+		SELECT original.language AS original_language, translated.language AS translation_language
+		FROM vocabulary_exercises AS ve
+		JOIN vocabulary AS v ON v.id = ve.vocabulary_id
+		JOIN translations AS t ON t.id = v.translation_id
+		JOIN words AS original ON original.id = t.original_id
+		JOIN words AS translated ON translated.id = t.translation_id
+		WHERE ve.exercise_id = ? AND ve.is_correct = true
+		ORDER BY ve.position ASC
+		LIMIT 1
+	`, exercise.ID).Scan(&details).Error; err != nil {
+		return "", err
+	}
+	if details.OriginalLanguage == "" || details.TranslationLanguage == "" {
+		return "", ErrExerciseVocabularyDeleted
+	}
+	if exercise.Type == enums.ExerciseTypeDescriptionReversed {
+		return details.TranslationLanguage, nil
+	}
+	return details.OriginalLanguage, nil
 }
 
 func IsPendingDescriptionExercise(exerciseID uuid.UUID) (bool, error) {
@@ -133,45 +244,62 @@ func GetOrCreateWordDescription(wordID uuid.UUID) (*models.WordDescription, erro
 		return nil, err
 	}
 
-	var word models.Word
-	if err := db.DB.Where("id = ?", wordID).Take(&word).Error; err != nil {
-		return nil, err
-	}
+	var description *models.WordDescription
+	err = db.DB.Transaction(func(tx *gorm.DB) error {
+		lockKey := "word-description:" + wordID.String() + ":" + model
+		if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", lockKey).Error; err != nil {
+			return err
+		}
 
-	generated, err := openrouter.NewClient().GenerateDescription(
-		word.Word,
-		word.Language.DisplayName(),
-		word.Language.DisplayName(),
-	)
+		if err := tx.Where("word_id = ? AND model = ?", wordID, model).Take(&cached).Error; err == nil {
+			description = &cached
+			return nil
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+
+		var word models.Word
+		if err := tx.Where("id = ?", wordID).Take(&word).Error; err != nil {
+			return err
+		}
+
+		generated, err := openrouter.NewClient().GenerateDescription(
+			word.Word,
+			word.Language.DisplayName(),
+			word.Language.DisplayName(),
+		)
+		if err != nil {
+			return errors.Join(ErrDescriptionGenerationFailed, err)
+		}
+		generatedText := strings.TrimSpace(generated.Description)
+		if generatedText == "" || len([]rune(generatedText)) > maxDescriptionRunes ||
+			descriptionMentionsAnswer(generatedText, word.Word) {
+			return ErrDescriptionGenerationFailed
+		}
+
+		detectedLanguage, supported, err := DetectLanguage(generatedText)
+		if err != nil {
+			return errors.Join(ErrDescriptionGenerationFailed, err)
+		}
+		if !supported || detectedLanguage != word.Language {
+			return ErrDescriptionGenerationFailed
+		}
+
+		created := models.WordDescription{
+			WordID:      word.ID,
+			Model:       model,
+			Description: generatedText,
+		}
+		if err := tx.Create(&created).Error; err != nil {
+			return err
+		}
+		description = &created
+		return nil
+	})
 	if err != nil {
-		return nil, errors.Join(ErrDescriptionGenerationFailed, err)
-	}
-	description := strings.TrimSpace(generated.Description)
-	if description == "" || len([]rune(description)) > maxDescriptionRunes ||
-		descriptionMentionsAnswer(description, word.Word) {
-		return nil, ErrDescriptionGenerationFailed
-	}
-
-	created := models.WordDescription{
-		WordID:      word.ID,
-		Model:       model,
-		Description: description,
-	}
-	result := db.DB.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "word_id"}, {Name: "model"}},
-		DoNothing: true,
-	}).Create(&created)
-	if result.Error != nil {
-		return nil, result.Error
-	}
-	if result.RowsAffected == 1 {
-		return &created, nil
-	}
-
-	if err := db.DB.Where("word_id = ? AND model = ?", wordID, model).Take(&cached).Error; err != nil {
 		return nil, err
 	}
-	return &cached, nil
+	return description, nil
 }
 
 func descriptionMentionsAnswer(description, answer string) bool {
@@ -203,23 +331,48 @@ func descriptionMentionsAnswer(description, answer string) bool {
 		if regexp.MustCompile(pattern).FindStringIndex(normalizedDescription) != nil {
 			return true
 		}
-		if strings.Contains(candidate, " ") {
-			continue
-		}
-
-		candidateRunes := []rune(candidate)
-		if len(candidateRunes) < 4 {
-			continue
-		}
-		for _, descriptionWord := range descriptionWords {
-			wordRunes := []rune(descriptionWord)
-			if utils.DamerauLevenshteinDistance(candidate, descriptionWord) <= 1 ||
-				(len(wordRunes) >= len(candidateRunes) && commonRunePrefix(candidateRunes, wordRunes) >= len(candidateRunes)-1) {
-				return true
-			}
+		if descriptionContainsPhraseVariant(descriptionWords, candidate) {
+			return true
 		}
 	}
 	return false
+}
+
+func descriptionContainsPhraseVariant(descriptionWords []string, candidate string) bool {
+	candidateWords := descriptionWordPattern.FindAllString(candidate, -1)
+	if len(candidateWords) == 0 || len(candidateWords) > len(descriptionWords) {
+		return false
+	}
+	for start := 0; start <= len(descriptionWords)-len(candidateWords); start++ {
+		matches := true
+		for index, candidateWord := range candidateWords {
+			if !descriptionWordVariant(candidateWord, descriptionWords[start+index]) {
+				matches = false
+				break
+			}
+		}
+		if matches {
+			return true
+		}
+	}
+	return false
+}
+
+func descriptionWordVariant(candidate, word string) bool {
+	if candidate == word {
+		return true
+	}
+	candidateRunes := []rune(candidate)
+	wordRunes := []rune(word)
+	if len(candidateRunes) >= 3 && strings.HasPrefix(word, candidate) {
+		suffix := strings.TrimPrefix(word, candidate)
+		if suffix == "s" || suffix == "es" || suffix == "ed" || suffix == "ing" {
+			return true
+		}
+	}
+	return len(candidateRunes) >= 4 &&
+		(utils.DamerauLevenshteinDistance(candidate, word) <= 1 ||
+			(len(wordRunes) >= len(candidateRunes) && commonRunePrefix(candidateRunes, wordRunes) >= len(candidateRunes)-1))
 }
 
 func commonRunePrefix(left, right []rune) int {

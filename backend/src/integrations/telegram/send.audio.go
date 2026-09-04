@@ -185,6 +185,7 @@ func SendAudioExerciseMessage(
 	pronunciation *models.WordPronunciation,
 	spokenLanguage enums.Language,
 	answerLanguage enums.Language,
+	showIgnoreLanguageSuggestion bool,
 	texts BotTexts,
 ) (*int64, error) {
 	if pronunciation == nil {
@@ -196,6 +197,7 @@ func SendAudioExerciseMessage(
 		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: buildAudioExerciseKeyboard(
 			exerciseID,
 			spokenLanguage,
+			showIgnoreLanguageSuggestion,
 			texts,
 		)},
 	}

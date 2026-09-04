@@ -92,28 +92,30 @@ type BotTexts struct {
 	VocabularyAutoAddedSuffix   string
 	VocabularyManualAddedSuffix string
 
-	ButtonOpenApp                   string
-	ButtonAddTranslation            string
-	ButtonDeleteWord                string
-	ButtonVocabulary                string
-	ButtonStatistics                string
-	ButtonSettings                  string
-	ButtonChangeSystemLanguage      string
-	ButtonEnableDailyExercises      string
-	ButtonDisableDailyExercises     string
-	ButtonWhatsGoingOn              string
-	ButtonBack                      string
-	ButtonCancel                    string
-	ButtonExerciseIDK               string
-	ButtonVocabularyAdd             string
-	ButtonVocabularyDelete          string
-	ButtonPronunciation             string
-	ButtonIgnoreAudioLanguageFormat string
-	ButtonRemoveAudioLanguageFormat string
-	ButtonChangeSourceLanguage      string
-	ButtonChangeTargetLanguage      string
-	ButtonSwapDirection             string
-	LanguageNames                   map[enums.Language]string
+	ButtonOpenApp                         string
+	ButtonAddTranslation                  string
+	ButtonDeleteWord                      string
+	ButtonVocabulary                      string
+	ButtonStatistics                      string
+	ButtonSettings                        string
+	ButtonChangeSystemLanguage            string
+	ButtonEnableDailyExercises            string
+	ButtonDisableDailyExercises           string
+	ButtonWhatsGoingOn                    string
+	ButtonBack                            string
+	ButtonCancel                          string
+	ButtonExerciseIDK                     string
+	ButtonVocabularyAdd                   string
+	ButtonVocabularyDelete                string
+	ButtonPronunciation                   string
+	ButtonIgnoreAudioLanguageFormat       string
+	ButtonRemoveAudioLanguageFormat       string
+	ButtonIgnoreDescriptionLanguageFormat string
+	ButtonRemoveDescriptionLanguageFormat string
+	ButtonChangeSourceLanguage            string
+	ButtonChangeTargetLanguage            string
+	ButtonSwapDirection                   string
+	LanguageNames                         map[enums.Language]string
 
 	ButtonChangeLanguagePrefix string
 
@@ -221,27 +223,29 @@ var botTextsEn = BotTexts{
 	VocabularyAutoAddedSuffix:   "\n\nIt was added to your vocabulary",
 	VocabularyManualAddedSuffix: "\n\nSuccessfully added to your vocabulary",
 
-	ButtonOpenApp:                   "Open App 🌐",
-	ButtonAddTranslation:            "Add Translation",
-	ButtonDeleteWord:                "Delete Translation",
-	ButtonVocabulary:                "Your Vocabulary",
-	ButtonStatistics:                "Statistics",
-	ButtonSettings:                  "Settings",
-	ButtonChangeSystemLanguage:      "Change System Language",
-	ButtonEnableDailyExercises:      "Enable Daily Exercises",
-	ButtonDisableDailyExercises:     "Disable Daily Exercises",
-	ButtonWhatsGoingOn:              "About",
-	ButtonBack:                      "Back",
-	ButtonCancel:                    "Cancel",
-	ButtonExerciseIDK:               "Don't know",
-	ButtonVocabularyAdd:             "Add to vocabulary",
-	ButtonVocabularyDelete:          "Delete from vocabulary",
-	ButtonPronunciation:             "🔊 Pronunciation",
-	ButtonIgnoreAudioLanguageFormat: "Don't send me audio in %s",
-	ButtonRemoveAudioLanguageFormat: "Remove %s from ignored",
-	ButtonChangeSourceLanguage:      "Change source",
-	ButtonChangeTargetLanguage:      "Change target",
-	ButtonSwapDirection:             "Swap direction",
+	ButtonOpenApp:                         "Open App 🌐",
+	ButtonAddTranslation:                  "Add Translation",
+	ButtonDeleteWord:                      "Delete Translation",
+	ButtonVocabulary:                      "Your Vocabulary",
+	ButtonStatistics:                      "Statistics",
+	ButtonSettings:                        "Settings",
+	ButtonChangeSystemLanguage:            "Change System Language",
+	ButtonEnableDailyExercises:            "Enable Daily Exercises",
+	ButtonDisableDailyExercises:           "Disable Daily Exercises",
+	ButtonWhatsGoingOn:                    "About",
+	ButtonBack:                            "Back",
+	ButtonCancel:                          "Cancel",
+	ButtonExerciseIDK:                     "Don't know",
+	ButtonVocabularyAdd:                   "Add to vocabulary",
+	ButtonVocabularyDelete:                "Delete from vocabulary",
+	ButtonPronunciation:                   "🔊 Pronunciation",
+	ButtonIgnoreAudioLanguageFormat:       "Don't send me audio in %s",
+	ButtonRemoveAudioLanguageFormat:       "Remove %s from ignored",
+	ButtonIgnoreDescriptionLanguageFormat: "Don't send descriptions in %s",
+	ButtonRemoveDescriptionLanguageFormat: "Allow descriptions in %s",
+	ButtonChangeSourceLanguage:            "Change source",
+	ButtonChangeTargetLanguage:            "Change target",
+	ButtonSwapDirection:                   "Swap direction",
 	LanguageNames: map[enums.Language]string{
 		enums.LanguageEn: "English",
 		enums.LanguageRu: "Russian",
@@ -374,27 +378,29 @@ var botTextsRu = BotTexts{
 	VocabularyAutoAddedSuffix:   "\n\nДобавлено в твой словарь",
 	VocabularyManualAddedSuffix: "\n\nУспешно добавлено в словарь",
 
-	ButtonOpenApp:                   "Открыть приложение 🌐",
-	ButtonAddTranslation:            "Добавить перевод",
-	ButtonDeleteWord:                "Удалить перевод",
-	ButtonVocabulary:                "Мой словарь",
-	ButtonStatistics:                "Статистика",
-	ButtonSettings:                  "Настройки",
-	ButtonChangeSystemLanguage:      "Изменить Язык Системы",
-	ButtonEnableDailyExercises:      "Включить Ежедневные Упражнения",
-	ButtonDisableDailyExercises:     "Выключить Ежедневные Упражнения",
-	ButtonWhatsGoingOn:              "О проекте",
-	ButtonBack:                      "Назад",
-	ButtonCancel:                    "Отмена",
-	ButtonExerciseIDK:               "Не знаю",
-	ButtonVocabularyAdd:             "Добавить в словарь",
-	ButtonVocabularyDelete:          "Удалить из словаря",
-	ButtonPronunciation:             "🔊 Произношение",
-	ButtonIgnoreAudioLanguageFormat: "Не присылать аудио. Язык: %s",
-	ButtonRemoveAudioLanguageFormat: "Разрешить аудио. Язык: %s",
-	ButtonChangeSourceLanguage:      "Сменить исходный",
-	ButtonChangeTargetLanguage:      "Сменить целевой",
-	ButtonSwapDirection:             "Поменять направление",
+	ButtonOpenApp:                         "Открыть приложение 🌐",
+	ButtonAddTranslation:                  "Добавить перевод",
+	ButtonDeleteWord:                      "Удалить перевод",
+	ButtonVocabulary:                      "Мой словарь",
+	ButtonStatistics:                      "Статистика",
+	ButtonSettings:                        "Настройки",
+	ButtonChangeSystemLanguage:            "Изменить Язык Системы",
+	ButtonEnableDailyExercises:            "Включить Ежедневные Упражнения",
+	ButtonDisableDailyExercises:           "Выключить Ежедневные Упражнения",
+	ButtonWhatsGoingOn:                    "О проекте",
+	ButtonBack:                            "Назад",
+	ButtonCancel:                          "Отмена",
+	ButtonExerciseIDK:                     "Не знаю",
+	ButtonVocabularyAdd:                   "Добавить в словарь",
+	ButtonVocabularyDelete:                "Удалить из словаря",
+	ButtonPronunciation:                   "🔊 Произношение",
+	ButtonIgnoreAudioLanguageFormat:       "Не присылать аудио. Язык: %s",
+	ButtonRemoveAudioLanguageFormat:       "Разрешить аудио. Язык: %s",
+	ButtonIgnoreDescriptionLanguageFormat: "Не присылать описания. Язык: %s",
+	ButtonRemoveDescriptionLanguageFormat: "Разрешить описания. Язык: %s",
+	ButtonChangeSourceLanguage:            "Сменить исходный",
+	ButtonChangeTargetLanguage:            "Сменить целевой",
+	ButtonSwapDirection:                   "Поменять направление",
 	LanguageNames: map[enums.Language]string{
 		enums.LanguageEn: "Английский",
 		enums.LanguageRu: "Русский",

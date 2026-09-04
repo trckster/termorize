@@ -3,6 +3,7 @@ package telegram
 import (
 	"errors"
 	"strings"
+	"termorize/src/enums"
 	"termorize/src/logger"
 	"termorize/src/services"
 
@@ -122,13 +123,21 @@ func SendMessageWithInlineKeyboardMarkdown(chatID int64, text string, keyboard [
 }
 
 func SendBasicExerciseMessage(chatID int64, text string, exerciseID uuid.UUID, texts BotTexts) (*int64, error) {
+	return sendTextExerciseMessage(chatID, text, [][]inlineKeyboardButton{{
+		{Text: texts.ButtonExerciseIDK, CallbackData: callbackTypeExercise + ":" + exerciseActionIDK + ":" + exerciseID.String()},
+	}})
+}
+
+func SendDescriptionExerciseMessage(chatID int64, text string, exerciseID uuid.UUID, language enums.Language, showSuggestion bool, texts BotTexts) (*int64, error) {
+	return sendTextExerciseMessage(chatID, text, buildDescriptionExerciseKeyboard(exerciseID, language, showSuggestion, texts))
+}
+
+func sendTextExerciseMessage(chatID int64, text string, keyboard [][]inlineKeyboardButton) (*int64, error) {
 	messageRequest := sendMessageRequest{
-		ChatID:    chatID,
-		Text:      text,
-		ParseMode: telegramParseModeMarkdown,
-		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: [][]inlineKeyboardButton{{
-			{Text: texts.ButtonExerciseIDK, CallbackData: callbackTypeExercise + ":" + exerciseActionIDK + ":" + exerciseID.String()},
-		}}},
+		ChatID:      chatID,
+		Text:        text,
+		ParseMode:   telegramParseModeMarkdown,
+		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: keyboard},
 	}
 
 	response, err := sendMessage(messageRequest)
@@ -142,6 +151,19 @@ func SendBasicExerciseMessage(chatID int64, text string, exerciseID uuid.UUID, t
 
 	messageID := response.Result.MessageID
 	return &messageID, nil
+}
+
+func editCancelledDescriptionExerciseMessage(chatID, messageID int64, text string, exerciseID uuid.UUID, language enums.Language, texts BotTexts) error {
+	return editMessageTextTolerant(editMessageTextRequest{
+		ChatID:    chatID,
+		MessageID: messageID,
+		Text:      text + "\n\n" + texts.ExerciseDescriptionCancelled,
+		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: buildDescriptionUndoKeyboard(
+			exerciseID,
+			language,
+			texts,
+		)},
+	})
 }
 
 func SendChoiceExerciseMessage(chatID int64, text string, exerciseID uuid.UUID, options []services.ExerciseOption, _ BotTexts) (*int64, error) {

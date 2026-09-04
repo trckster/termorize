@@ -14,15 +14,16 @@ import (
 )
 
 type RandomExerciseResult struct {
-	ExerciseID     uuid.UUID
-	Type           enums.ExerciseType
-	QuestionWord   string
-	Language       enums.Language
-	AnswerLanguage enums.Language
-	AudioWordID    *uuid.UUID
-	Options        []string
-	Cards          []ExerciseMatchCard
-	Description    string
+	ExerciseID                   uuid.UUID
+	Type                         enums.ExerciseType
+	QuestionWord                 string
+	Language                     enums.Language
+	AnswerLanguage               enums.Language
+	AudioWordID                  *uuid.UUID
+	Options                      []string
+	Cards                        []ExerciseMatchCard
+	Description                  string
+	ShowIgnoreLanguageSuggestion bool
 }
 
 func CreateRandomExercise(userID uint) (*RandomExerciseResult, error) {
@@ -153,6 +154,7 @@ func createRandomExerciseForVocabulary(userID uint, vocabularyID uuid.UUID, requ
 		UserID:    userID,
 		StartedAt: &now,
 	}
+	showIgnoreLanguageSuggestion := false
 
 	err = db.DB.Transaction(func(tx *gorm.DB) error {
 		if isDescriptionExerciseType(exerciseType) {
@@ -195,7 +197,11 @@ func createRandomExerciseForVocabulary(userID uint, vocabularyID uuid.UUID, requ
 			return err
 		}
 
-		return createExerciseVocabularyLinks(tx, exercise.ID, vocabularyID, options)
+		if err := createExerciseVocabularyLinks(tx, exercise.ID, vocabularyID, options); err != nil {
+			return err
+		}
+		showIgnoreLanguageSuggestion, err = reserveLanguageSuggestionForExerciseWithDB(tx, userID, exerciseType, language)
+		return err
 	})
 	if err != nil {
 		return nil, err
@@ -214,17 +220,29 @@ func createRandomExerciseForVocabulary(userID uint, vocabularyID uuid.UUID, requ
 		}
 		audioWordID = &wordID
 	}
-
 	return &RandomExerciseResult{
-		ExerciseID:     exercise.ID,
-		Type:           exerciseType,
-		QuestionWord:   questionWord,
-		Language:       language,
-		AnswerLanguage: answerLanguage,
-		AudioWordID:    audioWordID,
-		Options:        resultOptions,
-		Description:    description,
+		ExerciseID:                   exercise.ID,
+		Type:                         exerciseType,
+		QuestionWord:                 questionWord,
+		Language:                     language,
+		AnswerLanguage:               answerLanguage,
+		AudioWordID:                  audioWordID,
+		Options:                      resultOptions,
+		Description:                  description,
+		ShowIgnoreLanguageSuggestion: showIgnoreLanguageSuggestion,
 	}, nil
+}
+
+func reserveLanguageSuggestionForExerciseWithDB(conn *gorm.DB, userID uint, exerciseType enums.ExerciseType, language enums.Language) (bool, error) {
+	family := ""
+	if isAudioExerciseType(exerciseType) {
+		family = ExerciseLanguageSuggestionFamilyAudio
+	} else if isDescriptionExerciseType(exerciseType) {
+		family = ExerciseLanguageSuggestionFamilyDescription
+	} else {
+		return false, nil
+	}
+	return reserveExerciseLanguageSuggestionWithDB(conn, userID, family, language)
 }
 
 func selectRequestedExerciseTypeAndOptions(userID uint, vocabulary *models.Vocabulary, requestedTypes []enums.ExerciseType) (enums.ExerciseType, []exerciseChoiceCandidate, error) {

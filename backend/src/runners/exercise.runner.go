@@ -128,9 +128,11 @@ func processDueExercises() {
 		}
 
 		var (
-			messageID      *int64
-			characterBoard *services.CharacterBoardState
-			err            error
+			messageID          *int64
+			characterBoard     *services.CharacterBoardState
+			suggestionFamily   string
+			suggestionLanguage enums.Language
+			err                error
 		)
 
 		if isAudioExerciseType(exercise.ExerciseType) {
@@ -180,6 +182,19 @@ func processDueExercises() {
 				}
 				continue
 			}
+			showSuggestion, suggestionErr := services.ReserveExerciseLanguageSuggestion(
+				exercise.UserID,
+				services.ExerciseLanguageSuggestionFamilyAudio,
+				spokenLanguage,
+			)
+			if suggestionErr != nil {
+				logger.L().Warnw("failed to reserve audio language suggestion", "error", suggestionErr, "exercise_id", exercise.ExerciseID)
+				continue
+			}
+			if showSuggestion {
+				suggestionFamily = services.ExerciseLanguageSuggestionFamilyAudio
+				suggestionLanguage = spokenLanguage
+			}
 
 			messageID, err = telegram.SendAudioExerciseMessage(
 				exercise.TelegramID,
@@ -187,6 +202,7 @@ func processDueExercises() {
 				pronunciation,
 				spokenLanguage,
 				answerLanguage,
+				showSuggestion,
 				texts,
 			)
 		} else if isCharacterExerciseType(exercise.ExerciseType) {
@@ -225,16 +241,52 @@ func processDueExercises() {
 			}
 
 			messageID, err = telegram.SendChoiceExerciseMessage(exercise.TelegramID, questionText, exercise.ExerciseID, options, texts)
+		} else if isDescriptionExerciseType(exercise.ExerciseType) {
+			descriptionLanguage := exercise.OriginalLanguage
+			if exercise.ExerciseType == enums.ExerciseTypeDescriptionReversed {
+				descriptionLanguage = exercise.TranslationLanguage
+			}
+			showSuggestion, suggestionErr := services.ReserveExerciseLanguageSuggestion(
+				exercise.UserID,
+				services.ExerciseLanguageSuggestionFamilyDescription,
+				descriptionLanguage,
+			)
+			if suggestionErr != nil {
+				logger.L().Warnw("failed to reserve description language suggestion", "error", suggestionErr, "exercise_id", exercise.ExerciseID)
+				continue
+			}
+			if showSuggestion {
+				suggestionFamily = services.ExerciseLanguageSuggestionFamilyDescription
+				suggestionLanguage = descriptionLanguage
+			}
+			messageID, err = telegram.SendDescriptionExerciseMessage(
+				exercise.TelegramID,
+				questionText,
+				exercise.ExerciseID,
+				descriptionLanguage,
+				showSuggestion,
+				texts,
+			)
 		} else {
 			messageID, err = telegram.SendBasicExerciseMessage(exercise.TelegramID, questionText, exercise.ExerciseID, texts)
 		}
 
 		if err != nil {
+			if suggestionFamily != "" {
+				if releaseErr := services.ReleaseExerciseLanguageSuggestion(exercise.UserID, suggestionFamily, suggestionLanguage); releaseErr != nil {
+					logger.L().Warnw("failed to release unsent language suggestion", "error", releaseErr, "exercise_id", exercise.ExerciseID)
+				}
+			}
 			logger.L().Warnw("failed to send scheduled exercise", "error", err, "exercise_id", exercise.ExerciseID, "telegram_id", exercise.TelegramID)
 			continue
 		}
 
 		if messageID == nil {
+			if suggestionFamily != "" {
+				if releaseErr := services.ReleaseExerciseLanguageSuggestion(exercise.UserID, suggestionFamily, suggestionLanguage); releaseErr != nil {
+					logger.L().Warnw("failed to release undelivered language suggestion", "error", releaseErr, "exercise_id", exercise.ExerciseID)
+				}
+			}
 			continue
 		}
 

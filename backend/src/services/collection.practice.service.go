@@ -190,6 +190,7 @@ func createCollectionPracticeTargetExercise(
 		PracticeCollectionID:    &collection.ID,
 		PracticeCollectionTitle: &collectionTitle,
 	}
+	showIgnoreLanguageSuggestion := false
 
 	err = db.DB.Transaction(func(tx *gorm.DB) error {
 		if isDescriptionExerciseType(exerciseType) {
@@ -219,7 +220,11 @@ func createCollectionPracticeTargetExercise(
 			return err
 		}
 
-		return createExerciseVocabularyLinks(tx, exercise.ID, vocabulary.ID, options)
+		if err := createExerciseVocabularyLinks(tx, exercise.ID, vocabulary.ID, options); err != nil {
+			return err
+		}
+		showIgnoreLanguageSuggestion, err = reserveLanguageSuggestionForExerciseWithDB(tx, userID, exerciseType, language)
+		return err
 	})
 	if err != nil {
 		return nil, err
@@ -237,16 +242,16 @@ func createCollectionPracticeTargetExercise(
 		}
 		audioWordID = &wordID
 	}
-
 	return &RandomExerciseResult{
-		ExerciseID:     exercise.ID,
-		Type:           exerciseType,
-		QuestionWord:   questionWord,
-		Language:       language,
-		AnswerLanguage: answerLanguage,
-		AudioWordID:    audioWordID,
-		Options:        resultOptions,
-		Description:    description,
+		ExerciseID:                   exercise.ID,
+		Type:                         exerciseType,
+		QuestionWord:                 questionWord,
+		Language:                     language,
+		AnswerLanguage:               answerLanguage,
+		AudioWordID:                  audioWordID,
+		Options:                      resultOptions,
+		Description:                  description,
+		ShowIgnoreLanguageSuggestion: showIgnoreLanguageSuggestion,
 	}, nil
 }
 

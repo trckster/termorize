@@ -4,6 +4,8 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -66,6 +68,11 @@ func TestDescriptionExerciseDirectionsUseAndCacheWordDefinitions(t *testing.T) {
 			if test.exerciseType == enums.ExerciseTypeDescriptionReversed {
 				expectedWordID = vocabulary.Translation.Translation.ID
 			}
+			testkit.MockGoogleTranslate(t, &testkit.FakeGoogleTranslate{
+				DetectFunc: func(string) (string, error) {
+					return string(test.expectedLanguage), nil
+				},
+			})
 
 			calls := 0
 			testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{
@@ -149,6 +156,30 @@ func TestIgnoringDescriptionLanguageReplacesQueuedExerciseAtSameTime(t *testing.
 	assert.False(t, replacement.Type == enums.ExerciseTypeDescriptionDirect || replacement.Type == enums.ExerciseTypeDescriptionReversed)
 	require.NotNil(t, replacement.ScheduledFor)
 	assert.WithinDuration(t, scheduledFor, *replacement.ScheduledFor, time.Microsecond)
+}
+
+func TestIgnoreDescriptionLanguageEndpointCancelsAndCanBeUndone(t *testing.T) {
+	testkit.Truncate(t)
+	user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{
+		MainLearningLanguage: enums.LanguageEn,
+	}))
+	vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
+	exercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeDescriptionDirect, enums.ExerciseStatusInProgress, vocabulary.ID)
+
+	rec := testkit.AuthedRequest(t, user, http.MethodPost, "/api/exercises/"+exercise.ID.String()+"/ignore-description-language", nil)
+	testkit.RequireStatus(t, rec, http.StatusOK)
+	var updated models.User
+	testkit.DecodeJSON(t, rec, &updated)
+	assert.Equal(t, []enums.Language{enums.LanguageEn}, updated.Settings.IgnoredDescriptionLanguages)
+
+	var cancelled models.Exercise
+	require.NoError(t, db.DB.Unscoped().Where("id = ?", exercise.ID).Take(&cancelled).Error)
+	assert.True(t, cancelled.DeletedAt.Valid)
+
+	rec = testkit.AuthedRequest(t, user, http.MethodDelete, "/api/settings/ignored-description-languages/en", nil)
+	testkit.RequireStatus(t, rec, http.StatusOK)
+	testkit.DecodeJSON(t, rec, &updated)
+	assert.Empty(t, updated.Settings.IgnoredDescriptionLanguages)
 }
 
 func TestAllowingDescriptionLanguageKeepsQueuedExercise(t *testing.T) {
@@ -291,6 +322,27 @@ func TestDescriptionExerciseRejectsOversizedClue(t *testing.T) {
 	assert.Zero(t, count)
 }
 
+func TestDescriptionExerciseRejectsClueInWrongLanguage(t *testing.T) {
+	testkit.Truncate(t)
+	user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{MainLearningLanguage: enums.LanguageEn}))
+	exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
+	testkit.MockGoogleTranslate(t, &testkit.FakeGoogleTranslate{
+		DetectFunc: func(string) (string, error) { return "it", nil },
+	})
+	testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{
+		GenerateDescriptionFunc: func(string, string, string) (*openrouter.GeneratedDescription, error) {
+			return &openrouter.GeneratedDescription{Description: "Un materiale sottile usato per scrivere."}, nil
+		},
+	})
+
+	_, err := services.CreateRandomExerciseOfTypes(user.ID, enums.ExerciseTypeDescriptionDirect)
+	assert.ErrorIs(t, err, services.ErrDescriptionGenerationFailed)
+
+	var count int64
+	require.NoError(t, db.DB.Model(&models.WordDescription{}).Count(&count).Error)
+	assert.Zero(t, count)
+}
+
 func TestDescriptionExercisePropagatesOpenRouterFailureWhenExplicitlyRequested(t *testing.T) {
 	testkit.Truncate(t)
 	user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{MainLearningLanguage: enums.LanguageEn}))
@@ -375,6 +427,51 @@ func TestDescriptionCacheUniquePerWordAndModel(t *testing.T) {
 		Description: "Second clue.",
 	}
 	assert.Error(t, db.DB.Create(&duplicate).Error)
+}
+
+func TestConcurrentDescriptionCacheMissGeneratesOnce(t *testing.T) {
+	testkit.Truncate(t)
+	user := testkit.CreateUser(t)
+	vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
+	var calls atomic.Int32
+	generationStarted := make(chan struct{})
+	releaseGeneration := make(chan struct{})
+	testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{
+		GenerateDescriptionFunc: func(string, string, string) (*openrouter.GeneratedDescription, error) {
+			if calls.Add(1) == 1 {
+				close(generationStarted)
+				<-releaseGeneration
+			}
+			return &openrouter.GeneratedDescription{Description: "A thin material used for writing or printing."}, nil
+		},
+	})
+
+	const workers = 5
+	errorsByWorker := make([]error, workers)
+	descriptions := make([]*models.WordDescription, workers)
+	var waitGroup sync.WaitGroup
+	waitGroup.Add(workers)
+	for index := 0; index < workers; index++ {
+		go func(index int) {
+			defer waitGroup.Done()
+			descriptions[index], errorsByWorker[index] = services.GetOrCreateWordDescription(vocabulary.Translation.Original.ID)
+		}(index)
+	}
+
+	select {
+	case <-generationStarted:
+	case <-time.After(5 * time.Second):
+		t.Fatal("description generation did not start")
+	}
+	close(releaseGeneration)
+	waitGroup.Wait()
+
+	assert.Equal(t, int32(1), calls.Load())
+	for index := range workers {
+		require.NoError(t, errorsByWorker[index])
+		require.NotNil(t, descriptions[index])
+		assert.Equal(t, descriptions[0].ID, descriptions[index].ID)
+	}
 }
 
 func TestStartingConcurrentlyCancelledDescriptionKeepsTelegramMessageReference(t *testing.T) {

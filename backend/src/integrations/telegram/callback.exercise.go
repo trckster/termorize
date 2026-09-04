@@ -49,6 +49,9 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 	if handled, err := handleAudioLanguageCallback(callback, payload, t); handled {
 		return err
 	}
+	if handled, err := handleDescriptionLanguageCallback(callback, payload, t); handled {
+		return err
+	}
 
 	if len(payload) > 0 && payload[0] == exerciseActionMatchNoop {
 		return nil

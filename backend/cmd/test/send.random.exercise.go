@@ -202,6 +202,7 @@ func sendAudioExercise(user models.User, texts telegram.BotTexts) {
 		pronunciation,
 		result.Language,
 		result.AnswerLanguage,
+		result.ShowIgnoreLanguageSuggestion,
 		texts,
 	)
 	if err != nil {
