@@ -438,11 +438,11 @@ async function undoIgnoredExerciseLanguage() {
     }
 }
 
-function continueAfterIgnoredAudio() {
+function continueAfterIgnoredLanguage() {
     if (audioIgnoreState.value !== 'undo-failed') return
     clearAudioIgnoreTimer()
     audioIgnoreState.value = 'saving'
-    void loadNextQuestion(true)
+    void loadNextQuestion(ignoredLanguageFamily.value === 'audio')
 }
 
 function chooseOption(option: string, index: number) {
@@ -1416,7 +1416,7 @@ onBeforeUnmount(() => {
                                     <Button type="button" variant="outline" @click="undoIgnoredExerciseLanguage">
                                         {{ t.quizRetryUndo }}
                                     </Button>
-                                    <Button type="button" @click="continueAfterIgnoredAudio">
+                                    <Button type="button" @click="continueAfterIgnoredLanguage">
                                         {{ t.quizNextQuestion }}
                                     </Button>
                                 </div>
