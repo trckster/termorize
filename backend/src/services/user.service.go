@@ -95,6 +95,11 @@ func UpdateUserSettings(userID uint, settings models.UserSettings) (*models.User
 		if err := tx.Model(&user).Update("settings", settings).Error; err != nil {
 			return err
 		}
+		if descriptionEligibilityChanged {
+			if err := cancelInProgressDescriptionExercises(tx, user.ID); err != nil {
+				return err
+			}
+		}
 
 		if wasDailyQuestionsEnabled && !settings.Telegram.DailyQuestionsEnabled {
 			if err := DeletePendingExercisesByUserID(tx, user.ID); err != nil {

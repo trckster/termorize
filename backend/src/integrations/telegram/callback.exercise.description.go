@@ -1,7 +1,6 @@
 package telegram
 
 import (
-	"strings"
 	"termorize/src/enums"
 	"termorize/src/services"
 )
@@ -56,10 +55,9 @@ func handleDescriptionLanguageCallback(callback *callbackQuery, payload []string
 	if _, err := services.RemoveIgnoredDescriptionLanguage(exercise.UserID, language); err != nil {
 		return true, err
 	}
-	return true, editMessageTextTolerant(editMessageTextRequest{
-		ChatID:      callback.Message.Chat.ID,
-		MessageID:   callback.Message.MessageID,
-		Text:        strings.TrimSuffix(callback.Message.Text, "\n\n"+texts.ExerciseDescriptionCancelled),
-		ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: [][]inlineKeyboardButton{}},
-	})
+	return true, editMessageInlineKeyboardTolerant(
+		callback.Message.Chat.ID,
+		callback.Message.MessageID,
+		[][]inlineKeyboardButton{},
+	)
 }

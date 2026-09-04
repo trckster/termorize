@@ -204,6 +204,15 @@ func replacePendingDescriptionExercises(tx *gorm.DB, userID uint) error {
 	return nil
 }
 
+func cancelInProgressDescriptionExercises(tx *gorm.DB, userID uint) error {
+	return tx.Where(
+		"user_id = ? AND status = ? AND type IN ?",
+		userID,
+		enums.ExerciseStatusInProgress,
+		descriptionExerciseTypes,
+	).Delete(&models.Exercise{}).Error
+}
+
 func ReplacePendingDescriptionExercise(exerciseID uuid.UUID, excludeDescription bool) (bool, error) {
 	replaced := false
 	err := db.DB.Transaction(func(tx *gorm.DB) error {

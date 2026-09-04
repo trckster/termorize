@@ -207,6 +207,52 @@ func TestAllowingDescriptionLanguageKeepsQueuedExercise(t *testing.T) {
 	assert.False(t, active.DeletedAt.Valid)
 }
 
+func TestDescriptionSettingsChangesCancelInProgressExercisesWithoutScoring(t *testing.T) {
+	tests := []struct {
+		name          string
+		updatePayload func(map[string]any)
+	}{
+		{
+			name: "ignore active learning language",
+			updatePayload: func(payload map[string]any) {
+				payload["main_learning_language"] = "en"
+				payload["ignored_description_languages"] = []string{"en"}
+			},
+		},
+		{
+			name: "change active learning language",
+			updatePayload: func(payload map[string]any) {
+				payload["main_learning_language"] = "de"
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			testkit.Truncate(t)
+			user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{
+				MainLearningLanguage: enums.LanguageEn,
+			}))
+			vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
+			exercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeDescriptionDirect, enums.ExerciseStatusInProgress, vocabulary.ID)
+			beforeProgress := exerciseReloadVocabulary(t, vocabulary.ID).Progress
+
+			payload := authSettingsValidPayload()
+			test.updatePayload(payload)
+			rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/settings", payload)
+			testkit.RequireStatus(t, rec, http.StatusOK)
+
+			var cancelled models.Exercise
+			require.NoError(t, db.DB.Unscoped().Where("id = ?", exercise.ID).Take(&cancelled).Error)
+			assert.True(t, cancelled.DeletedAt.Valid)
+			link := exerciseLink(t, exercise.ID, vocabulary.ID)
+			assert.Nil(t, link.Result)
+			assert.Nil(t, link.ProgressDelta)
+			assert.Equal(t, beforeProgress, exerciseReloadVocabulary(t, vocabulary.ID).Progress)
+		})
+	}
+}
+
 func TestIgnoringUnrelatedDescriptionLanguageKeepsQueuedExercise(t *testing.T) {
 	testkit.Truncate(t)
 	user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{

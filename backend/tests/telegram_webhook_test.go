@@ -462,7 +462,9 @@ func TestTelegramDescriptionIgnoreAndUndoCallbacks(t *testing.T) {
 	testkit.RequireStatus(t, rec, http.StatusOK)
 	require.NoError(t, db.DB.Where("id = ?", user.ID).Take(&storedUser).Error)
 	assert.Empty(t, storedUser.Settings.IgnoredDescriptionLanguages)
-	require.Len(t, tg.RequestsFor("editMessageText"), 2)
+	require.Len(t, tg.RequestsFor("editMessageText"), 1)
+	require.Len(t, tg.RequestsFor("editMessageReplyMarkup"), 1)
+	assert.Contains(t, string(tg.RequestsFor("editMessageText")[0].Body), "cancelled")
 }
 
 func TestTelegramWebhookIgnoredDeletedVocabularyCallbacksRetryKeyboardRemoval(t *testing.T) {
