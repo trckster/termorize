@@ -142,6 +142,8 @@ const en = {
     settingsMainLearningLanguageNote: 'This is the language you are focusing on in your daily learning flow.',
     settingsIgnoredAudioLanguagesTitle: 'Ignored audio languages',
     settingsIgnoredAudioLanguagesNote: 'Audio exercises will not speak the selected languages.',
+    settingsIgnoredDescriptionLanguagesTitle: 'Ignored description languages',
+    settingsIgnoredDescriptionLanguagesNote: 'Description exercises will not generate clues in the selected languages.',
 
     // Settings - Telegram section
     settingsTelegramTitle: 'Telegram',
@@ -225,6 +227,7 @@ const en = {
     exerciseTypeCharactersReversed: 'Build original',
     exerciseTypeAudioDirect: 'Audio',
     exerciseTypeAudioReversed: 'Reversed audio',
+    exerciseTypeDescriptionReversed: 'Guess from description',
     exerciseTypeMatchPairs: 'Match pairs',
     exerciseResultCorrect: 'Correct',
     exerciseResultAlmost: 'Almost',
@@ -374,6 +377,7 @@ const en = {
     quizAudioPause: 'Pause audio',
     quizAudioLoading: 'Loading audio',
     quizAudioError: 'Unable to play audio. Try again.',
+    quizTypeDescriptionHint: 'Guess the word from its description.',
     quizIgnoreAudioLanguage: "Don't send me audio in {language}",
     quizIgnoringAudioLanguage: 'Saving preference...',
     quizUndoAudioLanguage: 'Undo: remove {language} from ignored',
@@ -681,6 +685,8 @@ const ru: typeof en = {
     settingsMainLearningLanguageNote: 'Это язык, на котором ты сосредоточен в ежедневном обучении.',
     settingsIgnoredAudioLanguagesTitle: 'Игнорируемые языки аудио',
     settingsIgnoredAudioLanguagesNote: 'Аудиоупражнения не будут озвучивать выбранные языки.',
+    settingsIgnoredDescriptionLanguagesTitle: 'Исключённые языки описаний',
+    settingsIgnoredDescriptionLanguagesNote: 'Для выбранных языков упражнения с описанием создаваться не будут.',
 
     // Settings - Telegram section
     settingsTelegramTitle: 'Telegram',
@@ -765,6 +771,7 @@ const ru: typeof en = {
     exerciseTypeCharactersReversed: 'Собрать оригинал',
     exerciseTypeAudioDirect: 'Аудио',
     exerciseTypeAudioReversed: 'Обратное аудио',
+    exerciseTypeDescriptionReversed: 'Угадать по описанию',
     exerciseTypeMatchPairs: 'Найти пары',
     exerciseResultCorrect: 'Правильно',
     exerciseResultAlmost: 'Почти',
@@ -915,6 +922,7 @@ const ru: typeof en = {
     quizAudioPause: 'Приостановить аудио',
     quizAudioLoading: 'Загрузка аудио',
     quizAudioError: 'Не удалось воспроизвести аудио. Попробуйте ещё раз.',
+    quizTypeDescriptionHint: 'Угадайте слово по его описанию.',
     quizIgnoreAudioLanguage: 'Не присылать аудио. Язык: {language}',
     quizIgnoringAudioLanguage: 'Сохранение настройки...',
     quizUndoAudioLanguage: 'Отменить: убрать {language} из игнорируемых',

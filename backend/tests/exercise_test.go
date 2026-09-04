@@ -849,14 +849,15 @@ func TestRandomExerciseUserPathCompletesAndAppearsInHistory(t *testing.T) {
 		Language       enums.Language               `json:"language"`
 		AnswerLanguage enums.Language               `json:"answer_language"`
 		AudioWordID    *uuid.UUID                   `json:"audio_word_id"`
+		Description    string                       `json:"description"`
 		Options        []string                     `json:"options"`
 		Cards          []services.ExerciseMatchCard `json:"cards"`
 	}
 	testkit.DecodeJSON(t, rec, &body)
 
 	require.NotEqual(t, uuid.Nil, body.ExerciseID)
-	// Choice and match exercises need additional vocabulary; typed, audio, and character
-	// exercises only need the correct word pair.
+	// Choice and match exercises need additional vocabulary; typed, audio, description,
+	// and character exercises only need the correct word pair.
 	assert.Contains(t, []enums.ExerciseType{
 		enums.ExerciseTypeBasicDirect,
 		enums.ExerciseTypeBasicReversed,
@@ -864,6 +865,7 @@ func TestRandomExerciseUserPathCompletesAndAppearsInHistory(t *testing.T) {
 		enums.ExerciseTypeCharactersReversed,
 		enums.ExerciseTypeAudioDirect,
 		enums.ExerciseTypeAudioReversed,
+		enums.ExerciseTypeDescriptionReversed,
 	}, body.Type)
 
 	// DB side effect: the exercise exists, is in progress and belongs to user.
@@ -876,10 +878,17 @@ func TestRandomExerciseUserPathCompletesAndAppearsInHistory(t *testing.T) {
 	// casing directly in the DB (no service-level normalization here).
 	if body.Type == enums.ExerciseTypeBasicReversed ||
 		body.Type == enums.ExerciseTypeCharactersReversed ||
-		body.Type == enums.ExerciseTypeAudioReversed {
-		assert.Equal(t, "Hund", body.QuestionWord)
-		assert.Equal(t, enums.LanguageDe, body.Language)
+		body.Type == enums.ExerciseTypeAudioReversed ||
+		body.Type == enums.ExerciseTypeDescriptionReversed {
 		assert.Equal(t, enums.LanguageEn, body.AnswerLanguage)
+		if body.Type == enums.ExerciseTypeDescriptionReversed {
+			assert.Empty(t, body.QuestionWord)
+			assert.NotEmpty(t, body.Description)
+			assert.Equal(t, enums.LanguageEn, body.Language)
+		} else {
+			assert.Equal(t, "Hund", body.QuestionWord)
+			assert.Equal(t, enums.LanguageDe, body.Language)
+		}
 		if body.Type == enums.ExerciseTypeCharactersReversed {
 			assert.ElementsMatch(t, []string{"d", "o", "g"}, body.Options)
 		}

@@ -91,6 +91,7 @@ const isCharacterQuestion = computed(
 const isAudioQuestion = computed(
     () => currentExercise.value?.type === 'audio/direct' || currentExercise.value?.type === 'audio/reversed'
 )
+const isDescriptionQuestion = computed(() => currentExercise.value?.type === 'description/reversed')
 const isAnswerDisabled = computed(() => isSubmitting.value || audioIgnoreState.value !== 'idle')
 const audioSpokenLanguageName = computed(() =>
     settingsStore.getLanguageName(
@@ -112,6 +113,9 @@ const questionHint = computed(() => {
     }
     if (isAudioQuestion.value) {
         return t.value.quizTypeAudioHint
+    }
+    if (isDescriptionQuestion.value) {
+        return t.value.quizTypeDescriptionHint
     }
     if (
         currentExercise.value.type === 'basic/reversed' ||
@@ -1131,8 +1135,10 @@ onBeforeUnmount(() => {
                         <template v-else>
                             <div class="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                                 <span class="text-base">{{ getFlag(currentExercise?.language) }}</span>
-                                <span aria-hidden="true">→</span>
-                                <span class="text-base">{{ getFlag(currentExercise?.answer_language) }}</span>
+                                <template v-if="!isDescriptionQuestion">
+                                    <span aria-hidden="true">→</span>
+                                    <span class="text-base">{{ getFlag(currentExercise?.answer_language) }}</span>
+                                </template>
                             </div>
 
                             <p class="text-center text-sm text-muted-foreground">
@@ -1161,6 +1167,12 @@ onBeforeUnmount(() => {
                                             : t.quizTypeAudioHint
                                     }}
                                 </div>
+                            </div>
+
+                            <div v-else-if="isDescriptionQuestion" class="text-center">
+                                <p class="break-words text-xl font-semibold leading-relaxed tracking-tight sm:text-2xl">
+                                    {{ currentExercise?.description }}
+                                </p>
                             </div>
 
                             <div v-else class="text-center">

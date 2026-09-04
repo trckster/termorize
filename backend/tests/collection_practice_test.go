@@ -241,7 +241,8 @@ func TestCollectionPracticeAnswerKeepsKnowledgeAndAppearsInHistory(t *testing.T)
 	if exercise.Type == enums.ExerciseTypeBasicReversed ||
 		exercise.Type == enums.ExerciseTypeChoiceReversed ||
 		exercise.Type == enums.ExerciseTypeCharactersReversed ||
-		exercise.Type == enums.ExerciseTypeAudioReversed {
+		exercise.Type == enums.ExerciseTypeAudioReversed ||
+		exercise.Type == enums.ExerciseTypeDescriptionReversed {
 		answer = "train"
 	}
 

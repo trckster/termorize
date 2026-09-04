@@ -19,12 +19,13 @@ func defaultUserSettings(timezone string, botEnabled bool) models.UserSettings {
 	}
 
 	return models.UserSettings{
-		SystemLanguage:            enums.LanguageRu,
-		MainLearningLanguage:      enums.LanguageEn,
-		TranslationSourceLanguage: enums.LanguageEn,
-		TranslationTargetLanguage: enums.LanguageRu,
-		IgnoredAudioLanguages:     []enums.Language{},
-		TimeZone:                  timezone,
+		SystemLanguage:              enums.LanguageRu,
+		MainLearningLanguage:        enums.LanguageEn,
+		TranslationSourceLanguage:   enums.LanguageEn,
+		TranslationTargetLanguage:   enums.LanguageRu,
+		IgnoredAudioLanguages:       []enums.Language{},
+		IgnoredDescriptionLanguages: []enums.Language{},
+		TimeZone:                    timezone,
 		Telegram: models.UserTelegramSettings{
 			BotEnabled:             botEnabled,
 			DailyQuestionsEnabled:  true,
@@ -80,9 +81,13 @@ func UpdateUserSettings(userID uint, settings models.UserSettings) (*models.User
 
 		wasDailyQuestionsEnabled := user.Settings.Telegram.DailyQuestionsEnabled
 		previousIgnoredAudioLanguages := append([]enums.Language(nil), user.Settings.IgnoredAudioLanguages...)
+		previousIgnoredDescriptionLanguages := append([]enums.Language(nil), user.Settings.IgnoredDescriptionLanguages...)
+		previousMainLearningLanguage := user.Settings.MainLearningLanguage
 		settings.Telegram.BotEnabled = user.Settings.Telegram.BotEnabled
 		settings = settings.WithDefaults()
 		newlyIgnoredLanguages := newlyIgnoredAudioLanguages(previousIgnoredAudioLanguages, settings.IgnoredAudioLanguages)
+		descriptionEligibilityChanged := previousMainLearningLanguage != settings.MainLearningLanguage ||
+			!sameLanguages(previousIgnoredDescriptionLanguages, settings.IgnoredDescriptionLanguages)
 
 		user.Settings = settings
 
@@ -94,8 +99,15 @@ func UpdateUserSettings(userID uint, settings models.UserSettings) (*models.User
 			if err := DeletePendingExercisesByUserID(tx, user.ID); err != nil {
 				return err
 			}
-		} else if err := replacePendingAudioExercisesForLanguages(tx, user.ID, newlyIgnoredLanguages); err != nil {
-			return err
+		} else {
+			if err := replacePendingAudioExercisesForLanguages(tx, user.ID, newlyIgnoredLanguages); err != nil {
+				return err
+			}
+			if descriptionEligibilityChanged {
+				if err := replacePendingDescriptionExercises(tx, user.ID); err != nil {
+					return err
+				}
+			}
 		}
 
 		return nil
@@ -105,6 +117,18 @@ func UpdateUserSettings(userID uint, settings models.UserSettings) (*models.User
 	}
 
 	return &user, nil
+}
+
+func sameLanguages(left, right []enums.Language) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
 }
 
 func UpdateUserTranslationTargetLanguageByID(userID uint, language enums.Language) (*models.User, error) {

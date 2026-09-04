@@ -392,6 +392,7 @@ func CreateCollectionPracticeExercise(c *gin.Context) {
 		"audio_word_id":   result.AudioWordID,
 		"options":         result.Options,
 		"cards":           result.Cards,
+		"description":     result.Description,
 	})
 }
 

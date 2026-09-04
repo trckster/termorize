@@ -22,14 +22,15 @@ type RandomExerciseResult struct {
 	AudioWordID    *uuid.UUID
 	Options        []string
 	Cards          []ExerciseMatchCard
+	Description    string
 }
 
 func CreateRandomExercise(userID uint) (*RandomExerciseResult, error) {
-	return createRandomExerciseOfTypes(userID, nil, false)
+	return createRandomExerciseOfTypes(userID, nil, false, false)
 }
 
 func CreateRandomExerciseExcludingAudio(userID uint) (*RandomExerciseResult, error) {
-	return createRandomExerciseOfTypes(userID, nil, true)
+	return createRandomExerciseOfTypes(userID, nil, true, false)
 }
 
 // CreateRandomExerciseOfTypes creates an exercise using only the requested
@@ -39,10 +40,10 @@ func CreateRandomExerciseOfTypes(userID uint, exerciseTypes ...enums.ExerciseTyp
 		return nil, errNoExerciseTypeAvailable
 	}
 
-	return createRandomExerciseOfTypes(userID, exerciseTypes, false)
+	return createRandomExerciseOfTypes(userID, exerciseTypes, false, false)
 }
 
-func createRandomExerciseOfTypes(userID uint, exerciseTypes []enums.ExerciseType, excludeAudio bool) (*RandomExerciseResult, error) {
+func createRandomExerciseOfTypes(userID uint, exerciseTypes []enums.ExerciseType, excludeAudio, excludeDescription bool) (*RandomExerciseResult, error) {
 	ids, err := getEligibleVocabularyIDs(userID, 64)
 	if err != nil {
 		return nil, err
@@ -62,7 +63,7 @@ func createRandomExerciseOfTypes(userID uint, exerciseTypes []enums.ExerciseType
 	}
 
 	for _, vocabularyID := range ids {
-		result, createErr := createRandomExerciseForVocabulary(userID, vocabularyID, exerciseTypes, excludeAudio)
+		result, createErr := createRandomExerciseForVocabulary(userID, vocabularyID, exerciseTypes, excludeAudio, excludeDescription)
 		if errors.Is(createErr, errNoExerciseTypeAvailable) {
 			continue
 		}
@@ -92,7 +93,7 @@ func userHasVocabulary(userID uint) (bool, error) {
 	return count > 0, nil
 }
 
-func createRandomExerciseForVocabulary(userID uint, vocabularyID uuid.UUID, requestedTypes []enums.ExerciseType, excludeAudio bool) (*RandomExerciseResult, error) {
+func createRandomExerciseForVocabulary(userID uint, vocabularyID uuid.UUID, requestedTypes []enums.ExerciseType, excludeAudio, excludeDescription bool) (*RandomExerciseResult, error) {
 	vocabulary, err := loadExerciseVocabulary(vocabularyID)
 	if err != nil {
 		return nil, err
@@ -101,14 +102,13 @@ func createRandomExerciseForVocabulary(userID uint, vocabularyID uuid.UUID, requ
 	var exerciseType enums.ExerciseType
 	var options []exerciseChoiceCandidate
 	if len(requestedTypes) == 0 {
-		exerciseType, options, err = selectExerciseTypeAndOptionsWithConfig(db.DB, userID, vocabulary, true, excludeAudio)
+		exerciseType, options, err = selectExerciseTypeAndOptionsWithConfig(db.DB, userID, vocabulary, true, excludeAudio, excludeDescription)
 	} else {
 		exerciseType, options, err = selectRequestedExerciseTypeAndOptions(userID, vocabulary, requestedTypes)
 	}
 	if err != nil {
 		return nil, err
 	}
-
 	if exerciseType == enums.ExerciseTypeMatchPairs {
 		return createRandomMatchPairsExercise(userID, options)
 	}
@@ -116,6 +116,31 @@ func createRandomExerciseForVocabulary(userID uint, vocabularyID uuid.UUID, requ
 	questionWord, language, answerLanguage, err := buildExerciseQuestionData(vocabulary, exerciseType)
 	if err != nil {
 		return nil, err
+	}
+	var description string
+	if isDescriptionExerciseType(exerciseType) {
+		generated, generationErr := GetOrCreateTranslationDescription(vocabulary.Translation.ID)
+		if generationErr != nil {
+			if len(requestedTypes) > 0 {
+				return nil, generationErr
+			}
+			exerciseType, options, err = selectExerciseTypeAndOptionsWithConfig(db.DB, userID, vocabulary, true, excludeAudio, true)
+			if err != nil {
+				return nil, err
+			}
+			if exerciseType == enums.ExerciseTypeMatchPairs {
+				return createRandomMatchPairsExercise(userID, options)
+			}
+			questionWord, language, answerLanguage, err = buildExerciseQuestionData(vocabulary, exerciseType)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			description = generated.Description
+			questionWord = ""
+			language = vocabulary.Translation.Original.Language
+			answerLanguage = vocabulary.Translation.Original.Language
+		}
 	}
 
 	now := time.Now().UTC()
@@ -159,6 +184,7 @@ func createRandomExerciseForVocabulary(userID uint, vocabularyID uuid.UUID, requ
 		AnswerLanguage: answerLanguage,
 		AudioWordID:    audioWordID,
 		Options:        resultOptions,
+		Description:    description,
 	}, nil
 }
 
@@ -252,10 +278,10 @@ func selectExerciseTypeAndOptions(userID uint, vocabulary *models.Vocabulary, in
 }
 
 func selectExerciseTypeAndOptionsWithDB(conn *gorm.DB, userID uint, vocabulary *models.Vocabulary, includeMatchPairs bool) (enums.ExerciseType, []exerciseChoiceCandidate, error) {
-	return selectExerciseTypeAndOptionsWithConfig(conn, userID, vocabulary, includeMatchPairs, false)
+	return selectExerciseTypeAndOptionsWithConfig(conn, userID, vocabulary, includeMatchPairs, false, false)
 }
 
-func selectExerciseTypeAndOptionsWithConfig(conn *gorm.DB, userID uint, vocabulary *models.Vocabulary, includeMatchPairs bool, excludeAudio bool) (enums.ExerciseType, []exerciseChoiceCandidate, error) {
+func selectExerciseTypeAndOptionsWithConfig(conn *gorm.DB, userID uint, vocabulary *models.Vocabulary, includeMatchPairs bool, excludeAudio, excludeDescription bool) (enums.ExerciseType, []exerciseChoiceCandidate, error) {
 	availableTypes, err := buildExerciseOptionsByTypeWithDB(conn, userID, vocabulary, includeMatchPairs)
 	if err != nil {
 		return "", nil, err
@@ -296,6 +322,12 @@ func selectExerciseTypeAndOptionsWithConfig(conn *gorm.DB, userID uint, vocabula
 				enums.ExerciseTypeAudioDirect,
 				enums.ExerciseTypeAudioReversed,
 			},
+		})
+	}
+	if !excludeDescription {
+		groups = append(groups, exerciseTypeGroup{
+			weight: descriptionExerciseWeight,
+			types:  []enums.ExerciseType{enums.ExerciseTypeDescriptionReversed},
 		})
 	}
 	if includeMatchPairs {
@@ -351,7 +383,7 @@ func buildExerciseOptionsByType(userID uint, vocabulary *models.Vocabulary, incl
 }
 
 func buildExerciseOptionsByTypeWithDB(conn *gorm.DB, userID uint, vocabulary *models.Vocabulary, includeMatchPairs bool) (map[enums.ExerciseType][]exerciseChoiceCandidate, error) {
-	optionsByType := make(map[enums.ExerciseType][]exerciseChoiceCandidate, 9)
+	optionsByType := make(map[enums.ExerciseType][]exerciseChoiceCandidate, 10)
 
 	directOptions, err := buildExerciseOptionsForTypeWithDB(conn, userID, vocabulary, enums.ExerciseTypeBasicDirect)
 	if err != nil {
@@ -382,6 +414,9 @@ func buildExerciseOptionsByTypeWithDB(conn *gorm.DB, userID uint, vocabulary *mo
 		if strings.TrimSpace(reversedOptions[0].AnswerWord) != "" {
 			optionsByType[enums.ExerciseTypeCharactersReversed] = append([]exerciseChoiceCandidate(nil), reversedOptions[:1]...)
 		}
+		if descriptionLanguageEligibleWithDB(conn, userID, vocabulary.Translation.Original.Language) {
+			optionsByType[enums.ExerciseTypeDescriptionReversed] = append([]exerciseChoiceCandidate(nil), reversedOptions[:1]...)
+		}
 	}
 	if len(reversedOptions) == choiceExerciseVocabularyCount {
 		optionsByType[enums.ExerciseTypeChoiceReversed] = shuffledExerciseOptions(reversedOptions)
@@ -398,6 +433,15 @@ func buildExerciseOptionsByTypeWithDB(conn *gorm.DB, userID uint, vocabulary *mo
 	}
 
 	return optionsByType, nil
+}
+
+func descriptionLanguageEligibleWithDB(conn *gorm.DB, userID uint, language enums.Language) bool {
+	var user models.User
+	if err := conn.Select("settings").Where("id = ?", userID).Take(&user).Error; err != nil {
+		return false
+	}
+	return user.Settings.MainLearningLanguage == language &&
+		!containsLanguage(user.Settings.IgnoredDescriptionLanguages, language)
 }
 
 func ignoredAudioLanguageWithDB(conn *gorm.DB, userID uint, language enums.Language) bool {

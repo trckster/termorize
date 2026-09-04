@@ -17,11 +17,13 @@ import (
 // authSettingsValidPayload returns a fully-valid UpdateSettings request body.
 func authSettingsValidPayload() map[string]any {
 	return map[string]any{
-		"system_language":             "en",
-		"main_learning_language":      "de",
-		"translation_source_language": "en",
-		"translation_target_language": "ru",
-		"time_zone":                   "Europe/Berlin",
+		"system_language":               "en",
+		"main_learning_language":        "de",
+		"translation_source_language":   "en",
+		"translation_target_language":   "ru",
+		"ignored_audio_languages":       []string{},
+		"ignored_description_languages": []string{},
+		"time_zone":                     "Europe/Berlin",
 		"telegram": map[string]any{
 			"daily_questions_enabled": true,
 			"daily_questions_count":   3,
@@ -314,6 +316,7 @@ func TestUpdateSettingsSupportsPortugueseAndUkrainian(t *testing.T) {
 	payload["translation_source_language"] = "pt"
 	payload["translation_target_language"] = "uk"
 	payload["ignored_audio_languages"] = []string{"pt", "uk"}
+	payload["ignored_description_languages"] = []string{"en", "pt"}
 
 	rec := testkit.AuthedRequest(t, user, http.MethodPut, "/api/settings", payload)
 	testkit.RequireStatus(t, rec, http.StatusOK)
@@ -324,6 +327,7 @@ func TestUpdateSettingsSupportsPortugueseAndUkrainian(t *testing.T) {
 	assert.Equal(t, enums.LanguagePt, got.Settings.TranslationSourceLanguage)
 	assert.Equal(t, enums.LanguageUk, got.Settings.TranslationTargetLanguage)
 	assert.Equal(t, []enums.Language{enums.LanguagePt, enums.LanguageUk}, got.Settings.IgnoredAudioLanguages)
+	assert.Equal(t, []enums.Language{enums.LanguageEn, enums.LanguagePt}, got.Settings.IgnoredDescriptionLanguages)
 }
 
 func TestUpdateSettingsInvalidJSON(t *testing.T) {

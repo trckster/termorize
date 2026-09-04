@@ -50,6 +50,7 @@ type BotTexts struct {
 	QuestionTranslateReplyFormat      string
 	QuestionTranslateChoiceFormat     string
 	QuestionTranslateCharactersFormat string
+	QuestionDescriptionReplyFormat    string
 
 	MenuDeleteWord                   string
 	MenuVocabularyEmpty              string
@@ -166,6 +167,7 @@ var botTextsEn = BotTexts{
 	QuestionTranslateReplyFormat:      "Translate word *%s* to %s\n\n(answer with reply)",
 	QuestionTranslateChoiceFormat:     "Translate word *%s* to %s\n\nChoose one of the options below.",
 	QuestionTranslateCharactersFormat: "Translate word *%s* to %s\n\nBuild the answer from the characters below.",
+	QuestionDescriptionReplyFormat:    "Guess the word described below in %s:\n\n%s\n\n(answer with reply)",
 
 	MenuDeleteWord:                   "Send the word you want to delete from vocabulary 🗑️",
 	MenuVocabularyEmpty:              "Your vocabulary is empty for now. Add some translations!",
@@ -317,6 +319,7 @@ var botTextsRu = BotTexts{
 	QuestionTranslateReplyFormat:      "Переведи слово *%s* на %s\n\n(ответь реплаем)",
 	QuestionTranslateChoiceFormat:     "Переведи слово *%s* на %s\n\nВыбери один из вариантов ниже.",
 	QuestionTranslateCharactersFormat: "Переведи слово *%s* на %s\n\nСобери ответ из символов ниже.",
+	QuestionDescriptionReplyFormat:    "Угадай слово по описанию на языке %s:\n\n%s\n\n(ответь реплаем)",
 
 	MenuDeleteWord:                   "Отправь слово, которое хочешь удалить из словаря 🗑️",
 	MenuVocabularyEmpty:              "Твой словарь пока пуст. Добавь несколько переводов!",
@@ -472,6 +475,14 @@ func BuildBasicExerciseQuestion(
 
 func BuildKnownVocabularyRepetitionQuestion(question string, texts BotTexts) string {
 	return texts.KnownVocabularyRepetitionIntro + "\n\n" + question
+}
+
+func BuildDescriptionExerciseQuestion(description string, language enums.Language, texts BotTexts) string {
+	return fmt.Sprintf(
+		texts.QuestionDescriptionReplyFormat,
+		escapeTelegramMarkdown(localizedLanguageName(language, texts)),
+		escapeTelegramMarkdown(description),
+	)
 }
 
 func buildTranslateQuestionText(word string, language string, exerciseType enums.ExerciseType, texts BotTexts) string {

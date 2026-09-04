@@ -12,3 +12,12 @@ func TestCollectionPromptRequiresPortugueseNounArticles(t *testing.T) {
 	require.Contains(t, prompt, "Spanish, French, or Portuguese")
 	require.Contains(t, prompt, "a perna")
 }
+
+func TestDescriptionPromptRequiresAClueInTheRequestedLanguage(t *testing.T) {
+	prompt := buildDescriptionSystemPrompt("Ukrainian")
+
+	require.Contains(t, prompt, "in Ukrainian")
+	require.Contains(t, prompt, "Do not include the given text")
+	require.Contains(t, prompt, "a direct translation")
+	require.Contains(t, prompt, `{"description": string}`)
+}

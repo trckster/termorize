@@ -153,6 +153,39 @@ func TestTelegramWebhookUnknownUpdateNoOp(t *testing.T) {
 	assert.Empty(t, tg.Requests(), "no outbound telegram call expected for an empty update")
 }
 
+func TestTelegramDescriptionExerciseAcceptsRegularReply(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+
+	const telegramID int64 = 555101
+	const exerciseMessageID int64 = 503
+	user := testkit.CreateUser(t, testkit.WithTelegramID(telegramID), testkit.WithSettings(models.UserSettings{
+		SystemLanguage:       enums.LanguageEn,
+		MainLearningLanguage: enums.LanguageEn,
+	}))
+	vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
+	exercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeDescriptionReversed, enums.ExerciseStatusInProgress, vocabulary.ID)
+	require.NoError(t, db.DB.Model(&models.Exercise{}).Where("id = ?", exercise.ID).Update("telegram_message_id", exerciseMessageID).Error)
+
+	update := telegramPrivateMessage(telegramID, "paper")
+	message := update["message"].(map[string]any)
+	message["reply_to_message"] = map[string]any{
+		"message_id": exerciseMessageID,
+		"chat":       map[string]any{"id": telegramID, "type": "private"},
+	}
+
+	rec := telegramUpdate(t, update)
+	testkit.RequireStatus(t, rec, http.StatusOK)
+	require.Len(t, tg.RequestsFor("sendMessage"), 1)
+	assert.Contains(t, string(tg.RequestsFor("sendMessage")[0].Body), "That's right")
+
+	completed := exerciseReload(t, exercise.ID)
+	assert.Equal(t, enums.ExerciseStatusCompleted, completed.Status)
+	link := exerciseLink(t, exercise.ID, vocabulary.ID)
+	require.NotNil(t, link.ProgressDelta)
+	assert.Equal(t, services.ExerciseBasicCorrectProgressDelta, *link.ProgressDelta)
+}
+
 func TestTelegramWebhookIgnoredExerciseReportsDeletedVocabulary(t *testing.T) {
 	testkit.Truncate(t)
 	tg := testkit.MockTelegramAPI(t)

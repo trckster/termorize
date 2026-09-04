@@ -72,11 +72,12 @@ const (
 	matchPairCardSideOriginal     = "original"
 	matchPairCardSideTranslation  = "translation"
 
-	basicExerciseWeight      = 30
-	choiceExerciseWeight     = 30
-	characterExerciseWeight  = 30
-	audioExerciseWeight      = 30
-	matchPairsExerciseWeight = 10
+	basicExerciseWeight       = 30
+	choiceExerciseWeight      = 30
+	characterExerciseWeight   = 30
+	audioExerciseWeight       = 30
+	descriptionExerciseWeight = 30
+	matchPairsExerciseWeight  = 10
 
 	knownVocabularyRepetitionMinimumDailyCount = 3
 	knownVocabularyRepetitionDiceSides         = 6
@@ -100,6 +101,7 @@ type PendingExercise struct {
 	TranslationWord             string             `gorm:"column:translation_word"`
 	TranslationWordID           uuid.UUID          `gorm:"column:translation_word_id"`
 	TranslationLanguage         enums.Language     `gorm:"column:translation_language"`
+	TranslationID               uuid.UUID          `gorm:"column:translation_id"`
 	SystemLanguage              enums.Language     `gorm:"column:system_language"`
 }
 

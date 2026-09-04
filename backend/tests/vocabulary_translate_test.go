@@ -729,6 +729,7 @@ func TestDeleteVocabularyReplacesEveryPendingExerciseType(t *testing.T) {
 		enums.ExerciseTypeCharactersReversed,
 		enums.ExerciseTypeAudioDirect,
 		enums.ExerciseTypeAudioReversed,
+		enums.ExerciseTypeDescriptionReversed,
 		enums.ExerciseTypeMatchPairs,
 	}
 	scheduledTimes := make([]time.Time, 0, len(exerciseTypes))
@@ -801,6 +802,7 @@ func TestDeleteVocabularyCancelsEveryPendingExerciseTypeWithoutReplacement(t *te
 		enums.ExerciseTypeCharactersReversed,
 		enums.ExerciseTypeAudioDirect,
 		enums.ExerciseTypeAudioReversed,
+		enums.ExerciseTypeDescriptionReversed,
 		enums.ExerciseTypeMatchPairs,
 	}
 	for index, exerciseType := range exerciseTypes {

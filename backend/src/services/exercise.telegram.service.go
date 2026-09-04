@@ -30,6 +30,7 @@ func GetDuePendingExercises(now time.Time) ([]PendingExercise, error) {
 			translated.word AS translation_word,
 			translated.id AS translation_word_id,
 			translated.language AS translation_language,
+			t.id AS translation_id,
 			u.settings->>'system_language' AS system_language
 		FROM exercises AS e
 		JOIN users AS u ON u.id = e.user_id
@@ -41,11 +42,11 @@ func GetDuePendingExercises(now time.Time) ([]PendingExercise, error) {
 		WHERE e.deleted_at IS NULL
 			AND u.deleted_at IS NULL
 			AND e.status = ?
-			AND e.type IN (?, ?, ?, ?, ?, ?, ?, ?)
+			AND e.type IN (?, ?, ?, ?, ?, ?, ?, ?, ?)
 			AND e.scheduled_for <= ?
 			AND u.settings->'telegram'->'bot_enabled' = ?
 		ORDER BY e.scheduled_for ASC, e.created_at ASC
-	`, enums.ExerciseStatusPending, enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed, enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed, enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed, now, true).Scan(&exercises).Error
+	`, enums.ExerciseStatusPending, enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed, enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed, enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed, enums.ExerciseTypeDescriptionReversed, now, true).Scan(&exercises).Error
 
 	if err != nil {
 		return nil, err

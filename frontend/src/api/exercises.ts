@@ -87,11 +87,13 @@ export type RandomExercise = {
         | 'characters/reversed'
         | 'audio/direct'
         | 'audio/reversed'
+        | 'description/reversed'
         | 'match/pairs'
     question_word: string
     language: string
     answer_language: string
     audio_word_id?: string | null
+    description?: string
     options: string[]
     cards?: ExerciseMatchCard[]
 }

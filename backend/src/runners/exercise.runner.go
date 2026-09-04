@@ -79,6 +79,29 @@ func processDueExercises() {
 		if exercise.IsKnownVocabularyRepetition {
 			questionText = telegram.BuildKnownVocabularyRepetitionQuestion(questionText, texts)
 		}
+		if exercise.ExerciseType == enums.ExerciseTypeDescriptionReversed {
+			eligible, checkErr := services.IsDescriptionLanguageEligible(exercise.UserID, exercise.OriginalLanguage)
+			if checkErr != nil {
+				logger.L().Warnw("failed to check description language", "error", checkErr, "exercise_id", exercise.ExerciseID)
+				continue
+			}
+			if !eligible {
+				if _, replaceErr := services.ReplacePendingDescriptionExercise(exercise.ExerciseID, false); replaceErr != nil {
+					logger.L().Warnw("failed to replace ineligible description exercise", "error", replaceErr, "exercise_id", exercise.ExerciseID)
+				}
+				continue
+			}
+
+			description, loadErr := services.GetOrCreateTranslationDescription(exercise.TranslationID)
+			if loadErr != nil {
+				logger.L().Warnw("replacing description exercise after generation failed", "error", loadErr, "exercise_id", exercise.ExerciseID)
+				if _, replaceErr := services.ReplacePendingDescriptionExercise(exercise.ExerciseID, true); replaceErr != nil {
+					logger.L().Warnw("failed to replace description exercise", "error", replaceErr, "exercise_id", exercise.ExerciseID)
+				}
+				continue
+			}
+			questionText = telegram.BuildDescriptionExerciseQuestion(description.Description, exercise.OriginalLanguage, texts)
+		}
 
 		var (
 			messageID      *int64
@@ -289,7 +312,8 @@ func isSupportedExerciseType(exerciseType enums.ExerciseType) bool {
 	case enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed,
 		enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed,
 		enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed,
-		enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed:
+		enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed,
+		enums.ExerciseTypeDescriptionReversed:
 		return true
 	default:
 		return false

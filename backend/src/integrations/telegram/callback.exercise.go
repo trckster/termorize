@@ -110,6 +110,7 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 
 	if !hasAnswer && exercise.ExerciseType != enums.ExerciseTypeBasicDirect && exercise.ExerciseType != enums.ExerciseTypeBasicReversed &&
 		exercise.ExerciseType != enums.ExerciseTypeAudioDirect && exercise.ExerciseType != enums.ExerciseTypeAudioReversed &&
+		exercise.ExerciseType != enums.ExerciseTypeDescriptionReversed &&
 		exercise.ExerciseType != enums.ExerciseTypeCharactersDirect && exercise.ExerciseType != enums.ExerciseTypeCharactersReversed {
 		return nil
 	}
