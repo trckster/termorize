@@ -87,6 +87,7 @@ export type RandomExercise = {
         | 'characters/reversed'
         | 'audio/direct'
         | 'audio/reversed'
+        | 'description/direct'
         | 'description/reversed'
         | 'match/pairs'
     question_word: string

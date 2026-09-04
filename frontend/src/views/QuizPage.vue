@@ -91,7 +91,9 @@ const isCharacterQuestion = computed(
 const isAudioQuestion = computed(
     () => currentExercise.value?.type === 'audio/direct' || currentExercise.value?.type === 'audio/reversed'
 )
-const isDescriptionQuestion = computed(() => currentExercise.value?.type === 'description/reversed')
+const isDescriptionQuestion = computed(
+    () => currentExercise.value?.type === 'description/direct' || currentExercise.value?.type === 'description/reversed'
+)
 const isAnswerDisabled = computed(() => isSubmitting.value || audioIgnoreState.value !== 'idle')
 const audioSpokenLanguageName = computed(() =>
     settingsStore.getLanguageName(

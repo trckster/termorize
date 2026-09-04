@@ -19,49 +19,92 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDescriptionExerciseUsesTranslatedWordAndCachesClue(t *testing.T) {
-	testkit.Truncate(t)
-	user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{
-		MainLearningLanguage: enums.LanguageEn,
-	}))
-	vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
-
-	calls := 0
-	testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{
-		GenerateDescriptionFunc: func(word, wordLanguage, descriptionLanguage string) (*openrouter.GeneratedDescription, error) {
-			calls++
-			assert.Equal(t, "carta", word)
-			assert.Equal(t, "Italian", wordLanguage)
-			assert.Equal(t, "English", descriptionLanguage)
-			return &openrouter.GeneratedDescription{Description: "A thin material used for writing or printing."}, nil
+func TestDescriptionExerciseDirectionsUseAndCacheWordDefinitions(t *testing.T) {
+	tests := []struct {
+		name                string
+		exerciseType        enums.ExerciseType
+		mainLanguage        enums.Language
+		expectedWord        string
+		expectedLanguage    enums.Language
+		expectedAnswer      string
+		expectedAnswerLang  enums.Language
+		description         string
+		almostCorrectAnswer string
+	}{
+		{
+			name:                "direct",
+			exerciseType:        enums.ExerciseTypeDescriptionDirect,
+			mainLanguage:        enums.LanguageEn,
+			expectedWord:        "paper",
+			expectedLanguage:    enums.LanguageEn,
+			expectedAnswer:      "paper",
+			expectedAnswerLang:  enums.LanguageEn,
+			description:         "A thin material used for writing or printing.",
+			almostCorrectAnswer: "papre",
 		},
-	})
+		{
+			name:                "reversed",
+			exerciseType:        enums.ExerciseTypeDescriptionReversed,
+			mainLanguage:        enums.LanguageIt,
+			expectedWord:        "carta",
+			expectedLanguage:    enums.LanguageIt,
+			expectedAnswer:      "carta",
+			expectedAnswerLang:  enums.LanguageIt,
+			description:         "Un materiale sottile usato per scrivere o stampare.",
+			almostCorrectAnswer: "crata",
+		},
+	}
 
-	first, err := services.CreateRandomExerciseOfTypes(user.ID, enums.ExerciseTypeDescriptionReversed)
-	require.NoError(t, err)
-	assert.Equal(t, enums.ExerciseTypeDescriptionReversed, first.Type)
-	assert.Empty(t, first.QuestionWord)
-	assert.Equal(t, "A thin material used for writing or printing.", first.Description)
-	assert.Equal(t, enums.LanguageEn, first.Language)
-	assert.Equal(t, enums.LanguageEn, first.AnswerLanguage)
-	assert.Nil(t, first.AudioWordID)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			testkit.Truncate(t)
+			user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{
+				MainLearningLanguage: test.mainLanguage,
+			}))
+			vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
+			expectedWordID := vocabulary.Translation.Original.ID
+			if test.exerciseType == enums.ExerciseTypeDescriptionReversed {
+				expectedWordID = vocabulary.Translation.Translation.ID
+			}
 
-	second, err := services.CreateRandomExerciseOfTypes(user.ID, enums.ExerciseTypeDescriptionReversed)
-	require.NoError(t, err)
-	assert.Equal(t, first.Description, second.Description)
-	assert.Equal(t, 1, calls)
+			calls := 0
+			testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{
+				GenerateDescriptionFunc: func(word, wordLanguage, descriptionLanguage string) (*openrouter.GeneratedDescription, error) {
+					calls++
+					assert.Equal(t, test.expectedWord, word)
+					assert.Equal(t, test.expectedLanguage.DisplayName(), wordLanguage)
+					assert.Equal(t, test.expectedLanguage.DisplayName(), descriptionLanguage)
+					return &openrouter.GeneratedDescription{Description: test.description}, nil
+				},
+			})
 
-	var descriptions []models.TranslationDescription
-	require.NoError(t, db.DB.Where("translation_id = ?", vocabulary.Translation.ID).Find(&descriptions).Error)
-	require.Len(t, descriptions, 1)
-	assert.Equal(t, config.GetOpenRouterModel(), descriptions[0].Model)
-	assert.Equal(t, first.Description, descriptions[0].Description)
+			first, err := services.CreateRandomExerciseOfTypes(user.ID, test.exerciseType)
+			require.NoError(t, err)
+			assert.Equal(t, test.exerciseType, first.Type)
+			assert.Empty(t, first.QuestionWord)
+			assert.Equal(t, test.description, first.Description)
+			assert.Equal(t, test.expectedLanguage, first.Language)
+			assert.Equal(t, test.expectedAnswerLang, first.AnswerLanguage)
+			assert.Nil(t, first.AudioWordID)
 
-	result, err := services.VerifyExerciseAnswer(first.ExerciseID, user.ID, "papre")
-	require.NoError(t, err)
-	assert.Equal(t, services.ExerciseVocabularyResultAlmost, result.Result)
-	assert.Equal(t, "paper", result.CorrectAnswer)
-	assert.Equal(t, services.ExerciseBasicAlmostProgressDelta, result.ProgressDelta)
+			second, err := services.CreateRandomExerciseOfTypes(user.ID, test.exerciseType)
+			require.NoError(t, err)
+			assert.Equal(t, first.Description, second.Description)
+			assert.Equal(t, 1, calls)
+
+			var descriptions []models.WordDescription
+			require.NoError(t, db.DB.Where("word_id = ?", expectedWordID).Find(&descriptions).Error)
+			require.Len(t, descriptions, 1)
+			assert.Equal(t, config.GetOpenRouterModel(), descriptions[0].Model)
+			assert.Equal(t, first.Description, descriptions[0].Description)
+
+			result, err := services.VerifyExerciseAnswer(first.ExerciseID, user.ID, test.almostCorrectAnswer)
+			require.NoError(t, err)
+			assert.Equal(t, services.ExerciseVocabularyResultAlmost, result.Result)
+			assert.Equal(t, test.expectedAnswer, result.CorrectAnswer)
+			assert.Equal(t, services.ExerciseBasicAlmostProgressDelta, result.ProgressDelta)
+		})
+	}
 }
 
 func TestIgnoringDescriptionLanguageReplacesQueuedExerciseAtSameTime(t *testing.T) {
@@ -78,7 +121,7 @@ func TestIgnoringDescriptionLanguageReplacesQueuedExerciseAtSameTime(t *testing.
 	exerciseSeedVocabulary(t, user.ID, "chair", "sedia", enums.LanguageEn, enums.LanguageIt)
 	scheduledFor := time.Now().UTC().Add(time.Hour).Truncate(time.Microsecond)
 	queued := models.Exercise{
-		Type:         enums.ExerciseTypeDescriptionReversed,
+		Type:         enums.ExerciseTypeDescriptionDirect,
 		Status:       enums.ExerciseStatusPending,
 		UserID:       user.ID,
 		ScheduledFor: &scheduledFor,
@@ -103,7 +146,7 @@ func TestIgnoringDescriptionLanguageReplacesQueuedExerciseAtSameTime(t *testing.
 
 	var replacement models.Exercise
 	require.NoError(t, db.DB.Where("user_id = ? AND status = ?", user.ID, enums.ExerciseStatusPending).Take(&replacement).Error)
-	assert.NotEqual(t, enums.ExerciseTypeDescriptionReversed, replacement.Type)
+	assert.False(t, replacement.Type == enums.ExerciseTypeDescriptionDirect || replacement.Type == enums.ExerciseTypeDescriptionReversed)
 	require.NotNil(t, replacement.ScheduledFor)
 	assert.WithinDuration(t, scheduledFor, *replacement.ScheduledFor, time.Microsecond)
 }
@@ -115,7 +158,7 @@ func TestAllowingDescriptionLanguageKeepsQueuedExercise(t *testing.T) {
 		IgnoredDescriptionLanguages: []enums.Language{enums.LanguageEn},
 	}))
 	vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
-	queued := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeDescriptionReversed, enums.ExerciseStatusPending, vocabulary.ID)
+	queued := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeDescriptionDirect, enums.ExerciseStatusPending, vocabulary.ID)
 	scheduledFor := time.Now().UTC().Add(time.Hour)
 	require.NoError(t, db.DB.Model(&queued).Updates(map[string]any{
 		"scheduled_for": scheduledFor,
@@ -139,7 +182,7 @@ func TestIgnoringUnrelatedDescriptionLanguageKeepsQueuedExercise(t *testing.T) {
 		MainLearningLanguage: enums.LanguageEn,
 	}))
 	vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
-	queued := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeDescriptionReversed, enums.ExerciseStatusPending, vocabulary.ID)
+	queued := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeDescriptionDirect, enums.ExerciseStatusPending, vocabulary.ID)
 	scheduledFor := time.Now().UTC().Add(time.Hour)
 	require.NoError(t, db.DB.Model(&queued).Updates(map[string]any{
 		"scheduled_for": scheduledFor,
@@ -195,32 +238,36 @@ func TestDescriptionExerciseOnlyUsesEligibleLearningLanguage(t *testing.T) {
 			user := testkit.CreateUser(t, testkit.WithSettings(test.settings))
 			exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
 
-			_, err := services.CreateRandomExerciseOfTypes(user.ID, enums.ExerciseTypeDescriptionReversed)
+			_, err := services.CreateRandomExerciseOfTypes(user.ID, enums.ExerciseTypeDescriptionDirect)
 			assert.ErrorIs(t, err, services.ErrNoVocabularyForExercise)
 		})
 	}
 }
 
-func TestDescriptionExerciseRejectsClueContainingAnswer(t *testing.T) {
-	for _, clue := range []string{
-		"Paper used for writing.",
-		"Carta is used for writing.",
+func TestDescriptionExerciseRejectsClueContainingDescribedWord(t *testing.T) {
+	for _, test := range []struct {
+		exerciseType enums.ExerciseType
+		mainLanguage enums.Language
+		clue         string
+	}{
+		{enums.ExerciseTypeDescriptionDirect, enums.LanguageEn, "Paper is used for writing."},
+		{enums.ExerciseTypeDescriptionReversed, enums.LanguageIt, "La carta viene usata per scrivere."},
 	} {
-		t.Run(clue, func(t *testing.T) {
+		t.Run(string(test.exerciseType), func(t *testing.T) {
 			testkit.Truncate(t)
-			user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{MainLearningLanguage: enums.LanguageEn}))
+			user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{MainLearningLanguage: test.mainLanguage}))
 			exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
 			testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{
 				GenerateDescriptionFunc: func(string, string, string) (*openrouter.GeneratedDescription, error) {
-					return &openrouter.GeneratedDescription{Description: clue}, nil
+					return &openrouter.GeneratedDescription{Description: test.clue}, nil
 				},
 			})
 
-			_, err := services.CreateRandomExerciseOfTypes(user.ID, enums.ExerciseTypeDescriptionReversed)
+			_, err := services.CreateRandomExerciseOfTypes(user.ID, test.exerciseType)
 			assert.ErrorIs(t, err, services.ErrDescriptionGenerationFailed)
 
 			var count int64
-			require.NoError(t, db.DB.Model(&models.TranslationDescription{}).Count(&count).Error)
+			require.NoError(t, db.DB.Model(&models.WordDescription{}).Count(&count).Error)
 			assert.Zero(t, count)
 		})
 	}
@@ -236,11 +283,11 @@ func TestDescriptionExerciseRejectsOversizedClue(t *testing.T) {
 		},
 	})
 
-	_, err := services.CreateRandomExerciseOfTypes(user.ID, enums.ExerciseTypeDescriptionReversed)
+	_, err := services.CreateRandomExerciseOfTypes(user.ID, enums.ExerciseTypeDescriptionDirect)
 	assert.ErrorIs(t, err, services.ErrDescriptionGenerationFailed)
 
 	var count int64
-	require.NoError(t, db.DB.Model(&models.TranslationDescription{}).Count(&count).Error)
+	require.NoError(t, db.DB.Model(&models.WordDescription{}).Count(&count).Error)
 	assert.Zero(t, count)
 }
 
@@ -254,7 +301,7 @@ func TestDescriptionExercisePropagatesOpenRouterFailureWhenExplicitlyRequested(t
 		},
 	})
 
-	_, err := services.CreateRandomExerciseOfTypes(user.ID, enums.ExerciseTypeDescriptionReversed)
+	_, err := services.CreateRandomExerciseOfTypes(user.ID, enums.ExerciseTypeDescriptionDirect)
 	assert.ErrorIs(t, err, services.ErrDescriptionGenerationFailed)
 
 	var count int64
@@ -282,7 +329,7 @@ func TestDescriptionExerciseRechecksEligibilityAfterGeneration(t *testing.T) {
 	}
 	created := make(chan creationResult, 1)
 	go func() {
-		exercise, err := services.CreateRandomExerciseOfTypes(user.ID, enums.ExerciseTypeDescriptionReversed)
+		exercise, err := services.CreateRandomExerciseOfTypes(user.ID, enums.ExerciseTypeDescriptionDirect)
 		created <- creationResult{exercise: exercise, err: err}
 	}()
 
@@ -311,21 +358,21 @@ func TestDescriptionExerciseRechecksEligibilityAfterGeneration(t *testing.T) {
 	assert.Zero(t, count)
 }
 
-func TestDescriptionCacheUniquePerTranslationAndModel(t *testing.T) {
+func TestDescriptionCacheUniquePerWordAndModel(t *testing.T) {
 	testkit.Truncate(t)
 	user := testkit.CreateUser(t)
 	vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
-	description := models.TranslationDescription{
-		TranslationID: vocabulary.Translation.ID,
-		Model:         config.GetOpenRouterModel(),
-		Description:   "First clue.",
+	description := models.WordDescription{
+		WordID:      vocabulary.Translation.Original.ID,
+		Model:       config.GetOpenRouterModel(),
+		Description: "First clue.",
 	}
 	require.NoError(t, db.DB.Create(&description).Error)
 
-	duplicate := models.TranslationDescription{
-		TranslationID: vocabulary.Translation.ID,
-		Model:         config.GetOpenRouterModel(),
-		Description:   "Second clue.",
+	duplicate := models.WordDescription{
+		WordID:      vocabulary.Translation.Original.ID,
+		Model:       config.GetOpenRouterModel(),
+		Description: "Second clue.",
 	}
 	assert.Error(t, db.DB.Create(&duplicate).Error)
 }
@@ -335,7 +382,7 @@ func TestStartingConcurrentlyCancelledDescriptionKeepsTelegramMessageReference(t
 	const messageID int64 = 902
 	user := testkit.CreateUser(t, testkit.WithTelegramID(700902))
 	vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
-	exercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeDescriptionReversed, enums.ExerciseStatusPending, vocabulary.ID)
+	exercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeDescriptionDirect, enums.ExerciseStatusPending, vocabulary.ID)
 
 	pending, err := services.IsPendingDescriptionExercise(exercise.ID)
 	require.NoError(t, err)
@@ -356,5 +403,5 @@ func TestStartingConcurrentlyCancelledDescriptionKeepsTelegramMessageReference(t
 	require.NoError(t, err)
 	require.NotNil(t, loaded)
 	assert.True(t, loaded.Deleted)
-	assert.Equal(t, enums.ExerciseTypeDescriptionReversed, loaded.ExerciseType)
+	assert.Equal(t, enums.ExerciseTypeDescriptionDirect, loaded.ExerciseType)
 }

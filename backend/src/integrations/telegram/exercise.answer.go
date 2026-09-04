@@ -101,7 +101,7 @@ func handleExerciseAnswer(message *message) (bool, error) {
 }
 
 func cancelledExerciseText(exerciseType enums.ExerciseType, texts BotTexts) string {
-	if exerciseType == enums.ExerciseTypeDescriptionReversed {
+	if exerciseType == enums.ExerciseTypeDescriptionDirect || exerciseType == enums.ExerciseTypeDescriptionReversed {
 		return texts.ExerciseDescriptionCancelled
 	}
 	return texts.ExerciseAudioCancelled

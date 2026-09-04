@@ -729,6 +729,7 @@ func TestDeleteVocabularyReplacesEveryPendingExerciseType(t *testing.T) {
 		enums.ExerciseTypeCharactersReversed,
 		enums.ExerciseTypeAudioDirect,
 		enums.ExerciseTypeAudioReversed,
+		enums.ExerciseTypeDescriptionDirect,
 		enums.ExerciseTypeDescriptionReversed,
 		enums.ExerciseTypeMatchPairs,
 	}
@@ -802,6 +803,7 @@ func TestDeleteVocabularyCancelsEveryPendingExerciseTypeWithoutReplacement(t *te
 		enums.ExerciseTypeCharactersReversed,
 		enums.ExerciseTypeAudioDirect,
 		enums.ExerciseTypeAudioReversed,
+		enums.ExerciseTypeDescriptionDirect,
 		enums.ExerciseTypeDescriptionReversed,
 		enums.ExerciseTypeMatchPairs,
 	}

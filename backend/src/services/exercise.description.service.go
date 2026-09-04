@@ -23,6 +23,11 @@ var descriptionWordPattern = regexp.MustCompile(`[\pL\pN]+(?:['’][\pL\pN]+)?`)
 
 const maxDescriptionRunes = 300
 
+var descriptionExerciseTypes = []enums.ExerciseType{
+	enums.ExerciseTypeDescriptionDirect,
+	enums.ExerciseTypeDescriptionReversed,
+}
+
 type pendingDescriptionReplacement struct {
 	ExerciseID   uuid.UUID `gorm:"column:exercise_id"`
 	ScheduledFor time.Time `gorm:"column:scheduled_for"`
@@ -55,7 +60,7 @@ func descriptionLanguageEligible(settings models.UserSettings, language enums.La
 func IsPendingDescriptionExercise(exerciseID uuid.UUID) (bool, error) {
 	var count int64
 	if err := db.DB.Model(&models.Exercise{}).
-		Where("id = ? AND status = ? AND type = ?", exerciseID, enums.ExerciseStatusPending, enums.ExerciseTypeDescriptionReversed).
+		Where("id = ? AND status = ? AND type IN ?", exerciseID, enums.ExerciseStatusPending, descriptionExerciseTypes).
 		Count(&count).Error; err != nil {
 		return false, err
 	}
@@ -66,7 +71,7 @@ func replacePendingDescriptionExercises(tx *gorm.DB, userID uint) error {
 	var replacements []pendingDescriptionReplacement
 	if err := tx.Model(&models.Exercise{}).
 		Select("id AS exercise_id", "scheduled_for").
-		Where("user_id = ? AND status = ? AND type = ? AND scheduled_for IS NOT NULL", userID, enums.ExerciseStatusPending, enums.ExerciseTypeDescriptionReversed).
+		Where("user_id = ? AND status = ? AND type IN ? AND scheduled_for IS NOT NULL", userID, enums.ExerciseStatusPending, descriptionExerciseTypes).
 		Order("scheduled_for ASC, created_at ASC").
 		Scan(&replacements).Error; err != nil {
 		return err
@@ -117,10 +122,10 @@ func ReplacePendingDescriptionExercise(exerciseID uuid.UUID, excludeDescription 
 	return replaced, err
 }
 
-func GetOrCreateTranslationDescription(translationID uuid.UUID) (*models.TranslationDescription, error) {
+func GetOrCreateWordDescription(wordID uuid.UUID) (*models.WordDescription, error) {
 	model := config.GetOpenRouterModel()
-	var cached models.TranslationDescription
-	err := db.DB.Where("translation_id = ? AND model = ?", translationID, model).Take(&cached).Error
+	var cached models.WordDescription
+	err := db.DB.Where("word_id = ? AND model = ?", wordID, model).Take(&cached).Error
 	if err == nil {
 		return &cached, nil
 	}
@@ -128,40 +133,32 @@ func GetOrCreateTranslationDescription(translationID uuid.UUID) (*models.Transla
 		return nil, err
 	}
 
-	var translation models.Translation
-	if err := db.DB.
-		Preload("Original").
-		Preload("Translation").
-		Where("id = ?", translationID).
-		Take(&translation).Error; err != nil {
+	var word models.Word
+	if err := db.DB.Where("id = ?", wordID).Take(&word).Error; err != nil {
 		return nil, err
-	}
-	if translation.Original == nil || translation.Translation == nil {
-		return nil, errors.New("translation words are missing")
 	}
 
 	generated, err := openrouter.NewClient().GenerateDescription(
-		translation.Translation.Word,
-		translation.Translation.Language.DisplayName(),
-		translation.Original.Language.DisplayName(),
+		word.Word,
+		word.Language.DisplayName(),
+		word.Language.DisplayName(),
 	)
 	if err != nil {
 		return nil, errors.Join(ErrDescriptionGenerationFailed, err)
 	}
 	description := strings.TrimSpace(generated.Description)
 	if description == "" || len([]rune(description)) > maxDescriptionRunes ||
-		descriptionMentionsAnswer(description, translation.Original.Word) ||
-		descriptionMentionsAnswer(description, translation.Translation.Word) {
+		descriptionMentionsAnswer(description, word.Word) {
 		return nil, ErrDescriptionGenerationFailed
 	}
 
-	created := models.TranslationDescription{
-		TranslationID: translation.ID,
-		Model:         model,
-		Description:   description,
+	created := models.WordDescription{
+		WordID:      word.ID,
+		Model:       model,
+		Description: description,
 	}
 	result := db.DB.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "translation_id"}, {Name: "model"}},
+		Columns:   []clause.Column{{Name: "word_id"}, {Name: "model"}},
 		DoNothing: true,
 	}).Create(&created)
 	if result.Error != nil {
@@ -171,7 +168,7 @@ func GetOrCreateTranslationDescription(translationID uuid.UUID) (*models.Transla
 		return &created, nil
 	}
 
-	if err := db.DB.Where("translation_id = ? AND model = ?", translationID, model).Take(&cached).Error; err != nil {
+	if err := db.DB.Where("word_id = ? AND model = ?", wordID, model).Take(&cached).Error; err != nil {
 		return nil, err
 	}
 	return &cached, nil

@@ -865,6 +865,7 @@ func TestRandomExerciseUserPathCompletesAndAppearsInHistory(t *testing.T) {
 		enums.ExerciseTypeCharactersReversed,
 		enums.ExerciseTypeAudioDirect,
 		enums.ExerciseTypeAudioReversed,
+		enums.ExerciseTypeDescriptionDirect,
 		enums.ExerciseTypeDescriptionReversed,
 	}, body.Type)
 
@@ -876,19 +877,22 @@ func TestRandomExerciseUserPathCompletesAndAppearsInHistory(t *testing.T) {
 
 	// Question word matches expected direction. Words are seeded with their raw
 	// casing directly in the DB (no service-level normalization here).
-	if body.Type == enums.ExerciseTypeBasicReversed ||
-		body.Type == enums.ExerciseTypeCharactersReversed ||
-		body.Type == enums.ExerciseTypeAudioReversed ||
-		body.Type == enums.ExerciseTypeDescriptionReversed {
+	if body.Type == enums.ExerciseTypeDescriptionReversed {
+		assert.Empty(t, body.QuestionWord)
+		assert.NotEmpty(t, body.Description)
+		assert.Equal(t, enums.LanguageDe, body.Language)
+		assert.Equal(t, enums.LanguageDe, body.AnswerLanguage)
+	} else if body.Type == enums.ExerciseTypeDescriptionDirect {
 		assert.Equal(t, enums.LanguageEn, body.AnswerLanguage)
-		if body.Type == enums.ExerciseTypeDescriptionReversed {
-			assert.Empty(t, body.QuestionWord)
-			assert.NotEmpty(t, body.Description)
-			assert.Equal(t, enums.LanguageEn, body.Language)
-		} else {
-			assert.Equal(t, "Hund", body.QuestionWord)
-			assert.Equal(t, enums.LanguageDe, body.Language)
-		}
+		assert.Empty(t, body.QuestionWord)
+		assert.NotEmpty(t, body.Description)
+		assert.Equal(t, enums.LanguageEn, body.Language)
+	} else if body.Type == enums.ExerciseTypeBasicReversed ||
+		body.Type == enums.ExerciseTypeCharactersReversed ||
+		body.Type == enums.ExerciseTypeAudioReversed {
+		assert.Equal(t, enums.LanguageEn, body.AnswerLanguage)
+		assert.Equal(t, "Hund", body.QuestionWord)
+		assert.Equal(t, enums.LanguageDe, body.Language)
 		if body.Type == enums.ExerciseTypeCharactersReversed {
 			assert.ElementsMatch(t, []string{"d", "o", "g"}, body.Options)
 		}

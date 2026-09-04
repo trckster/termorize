@@ -43,10 +43,7 @@ func VerifyExerciseAnswer(exerciseID uuid.UUID, userID uint, answer string) (*Ve
 		return nil, ErrExerciseVocabularyDeleted
 	}
 
-	expectedAnswer := correctVocabulary.TranslationWord
-	if isReversedExerciseType(exercise.Type) {
-		expectedAnswer = correctVocabulary.OriginalWord
-	}
+	expectedAnswer := exerciseAnswerWord(exercise.Type, correctVocabulary.OriginalWord, correctVocabulary.TranslationWord)
 
 	normalizedAnswer := normalizeAnswer(answer)
 	normalizedExpectedAnswer := normalizeAnswer(expectedAnswer)
@@ -128,10 +125,7 @@ func VerifyExerciseChoice(exerciseID uuid.UUID, userID uint, selectedVocabularyI
 		return nil, ErrExerciseVocabularyDeleted
 	}
 
-	correctAnswer := correctVocabulary.TranslationWord
-	if isReversedExerciseType(exercise.Type) {
-		correctAnswer = correctVocabulary.OriginalWord
-	}
+	correctAnswer := exerciseAnswerWord(exercise.Type, correctVocabulary.OriginalWord, correctVocabulary.TranslationWord)
 
 	var updated bool
 	var knowledge int
@@ -177,7 +171,7 @@ func exerciseProgressDeltasForType(exerciseType enums.ExerciseType) exerciseProg
 	switch exerciseType {
 	case enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed,
 		enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed,
-		enums.ExerciseTypeDescriptionReversed:
+		enums.ExerciseTypeDescriptionDirect, enums.ExerciseTypeDescriptionReversed:
 		return exerciseProgressDeltas{
 			Correct: ExerciseBasicCorrectProgressDelta,
 			Almost:  ExerciseBasicAlmostProgressDelta,
@@ -215,6 +209,19 @@ func isReversedExerciseType(exerciseType enums.ExerciseType) bool {
 	}
 }
 
+func exerciseAnswerWord(exerciseType enums.ExerciseType, originalWord, translationWord string) string {
+	if exerciseType == enums.ExerciseTypeDescriptionDirect {
+		return originalWord
+	}
+	if exerciseType == enums.ExerciseTypeDescriptionReversed {
+		return translationWord
+	}
+	if isReversedExerciseType(exerciseType) {
+		return originalWord
+	}
+	return translationWord
+}
+
 func isCharacterExerciseType(exerciseType enums.ExerciseType) bool {
 	switch exerciseType {
 	case enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed:
@@ -242,5 +249,5 @@ func isAudioExerciseType(exerciseType enums.ExerciseType) bool {
 }
 
 func isDescriptionExerciseType(exerciseType enums.ExerciseType) bool {
-	return exerciseType == enums.ExerciseTypeDescriptionReversed
+	return exerciseType == enums.ExerciseTypeDescriptionDirect || exerciseType == enums.ExerciseTypeDescriptionReversed
 }

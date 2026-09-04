@@ -201,7 +201,7 @@ func IgnoreDuePendingExercisesWithoutActiveVocabulary(now time.Time) error {
 				FROM exercises AS e
 				WHERE e.deleted_at IS NULL
 					AND e.status = ?
-					AND e.type IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+					AND e.type IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 					AND e.scheduled_for <= ?
 					AND (
 						(e.type <> ? AND NOT EXISTS (
@@ -236,6 +236,7 @@ func IgnoreDuePendingExercisesWithoutActiveVocabulary(now time.Time) error {
 			enums.ExerciseTypeCharactersReversed,
 			enums.ExerciseTypeAudioDirect,
 			enums.ExerciseTypeAudioReversed,
+			enums.ExerciseTypeDescriptionDirect,
 			enums.ExerciseTypeDescriptionReversed,
 			enums.ExerciseTypeMatchPairs,
 			now,
@@ -254,7 +255,7 @@ func IgnoreDuePendingExercisesWithoutActiveVocabulary(now time.Time) error {
 			SET status = ?, finished_at = ?
 			WHERE e.deleted_at IS NULL
 				AND e.status = ?
-				AND e.type IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				AND e.type IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				AND e.scheduled_for <= ?
 				AND (
 					(e.type <> ? AND NOT EXISTS (
@@ -272,7 +273,7 @@ func IgnoreDuePendingExercisesWithoutActiveVocabulary(now time.Time) error {
 							AND ve.is_correct = true
 					) <> ?)
 				)
-		`, enums.ExerciseStatusIgnored, now, enums.ExerciseStatusPending, enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed, enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed, enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed, enums.ExerciseTypeDescriptionReversed, enums.ExerciseTypeMatchPairs, now, enums.ExerciseTypeMatchPairs, enums.ExerciseTypeMatchPairs, matchPairsVocabularyCount).Error
+		`, enums.ExerciseStatusIgnored, now, enums.ExerciseStatusPending, enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed, enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed, enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed, enums.ExerciseTypeDescriptionDirect, enums.ExerciseTypeDescriptionReversed, enums.ExerciseTypeMatchPairs, now, enums.ExerciseTypeMatchPairs, enums.ExerciseTypeMatchPairs, matchPairsVocabularyCount).Error
 	})
 }
 

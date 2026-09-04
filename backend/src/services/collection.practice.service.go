@@ -159,7 +159,11 @@ func createCollectionPracticeTargetExercise(
 	}
 	var description string
 	if isDescriptionExerciseType(exerciseType) {
-		generated, generationErr := GetOrCreateTranslationDescription(vocabulary.Translation.ID)
+		descriptionWordID := vocabulary.Translation.Original.ID
+		if isReversedExerciseType(exerciseType) {
+			descriptionWordID = vocabulary.Translation.Translation.ID
+		}
+		generated, generationErr := GetOrCreateWordDescription(descriptionWordID)
 		if generationErr != nil {
 			exerciseType, options, err = selectCollectionPracticeExerciseType(optionsByType, excludeAudio, true)
 			if err != nil {
@@ -172,8 +176,7 @@ func createCollectionPracticeTargetExercise(
 		} else {
 			description = generated.Description
 			questionWord = ""
-			language = vocabulary.Translation.Original.Language
-			answerLanguage = vocabulary.Translation.Original.Language
+			answerLanguage = language
 		}
 	}
 
@@ -193,7 +196,7 @@ func createCollectionPracticeTargetExercise(
 			eligible, eligibilityErr := lockDescriptionLanguageEligibility(
 				tx,
 				userID,
-				vocabulary.Translation.Original.Language,
+				language,
 			)
 			if eligibilityErr != nil {
 				return eligibilityErr
@@ -281,9 +284,12 @@ func buildCollectionPracticeOptionsByType(
 		if !ignoredAudioLanguageWithDB(db.DB, userID, spokenLanguage) {
 			optionsByType[audioType] = append([]exerciseChoiceCandidate(nil), options[:1]...)
 		}
-		if isReversedExerciseType(exerciseType) &&
-			descriptionLanguageEligibleWithDB(db.DB, userID, vocabulary.Translation.Original.Language) {
-			optionsByType[enums.ExerciseTypeDescriptionReversed] = append([]exerciseChoiceCandidate(nil), options[:1]...)
+		descriptionType := enums.ExerciseTypeDescriptionDirect
+		if isReversedExerciseType(exerciseType) {
+			descriptionType = enums.ExerciseTypeDescriptionReversed
+		}
+		if descriptionLanguageEligibleWithDB(db.DB, userID, spokenLanguage) {
+			optionsByType[descriptionType] = append([]exerciseChoiceCandidate(nil), options[:1]...)
 		}
 
 		characterType := enums.ExerciseTypeCharactersDirect
@@ -433,6 +439,7 @@ func selectCollectionPracticeExerciseType(
 	}
 	if !excludeDescription {
 		groups = append(groups, exerciseTypeGroup{weight: descriptionExerciseWeight, types: []enums.ExerciseType{
+			enums.ExerciseTypeDescriptionDirect,
 			enums.ExerciseTypeDescriptionReversed,
 		}})
 	}

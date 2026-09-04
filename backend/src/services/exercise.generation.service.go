@@ -119,7 +119,11 @@ func createRandomExerciseForVocabulary(userID uint, vocabularyID uuid.UUID, requ
 	}
 	var description string
 	if isDescriptionExerciseType(exerciseType) {
-		generated, generationErr := GetOrCreateTranslationDescription(vocabulary.Translation.ID)
+		descriptionWordID := vocabulary.Translation.Original.ID
+		if isReversedExerciseType(exerciseType) {
+			descriptionWordID = vocabulary.Translation.Translation.ID
+		}
+		generated, generationErr := GetOrCreateWordDescription(descriptionWordID)
 		if generationErr != nil {
 			if len(requestedTypes) > 0 {
 				return nil, generationErr
@@ -138,8 +142,7 @@ func createRandomExerciseForVocabulary(userID uint, vocabularyID uuid.UUID, requ
 		} else {
 			description = generated.Description
 			questionWord = ""
-			language = vocabulary.Translation.Original.Language
-			answerLanguage = vocabulary.Translation.Original.Language
+			answerLanguage = language
 		}
 	}
 
@@ -156,7 +159,7 @@ func createRandomExerciseForVocabulary(userID uint, vocabularyID uuid.UUID, requ
 			eligible, eligibilityErr := lockDescriptionLanguageEligibility(
 				tx,
 				userID,
-				vocabulary.Translation.Original.Language,
+				language,
 			)
 			if eligibilityErr != nil {
 				return eligibilityErr
@@ -363,7 +366,10 @@ func selectExerciseTypeAndOptionsWithConfig(conn *gorm.DB, userID uint, vocabula
 	if !excludeDescription {
 		groups = append(groups, exerciseTypeGroup{
 			weight: descriptionExerciseWeight,
-			types:  []enums.ExerciseType{enums.ExerciseTypeDescriptionReversed},
+			types: []enums.ExerciseType{
+				enums.ExerciseTypeDescriptionDirect,
+				enums.ExerciseTypeDescriptionReversed,
+			},
 		})
 	}
 	if includeMatchPairs {
@@ -433,6 +439,9 @@ func buildExerciseOptionsByTypeWithDB(conn *gorm.DB, userID uint, vocabulary *mo
 		if strings.TrimSpace(directOptions[0].AnswerWord) != "" {
 			optionsByType[enums.ExerciseTypeCharactersDirect] = append([]exerciseChoiceCandidate(nil), directOptions[:1]...)
 		}
+		if descriptionLanguageEligibleWithDB(conn, userID, vocabulary.Translation.Original.Language) {
+			optionsByType[enums.ExerciseTypeDescriptionDirect] = append([]exerciseChoiceCandidate(nil), directOptions[:1]...)
+		}
 	}
 	if len(directOptions) == choiceExerciseVocabularyCount {
 		optionsByType[enums.ExerciseTypeChoiceDirect] = shuffledExerciseOptions(directOptions)
@@ -450,7 +459,7 @@ func buildExerciseOptionsByTypeWithDB(conn *gorm.DB, userID uint, vocabulary *mo
 		if strings.TrimSpace(reversedOptions[0].AnswerWord) != "" {
 			optionsByType[enums.ExerciseTypeCharactersReversed] = append([]exerciseChoiceCandidate(nil), reversedOptions[:1]...)
 		}
-		if descriptionLanguageEligibleWithDB(conn, userID, vocabulary.Translation.Original.Language) {
+		if descriptionLanguageEligibleWithDB(conn, userID, vocabulary.Translation.Translation.Language) {
 			optionsByType[enums.ExerciseTypeDescriptionReversed] = append([]exerciseChoiceCandidate(nil), reversedOptions[:1]...)
 		}
 	}

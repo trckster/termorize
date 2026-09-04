@@ -79,8 +79,14 @@ func processDueExercises() {
 		if exercise.IsKnownVocabularyRepetition {
 			questionText = telegram.BuildKnownVocabularyRepetitionQuestion(questionText, texts)
 		}
-		if exercise.ExerciseType == enums.ExerciseTypeDescriptionReversed {
-			eligible, checkErr := services.IsDescriptionLanguageEligible(exercise.UserID, exercise.OriginalLanguage)
+		if isDescriptionExerciseType(exercise.ExerciseType) {
+			descriptionWordID := exercise.OriginalWordID
+			descriptionLanguage := exercise.OriginalLanguage
+			if exercise.ExerciseType == enums.ExerciseTypeDescriptionReversed {
+				descriptionWordID = exercise.TranslationWordID
+				descriptionLanguage = exercise.TranslationLanguage
+			}
+			eligible, checkErr := services.IsDescriptionLanguageEligible(exercise.UserID, descriptionLanguage)
 			if checkErr != nil {
 				logger.L().Warnw("failed to check description language", "error", checkErr, "exercise_id", exercise.ExerciseID)
 				continue
@@ -92,7 +98,7 @@ func processDueExercises() {
 				continue
 			}
 
-			description, loadErr := services.GetOrCreateTranslationDescription(exercise.TranslationID)
+			description, loadErr := services.GetOrCreateWordDescription(descriptionWordID)
 			if loadErr != nil {
 				logger.L().Warnw("replacing description exercise after generation failed", "error", loadErr, "exercise_id", exercise.ExerciseID)
 				if _, replaceErr := services.ReplacePendingDescriptionExercise(exercise.ExerciseID, true); replaceErr != nil {
@@ -100,7 +106,7 @@ func processDueExercises() {
 				}
 				continue
 			}
-			eligible, checkErr = services.IsDescriptionLanguageEligible(exercise.UserID, exercise.OriginalLanguage)
+			eligible, checkErr = services.IsDescriptionLanguageEligible(exercise.UserID, descriptionLanguage)
 			if checkErr != nil {
 				logger.L().Warnw("failed final description language check", "error", checkErr, "exercise_id", exercise.ExerciseID)
 				continue
@@ -118,7 +124,7 @@ func processDueExercises() {
 				}
 				continue
 			}
-			questionText = telegram.BuildDescriptionExerciseQuestion(description.Description, exercise.OriginalLanguage, texts)
+			questionText = telegram.BuildDescriptionExerciseQuestion(description.Description, descriptionLanguage, texts)
 		}
 
 		var (
@@ -331,11 +337,15 @@ func isSupportedExerciseType(exerciseType enums.ExerciseType) bool {
 		enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed,
 		enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed,
 		enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed,
-		enums.ExerciseTypeDescriptionReversed:
+		enums.ExerciseTypeDescriptionDirect, enums.ExerciseTypeDescriptionReversed:
 		return true
 	default:
 		return false
 	}
+}
+
+func isDescriptionExerciseType(exerciseType enums.ExerciseType) bool {
+	return exerciseType == enums.ExerciseTypeDescriptionDirect || exerciseType == enums.ExerciseTypeDescriptionReversed
 }
 
 func isAudioExerciseType(exerciseType enums.ExerciseType) bool {

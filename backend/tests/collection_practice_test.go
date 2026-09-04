@@ -238,11 +238,11 @@ func TestCollectionPracticeAnswerKeepsKnowledgeAndAppearsInHistory(t *testing.T)
 	testkit.DecodeJSON(t, exerciseRec, &exercise)
 
 	answer := "treno"
-	if exercise.Type == enums.ExerciseTypeBasicReversed ||
+	if exercise.Type == enums.ExerciseTypeDescriptionDirect ||
+		exercise.Type == enums.ExerciseTypeBasicReversed ||
 		exercise.Type == enums.ExerciseTypeChoiceReversed ||
 		exercise.Type == enums.ExerciseTypeCharactersReversed ||
-		exercise.Type == enums.ExerciseTypeAudioReversed ||
-		exercise.Type == enums.ExerciseTypeDescriptionReversed {
+		exercise.Type == enums.ExerciseTypeAudioReversed {
 		answer = "train"
 	}
 
@@ -665,7 +665,7 @@ func TestCollectionPracticeUserPathCompletesThroughPublicEndpoints(t *testing.T)
 	}
 	testkit.DecodeJSON(t, exerciseRec, &exercise)
 	require.NotEqual(t, uuid.Nil, exercise.ExerciseID)
-	if exercise.Type == enums.ExerciseTypeDescriptionReversed {
+	if exercise.Type == enums.ExerciseTypeDescriptionDirect || exercise.Type == enums.ExerciseTypeDescriptionReversed {
 		assert.Empty(t, exercise.QuestionWord)
 		assert.NotEmpty(t, exercise.Description)
 	} else {

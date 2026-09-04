@@ -164,7 +164,7 @@ func TestTelegramDescriptionExerciseAcceptsRegularReply(t *testing.T) {
 		MainLearningLanguage: enums.LanguageEn,
 	}))
 	vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
-	exercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeDescriptionReversed, enums.ExerciseStatusInProgress, vocabulary.ID)
+	exercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeDescriptionDirect, enums.ExerciseStatusInProgress, vocabulary.ID)
 	require.NoError(t, db.DB.Model(&models.Exercise{}).Where("id = ?", exercise.ID).Update("telegram_message_id", exerciseMessageID).Error)
 
 	update := telegramPrivateMessage(telegramID, "paper")

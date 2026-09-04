@@ -26,6 +26,7 @@ const (
 	ExerciseTypeCharactersReversed  ExerciseType = "characters/reversed"
 	ExerciseTypeAudioDirect         ExerciseType = "audio/direct"
 	ExerciseTypeAudioReversed       ExerciseType = "audio/reversed"
+	ExerciseTypeDescriptionDirect   ExerciseType = "description/direct"
 	ExerciseTypeDescriptionReversed ExerciseType = "description/reversed"
 	ExerciseTypeMatchPairs          ExerciseType = "match/pairs"
 )
