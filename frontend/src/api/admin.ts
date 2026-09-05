@@ -30,7 +30,45 @@ export type AdminWordPronunciation = {
     created_at: string
 }
 
+export type AdminWordDescription = {
+    id: string
+    word_id: string
+    word: string
+    language: string
+    model: string
+    description: string
+    created_at: string
+    approved_at: string | null
+}
+export type DescriptionModel = { id: string; name: string; tier: 'basic' | 'medium' | 'smart' }
+export type DescriptionPreview = {
+    model: string
+    description: string
+    original_description: string
+}
+
 export const adminApi = {
+    async getDescriptionModels(): Promise<DescriptionModel[]> {
+        return apiCall<DescriptionModel[]>('/admin/description-models').then(unwrapBody)
+    },
+    async getWordDescriptions(page: number, search?: string): Promise<Paginated<AdminWordDescription>> {
+        return apiCall<Paginated<AdminWordDescription>>('/admin/word-descriptions', 'GET', {
+            page,
+            page_size: 20,
+            search,
+        }).then(unwrapBody)
+    },
+    async previewWordDescription(id: string, model: string): Promise<DescriptionPreview> {
+        return apiCall<DescriptionPreview>(`/admin/word-descriptions/${encodeURIComponent(id)}/preview`, 'POST', {
+            model,
+        }).then(unwrapBody)
+    },
+    async approveWordDescription(id: string, model: string, description: string): Promise<unknown> {
+        return apiCall(`/admin/word-descriptions/${encodeURIComponent(id)}/approve`, 'POST', {
+            model,
+            description,
+        }).then(unwrapBody)
+    },
     async getUsers(): Promise<AdminUsersResponse> {
         return apiCall<AdminUsersResponse>('/admin/users').then(unwrapBody)
     },
