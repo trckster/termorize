@@ -110,11 +110,11 @@ function showWorkspace(session, selection) {
         elements.form.hidden = true
         if (selection.reason === 'too-long') {
             elements.empty.querySelector('h2').textContent = 'Selection is too long'
-            elements.empty.querySelector('p').textContent = 'Select up to 5,000 characters and open Termorize again.'
+            elements.empty.querySelector('p').textContent = 'Select up to 5,000 characters and open TermoClip again.'
         } else if (selection.reason === 'frame-unavailable') {
             elements.empty.querySelector('h2').textContent = 'Embedded selection'
             elements.empty.querySelector('p').textContent =
-                'Right-click the selected text and choose “Translate selection with Termorize.”'
+                'Right-click the selected text and choose “Translate selection with TermoClip.”'
         }
         return
     }

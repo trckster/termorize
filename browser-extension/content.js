@@ -155,7 +155,7 @@ function createButton(label, className, onClick) {
 
 function createShortcutHints() {
     const hints = createElement('aside', 'termorize-shortcut-hints')
-    hints.setAttribute('aria-label', 'Termorize keyboard shortcuts')
+    hints.setAttribute('aria-label', 'TermoClip keyboard shortcuts')
 
     const heading = createElement('div', 'termorize-shortcut-heading')
     const mark = createElement('span', 'termorize-shortcut-mark', 'T')
@@ -222,7 +222,7 @@ function createUi() {
             controls.append(createButton(action.label, 'termorize-toast-action', action.onClick))
         }
         const close = createButton('Close', 'termorize-icon-button', dismissToast)
-        close.setAttribute('aria-label', 'Close Termorize notification')
+        close.setAttribute('aria-label', 'Close TermoClip notification')
         controls.append(close)
 
         toast.append(mark, copy, controls)

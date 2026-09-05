@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Termorize for Google Translate™",
-  "short_name": "Termorize",
-  "version": "1.1.0",
+  "name": "TermoClip",
+  "short_name": "TermoClip",
+  "version": "1.1.1",
   "description": "Translate selected text anywhere and save useful word pairs to Termorize.",
   "homepage_url": "https://termorize.daniil.online",
   "minimum_chrome_version": "102",
@@ -25,7 +25,7 @@
       "suggested_key": {
         "default": "Alt+T"
       },
-      "description": "Translate the selected text with Termorize"
+      "description": "Translate the selected text with TermoClip"
     },
     "save-with-editing": {
       "suggested_key": {
@@ -59,6 +59,6 @@
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png"
     },
-    "default_title": "Translate selected text with Termorize"
+    "default_title": "Translate selected text with TermoClip"
   }
 }
