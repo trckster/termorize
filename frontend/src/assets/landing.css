@@ -921,6 +921,30 @@
     height: auto;
 }
 
+.termoclip-image-action {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--landing-line);
+    color: var(--landing-ink);
+    font-size: 0.85rem;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.termoclip-image-action svg {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+}
+
+.termoclip-image-link:hover .termoclip-image-action {
+    background: var(--landing-surface-muted);
+}
+
 .termoclip-shot figcaption {
     margin-top: 22px;
 }

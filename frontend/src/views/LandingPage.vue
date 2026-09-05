@@ -8,6 +8,7 @@ import {
     Check,
     Clock3,
     EllipsisVertical,
+    ExternalLink,
     Languages,
     Play,
     Search,
@@ -438,7 +439,7 @@ function getErrorMessage(err: unknown, fallback = 'Login failed. Please try agai
                                 href="/images/termoclip/selection.png"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                aria-label="Enlarge the TermoClip on-page translation screenshot (opens in a new tab)"
+                                aria-label="View full size: TermoClip on-page translation screenshot (opens in a new tab)"
                             >
                                 <img
                                     src="/images/termoclip/selection.png"
@@ -448,6 +449,9 @@ function getErrorMessage(err: unknown, fallback = 'Login failed. Please try agai
                                     loading="lazy"
                                     decoding="async"
                                 />
+                                <span class="termoclip-image-action">
+                                    View full size <ExternalLink aria-hidden="true" />
+                                </span>
                             </a>
                             <figcaption>
                                 <h3>A new word, without a new tab.</h3>
@@ -463,7 +467,7 @@ function getErrorMessage(err: unknown, fallback = 'Login failed. Please try agai
                                 href="/images/termoclip/popup-saved.png"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                aria-label="Enlarge the TermoClip popup screenshot (opens in a new tab)"
+                                aria-label="View full size: TermoClip popup screenshot (opens in a new tab)"
                             >
                                 <img
                                     src="/images/termoclip/popup-saved.png"
@@ -473,6 +477,9 @@ function getErrorMessage(err: unknown, fallback = 'Login failed. Please try agai
                                     loading="lazy"
                                     decoding="async"
                                 />
+                                <span class="termoclip-image-action">
+                                    View full size <ExternalLink aria-hidden="true" />
+                                </span>
                             </a>
                             <figcaption>
                                 <h3>Found it. Saved it. Practice it.</h3>
