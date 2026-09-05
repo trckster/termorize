@@ -42,11 +42,9 @@ export type AdminWordDescription = {
 }
 export type DescriptionModel = { id: string; name: string; tier: 'basic' | 'medium' | 'smart' }
 export type DescriptionPreview = {
-    id: string
     model: string
     description: string
     original_description: string
-    created_at: string
 }
 
 export const adminApi = {
@@ -65,9 +63,10 @@ export const adminApi = {
             model,
         }).then(unwrapBody)
     },
-    async approveWordDescription(id: string, previewId: string): Promise<unknown> {
+    async approveWordDescription(id: string, model: string, description: string): Promise<unknown> {
         return apiCall(`/admin/word-descriptions/${encodeURIComponent(id)}/approve`, 'POST', {
-            preview_id: previewId,
+            model,
+            description,
         }).then(unwrapBody)
     },
     async getUsers(): Promise<AdminUsersResponse> {

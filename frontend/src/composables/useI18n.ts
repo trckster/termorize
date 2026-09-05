@@ -25,11 +25,9 @@ const en = {
     descriptionsProposed: 'Proposed description',
     descriptionsApprove: 'Approve and replace',
     descriptionsCancel: 'Discard',
-    descriptionsPreviewNote:
-        'The current description stays in use until you approve. This preview expires after 24 hours.',
+    descriptionsPreviewNote: 'The current description stays in use until you approve.',
     descriptionsGenerateError: 'Could not generate a valid description. Try again or select another model.',
-    descriptionsApproveError:
-        'Could not approve this preview. It may have expired or the description changed. Generate a new preview and try again.',
+    descriptionsApproveError: 'Could not save the description. Please try again.',
     descriptionsApproved: 'Description replaced.',
     descriptionsCreated: 'Created',
     descriptionsPrevious: 'Previous',
@@ -597,11 +595,9 @@ const ru: typeof en = {
     descriptionsProposed: 'Новое описание',
     descriptionsApprove: 'Подтвердить замену',
     descriptionsCancel: 'Отклонить',
-    descriptionsPreviewNote:
-        'Текущее описание используется до подтверждения замены. Предпросмотр действителен 24 часа.',
+    descriptionsPreviewNote: 'Текущее описание используется до подтверждения замены.',
     descriptionsGenerateError: 'Не удалось создать подходящее описание. Повторите попытку или выберите другую модель.',
-    descriptionsApproveError:
-        'Не удалось подтвердить замену. Возможно, предпросмотр устарел или описание изменилось. Создайте новый предпросмотр.',
+    descriptionsApproveError: 'Не удалось сохранить описание. Попробуйте ещё раз.',
     descriptionsApproved: 'Описание заменено.',
     descriptionsCreated: 'Создано',
     descriptionsPrevious: 'Назад',

@@ -102,7 +102,7 @@ const approve = async () => {
     approving.value = true
     approvalError.value = false
     try {
-        await adminApi.approveWordDescription(original.value.id, preview.value.id)
+        await adminApi.approveWordDescription(original.value.id, preview.value.model, preview.value.description)
         if (disposed) return
         dialogOpen.value = false
         preview.value = null

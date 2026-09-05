@@ -56,7 +56,7 @@ func PreviewAdminWordDescription(c *gin.Context) {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	preview, err := services.PreviewWordDescriptionForAdmin(id, c.MustGet("userID").(uint), request.Model)
+	preview, err := services.PreviewWordDescriptionForAdmin(id, request.Model)
 	if err != nil {
 		adminDescriptionError(c, err)
 		return
@@ -74,13 +74,14 @@ func ApproveAdminWordDescription(c *gin.Context) {
 		return
 	}
 	var request struct {
-		PreviewID uuid.UUID `json:"preview_id" binding:"required"`
+		Model       string `json:"model" binding:"required"`
+		Description string `json:"description" binding:"required"`
 	}
 	if c.ShouldBindJSON(&request) != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	if err := services.ApproveWordDescriptionForAdmin(id, request.PreviewID, c.MustGet("userID").(uint)); err != nil {
+	if err := services.ApproveWordDescriptionForAdmin(id, request.Model, request.Description); err != nil {
 		adminDescriptionError(c, err)
 		return
 	}
@@ -93,8 +94,6 @@ func adminDescriptionError(c *gin.Context, err error) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		c.AbortWithStatus(http.StatusNotFound)
-	case errors.Is(err, services.ErrDescriptionPreviewConflict):
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 	default:
 		ServerError(c, err)
 	}

@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strings"
 	"testing"
-	"time"
 
 	"termorize/src/config"
 	"termorize/src/data/db"
@@ -109,14 +108,13 @@ func TestAdminDescriptionPreviewRequiresApprovalAndUsesSelectedModel(t *testing.
 			cached, err := services.GetOrCreateWordDescription(existing.WordID)
 			require.NoError(t, err)
 			assert.Equal(t, "Old clue.", cached.Description)
-			testkit.RequireStatus(t, testkit.AuthedRequest(t, admin, http.MethodPost, "/api/admin/word-descriptions/"+existing.ID.String()+"/approve", map[string]any{"preview_id": preview.ID}), http.StatusOK)
+			testkit.RequireStatus(t, testkit.AuthedRequest(t, admin, http.MethodPost, "/api/admin/word-descriptions/"+existing.ID.String()+"/approve", map[string]any{"model": preview.Model, "description": preview.Description}), http.StatusOK)
 			cached, err = services.GetOrCreateWordDescription(existing.WordID)
 			require.NoError(t, err)
 			assert.Equal(t, preview.Description, cached.Description)
 			assert.Equal(t, model, cached.Model)
 			assert.NotNil(t, cached.ApprovedAt)
 			assert.Equal(t, 1, calls, "approval must save the preview without generating another clue")
-			testkit.RequireStatus(t, testkit.AuthedRequest(t, admin, http.MethodPost, "/api/admin/word-descriptions/"+existing.ID.String()+"/approve", map[string]any{"preview_id": preview.ID}), http.StatusNotFound)
 		})
 	}
 }
@@ -131,10 +129,7 @@ func TestAdminDescriptionPreviewReturnsCurrentSnapshot(t *testing.T) {
 	preview := previewAdminDescription(t, admin, existing, config.GetOpenRouterModel())
 	require.Equal(t, "Clue updated by another admin.", preview.OriginalDescription)
 
-	var stored services.WordDescriptionPreview
-	require.NoError(t, db.DB.First(&stored, "id = ?", preview.ID).Error)
-	assert.Equal(t, stored.OriginalDescription, preview.OriginalDescription)
-	require.NoError(t, services.ApproveWordDescriptionForAdmin(existing.ID, preview.ID, admin.ID))
+	require.NoError(t, services.ApproveWordDescriptionForAdmin(existing.ID, preview.Model, preview.Description))
 }
 
 func TestAdminDescriptionRejectsInvalidPreviewAndPreservesCache(t *testing.T) {
@@ -166,49 +161,35 @@ func TestAdminDescriptionRejectsInvalidPreviewAndPreservesCache(t *testing.T) {
 			cached, err := services.GetOrCreateWordDescription(existing.WordID)
 			require.NoError(t, err)
 			assert.Equal(t, "Old clue.", cached.Description)
-			var count int64
-			require.NoError(t, db.DB.Model(&services.WordDescriptionPreview{}).Count(&count).Error)
-			assert.Zero(t, count)
 		})
 	}
 }
 
-func TestAdminDescriptionPreviewOwnershipExpiryAndConflicts(t *testing.T) {
-	for _, scenario := range []string{"owner", "expired", "changed", "wrong-description", "unsupported"} {
-		t.Run(scenario, func(t *testing.T) {
-			testkit.Truncate(t)
-			admin := testkit.CreateUser(t, testkit.WithAdmin())
-			existing := seedAdminDescription(t, "cat", "Old clue.")
-			path := "/api/admin/word-descriptions/" + existing.ID.String()
-			if scenario == "unsupported" {
-				testkit.RequireStatus(t, testkit.AuthedRequest(t, admin, http.MethodPost, path+"/preview", map[string]any{"model": "arbitrary/model"}), http.StatusBadRequest)
-				return
-			}
-			preview := previewAdminDescription(t, admin, existing, config.GetOpenRouterModel())
-			expected := http.StatusConflict
-			switch scenario {
-			case "owner":
-				admin = testkit.CreateUser(t, testkit.WithAdmin())
-				expected = http.StatusNotFound
-			case "expired":
-				require.NoError(t, db.DB.Model(&services.WordDescriptionPreview{}).Where("id = ?", preview.ID).Update("created_at", time.Now().Add(-25*time.Hour)).Error)
-			case "changed":
-				require.NoError(t, db.DB.Model(&existing).Update("description", "Newer clue.").Error)
-			case "wrong-description":
-				other := seedAdminDescription(t, "dog", "Another clue.")
-				path = "/api/admin/word-descriptions/" + other.ID.String()
-				expected = http.StatusNotFound
-			}
-			testkit.RequireStatus(t, testkit.AuthedRequest(t, admin, http.MethodPost, path+"/approve", map[string]any{"preview_id": preview.ID, "description": "Tampered clue"}), expected)
-			cached, err := services.GetOrCreateWordDescription(existing.WordID)
-			require.NoError(t, err)
-			if scenario == "changed" {
-				assert.Equal(t, "Newer clue.", cached.Description)
-			} else {
-				assert.Equal(t, "Old clue.", cached.Description)
-			}
-		})
-	}
+func TestAdminDescriptionApprovalSavesSubmittedValuesWithoutPreview(t *testing.T) {
+	testkit.Truncate(t)
+	admin := testkit.CreateUser(t, testkit.WithAdmin())
+	existing := seedAdminDescription(t, "cat", "Old clue.")
+	mockAdminDescription(t, &testkit.FakeOpenRouter{GenerateDescriptionFunc: func(string, string, string) (*openrouter.GeneratedDescription, error) {
+		t.Fatal("approval must not generate a description")
+		return nil, nil
+	}}, "openai/gpt-5.6-sol")
+	submitted := "A description accepted by the admin."
+	rec := testkit.AuthedRequest(t, admin, http.MethodPost, "/api/admin/word-descriptions/"+existing.ID.String()+"/approve",
+		map[string]any{"model": "openai/gpt-5.6-sol", "description": submitted})
+	testkit.RequireStatus(t, rec, http.StatusOK)
+	cached, err := services.GetOrCreateWordDescription(existing.WordID)
+	require.NoError(t, err)
+	assert.Equal(t, submitted, cached.Description)
+	assert.Equal(t, "openai/gpt-5.6-sol", cached.Model)
+	assert.NotNil(t, cached.ApprovedAt)
+}
+
+func TestAdminDescriptionPreviewRejectsUnsupportedModel(t *testing.T) {
+	testkit.Truncate(t)
+	admin := testkit.CreateUser(t, testkit.WithAdmin())
+	existing := seedAdminDescription(t, "cat", "Old clue.")
+	testkit.RequireStatus(t, testkit.AuthedRequest(t, admin, http.MethodPost,
+		"/api/admin/word-descriptions/"+existing.ID.String()+"/preview", map[string]any{"model": "arbitrary/model"}), http.StatusBadRequest)
 }
 
 func TestAdminDescriptionApprovalReplacesExistingModelCache(t *testing.T) {
@@ -218,7 +199,7 @@ func TestAdminDescriptionApprovalReplacesExistingModelCache(t *testing.T) {
 	other := models.WordDescription{WordID: existing.WordID, Model: "moonshotai/kimi-k2.6", Description: "Previous Kimi clue."}
 	require.NoError(t, db.DB.Create(&other).Error)
 	preview := previewAdminDescription(t, admin, existing, other.Model)
-	require.NoError(t, services.ApproveWordDescriptionForAdmin(existing.ID, preview.ID, admin.ID))
+	require.NoError(t, services.ApproveWordDescriptionForAdmin(existing.ID, preview.Model, preview.Description))
 	cached, err := services.GetOrCreateWordDescription(existing.WordID)
 	require.NoError(t, err)
 	assert.Equal(t, preview.Description, cached.Description)
