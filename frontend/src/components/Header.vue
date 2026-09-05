@@ -60,25 +60,14 @@
                 </router-link>
                 <router-link
                     v-if="user?.is_admin"
-                    to="/users"
-                    :aria-current="route.path === '/users' ? 'page' : undefined"
+                    to="/admin"
+                    :aria-current="route.path.startsWith('/admin') ? 'page' : undefined"
                     :class="[
                         'text-sm font-medium transition-colors hover:text-foreground',
-                        route.path === '/users' ? 'text-foreground' : 'text-muted-foreground',
+                        route.path.startsWith('/admin') ? 'text-foreground' : 'text-muted-foreground',
                     ]"
                 >
-                    {{ t.navUsers }}
-                </router-link>
-                <router-link
-                    v-if="user?.is_admin"
-                    to="/word-audios"
-                    :aria-current="route.path === '/word-audios' ? 'page' : undefined"
-                    :class="[
-                        'text-sm font-medium transition-colors hover:text-foreground',
-                        route.path === '/word-audios' ? 'text-foreground' : 'text-muted-foreground',
-                    ]"
-                >
-                    {{ t.navWordAudios }}
+                    {{ t.navAdmin }}
                 </router-link>
             </nav>
 
@@ -132,22 +121,12 @@
 
                         <button
                             v-if="user?.is_admin"
-                            @click="goToUsers"
+                            @click="goToAdmin"
                             role="menuitem"
                             class="flex min-h-11 w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium transition-colors hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
-                            <Users class="h-4 w-4" />
-                            <span>{{ t.navUsers }}</span>
-                        </button>
-
-                        <button
-                            v-if="user?.is_admin"
-                            @click="goToWordAudios"
-                            role="menuitem"
-                            class="flex min-h-11 w-full items-center gap-2 rounded-sm px-2 py-2 text-sm font-medium transition-colors hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        >
-                            <AudioLines class="h-4 w-4" />
-                            <span>{{ t.navWordAudios }}</span>
+                            <Shield class="h-4 w-4" />
+                            <span>{{ t.navAdmin }}</span>
                         </button>
 
                         <button
@@ -192,7 +171,7 @@
 import { computed, nextTick, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { Sun, Moon, ChevronDown, Settings, LogOut, UserRound, Users, AudioLines } from 'lucide-vue-next'
+import { Sun, Moon, ChevronDown, Settings, LogOut, UserRound, Shield } from 'lucide-vue-next'
 import { ToggleSwitch } from '@/components/ui/toggle-switch'
 import { isTelegramWebApp } from '@/lib/telegram.ts'
 import { useI18n } from '@/composables/useI18n'
@@ -254,14 +233,9 @@ const goToSettings = () => {
     router.push('/settings')
 }
 
-const goToUsers = () => {
+const goToAdmin = () => {
     closeProfileMenu()
-    router.push('/users')
-}
-
-const goToWordAudios = () => {
-    closeProfileMenu()
-    router.push('/word-audios')
+    router.push('/admin')
 }
 
 const handleLogout = async () => {
