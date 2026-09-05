@@ -164,9 +164,9 @@
                 <header class="header">
                     <div class="brand">
                         <span class="mark" aria-hidden="true">T</span>
-                        <div><h2 id="termorize-selection-title">Termorize</h2><p class="subtitle">Selected-text translation</p></div>
+                        <div><h2 id="termorize-selection-title">TermoClip</h2><p class="subtitle">Selected-text translation</p></div>
                     </div>
-                    <button class="close" type="button" aria-label="Close Termorize"></button>
+                    <button class="close" type="button" aria-label="Close TermoClip"></button>
                 </header>
                 <div class="loading state"><p>Loading your language settings…</p></div>
                 <div class="signed-out state" hidden>
@@ -386,7 +386,7 @@
             } else if (selection?.reason === 'frame-unavailable') {
                 overlayElements.empty.querySelector('h2').textContent = 'Embedded selection'
                 overlayElements.empty.querySelector('p').textContent =
-                    'Right-click the selected text and choose “Translate selection with Termorize.”'
+                    'Right-click the selected text and choose “Translate selection with TermoClip.”'
                 positionHost(anchorRect)
             }
             return

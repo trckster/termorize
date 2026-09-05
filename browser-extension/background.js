@@ -489,7 +489,7 @@ function registerContextMenuHandler(chromeApi = chrome) {
     chromeApi.contextMenus.create(
         {
             id: SELECTION_CONTEXT_MENU_ID,
-            title: 'Translate selection with Termorize',
+            title: 'Translate selection with TermoClip',
             contexts: ['selection'],
         },
         () => void chromeApi.runtime.lastError

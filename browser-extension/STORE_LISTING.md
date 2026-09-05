@@ -1,12 +1,12 @@
 # Chrome Web Store listing
 
-This is the copy-and-paste source of truth for the Termorize extension listing. It matches version `1.1.0` and the disclosures in the public privacy policy.
+This is the copy-and-paste source of truth for the TermoClip extension listing. It matches version `1.1.1` and the disclosures in the public privacy policy.
 
 ## Product details
 
 **Name**
 
-Termorize for Google Translate™
+TermoClip
 
 **Summary**
 
@@ -18,7 +18,7 @@ Move useful words from any page into Termorize without copying and pasting.
 
 - Select text anywhere and press Alt+T to translate it in a compact on-page editor.
 - Translate text inside a cross-origin embedded frame from the selection context menu.
-- Click the Termorize icon to translate the current selection in the extension popup.
+- Click the TermoClip icon to translate the current selection in the extension popup.
 - Change the target language and get an updated translation immediately.
 - Edit either side before saving, or save the generated translation unchanged.
 - Press Ctrl+E to review and edit the current word pair before saving it.
@@ -30,7 +30,7 @@ The extension supports English, Russian, Italian, German, Spanish, French, Polis
 
 A Termorize session is required. You can sign in through Telegram or use a temporary guest account from the Termorize home page. If a shortcut conflicts with another browser command, it can be reassigned at `chrome://extensions/shortcuts`.
 
-Google Translate is a trademark of Google LLC. Termorize for Google Translate™ is an independent extension and is not affiliated with, sponsored by, or endorsed by Google LLC.
+Google Translate is a trademark of Google LLC. TermoClip is an independent extension and is not affiliated with, sponsored by, or endorsed by Google LLC.
 
 **Category**
 
@@ -60,11 +60,11 @@ Translate text selected by the user and optionally save the resulting word pair 
 
 **`cookies`**
 
-Reads only the `auth` cookie for `termorize.daniil.online` when the user opens or invokes Termorize. The cookie authenticates account settings, translation, and save requests. The extension does not read cookies from other sites.
+Reads only the `auth` cookie for `termorize.daniil.online` when the user opens or invokes TermoClip. The cookie authenticates account settings, translation, and save requests. The extension does not read cookies from other sites.
 
 **`activeTab`**
 
-Temporarily accesses only the active tab after the user clicks the extension icon, invokes Alt+T, or chooses the Termorize selection context-menu action. This access is used to read or display the text the user selected.
+Temporarily accesses only the active tab after the user clicks the extension icon, invokes Alt+T, or chooses the TermoClip selection context-menu action. This access is used to read or display the text the user selected.
 
 **`contextMenus`**
 
@@ -103,7 +103,7 @@ No private test account is required.
 
 1. Open https://termorize.daniil.online and choose **Just Try** to create a temporary guest session.
 2. Select a phrase on any ordinary HTTPS page and press **Alt+T**. Confirm that the on-page panel detects its language and displays a translation.
-3. Select text inside a cross-origin embedded frame, right-click it, and choose **Translate selection with Termorize**. Confirm that the same editor opens over the main page.
+3. Select text inside a cross-origin embedded frame, right-click it, and choose **Translate selection with TermoClip**. Confirm that the same editor opens over the main page.
 4. Change the target language and confirm the translation updates. Edit either field and save it.
 5. Open https://translate.google.com/?sl=it&tl=en&text=buongiorno&op=translate and confirm that the Ctrl+E and Ctrl+S hints are visible.
 6. Press **Ctrl+E** to review the pair, then test **Ctrl+S** with a different word.
