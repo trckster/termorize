@@ -149,14 +149,35 @@ func createCollectionPracticeTargetExercise(
 		return nil, err
 	}
 
-	exerciseType, options, err := selectCollectionPracticeExerciseType(optionsByType, excludeAudio)
+	exerciseType, options, err := selectCollectionPracticeExerciseType(optionsByType, excludeAudio, false)
 	if err != nil {
 		return nil, err
 	}
-
 	questionWord, language, answerLanguage, err := buildExerciseQuestionData(vocabulary, exerciseType)
 	if err != nil {
 		return nil, err
+	}
+	var description string
+	if isDescriptionExerciseType(exerciseType) {
+		descriptionWordID := vocabulary.Translation.Original.ID
+		if isReversedExerciseType(exerciseType) {
+			descriptionWordID = vocabulary.Translation.Translation.ID
+		}
+		generated, generationErr := GetOrCreateWordDescription(descriptionWordID)
+		if generationErr != nil {
+			exerciseType, options, err = selectCollectionPracticeExerciseType(optionsByType, excludeAudio, true)
+			if err != nil {
+				return nil, err
+			}
+			questionWord, language, answerLanguage, err = buildExerciseQuestionData(vocabulary, exerciseType)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			description = generated.Description
+			questionWord = ""
+			answerLanguage = language
+		}
 	}
 
 	now := time.Now().UTC()
@@ -169,13 +190,41 @@ func createCollectionPracticeTargetExercise(
 		PracticeCollectionID:    &collection.ID,
 		PracticeCollectionTitle: &collectionTitle,
 	}
+	showIgnoreLanguageSuggestion := false
 
 	err = db.DB.Transaction(func(tx *gorm.DB) error {
+		if isDescriptionExerciseType(exerciseType) {
+			eligible, eligibilityErr := lockDescriptionLanguageEligibility(
+				tx,
+				userID,
+				language,
+			)
+			if eligibilityErr != nil {
+				return eligibilityErr
+			}
+			if !eligible {
+				exerciseType, options, err = selectCollectionPracticeExerciseType(optionsByType, excludeAudio, true)
+				if err != nil {
+					return err
+				}
+				questionWord, language, answerLanguage, err = buildExerciseQuestionData(vocabulary, exerciseType)
+				if err != nil {
+					return err
+				}
+				description = ""
+			}
+		}
+
+		exercise.Type = exerciseType
 		if err := tx.Create(&exercise).Error; err != nil {
 			return err
 		}
 
-		return createExerciseVocabularyLinks(tx, exercise.ID, vocabulary.ID, options)
+		if err := createExerciseVocabularyLinks(tx, exercise.ID, vocabulary.ID, options); err != nil {
+			return err
+		}
+		showIgnoreLanguageSuggestion, err = reserveLanguageSuggestionForExerciseWithDB(tx, userID, exerciseType, language)
+		return err
 	})
 	if err != nil {
 		return nil, err
@@ -193,15 +242,16 @@ func createCollectionPracticeTargetExercise(
 		}
 		audioWordID = &wordID
 	}
-
 	return &RandomExerciseResult{
-		ExerciseID:     exercise.ID,
-		Type:           exerciseType,
-		QuestionWord:   questionWord,
-		Language:       language,
-		AnswerLanguage: answerLanguage,
-		AudioWordID:    audioWordID,
-		Options:        resultOptions,
+		ExerciseID:                   exercise.ID,
+		Type:                         exerciseType,
+		QuestionWord:                 questionWord,
+		Language:                     language,
+		AnswerLanguage:               answerLanguage,
+		AudioWordID:                  audioWordID,
+		Options:                      resultOptions,
+		Description:                  description,
+		ShowIgnoreLanguageSuggestion: showIgnoreLanguageSuggestion,
 	}, nil
 }
 
@@ -238,6 +288,13 @@ func buildCollectionPracticeOptionsByType(
 		}
 		if !ignoredAudioLanguageWithDB(db.DB, userID, spokenLanguage) {
 			optionsByType[audioType] = append([]exerciseChoiceCandidate(nil), options[:1]...)
+		}
+		descriptionType := enums.ExerciseTypeDescriptionDirect
+		if isReversedExerciseType(exerciseType) {
+			descriptionType = enums.ExerciseTypeDescriptionReversed
+		}
+		if descriptionLanguageEligibleWithDB(db.DB, userID, spokenLanguage) {
+			optionsByType[descriptionType] = append([]exerciseChoiceCandidate(nil), options[:1]...)
 		}
 
 		characterType := enums.ExerciseTypeCharactersDirect
@@ -358,7 +415,7 @@ func getCollectionPracticeDistractors(
 
 func selectCollectionPracticeExerciseType(
 	optionsByType map[enums.ExerciseType][]exerciseChoiceCandidate,
-	excludeAudio bool,
+	excludeAudio, excludeDescription bool,
 ) (enums.ExerciseType, []exerciseChoiceCandidate, error) {
 	type exerciseTypeGroup struct {
 		weight int
@@ -383,6 +440,12 @@ func selectCollectionPracticeExerciseType(
 		groups = append(groups, exerciseTypeGroup{weight: audioExerciseWeight, types: []enums.ExerciseType{
 			enums.ExerciseTypeAudioDirect,
 			enums.ExerciseTypeAudioReversed,
+		}})
+	}
+	if !excludeDescription {
+		groups = append(groups, exerciseTypeGroup{weight: descriptionExerciseWeight, types: []enums.ExerciseType{
+			enums.ExerciseTypeDescriptionDirect,
+			enums.ExerciseTypeDescriptionReversed,
 		}})
 	}
 

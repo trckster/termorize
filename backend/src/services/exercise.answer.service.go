@@ -43,10 +43,7 @@ func VerifyExerciseAnswer(exerciseID uuid.UUID, userID uint, answer string) (*Ve
 		return nil, ErrExerciseVocabularyDeleted
 	}
 
-	expectedAnswer := correctVocabulary.TranslationWord
-	if isReversedExerciseType(exercise.Type) {
-		expectedAnswer = correctVocabulary.OriginalWord
-	}
+	expectedAnswer := exerciseAnswerWord(exercise.Type, correctVocabulary.OriginalWord, correctVocabulary.TranslationWord)
 
 	normalizedAnswer := normalizeAnswer(answer)
 	normalizedExpectedAnswer := normalizeAnswer(expectedAnswer)
@@ -128,10 +125,7 @@ func VerifyExerciseChoice(exerciseID uuid.UUID, userID uint, selectedVocabularyI
 		return nil, ErrExerciseVocabularyDeleted
 	}
 
-	correctAnswer := correctVocabulary.TranslationWord
-	if isReversedExerciseType(exercise.Type) {
-		correctAnswer = correctVocabulary.OriginalWord
-	}
+	correctAnswer := exerciseAnswerWord(exercise.Type, correctVocabulary.OriginalWord, correctVocabulary.TranslationWord)
 
 	var updated bool
 	var knowledge int
@@ -176,7 +170,8 @@ func exerciseProgressDelta(exercise *models.Exercise, regularDelta int) int {
 func exerciseProgressDeltasForType(exerciseType enums.ExerciseType) exerciseProgressDeltas {
 	switch exerciseType {
 	case enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed,
-		enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed:
+		enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed,
+		enums.ExerciseTypeDescriptionDirect, enums.ExerciseTypeDescriptionReversed:
 		return exerciseProgressDeltas{
 			Correct: ExerciseBasicCorrectProgressDelta,
 			Almost:  ExerciseBasicAlmostProgressDelta,
@@ -207,11 +202,24 @@ func exerciseProgressDeltasForType(exerciseType enums.ExerciseType) exerciseProg
 func isReversedExerciseType(exerciseType enums.ExerciseType) bool {
 	switch exerciseType {
 	case enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceReversed, enums.ExerciseTypeCharactersReversed,
-		enums.ExerciseTypeAudioReversed:
+		enums.ExerciseTypeAudioReversed, enums.ExerciseTypeDescriptionReversed:
 		return true
 	default:
 		return false
 	}
+}
+
+func exerciseAnswerWord(exerciseType enums.ExerciseType, originalWord, translationWord string) string {
+	if exerciseType == enums.ExerciseTypeDescriptionDirect {
+		return originalWord
+	}
+	if exerciseType == enums.ExerciseTypeDescriptionReversed {
+		return translationWord
+	}
+	if isReversedExerciseType(exerciseType) {
+		return originalWord
+	}
+	return translationWord
 }
 
 func isCharacterExerciseType(exerciseType enums.ExerciseType) bool {
@@ -238,4 +246,8 @@ func isMatchPairsExerciseType(exerciseType enums.ExerciseType) bool {
 
 func isAudioExerciseType(exerciseType enums.ExerciseType) bool {
 	return exerciseType == enums.ExerciseTypeAudioDirect || exerciseType == enums.ExerciseTypeAudioReversed
+}
+
+func isDescriptionExerciseType(exerciseType enums.ExerciseType) bool {
+	return exerciseType == enums.ExerciseTypeDescriptionDirect || exerciseType == enums.ExerciseTypeDescriptionReversed
 }

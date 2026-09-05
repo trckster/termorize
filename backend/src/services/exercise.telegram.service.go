@@ -30,6 +30,7 @@ func GetDuePendingExercises(now time.Time) ([]PendingExercise, error) {
 			translated.word AS translation_word,
 			translated.id AS translation_word_id,
 			translated.language AS translation_language,
+			t.id AS translation_id,
 			u.settings->>'system_language' AS system_language
 		FROM exercises AS e
 		JOIN users AS u ON u.id = e.user_id
@@ -41,11 +42,11 @@ func GetDuePendingExercises(now time.Time) ([]PendingExercise, error) {
 		WHERE e.deleted_at IS NULL
 			AND u.deleted_at IS NULL
 			AND e.status = ?
-			AND e.type IN (?, ?, ?, ?, ?, ?, ?, ?)
+			AND e.type IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			AND e.scheduled_for <= ?
 			AND u.settings->'telegram'->'bot_enabled' = ?
 		ORDER BY e.scheduled_for ASC, e.created_at ASC
-	`, enums.ExerciseStatusPending, enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed, enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed, enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed, now, true).Scan(&exercises).Error
+	`, enums.ExerciseStatusPending, enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed, enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed, enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed, enums.ExerciseTypeDescriptionDirect, enums.ExerciseTypeDescriptionReversed, now, true).Scan(&exercises).Error
 
 	if err != nil {
 		return nil, err
@@ -270,11 +271,11 @@ func StartTelegramExercise(exerciseID uuid.UUID, telegramMessageID int64) error 
 	}
 	if result.RowsAffected == 0 {
 		// Delivery happens before this transition. If a concurrent language
-		// ignore soft-deleted the row after Telegram accepted the audio, retain
+		// setting soft-deleted the row after Telegram accepted the message, retain
 		// the message id so replies resolve to the cancelled exercise.
 		cancelled := db.DB.Unscoped().Model(&models.Exercise{}).
 			Where("id = ? AND deleted_at IS NOT NULL AND telegram_message_id IS NULL", exerciseID).
-			Where("type IN ?", []enums.ExerciseType{enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed}).
+			Where("type IN ?", []enums.ExerciseType{enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed, enums.ExerciseTypeDescriptionDirect, enums.ExerciseTypeDescriptionReversed}).
 			Update("telegram_message_id", telegramMessageID)
 		if cancelled.Error != nil {
 			return cancelled.Error

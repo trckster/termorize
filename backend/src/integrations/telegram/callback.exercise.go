@@ -49,6 +49,9 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 	if handled, err := handleAudioLanguageCallback(callback, payload, t); handled {
 		return err
 	}
+	if handled, err := handleDescriptionLanguageCallback(callback, payload, t); handled {
+		return err
+	}
 
 	if len(payload) > 0 && payload[0] == exerciseActionMatchNoop {
 		return nil
@@ -90,7 +93,7 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 		return nil
 	}
 	if exercise.Deleted {
-		return SendMessage(callback.From.ID, t.ExerciseAudioCancelled)
+		return SendMessage(callback.From.ID, cancelledExerciseText(exercise.ExerciseType, t))
 	}
 
 	switch exercise.Status {
@@ -110,6 +113,7 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 
 	if !hasAnswer && exercise.ExerciseType != enums.ExerciseTypeBasicDirect && exercise.ExerciseType != enums.ExerciseTypeBasicReversed &&
 		exercise.ExerciseType != enums.ExerciseTypeAudioDirect && exercise.ExerciseType != enums.ExerciseTypeAudioReversed &&
+		exercise.ExerciseType != enums.ExerciseTypeDescriptionDirect && exercise.ExerciseType != enums.ExerciseTypeDescriptionReversed &&
 		exercise.ExerciseType != enums.ExerciseTypeCharactersDirect && exercise.ExerciseType != enums.ExerciseTypeCharactersReversed {
 		return nil
 	}

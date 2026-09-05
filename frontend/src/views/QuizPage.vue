@@ -62,6 +62,7 @@ const characterWarningTimeoutId = ref<number | null>(null)
 const audioIgnoreTimeoutId = ref<number | null>(null)
 const audioIgnoreIntervalId = ref<number | null>(null)
 const audioIgnoreState = ref<AudioIgnoreState>('idle')
+const ignoredLanguageFamily = ref<'audio' | 'description' | null>(null)
 const audioIgnoreCountdown = ref(5)
 const prefersReducedMotion = ref(false)
 const answer = ref('')
@@ -91,6 +92,9 @@ const isCharacterQuestion = computed(
 const isAudioQuestion = computed(
     () => currentExercise.value?.type === 'audio/direct' || currentExercise.value?.type === 'audio/reversed'
 )
+const isDescriptionQuestion = computed(
+    () => currentExercise.value?.type === 'description/direct' || currentExercise.value?.type === 'description/reversed'
+)
 const isAnswerDisabled = computed(() => isSubmitting.value || audioIgnoreState.value !== 'idle')
 const audioSpokenLanguageName = computed(() =>
     settingsStore.getLanguageName(
@@ -112,6 +116,9 @@ const questionHint = computed(() => {
     }
     if (isAudioQuestion.value) {
         return t.value.quizTypeAudioHint
+    }
+    if (isDescriptionQuestion.value) {
+        return t.value.quizTypeDescriptionHint
     }
     if (
         currentExercise.value.type === 'basic/reversed' ||
@@ -214,6 +221,7 @@ async function loadNextQuestion(excludeAudio: boolean = false) {
     clearCharacterLanguageWarning()
     clearAudioIgnoreTimer()
     audioIgnoreState.value = 'idle'
+    ignoredLanguageFamily.value = null
     audioIgnoreCountdown.value = 5
     selectedChoiceIndex.value = null
     selectedCharacterIndices.value = []
@@ -377,30 +385,39 @@ function scheduleAudioReplacement() {
         if (audioIgnoreState.value !== 'undo') return
         audioIgnoreState.value = 'saving'
         clearAudioIgnoreTimer()
-        void loadNextQuestion(true)
+        void loadNextQuestion(ignoredLanguageFamily.value === 'audio')
     }, 5000)
 }
 
-async function ignoreCurrentAudioLanguage() {
-    if (!currentExercise.value || !isAudioQuestion.value || audioIgnoreState.value !== 'idle') return
+async function ignoreCurrentExerciseLanguage() {
+    if (
+        !currentExercise.value ||
+        (!isAudioQuestion.value && !isDescriptionQuestion.value) ||
+        !currentExercise.value.show_ignore_language_suggestion ||
+        audioIgnoreState.value !== 'idle'
+    )
+        return
 
     audioIgnoreState.value = 'saving'
+    ignoredLanguageFamily.value = isAudioQuestion.value ? 'audio' : 'description'
     error.value = null
     try {
-        authStore.user = await exercisesApi.ignoreAudioLanguage(currentExercise.value.exercise_id)
+        authStore.user = isAudioQuestion.value
+            ? await exercisesApi.ignoreAudioLanguage(currentExercise.value.exercise_id)
+            : await exercisesApi.ignoreDescriptionLanguage(currentExercise.value.exercise_id)
         ignoredExerciseId.value = currentExercise.value.exercise_id
         audioIgnoreState.value = 'undo'
         scheduleAudioReplacement()
     } catch {
         audioIgnoreState.value = 'idle'
-        error.value = t.value.quizIgnoreAudioError
+        error.value = isAudioQuestion.value ? t.value.quizIgnoreAudioError : t.value.quizIgnoreDescriptionError
     }
 }
 
-async function undoIgnoredAudioLanguage() {
+async function undoIgnoredExerciseLanguage() {
     if (
         !currentExercise.value ||
-        !isAudioQuestion.value ||
+        (!isAudioQuestion.value && !isDescriptionQuestion.value) ||
         (audioIgnoreState.value !== 'undo' && audioIgnoreState.value !== 'undo-failed')
     )
         return
@@ -409,19 +426,23 @@ async function undoIgnoredAudioLanguage() {
     audioIgnoreState.value = 'saving'
     error.value = null
     try {
-        authStore.user = await settingsApi.removeIgnoredAudioLanguage(currentExercise.value.language)
-        await loadNextQuestion(true)
+        authStore.user =
+            ignoredLanguageFamily.value === 'audio'
+                ? await settingsApi.removeIgnoredAudioLanguage(currentExercise.value.language)
+                : await settingsApi.removeIgnoredDescriptionLanguage(currentExercise.value.language)
+        await loadNextQuestion(ignoredLanguageFamily.value === 'audio')
     } catch {
         audioIgnoreState.value = 'undo-failed'
-        error.value = t.value.quizUndoAudioError
+        error.value =
+            ignoredLanguageFamily.value === 'audio' ? t.value.quizUndoAudioError : t.value.quizUndoDescriptionError
     }
 }
 
-function continueAfterIgnoredAudio() {
+function continueAfterIgnoredLanguage() {
     if (audioIgnoreState.value !== 'undo-failed') return
     clearAudioIgnoreTimer()
     audioIgnoreState.value = 'saving'
-    void loadNextQuestion(true)
+    void loadNextQuestion(ignoredLanguageFamily.value === 'audio')
 }
 
 function chooseOption(option: string, index: number) {
@@ -1131,8 +1152,10 @@ onBeforeUnmount(() => {
                         <template v-else>
                             <div class="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                                 <span class="text-base">{{ getFlag(currentExercise?.language) }}</span>
-                                <span aria-hidden="true">→</span>
-                                <span class="text-base">{{ getFlag(currentExercise?.answer_language) }}</span>
+                                <template v-if="!isDescriptionQuestion">
+                                    <span aria-hidden="true">→</span>
+                                    <span class="text-base">{{ getFlag(currentExercise?.answer_language) }}</span>
+                                </template>
                             </div>
 
                             <p class="text-center text-sm text-muted-foreground">
@@ -1161,6 +1184,12 @@ onBeforeUnmount(() => {
                                             : t.quizTypeAudioHint
                                     }}
                                 </div>
+                            </div>
+
+                            <div v-else-if="isDescriptionQuestion" class="text-center">
+                                <p class="break-words text-xl font-semibold leading-relaxed tracking-tight sm:text-2xl">
+                                    {{ currentExercise?.description }}
+                                </p>
                             </div>
 
                             <div v-else class="text-center">
@@ -1322,21 +1351,32 @@ onBeforeUnmount(() => {
                                 </div>
                             </form>
 
-                            <div v-if="isAudioQuestion" class="space-y-2">
+                            <div
+                                v-if="
+                                    (isAudioQuestion || isDescriptionQuestion) &&
+                                    (currentExercise?.show_ignore_language_suggestion || audioIgnoreState !== 'idle')
+                                "
+                                class="space-y-2"
+                            >
                                 <Button
                                     v-if="audioIgnoreState === 'idle' || audioIgnoreState === 'saving'"
                                     class="w-full"
                                     type="button"
                                     variant="ghost"
                                     :disabled="audioIgnoreState === 'saving'"
-                                    @click="ignoreCurrentAudioLanguage"
+                                    @click="ignoreCurrentExerciseLanguage"
                                 >
                                     {{
                                         audioIgnoreState === 'saving'
                                             ? t.quizIgnoringAudioLanguage
-                                            : formatQuizText(t.quizIgnoreAudioLanguage, {
-                                                  language: audioSpokenLanguageName,
-                                              })
+                                            : formatQuizText(
+                                                  isAudioQuestion
+                                                      ? t.quizIgnoreAudioLanguage
+                                                      : t.quizIgnoreDescriptionLanguage,
+                                                  {
+                                                      language: audioSpokenLanguageName,
+                                                  }
+                                              )
                                     }}
                                 </Button>
 
@@ -1344,13 +1384,18 @@ onBeforeUnmount(() => {
                                     v-else-if="audioIgnoreState === 'undo'"
                                     type="button"
                                     class="relative flex min-h-11 w-full items-center justify-center overflow-hidden rounded-md border border-success/35 bg-success/10 px-4 py-2 text-sm font-medium text-success transition-colors hover:bg-success/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                    @click="undoIgnoredAudioLanguage"
+                                    @click="undoIgnoredExerciseLanguage"
                                 >
                                     <span>
                                         {{
-                                            formatQuizText(t.quizUndoAudioLanguage, {
-                                                language: audioSpokenLanguageName,
-                                            })
+                                            formatQuizText(
+                                                isAudioQuestion
+                                                    ? t.quizUndoAudioLanguage
+                                                    : t.quizUndoDescriptionLanguage,
+                                                {
+                                                    language: audioSpokenLanguageName,
+                                                }
+                                            )
                                         }}
                                     </span>
                                     <span v-if="prefersReducedMotion" class="ml-2 tabular-nums" aria-live="polite">
@@ -1368,10 +1413,10 @@ onBeforeUnmount(() => {
                                 </button>
 
                                 <div v-else class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                    <Button type="button" variant="outline" @click="undoIgnoredAudioLanguage">
+                                    <Button type="button" variant="outline" @click="undoIgnoredExerciseLanguage">
                                         {{ t.quizRetryUndo }}
                                     </Button>
-                                    <Button type="button" @click="continueAfterIgnoredAudio">
+                                    <Button type="button" @click="continueAfterIgnoredLanguage">
                                         {{ t.quizNextQuestion }}
                                     </Button>
                                 </div>

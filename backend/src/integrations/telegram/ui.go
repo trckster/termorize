@@ -41,15 +41,17 @@ const (
 	menuActionSwapTranslationPair  = "swap_translation_pair"
 	menuActionSetSystemLang        = "set_system_lang"
 
-	exerciseActionAnswer              = "answer"
-	exerciseActionIDK                 = "idk"
-	exerciseActionMatchTap            = "mt"
-	exerciseActionMatchNoop           = "mn"
-	exerciseActionCharacterTap        = "ct"
-	exerciseActionCharacterNoop       = "cn"
-	exerciseActionCharacterBackspace  = "cc"
-	exerciseActionIgnoreAudioLanguage = "ai"
-	exerciseActionUndoAudioLanguage   = "au"
+	exerciseActionAnswer                    = "answer"
+	exerciseActionIDK                       = "idk"
+	exerciseActionMatchTap                  = "mt"
+	exerciseActionMatchNoop                 = "mn"
+	exerciseActionCharacterTap              = "ct"
+	exerciseActionCharacterNoop             = "cn"
+	exerciseActionCharacterBackspace        = "cc"
+	exerciseActionIgnoreAudioLanguage       = "ai"
+	exerciseActionUndoAudioLanguage         = "au"
+	exerciseActionIgnoreDescriptionLanguage = "di"
+	exerciseActionUndoDescriptionLanguage   = "du"
 
 	vocabularyActionAdd    = "add"
 	vocabularyActionDelete = "delete"
@@ -80,23 +82,47 @@ func buildTranslationPairKeyboard(sourceLanguage, targetLanguage enums.Language,
 	}
 }
 
-func buildAudioExerciseKeyboard(exerciseID uuid.UUID, spokenLanguage enums.Language, t BotTexts) [][]inlineKeyboardButton {
-	return [][]inlineKeyboardButton{
+func buildAudioExerciseKeyboard(exerciseID uuid.UUID, spokenLanguage enums.Language, showSuggestion bool, t BotTexts) [][]inlineKeyboardButton {
+	keyboard := [][]inlineKeyboardButton{
 		{{
 			Text:         t.ButtonExerciseIDK,
 			CallbackData: callbackTypeExercise + ":" + exerciseActionIDK + ":" + exerciseID.String(),
 		}},
-		{{
+	}
+	if showSuggestion {
+		keyboard = append(keyboard, []inlineKeyboardButton{{
 			Text:         fmt.Sprintf(t.ButtonIgnoreAudioLanguageFormat, localizedLanguageName(spokenLanguage, t)),
 			CallbackData: callbackTypeExercise + ":" + exerciseActionIgnoreAudioLanguage + ":" + compactCallbackUUID(exerciseID) + ":" + string(spokenLanguage),
-		}},
+		}})
 	}
+	return keyboard
 }
 
 func buildAudioUndoKeyboard(exerciseID uuid.UUID, spokenLanguage enums.Language, t BotTexts) [][]inlineKeyboardButton {
 	return [][]inlineKeyboardButton{{{
 		Text:         fmt.Sprintf(t.ButtonRemoveAudioLanguageFormat, localizedLanguageName(spokenLanguage, t)),
 		CallbackData: callbackTypeExercise + ":" + exerciseActionUndoAudioLanguage + ":" + compactCallbackUUID(exerciseID) + ":" + string(spokenLanguage),
+	}}}
+}
+
+func buildDescriptionExerciseKeyboard(exerciseID uuid.UUID, language enums.Language, showSuggestion bool, t BotTexts) [][]inlineKeyboardButton {
+	keyboard := [][]inlineKeyboardButton{{{
+		Text:         t.ButtonExerciseIDK,
+		CallbackData: callbackTypeExercise + ":" + exerciseActionIDK + ":" + exerciseID.String(),
+	}}}
+	if showSuggestion {
+		keyboard = append(keyboard, []inlineKeyboardButton{{
+			Text:         fmt.Sprintf(t.ButtonIgnoreDescriptionLanguageFormat, localizedLanguageName(language, t)),
+			CallbackData: callbackTypeExercise + ":" + exerciseActionIgnoreDescriptionLanguage + ":" + compactCallbackUUID(exerciseID) + ":" + string(language),
+		}})
+	}
+	return keyboard
+}
+
+func buildDescriptionUndoKeyboard(exerciseID uuid.UUID, language enums.Language, t BotTexts) [][]inlineKeyboardButton {
+	return [][]inlineKeyboardButton{{{
+		Text:         fmt.Sprintf(t.ButtonRemoveDescriptionLanguageFormat, localizedLanguageName(language, t)),
+		CallbackData: callbackTypeExercise + ":" + exerciseActionUndoDescriptionLanguage + ":" + compactCallbackUUID(exerciseID) + ":" + string(language),
 	}}}
 }
 

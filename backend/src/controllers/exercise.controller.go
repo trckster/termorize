@@ -94,14 +94,16 @@ func RandomExercise(c *gin.Context) {
 	}
 
 	c.JSON(nethttp.StatusOK, gin.H{
-		"exercise_id":     result.ExerciseID,
-		"type":            result.Type,
-		"question_word":   result.QuestionWord,
-		"language":        result.Language,
-		"answer_language": result.AnswerLanguage,
-		"audio_word_id":   result.AudioWordID,
-		"options":         result.Options,
-		"cards":           result.Cards,
+		"exercise_id":                     result.ExerciseID,
+		"type":                            result.Type,
+		"question_word":                   result.QuestionWord,
+		"language":                        result.Language,
+		"answer_language":                 result.AnswerLanguage,
+		"audio_word_id":                   result.AudioWordID,
+		"options":                         result.Options,
+		"cards":                           result.Cards,
+		"description":                     result.Description,
+		"show_ignore_language_suggestion": result.ShowIgnoreLanguageSuggestion,
 	})
 }
 
@@ -206,6 +208,34 @@ func IgnoreAudioLanguage(c *gin.Context) {
 			c.JSON(nethttp.StatusNotFound, gin.H{"error": "exercise not found"})
 		case errors.Is(err, services.ErrExerciseNotAudio):
 			c.JSON(nethttp.StatusConflict, gin.H{"error": services.ErrExerciseNotAudio.Error()})
+		case errors.Is(err, services.ErrExerciseNotInProgress):
+			c.JSON(nethttp.StatusConflict, gin.H{"error": services.ErrExerciseNotInProgress.Error()})
+		case errors.Is(err, services.ErrExerciseVocabularyDeleted):
+			c.JSON(nethttp.StatusConflict, gin.H{"error": services.ErrExerciseVocabularyDeleted.Error()})
+		default:
+			ServerError(c, err)
+		}
+		return
+	}
+
+	c.JSON(nethttp.StatusOK, user)
+}
+
+func IgnoreDescriptionLanguage(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+	exerciseID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "invalid exercise id"})
+		return
+	}
+
+	user, err := services.IgnoreDescriptionLanguageForExercise(exerciseID, userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, services.ErrExerciseNotFound):
+			c.JSON(nethttp.StatusNotFound, gin.H{"error": "exercise not found"})
+		case errors.Is(err, services.ErrExerciseNotDescription):
+			c.JSON(nethttp.StatusConflict, gin.H{"error": services.ErrExerciseNotDescription.Error()})
 		case errors.Is(err, services.ErrExerciseNotInProgress):
 			c.JSON(nethttp.StatusConflict, gin.H{"error": services.ErrExerciseNotInProgress.Error()})
 		case errors.Is(err, services.ErrExerciseVocabularyDeleted):

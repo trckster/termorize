@@ -18,15 +18,17 @@ const (
 type ExerciseType string
 
 const (
-	ExerciseTypeBasicDirect        ExerciseType = "basic/direct"
-	ExerciseTypeBasicReversed      ExerciseType = "basic/reversed"
-	ExerciseTypeChoiceDirect       ExerciseType = "choice/direct"
-	ExerciseTypeChoiceReversed     ExerciseType = "choice/reversed"
-	ExerciseTypeCharactersDirect   ExerciseType = "characters/direct"
-	ExerciseTypeCharactersReversed ExerciseType = "characters/reversed"
-	ExerciseTypeAudioDirect        ExerciseType = "audio/direct"
-	ExerciseTypeAudioReversed      ExerciseType = "audio/reversed"
-	ExerciseTypeMatchPairs         ExerciseType = "match/pairs"
+	ExerciseTypeBasicDirect         ExerciseType = "basic/direct"
+	ExerciseTypeBasicReversed       ExerciseType = "basic/reversed"
+	ExerciseTypeChoiceDirect        ExerciseType = "choice/direct"
+	ExerciseTypeChoiceReversed      ExerciseType = "choice/reversed"
+	ExerciseTypeCharactersDirect    ExerciseType = "characters/direct"
+	ExerciseTypeCharactersReversed  ExerciseType = "characters/reversed"
+	ExerciseTypeAudioDirect         ExerciseType = "audio/direct"
+	ExerciseTypeAudioReversed       ExerciseType = "audio/reversed"
+	ExerciseTypeDescriptionDirect   ExerciseType = "description/direct"
+	ExerciseTypeDescriptionReversed ExerciseType = "description/reversed"
+	ExerciseTypeMatchPairs          ExerciseType = "match/pairs"
 )
 
 type ExerciseStatus string

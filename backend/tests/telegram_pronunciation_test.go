@@ -46,6 +46,7 @@ func TestTelegramAudioExerciseUploadsGenericCaptionAndKeyboard(t *testing.T) {
 		pronunciation,
 		enums.LanguageEn,
 		enums.LanguageIt,
+		true,
 		telegram.GetBotTexts(enums.LanguageEn),
 	)
 	require.NoError(t, err)
@@ -98,6 +99,7 @@ func TestTelegramAudioExerciseUsesCachedFileWithCaptionAndKeyboard(t *testing.T)
 		pronunciation,
 		enums.LanguageIt,
 		enums.LanguageEn,
+		true,
 		telegram.GetBotTexts(enums.LanguageRu),
 	)
 	require.NoError(t, err)

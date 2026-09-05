@@ -238,7 +238,8 @@ func TestCollectionPracticeAnswerKeepsKnowledgeAndAppearsInHistory(t *testing.T)
 	testkit.DecodeJSON(t, exerciseRec, &exercise)
 
 	answer := "treno"
-	if exercise.Type == enums.ExerciseTypeBasicReversed ||
+	if exercise.Type == enums.ExerciseTypeDescriptionDirect ||
+		exercise.Type == enums.ExerciseTypeBasicReversed ||
 		exercise.Type == enums.ExerciseTypeChoiceReversed ||
 		exercise.Type == enums.ExerciseTypeCharactersReversed ||
 		exercise.Type == enums.ExerciseTypeAudioReversed {
@@ -660,10 +661,16 @@ func TestCollectionPracticeUserPathCompletesThroughPublicEndpoints(t *testing.T)
 		Type           enums.ExerciseType `json:"type"`
 		QuestionWord   string             `json:"question_word"`
 		AnswerLanguage enums.Language     `json:"answer_language"`
+		Description    string             `json:"description"`
 	}
 	testkit.DecodeJSON(t, exerciseRec, &exercise)
 	require.NotEqual(t, uuid.Nil, exercise.ExerciseID)
-	assert.NotEmpty(t, exercise.QuestionWord)
+	if exercise.Type == enums.ExerciseTypeDescriptionDirect || exercise.Type == enums.ExerciseTypeDescriptionReversed {
+		assert.Empty(t, exercise.QuestionWord)
+		assert.NotEmpty(t, exercise.Description)
+	} else {
+		assert.NotEmpty(t, exercise.QuestionWord)
+	}
 
 	var target models.Vocabulary
 	require.NoError(t, db.DB.

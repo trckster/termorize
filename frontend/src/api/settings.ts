@@ -21,4 +21,10 @@ export const settingsApi = {
             unwrapBody
         )
     },
+
+    async removeIgnoredDescriptionLanguage(language: string): Promise<User> {
+        return apiCall<User>(`/settings/ignored-description-languages/${encodeURIComponent(language)}`, 'DELETE').then(
+            unwrapBody
+        )
+    },
 }

@@ -10,13 +10,14 @@ import (
 )
 
 type UserSettings struct {
-	SystemLanguage            enums.Language       `json:"system_language"`
-	MainLearningLanguage      enums.Language       `json:"main_learning_language"`
-	TranslationSourceLanguage enums.Language       `json:"translation_source_language"`
-	TranslationTargetLanguage enums.Language       `json:"translation_target_language"`
-	IgnoredAudioLanguages     []enums.Language     `json:"ignored_audio_languages"`
-	TimeZone                  string               `json:"time_zone"`
-	Telegram                  UserTelegramSettings `json:"telegram"`
+	SystemLanguage              enums.Language       `json:"system_language"`
+	MainLearningLanguage        enums.Language       `json:"main_learning_language"`
+	TranslationSourceLanguage   enums.Language       `json:"translation_source_language"`
+	TranslationTargetLanguage   enums.Language       `json:"translation_target_language"`
+	IgnoredAudioLanguages       []enums.Language     `json:"ignored_audio_languages"`
+	IgnoredDescriptionLanguages []enums.Language     `json:"ignored_description_languages"`
+	TimeZone                    string               `json:"time_zone"`
+	Telegram                    UserTelegramSettings `json:"telegram"`
 }
 
 type UserTelegramSettings struct {
@@ -72,6 +73,19 @@ func (s UserSettings) WithDefaults() UserSettings {
 	for _, language := range enums.AllLanguageValues() {
 		if _, ok := ignored[language]; ok {
 			s.IgnoredAudioLanguages = append(s.IgnoredAudioLanguages, language)
+		}
+	}
+
+	ignoredDescriptions := make(map[enums.Language]struct{}, len(s.IgnoredDescriptionLanguages))
+	for _, language := range s.IgnoredDescriptionLanguages {
+		if enums.IsSupportedLanguage(language) {
+			ignoredDescriptions[language] = struct{}{}
+		}
+	}
+	s.IgnoredDescriptionLanguages = make([]enums.Language, 0, len(ignoredDescriptions))
+	for _, language := range enums.AllLanguageValues() {
+		if _, ok := ignoredDescriptions[language]; ok {
+			s.IgnoredDescriptionLanguages = append(s.IgnoredDescriptionLanguages, language)
 		}
 	}
 

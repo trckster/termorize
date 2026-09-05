@@ -26,6 +26,7 @@ export interface UserSettings {
     translation_source_language: string
     translation_target_language: string
     ignored_audio_languages: string[]
+    ignored_description_languages: string[]
     time_zone: string
     telegram: UserTelegramSettings
 }

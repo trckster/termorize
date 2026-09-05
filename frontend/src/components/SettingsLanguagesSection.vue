@@ -26,6 +26,7 @@ const getSystemLanguageValue = (language?: string) => (language === 'ru' ? 'ru' 
 const systemLanguage = ref(getSystemLanguageValue(props.settings?.system_language))
 const mainLearningLanguage = ref(props.settings?.main_learning_language || '')
 const ignoredAudioLanguages = ref<string[]>([...(props.settings?.ignored_audio_languages ?? [])])
+const ignoredDescriptionLanguages = ref<string[]>([...(props.settings?.ignored_description_languages ?? [])])
 const isSaving = ref(false)
 
 const hasLanguageSettingsChanged = computed(() => {
@@ -34,7 +35,8 @@ const hasLanguageSettingsChanged = computed(() => {
     return (
         systemLanguage.value !== props.settings.system_language ||
         mainLearningLanguage.value !== props.settings.main_learning_language ||
-        ignoredAudioLanguages.value.join(',') !== (props.settings.ignored_audio_languages ?? []).join(',')
+        ignoredAudioLanguages.value.join(',') !== (props.settings.ignored_audio_languages ?? []).join(',') ||
+        ignoredDescriptionLanguages.value.join(',') !== (props.settings.ignored_description_languages ?? []).join(',')
     )
 })
 
@@ -49,6 +51,7 @@ const saveLanguageSettings = async () => {
             system_language: getSystemLanguageValue(systemLanguage.value),
             main_learning_language: mainLearningLanguage.value,
             ignored_audio_languages: ignoredAudioLanguages.value,
+            ignored_description_languages: ignoredDescriptionLanguages.value,
         })
 
         addToast({
@@ -76,6 +79,7 @@ watch(
         systemLanguage.value = getSystemLanguageValue(nextSettings?.system_language)
         mainLearningLanguage.value = nextSettings?.main_learning_language || ''
         ignoredAudioLanguages.value = [...(nextSettings?.ignored_audio_languages ?? [])]
+        ignoredDescriptionLanguages.value = [...(nextSettings?.ignored_description_languages ?? [])]
     },
     { immediate: true }
 )
@@ -85,6 +89,15 @@ const setAudioLanguageIgnored = (language: string, ignored: boolean) => {
     if (ignored) selected.add(language)
     else selected.delete(language)
     ignoredAudioLanguages.value = settingsStore.languageOptions
+        .map((option) => option.code)
+        .filter((code) => selected.has(code))
+}
+
+const setDescriptionLanguageIgnored = (language: string, ignored: boolean) => {
+    const selected = new Set(ignoredDescriptionLanguages.value)
+    if (ignored) selected.add(language)
+    else selected.delete(language)
+    ignoredDescriptionLanguages.value = settingsStore.languageOptions
         .map((option) => option.code)
         .filter((code) => selected.has(code))
 }
@@ -145,6 +158,40 @@ const setAudioLanguageIgnored = (language: string, ignored: boolean) => {
                             :checked="ignoredAudioLanguages.includes(language.code)"
                             @change="
                                 setAudioLanguageIgnored(language.code, ($event.target as HTMLInputElement).checked)
+                            "
+                        />
+                        <span aria-hidden="true" class="text-base">{{ language.emoji }}</span>
+                        <span class="font-medium text-foreground">
+                            {{ settingsStore.getLanguageName(language.code, systemLanguage) }}
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="space-y-3 border-t border-border pt-4 sm:mx-4">
+                <div class="space-y-1">
+                    <p class="text-sm font-semibold text-foreground">
+                        {{ t.settingsIgnoredDescriptionLanguagesTitle }}
+                    </p>
+                    <p class="text-xs leading-5 text-muted-foreground">
+                        {{ t.settingsIgnoredDescriptionLanguagesNote }}
+                    </p>
+                </div>
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <label
+                        v-for="language in settingsStore.languageOptions"
+                        :key="language.code"
+                        class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-border px-3 py-2 text-sm transition-colors hover:bg-accent/50"
+                    >
+                        <input
+                            type="checkbox"
+                            class="h-4 w-4 rounded border-input accent-primary"
+                            :checked="ignoredDescriptionLanguages.includes(language.code)"
+                            @change="
+                                setDescriptionLanguageIgnored(
+                                    language.code,
+                                    ($event.target as HTMLInputElement).checked
+                                )
                             "
                         />
                         <span aria-hidden="true" class="text-base">{{ language.emoji }}</span>

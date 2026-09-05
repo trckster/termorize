@@ -384,14 +384,16 @@ func CreateCollectionPracticeExercise(c *gin.Context) {
 	}
 
 	c.JSON(nethttp.StatusOK, gin.H{
-		"exercise_id":     result.ExerciseID,
-		"type":            result.Type,
-		"question_word":   result.QuestionWord,
-		"language":        result.Language,
-		"answer_language": result.AnswerLanguage,
-		"audio_word_id":   result.AudioWordID,
-		"options":         result.Options,
-		"cards":           result.Cards,
+		"exercise_id":                     result.ExerciseID,
+		"type":                            result.Type,
+		"question_word":                   result.QuestionWord,
+		"language":                        result.Language,
+		"answer_language":                 result.AnswerLanguage,
+		"audio_word_id":                   result.AudioWordID,
+		"options":                         result.Options,
+		"cards":                           result.Cards,
+		"description":                     result.Description,
+		"show_ignore_language_suggestion": result.ShowIgnoreLanguageSuggestion,
 	})
 }
 

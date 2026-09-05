@@ -153,6 +153,39 @@ func TestTelegramWebhookUnknownUpdateNoOp(t *testing.T) {
 	assert.Empty(t, tg.Requests(), "no outbound telegram call expected for an empty update")
 }
 
+func TestTelegramDescriptionExerciseAcceptsRegularReply(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+
+	const telegramID int64 = 555101
+	const exerciseMessageID int64 = 503
+	user := testkit.CreateUser(t, testkit.WithTelegramID(telegramID), testkit.WithSettings(models.UserSettings{
+		SystemLanguage:       enums.LanguageEn,
+		MainLearningLanguage: enums.LanguageEn,
+	}))
+	vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
+	exercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeDescriptionDirect, enums.ExerciseStatusInProgress, vocabulary.ID)
+	require.NoError(t, db.DB.Model(&models.Exercise{}).Where("id = ?", exercise.ID).Update("telegram_message_id", exerciseMessageID).Error)
+
+	update := telegramPrivateMessage(telegramID, "paper")
+	message := update["message"].(map[string]any)
+	message["reply_to_message"] = map[string]any{
+		"message_id": exerciseMessageID,
+		"chat":       map[string]any{"id": telegramID, "type": "private"},
+	}
+
+	rec := telegramUpdate(t, update)
+	testkit.RequireStatus(t, rec, http.StatusOK)
+	require.Len(t, tg.RequestsFor("sendMessage"), 1)
+	assert.Contains(t, string(tg.RequestsFor("sendMessage")[0].Body), "That's right")
+
+	completed := exerciseReload(t, exercise.ID)
+	assert.Equal(t, enums.ExerciseStatusCompleted, completed.Status)
+	link := exerciseLink(t, exercise.ID, vocabulary.ID)
+	require.NotNil(t, link.ProgressDelta)
+	assert.Equal(t, services.ExerciseBasicCorrectProgressDelta, *link.ProgressDelta)
+}
+
 func TestTelegramWebhookIgnoredExerciseReportsDeletedVocabulary(t *testing.T) {
 	testkit.Truncate(t)
 	tg := testkit.MockTelegramAPI(t)
@@ -376,6 +409,62 @@ func TestTelegramAudioIgnoreCallbackUsesActiveLanguage(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(tg.RequestsFor("editMessageCaption")[0].Body, &edited))
 	assert.Equal(t, "Прослушай и переведи. Язык ответа: 🇮🇹 Итальянский.\n\nУпражнение отменено.", edited.Caption)
+}
+
+func TestTelegramDescriptionIgnoreAndUndoCallbacks(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+
+	const telegramID int64 = 555094
+	const exerciseMessageID int64 = 496
+	user := testkit.CreateUser(t, testkit.WithTelegramID(telegramID), testkit.WithSettings(models.UserSettings{
+		SystemLanguage:       enums.LanguageEn,
+		MainLearningLanguage: enums.LanguageEn,
+	}))
+	vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
+	exercise := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeDescriptionDirect, enums.ExerciseStatusInProgress, vocabulary.ID)
+	require.NoError(t, db.DB.Model(&models.Exercise{}).
+		Where("id = ?", exercise.ID).
+		Update("telegram_message_id", exerciseMessageID).Error)
+
+	callback := func(id, action, text string) map[string]any {
+		return map[string]any{
+			"update_id": 1,
+			"callback_query": map[string]any{
+				"id":   id,
+				"data": "exercise:" + action + ":" + telegramCompactUUID(exercise.ID) + ":en",
+				"from": map[string]any{"id": telegramID, "is_bot": false},
+				"message": map[string]any{
+					"message_id": exerciseMessageID,
+					"text":       text,
+					"chat":       map[string]any{"id": telegramID, "type": "private"},
+				},
+			},
+		}
+	}
+
+	const question = "Guess the word described below in English:\n\nUsed for writing.\n\n(answer with reply)"
+	rec := telegramUpdate(t, callback("description-ignore", "di", question))
+	testkit.RequireStatus(t, rec, http.StatusOK)
+
+	var storedUser models.User
+	require.NoError(t, db.DB.Where("id = ?", user.ID).Take(&storedUser).Error)
+	assert.Equal(t, []enums.Language{enums.LanguageEn}, storedUser.Settings.IgnoredDescriptionLanguages)
+	require.Len(t, tg.RequestsFor("editMessageText"), 1)
+	var cancelled telegramKeyboardRequest
+	require.NoError(t, json.Unmarshal(tg.RequestsFor("editMessageText")[0].Body, &cancelled))
+	assert.Contains(t, string(tg.RequestsFor("editMessageText")[0].Body), "cancelled")
+	_, hasUndo := findCallbackButton(cancelled.ReplyMarkup.InlineKeyboard, "exercise:du:")
+	assert.True(t, hasUndo)
+
+	cancelledText := question + "\n\nThis description exercise was cancelled and is no longer scored."
+	rec = telegramUpdate(t, callback("description-undo", "du", cancelledText))
+	testkit.RequireStatus(t, rec, http.StatusOK)
+	require.NoError(t, db.DB.Where("id = ?", user.ID).Take(&storedUser).Error)
+	assert.Empty(t, storedUser.Settings.IgnoredDescriptionLanguages)
+	require.Len(t, tg.RequestsFor("editMessageText"), 1)
+	require.Len(t, tg.RequestsFor("editMessageReplyMarkup"), 1)
+	assert.Contains(t, string(tg.RequestsFor("editMessageText")[0].Body), "cancelled")
 }
 
 func TestTelegramWebhookIgnoredDeletedVocabularyCallbacksRetryKeyboardRemoval(t *testing.T) {

@@ -26,7 +26,7 @@ func handleExerciseAnswer(message *message) (bool, error) {
 	}
 	if exercise.Deleted {
 		t := getBotTextsForTelegramID(telegramID)
-		return true, SendReplyMessage(message.Chat.ID, t.ExerciseAudioCancelled, message.MessageID)
+		return true, SendReplyMessage(message.Chat.ID, cancelledExerciseText(exercise.ExerciseType, t), message.MessageID)
 	}
 
 	t := getBotTextsForTelegramID(telegramID)
@@ -98,6 +98,13 @@ func handleExerciseAnswer(message *message) (bool, error) {
 		)
 		return true, SendMessageMarkdown(message.Chat.ID, answerText)
 	}
+}
+
+func cancelledExerciseText(exerciseType enums.ExerciseType, texts BotTexts) string {
+	if exerciseType == enums.ExerciseTypeDescriptionDirect || exerciseType == enums.ExerciseTypeDescriptionReversed {
+		return texts.ExerciseDescriptionCancelled
+	}
+	return texts.ExerciseAudioCancelled
 }
 
 func buildExerciseSuccessResultText(translationKnowledge int, t BotTexts) string {
