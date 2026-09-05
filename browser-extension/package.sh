@@ -4,7 +4,7 @@ set -eu
 
 extension_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 version=$(node -e "const manifest = require('$extension_dir/manifest.json'); process.stdout.write(manifest.version)")
-output=${1:-"$extension_dir/dist/termorize-google-translate-$version.zip"}
+output=${1:-"$extension_dir/dist/termoclip-$version.zip"}
 
 mkdir -p "$(dirname -- "$output")"
 

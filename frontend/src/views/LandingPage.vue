@@ -5,6 +5,7 @@ import {
     ArrowRight,
     BarChart3,
     BookmarkCheck,
+    Check,
     Clock3,
     EllipsisVertical,
     Languages,
@@ -145,6 +146,7 @@ function getErrorMessage(err: unknown, fallback = 'Login failed. Please try agai
 
                 <div class="nav-links">
                     <a href="#how">How it works</a>
+                    <a href="#termoclip">TermoClip</a>
                     <a href="#telegram">Telegram</a>
                 </div>
 
@@ -207,6 +209,9 @@ function getErrorMessage(err: unknown, fallback = 'Login failed. Please try agai
                                     <span v-else>Sign in with Telegram</span>
                                 </button>
                             </div>
+                            <a class="hero-extension-link" href="#termoclip">
+                                Meet TermoClip, your browser companion <ArrowRight aria-hidden="true" />
+                            </a>
                         </div>
                     </div>
 
@@ -399,6 +404,91 @@ function getErrorMessage(err: unknown, fallback = 'Login failed. Please try agai
                             </div>
                         </div>
                     </div>
+                </div>
+            </section>
+
+            <section id="termoclip" class="termoclip-section" aria-labelledby="termoclip-heading">
+                <div class="landing-wrap">
+                    <div class="section-intro termoclip-intro">
+                        <h2 id="termoclip-heading">Meet TermoClip.<br />Keep reading.<br />Keep the word.</h2>
+                        <div class="termoclip-copy">
+                            <p>
+                                Termorize’s Chrome extension turns words you find across the web into vocabulary you can
+                                practice. Select a word, translate it where you are, and save it for later.
+                            </p>
+                            <a
+                                class="button button-primary button-large"
+                                href="https://chromewebstore.google.com/detail/ogbkndgbmlapmgdpkiikfefjjeacdmie"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                Get TermoClip for Chrome <ArrowRight aria-hidden="true" />
+                                <span class="sr-only">(opens in a new tab)</span>
+                            </a>
+                            <p class="termoclip-install-note">
+                                For desktop Chrome. Sign in to Termorize or choose Just Try to start saving words.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="termoclip-gallery">
+                        <figure class="termoclip-shot termoclip-shot-page">
+                            <a
+                                class="termoclip-image-link"
+                                href="/images/termoclip/selection.png"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label="Enlarge the TermoClip on-page translation screenshot (opens in a new tab)"
+                            >
+                                <img
+                                    src="/images/termoclip/selection.png"
+                                    alt="TermoClip translating the selected word passeggiata to stroll beside an article, with editable fields and a Save to vocabulary button."
+                                    width="1120"
+                                    height="800"
+                                    loading="lazy"
+                                    decoding="async"
+                                />
+                            </a>
+                            <figcaption>
+                                <h3>A new word, without a new tab.</h3>
+                                <p>
+                                    Select text and press <kbd>Alt</kbd> + <kbd>T</kbd>. Review the translation right on
+                                    the page.
+                                </p>
+                            </figcaption>
+                        </figure>
+                        <figure class="termoclip-shot termoclip-shot-popup">
+                            <a
+                                class="termoclip-image-link"
+                                href="/images/termoclip/popup-saved.png"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label="Enlarge the TermoClip popup screenshot (opens in a new tab)"
+                            >
+                                <img
+                                    src="/images/termoclip/popup-saved.png"
+                                    alt="TermoClip’s toolbar popup showing passeggiata translated to stroll and confirmation that it was saved to your Termorize vocabulary."
+                                    width="780"
+                                    height="1280"
+                                    loading="lazy"
+                                    decoding="async"
+                                />
+                            </a>
+                            <figcaption>
+                                <h3>Found it. Saved it. Practice it.</h3>
+                                <p>
+                                    Prefer the toolbar? Open TermoClip, edit either field, and save to your Termorize
+                                    vocabulary.
+                                </p>
+                            </figcaption>
+                        </figure>
+                    </div>
+
+                    <ul class="termoclip-details" aria-label="More about TermoClip">
+                        <li><Check aria-hidden="true" />10 languages</li>
+                        <li><Check aria-hidden="true" />Works across ordinary web pages</li>
+                        <li><Check aria-hidden="true" />Also saves directly from Google Translate</li>
+                    </ul>
                 </div>
             </section>
 
