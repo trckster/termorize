@@ -50,7 +50,7 @@ func (c *client) GenerateDescription(word, wordLanguage, descriptionLanguage str
 			{Role: "user", Content: fmt.Sprintf("Describe the concept represented by %q in %s.", word, wordLanguage)},
 		},
 		ResponseFormat: responseFormat{Type: "json_object"},
-		Temperature:    0.3,
+		Temperature:    c.temperature(0.3),
 	}
 
 	payload, err := json.Marshal(reqBody)
@@ -94,7 +94,7 @@ func (c *client) DescriptionContainsAnswerForm(word, wordLanguage, description s
 			{Role: "user", Content: string(input)},
 		},
 		ResponseFormat: responseFormat{Type: "json_object"},
-		Temperature:    0,
+		Temperature:    c.temperature(0),
 	}
 	payload, err := json.Marshal(reqBody)
 	if err != nil {
@@ -130,6 +130,19 @@ var NewClient = func() Client {
 	}
 }
 
+// NewClientWithModel selects a model for an explicit admin regeneration only.
+var NewClientWithModel = func(model string) Client {
+	return &client{apiKey: config.GetOpenRouterApiKey(), model: model, http: &http.Client{Timeout: 60 * time.Second}}
+}
+
+// Sol does not accept sampling parameters; keep the existing Gemini settings.
+func (c *client) temperature(value float64) *float64 {
+	if c.model == "openai/gpt-5.6-sol" {
+		return nil
+	}
+	return &value
+}
+
 type chatMessage struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
@@ -143,7 +156,7 @@ type chatRequest struct {
 	Model          string         `json:"model"`
 	Messages       []chatMessage  `json:"messages"`
 	ResponseFormat responseFormat `json:"response_format"`
-	Temperature    float64        `json:"temperature"`
+	Temperature    *float64       `json:"temperature,omitempty"`
 }
 
 type chatResponse struct {
@@ -171,7 +184,7 @@ func (c *client) GenerateCollection(prompt string, allowedLanguages []string) (*
 			{Role: "user", Content: prompt},
 		},
 		ResponseFormat: responseFormat{Type: "json_object"},
-		Temperature:    0.3,
+		Temperature:    c.temperature(0.3),
 	}
 
 	payload, err := json.Marshal(reqBody)

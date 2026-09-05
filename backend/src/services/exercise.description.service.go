@@ -248,7 +248,7 @@ func ReplacePendingDescriptionExercise(exerciseID uuid.UUID, excludeDescription 
 func GetOrCreateWordDescription(wordID uuid.UUID) (*models.WordDescription, error) {
 	model := config.GetOpenRouterModel()
 	var cached models.WordDescription
-	err := db.DB.Where("word_id = ? AND model = ?", wordID, model).Take(&cached).Error
+	err := descriptionCacheQuery(db.DB, wordID, model).Take(&cached).Error
 	if err == nil {
 		return &cached, nil
 	}
@@ -263,7 +263,7 @@ func GetOrCreateWordDescription(wordID uuid.UUID) (*models.WordDescription, erro
 			return err
 		}
 
-		if err := tx.Where("word_id = ? AND model = ?", wordID, model).Take(&cached).Error; err == nil {
+		if err := descriptionCacheQuery(tx, wordID, model).Take(&cached).Error; err == nil {
 			description = &cached
 			return nil
 		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -275,38 +275,9 @@ func GetOrCreateWordDescription(wordID uuid.UUID) (*models.WordDescription, erro
 			return err
 		}
 
-		client := openrouter.NewClient()
-		generated, err := client.GenerateDescription(
-			word.Word,
-			word.Language.DisplayName(),
-			word.Language.DisplayName(),
-		)
+		generatedText, err := generateValidatedDescription(word, openrouter.NewClient())
 		if err != nil {
-			return errors.Join(ErrDescriptionGenerationFailed, err)
-		}
-		generatedText := strings.TrimSpace(generated.Description)
-		if generatedText == "" || len([]rune(generatedText)) > maxDescriptionRunes ||
-			descriptionMentionsAnswer(generatedText, word.Word) {
-			return ErrDescriptionGenerationFailed
-		}
-		containsAnswerForm, err := client.DescriptionContainsAnswerForm(
-			word.Word,
-			word.Language.DisplayName(),
-			generatedText,
-		)
-		if err != nil {
-			return errors.Join(ErrDescriptionGenerationFailed, err)
-		}
-		if containsAnswerForm {
-			return ErrDescriptionGenerationFailed
-		}
-
-		detectedLanguage, supported, err := DetectLanguage(generatedText)
-		if err != nil {
-			return errors.Join(ErrDescriptionGenerationFailed, err)
-		}
-		if !supported || detectedLanguage != word.Language {
-			return ErrDescriptionGenerationFailed
+			return err
 		}
 
 		created := models.WordDescription{
@@ -324,6 +295,49 @@ func GetOrCreateWordDescription(wordID uuid.UUID) (*models.WordDescription, erro
 		return nil, err
 	}
 	return description, nil
+}
+
+// An approved description takes precedence regardless of its generating model.
+func descriptionCacheQuery(tx *gorm.DB, wordID uuid.UUID, model string) *gorm.DB {
+	return tx.Where("word_id = ? AND (approved_at IS NOT NULL OR model = ?)", wordID, model).
+		Order("approved_at DESC NULLS LAST, created_at DESC, id DESC")
+}
+
+func generateValidatedDescription(word models.Word, client openrouter.Client) (string, error) {
+	generated, err := client.GenerateDescription(
+		word.Word,
+		word.Language.DisplayName(),
+		word.Language.DisplayName(),
+	)
+	if err != nil {
+		return "", errors.Join(ErrDescriptionGenerationFailed, err)
+	}
+	generatedText := strings.TrimSpace(generated.Description)
+	if generatedText == "" || len([]rune(generatedText)) > maxDescriptionRunes ||
+		descriptionMentionsAnswer(generatedText, word.Word) {
+		return "", ErrDescriptionGenerationFailed
+	}
+	containsAnswerForm, err := client.DescriptionContainsAnswerForm(
+		word.Word,
+		word.Language.DisplayName(),
+		generatedText,
+	)
+	if err != nil {
+		return "", errors.Join(ErrDescriptionGenerationFailed, err)
+	}
+	if containsAnswerForm {
+		return "", ErrDescriptionGenerationFailed
+	}
+
+	detectedLanguage, supported, err := DetectLanguage(generatedText)
+	if err != nil {
+		return "", errors.Join(ErrDescriptionGenerationFailed, err)
+	}
+	if !supported || detectedLanguage != word.Language {
+		return "", ErrDescriptionGenerationFailed
+	}
+
+	return generatedText, nil
 }
 
 func descriptionMentionsAnswer(description, answer string) bool {
