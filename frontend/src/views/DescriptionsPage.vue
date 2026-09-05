@@ -57,11 +57,16 @@ const fetchDescriptions = async (nextPage = page.value) => {
             models.value.length ? Promise.resolve(models.value) : adminApi.getDescriptionModels(),
         ])
         if (disposed || version !== requestVersion) return
+        models.value = options
+        const lastPage = Math.max(1, response.pagination.total_pages)
+        if (nextPage > lastPage) {
+            await fetchDescriptions(lastPage)
+            return
+        }
         descriptions.value = response.data
         page.value = response.pagination.page
         total.value = response.pagination.total
         totalPages.value = response.pagination.total_pages
-        models.value = options
     } catch {
         if (!disposed && version === requestVersion) loadError.value = true
     } finally {
@@ -250,7 +255,7 @@ onBeforeUnmount(() => {
                 <div class="space-y-4 py-2">
                     <section class="rounded-lg border border-border p-4">
                         <h3 class="mb-2 text-sm font-medium text-muted-foreground">{{ t.descriptionsCurrent }}</h3>
-                        <p class="break-words leading-6">{{ original?.description }}</p>
+                        <p class="break-words leading-6">{{ preview?.original_description }}</p>
                     </section>
                     <section class="rounded-lg border border-primary/40 bg-primary/5 p-4">
                         <h3 class="mb-2 text-sm font-medium">{{ t.descriptionsProposed }}</h3>

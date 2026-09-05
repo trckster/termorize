@@ -51,7 +51,7 @@ type WordDescriptionPreview struct {
 	UserID              uint      `json:"-"`
 	Model               string    `json:"model"`
 	Description         string    `json:"description"`
-	OriginalDescription string    `json:"-"`
+	OriginalDescription string    `json:"original_description"`
 	OriginalModel       string    `json:"-"`
 	OriginalCreatedAt   time.Time `json:"-"`
 	CreatedAt           time.Time `json:"created_at"`

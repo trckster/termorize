@@ -121,6 +121,22 @@ func TestAdminDescriptionPreviewRequiresApprovalAndUsesSelectedModel(t *testing.
 	}
 }
 
+func TestAdminDescriptionPreviewReturnsCurrentSnapshot(t *testing.T) {
+	testkit.Truncate(t)
+	admin := testkit.CreateUser(t, testkit.WithAdmin())
+	existing := seedAdminDescription(t, "cat", "Clue when the list was loaded.")
+	require.NoError(t, db.DB.Model(&models.WordDescription{}).Where("id = ?", existing.ID).
+		Update("description", "Clue updated by another admin.").Error)
+
+	preview := previewAdminDescription(t, admin, existing, config.GetOpenRouterModel())
+	require.Equal(t, "Clue updated by another admin.", preview.OriginalDescription)
+
+	var stored services.WordDescriptionPreview
+	require.NoError(t, db.DB.First(&stored, "id = ?", preview.ID).Error)
+	assert.Equal(t, stored.OriginalDescription, preview.OriginalDescription)
+	require.NoError(t, services.ApproveWordDescriptionForAdmin(existing.ID, preview.ID, admin.ID))
+}
+
 func TestAdminDescriptionRejectsInvalidPreviewAndPreservesCache(t *testing.T) {
 	for _, scenario := range []string{"provider", "answer", "morphology", "language", "empty", "long"} {
 		t.Run(scenario, func(t *testing.T) {

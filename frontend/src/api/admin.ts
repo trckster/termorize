@@ -41,7 +41,13 @@ export type AdminWordDescription = {
     approved_at: string | null
 }
 export type DescriptionModel = { id: string; name: string; tier: 'basic' | 'medium' | 'smart' }
-export type DescriptionPreview = { id: string; model: string; description: string; created_at: string }
+export type DescriptionPreview = {
+    id: string
+    model: string
+    description: string
+    original_description: string
+    created_at: string
+}
 
 export const adminApi = {
     async getDescriptionModels(): Promise<DescriptionModel[]> {
