@@ -277,7 +277,7 @@ func TestTelegramPronunciationFileIDHitSendsOnlyCachedID(t *testing.T) {
 	assert.Nil(t, metadata.Audio, "metadata lookup must not load the MP3")
 }
 
-func TestTelegramPronunciationSuccessRemovesOnlyPronunciationButton(t *testing.T) {
+func TestTelegramLegacyPronunciationSuccessKeepsKeyboard(t *testing.T) {
 	testkit.Truncate(t)
 	tg := testkit.MockTelegramAPI(t)
 	translationID, target := seedPronunciationTranslation(t)
@@ -297,16 +297,8 @@ func TestTelegramPronunciationSuccessRemovesOnlyPronunciationButton(t *testing.T
 	rec := telegramUpdate(t, update)
 	testkit.RequireStatus(t, rec, http.StatusOK)
 	require.Len(t, tg.RequestsFor("sendAudio"), 1)
-	require.Len(t, tg.RequestsFor("editMessageReplyMarkup"), 1)
-
-	var edited telegramKeyboardRequest
-	require.NoError(t, json.Unmarshal(tg.RequestsFor("editMessageReplyMarkup")[0].Body, &edited))
-	require.Len(t, edited.ReplyMarkup.InlineKeyboard, 1)
-	require.Len(t, edited.ReplyMarkup.InlineKeyboard[0], 1)
-	assert.Equal(t, "Add to vocabulary", edited.ReplyMarkup.InlineKeyboard[0][0].Text)
-	assert.Equal(t, "vocabulary:add:"+translationID.String(), edited.ReplyMarkup.InlineKeyboard[0][0].CallbackData)
-	_, pronunciationStillPresent := findCallbackButton(edited.ReplyMarkup.InlineKeyboard, "pronunciation:")
-	assert.False(t, pronunciationStillPresent)
+	assert.Empty(t, tg.RequestsFor("editMessageReplyMarkup"), "playback must keep the pronunciation and vocabulary buttons available")
+	assert.Empty(t, tg.RequestsFor("editMessageText"), "playback must not replace the translation or its keyboard")
 }
 
 func TestTelegramPronunciationStaleFileIDReuploadsWithoutTTS(t *testing.T) {

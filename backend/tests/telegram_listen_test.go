@@ -20,7 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestTelegramListenButtonsPlayTheirOwnLanguage(t *testing.T) {
+func TestTelegramListenButtonsKeepOriginalKeyboardAndPlayTheirOwnLanguage(t *testing.T) {
 	for _, test := range []struct {
 		name, original, translated string
 		source, target, system     enums.Language
@@ -129,23 +129,8 @@ func TestTelegramListenButtonsPlayTheirOwnLanguage(t *testing.T) {
 				assert.Equal(t, expectedConfig.Voice, stored.Voice)
 				require.NotNil(t, stored.TelegramFileID)
 				require.NoError(t, services.SetWordPronunciationTelegramFileID(stored.ID, "cached-"+string(expectedWord.Language)))
-				require.Len(t, tg.RequestsFor("editMessageReplyMarkup"), press+1)
-				var edited struct {
-					ChatID    int64 `json:"chat_id"`
-					MessageID int   `json:"message_id"`
-					telegramKeyboardRequest
-				}
-				require.NoError(t, json.Unmarshal(tg.RequestsFor("editMessageReplyMarkup")[press].Body, &edited))
-				assert.Equal(t, telegramID, edited.ChatID)
-				assert.Equal(t, 80, edited.MessageID)
-				keyboard = edited.ReplyMarkup.InlineKeyboard
-				_, pressedPresent := findCallbackButton(keyboard, buttons[i].CallbackData)
-				assert.False(t, pressedPresent)
-				if press == 0 {
-					other, present := findCallbackButton(keyboard, buttons[1-i].CallbackData)
-					require.True(t, present)
-					assert.Equal(t, buttons[1-i], other)
-				}
+				assert.Empty(t, tg.RequestsFor("editMessageReplyMarkup"), "both callbacks use the original keyboard, which playback must not edit")
+				assert.Empty(t, tg.RequestsFor("editMessageText"))
 			}
 			generationCount := 2
 			if test.fallback {
@@ -155,7 +140,9 @@ func TestTelegramListenButtonsPlayTheirOwnLanguage(t *testing.T) {
 			for i, button := range buttons {
 				expectedWord = words[i]
 				update := pronunciationCallbackUpdate(telegramID, translation.ID)
-				update["callback_query"].(map[string]any)["data"] = button.CallbackData
+				callback := update["callback_query"].(map[string]any)
+				callback["data"] = button.CallbackData
+				callback["message"].(map[string]any)["reply_markup"] = map[string]any{"inline_keyboard": keyboard}
 				rec := telegramUpdate(t, update)
 				testkit.RequireStatus(t, rec, http.StatusOK)
 				require.Len(t, tg.RequestsFor("sendAudio"), 3+i)
@@ -165,6 +152,8 @@ func TestTelegramListenButtonsPlayTheirOwnLanguage(t *testing.T) {
 				assert.Equal(t, "cached-"+string(words[i].Language), audioRequest["audio"])
 			}
 			assert.Equal(t, generationCount, generated, "both words reuse their cached audio")
+			assert.Empty(t, tg.RequestsFor("editMessageReplyMarkup"), "cached playback must also keep both buttons available")
+			assert.Empty(t, tg.RequestsFor("editMessageText"))
 			require.Len(t, tg.RequestsFor("answerCallbackQuery"), 4)
 			for _, request := range tg.RequestsFor("answerCallbackQuery") {
 				var answer map[string]any

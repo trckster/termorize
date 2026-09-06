@@ -61,32 +61,6 @@ func TestChoiceExerciseKeyboardUsesSingleColumnForLongLabels(t *testing.T) {
 	}
 }
 
-func TestWithoutPronunciationButtonsPreservesOtherActions(t *testing.T) {
-	markup := &inlineKeyboardMarkup{InlineKeyboard: [][]inlineKeyboardButton{
-		{
-			{Text: "Add", CallbackData: "vocabulary:add:translation"},
-			{Text: "Listen 🇬🇧", CallbackData: "pronunciation:translation:source"},
-			{Text: "Listen 🇪🇸", CallbackData: "pronunciation:translation:target"},
-		},
-		{{Text: "Website", URL: "https://example.com"}},
-	}}
-
-	keyboard, removed := withoutPronunciationButton(markup, "pronunciation:translation:source")
-
-	require.True(t, removed)
-	require.Equal(t, [][]inlineKeyboardButton{
-		{{Text: "Add", CallbackData: "vocabulary:add:translation"}, {Text: "Listen 🇪🇸", CallbackData: "pronunciation:translation:target"}},
-		{{Text: "Website", URL: "https://example.com"}},
-	}, keyboard)
-}
-
-func TestWithoutPronunciationButtonsDoesNotEditAbsentMarkup(t *testing.T) {
-	keyboard, removed := withoutPronunciationButton(nil, "pronunciation:translation:source")
-
-	require.False(t, removed)
-	require.Nil(t, keyboard)
-}
-
 func TestMatchExerciseKeyboardUsesSingleColumnForLongWords(t *testing.T) {
 	exerciseID := uuid.MustParse("52fdfc07-2182-454f-963f-5f0f9a621d72")
 	tests := []struct {
