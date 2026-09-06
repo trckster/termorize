@@ -53,6 +53,9 @@ const (
 	exerciseActionIgnoreDescriptionLanguage = "di"
 	exerciseActionUndoDescriptionLanguage   = "du"
 
+	pronunciationSideSource = "source"
+	pronunciationSideTarget = "target"
+
 	vocabularyActionAdd    = "add"
 	vocabularyActionDelete = "delete"
 
@@ -153,28 +156,31 @@ func getMenuCancelKeyboard(t BotTexts) [][]inlineKeyboardButton {
 	return [][]inlineKeyboardButton{{{Text: t.ButtonCancel, CallbackData: callbackTypeMenu + ":" + menuActionCancel}}}
 }
 
-func buildVocabularyAddKeyboard(translationID uuid.UUID, t BotTexts) [][]inlineKeyboardButton {
+func buildVocabularyAddKeyboard(translationID uuid.UUID, sourceLanguage, targetLanguage enums.Language, t BotTexts) [][]inlineKeyboardButton {
 	return [][]inlineKeyboardButton{{{
 		Text:         t.ButtonVocabularyAdd,
 		CallbackData: callbackTypeVocabulary + ":" + vocabularyActionAdd + ":" + translationID.String(),
-	}}, pronunciationButtonRow(translationID, t)}
+	}}, pronunciationButtonRow(translationID, sourceLanguage, targetLanguage, t)}
 }
 
-func buildVocabularyDeleteKeyboard(vocabularyID uuid.UUID, translationID uuid.UUID, t BotTexts) [][]inlineKeyboardButton {
+func buildVocabularyDeleteKeyboard(vocabularyID uuid.UUID, translationID uuid.UUID, sourceLanguage, targetLanguage enums.Language, t BotTexts) [][]inlineKeyboardButton {
 	return [][]inlineKeyboardButton{{{
 		Text:         t.ButtonVocabularyDelete,
 		CallbackData: callbackTypeVocabulary + ":" + vocabularyActionDelete + ":" + vocabularyID.String(),
-	}}, pronunciationButtonRow(translationID, t)}
+	}}, pronunciationButtonRow(translationID, sourceLanguage, targetLanguage, t)}
 }
 
-func buildPronunciationKeyboard(translationID uuid.UUID, t BotTexts) [][]inlineKeyboardButton {
-	return [][]inlineKeyboardButton{pronunciationButtonRow(translationID, t)}
+func buildPronunciationKeyboard(translationID uuid.UUID, sourceLanguage, targetLanguage enums.Language, t BotTexts) [][]inlineKeyboardButton {
+	return [][]inlineKeyboardButton{pronunciationButtonRow(translationID, sourceLanguage, targetLanguage, t)}
 }
 
-func pronunciationButtonRow(translationID uuid.UUID, t BotTexts) []inlineKeyboardButton {
+func pronunciationButtonRow(translationID uuid.UUID, sourceLanguage, targetLanguage enums.Language, t BotTexts) []inlineKeyboardButton {
 	return []inlineKeyboardButton{{
-		Text:         t.ButtonPronunciation,
-		CallbackData: callbackTypePronunciation + ":" + compactCallbackUUID(translationID),
+		Text:         t.ButtonListen + " " + sourceLanguage.Flag(),
+		CallbackData: callbackTypePronunciation + ":" + compactCallbackUUID(translationID) + ":" + pronunciationSideSource,
+	}, {
+		Text:         t.ButtonListen + " " + targetLanguage.Flag(),
+		CallbackData: callbackTypePronunciation + ":" + compactCallbackUUID(translationID) + ":" + pronunciationSideTarget,
 	}}
 }
 
