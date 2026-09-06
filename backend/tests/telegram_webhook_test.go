@@ -986,9 +986,11 @@ func TestTelegramWebhookVocabularyAddCallbackIsReplaySafe(t *testing.T) {
 	assert.Equal(t, messageID, editRequest.MessageID)
 	assert.Equal(t, originalText+"\n\nSuccessfully added to your vocabulary", editRequest.Text)
 	require.Len(t, editRequest.ReplyMarkup.InlineKeyboard, 1)
-	require.Len(t, editRequest.ReplyMarkup.InlineKeyboard[0], 1)
-	assert.Equal(t, "🔊 Pronunciation", editRequest.ReplyMarkup.InlineKeyboard[0][0].Text)
-	assert.Equal(t, "pronunciation:"+telegramCompactUUID(translationID), editRequest.ReplyMarkup.InlineKeyboard[0][0].CallbackData)
+	require.Len(t, editRequest.ReplyMarkup.InlineKeyboard[0], 2)
+	assert.Equal(t, "Listen 🇬🇧", editRequest.ReplyMarkup.InlineKeyboard[0][0].Text)
+	assert.Equal(t, "Listen 🇩🇪", editRequest.ReplyMarkup.InlineKeyboard[0][1].Text)
+	assert.Equal(t, "pronunciation:"+telegramCompactUUID(translationID)+":source", editRequest.ReplyMarkup.InlineKeyboard[0][0].CallbackData)
+	assert.Equal(t, "pronunciation:"+telegramCompactUUID(translationID)+":target", editRequest.ReplyMarkup.InlineKeyboard[0][1].CallbackData)
 	assert.False(t, tg.Sent("sendMessage"), "the callback should edit, not send, the message")
 
 	// Telegram may redeliver an update. The service treats an existing vocabulary

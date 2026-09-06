@@ -129,18 +129,24 @@ func FindConfiguredWordPronunciationMetadata(wordID uuid.UUID, language string) 
 }
 
 func GetTranslationTargetWord(translationID uuid.UUID) (*models.Word, error) {
+	_, target, err := GetTranslationWords(translationID)
+	return target, err
+}
+
+func GetTranslationWords(translationID uuid.UUID) (*models.Word, *models.Word, error) {
 	var translation models.Translation
 	if err := db.DB.
+		Preload("Original").
 		Preload("Translation").
 		Where("id = ?", translationID).
 		First(&translation).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrTranslationNotFound
+			return nil, nil, ErrTranslationNotFound
 		}
-		return nil, err
+		return nil, nil, err
 	}
 
-	return translation.Translation, nil
+	return translation.Original, translation.Translation, nil
 }
 
 // FindWordPronunciationMetadata deliberately excludes audio so Telegram file_id

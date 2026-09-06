@@ -107,7 +107,7 @@ type BotTexts struct {
 	ButtonExerciseIDK                     string
 	ButtonVocabularyAdd                   string
 	ButtonVocabularyDelete                string
-	ButtonPronunciation                   string
+	ButtonListen                          string
 	ButtonIgnoreAudioLanguageFormat       string
 	ButtonRemoveAudioLanguageFormat       string
 	ButtonIgnoreDescriptionLanguageFormat string
@@ -238,7 +238,7 @@ var botTextsEn = BotTexts{
 	ButtonExerciseIDK:                     "Don't know",
 	ButtonVocabularyAdd:                   "Add to vocabulary",
 	ButtonVocabularyDelete:                "Delete from vocabulary",
-	ButtonPronunciation:                   "🔊 Pronunciation",
+	ButtonListen:                          "Listen",
 	ButtonIgnoreAudioLanguageFormat:       "Don't send me audio in %s",
 	ButtonRemoveAudioLanguageFormat:       "Remove %s from ignored",
 	ButtonIgnoreDescriptionLanguageFormat: "Don't send descriptions in %s",
@@ -393,7 +393,7 @@ var botTextsRu = BotTexts{
 	ButtonExerciseIDK:                     "Не знаю",
 	ButtonVocabularyAdd:                   "Добавить в словарь",
 	ButtonVocabularyDelete:                "Удалить из словаря",
-	ButtonPronunciation:                   "🔊 Произношение",
+	ButtonListen:                          "Слушать",
 	ButtonIgnoreAudioLanguageFormat:       "Не присылать аудио. Язык: %s",
 	ButtonRemoveAudioLanguageFormat:       "Разрешить аудио. Язык: %s",
 	ButtonIgnoreDescriptionLanguageFormat: "Не присылать описания. Язык: %s",

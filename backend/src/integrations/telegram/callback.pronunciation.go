@@ -6,8 +6,17 @@ import (
 )
 
 func handlePronunciationCallback(callback *callbackQuery, payload []string) {
-	if callback.Message == nil || len(payload) != 1 {
+	if callback.Message == nil || (len(payload) != 1 && len(payload) != 2) {
 		return
+	}
+
+	// Callbacks from older messages have no side and pronounce the translation.
+	side := pronunciationSideTarget
+	if len(payload) == 2 {
+		side = payload[1]
+		if side != pronunciationSideSource && side != pronunciationSideTarget {
+			return
+		}
 	}
 
 	translationID, err := parseCallbackUUID(payload[0])
@@ -15,20 +24,25 @@ func handlePronunciationCallback(callback *callbackQuery, payload []string) {
 		return
 	}
 
-	targetWord, err := services.GetTranslationTargetWord(translationID)
+	sourceWord, targetWord, err := services.GetTranslationWords(translationID)
 	if err != nil {
 		logPronunciationFailure("failed to resolve pronunciation translation", err, translationID.String())
 		return
 	}
 
-	pronunciation, err := services.FindConfiguredWordPronunciationMetadata(targetWord.ID, string(targetWord.Language))
+	word := targetWord
+	if side == pronunciationSideSource {
+		word = sourceWord
+	}
+
+	pronunciation, err := services.FindConfiguredWordPronunciationMetadata(word.ID, string(word.Language))
 	if err != nil {
 		logPronunciationFailure("failed to load pronunciation cache", err, translationID.String())
 		return
 	}
 
 	if pronunciation != nil && pronunciation.TelegramFileID != nil {
-		if _, err := SendAudioByFileID(callback.Message.Chat.ID, *pronunciation.TelegramFileID, targetWord.Word); err == nil {
+		if _, err := SendAudioByFileID(callback.Message.Chat.ID, *pronunciation.TelegramFileID, word.Word); err == nil {
 			removePronunciationButtonAfterSuccess(callback)
 			return
 		} else {
@@ -37,7 +51,7 @@ func handlePronunciationCallback(callback *callbackQuery, payload []string) {
 	}
 
 	if pronunciation == nil {
-		pronunciation, err = services.GetOrCreateWordPronunciation(targetWord.ID)
+		pronunciation, err = services.GetOrCreateWordPronunciation(word.ID)
 		if err != nil {
 			logPronunciationFailure("failed to generate pronunciation", err, translationID.String())
 			return
@@ -50,7 +64,7 @@ func handlePronunciationCallback(callback *callbackQuery, payload []string) {
 		}
 	}
 
-	telegramFileID, err := SendAudioMP3(callback.Message.Chat.ID, pronunciation.Audio, pronunciation.MIMEType, targetWord.Word)
+	telegramFileID, err := SendAudioMP3(callback.Message.Chat.ID, pronunciation.Audio, pronunciation.MIMEType, word.Word)
 	if err != nil {
 		logPronunciationFailure("failed to upload pronunciation to telegram", err, translationID.String())
 		return
@@ -68,7 +82,7 @@ func logPronunciationFailure(message string, err error, translationID string) {
 }
 
 func removePronunciationButtonAfterSuccess(callback *callbackQuery) {
-	keyboard, removed := withoutPronunciationButtons(callback.Message.ReplyMarkup)
+	keyboard, removed := withoutPronunciationButton(callback.Message.ReplyMarkup, callback.Data)
 	if !removed {
 		return
 	}
@@ -83,7 +97,7 @@ func removePronunciationButtonAfterSuccess(callback *callbackQuery) {
 	}
 }
 
-func withoutPronunciationButtons(markup *inlineKeyboardMarkup) ([][]inlineKeyboardButton, bool) {
+func withoutPronunciationButton(markup *inlineKeyboardMarkup, callbackData string) ([][]inlineKeyboardButton, bool) {
 	if markup == nil {
 		return nil, false
 	}
@@ -93,8 +107,7 @@ func withoutPronunciationButtons(markup *inlineKeyboardMarkup) ([][]inlineKeyboa
 	for _, row := range markup.InlineKeyboard {
 		filteredRow := make([]inlineKeyboardButton, 0, len(row))
 		for _, button := range row {
-			handlerType, _, ok := parseCallbackData(button.CallbackData)
-			if ok && handlerType == callbackTypePronunciation {
+			if button.CallbackData == callbackData {
 				removed = true
 				continue
 			}

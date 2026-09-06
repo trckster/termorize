@@ -125,7 +125,7 @@ func TestTelegramAudioExerciseUsesCachedFileWithCaptionAndKeyboard(t *testing.T)
 	assert.True(t, hasIgnore)
 }
 
-func TestTelegramTranslationsAlwaysIncludePronunciationWithoutGeneratingAudio(t *testing.T) {
+func TestTelegramTranslationsAlwaysIncludeBothListenButtonsWithoutGeneratingAudio(t *testing.T) {
 	tests := []struct {
 		name       string
 		text       string
@@ -182,10 +182,18 @@ func TestTelegramTranslationsAlwaysIncludePronunciationWithoutGeneratingAudio(t 
 			require.Len(t, requests, 1)
 			var sent telegramKeyboardRequest
 			require.NoError(t, json.Unmarshal(requests[0].Body, &sent))
-			button, ok := findCallbackButton(sent.ReplyMarkup.InlineKeyboard, "pronunciation:")
-			require.True(t, ok)
-			assert.Equal(t, "🔊 Pronunciation", button.Text)
-			assert.Len(t, strings.TrimPrefix(button.CallbackData, "pronunciation:"), 22)
+			row := sent.ReplyMarkup.InlineKeyboard[len(sent.ReplyMarkup.InlineKeyboard)-1]
+			require.Len(t, row, 2)
+			assert.Equal(t, "Listen 🇬🇧", row[0].Text)
+			assert.Equal(t, "Listen 🇩🇪", row[1].Text)
+			for i, side := range []string{"source", "target"} {
+				parts := strings.Split(row[i].CallbackData, ":")
+				require.Len(t, parts, 3)
+				assert.Equal(t, "pronunciation", parts[0])
+				assert.Len(t, parts[1], 22)
+				assert.Equal(t, side, parts[2])
+				assert.LessOrEqual(t, len(row[i].CallbackData), 64)
+			}
 		})
 	}
 }
@@ -397,7 +405,7 @@ func TestTelegramPronunciationFailuresStaySilentAndReturnOK(t *testing.T) {
 	}
 }
 
-func TestTelegramVocabularyDeleteRetainsPronunciationButton(t *testing.T) {
+func TestTelegramVocabularyDeleteRetainsBothListenButtons(t *testing.T) {
 	testkit.Truncate(t)
 	tg := testkit.MockTelegramAPI(t)
 	const telegramID int64 = 730001
@@ -423,9 +431,13 @@ func TestTelegramVocabularyDeleteRetainsPronunciationButton(t *testing.T) {
 	require.Len(t, tg.RequestsFor("editMessageText"), 1)
 	var edited telegramKeyboardRequest
 	require.NoError(t, json.Unmarshal(tg.RequestsFor("editMessageText")[0].Body, &edited))
-	button, ok := findCallbackButton(edited.ReplyMarkup.InlineKeyboard, "pronunciation:")
-	require.True(t, ok)
-	assert.Equal(t, "pronunciation:"+telegramCompactUUID(translationID), button.CallbackData)
+	require.Len(t, edited.ReplyMarkup.InlineKeyboard, 1)
+	require.Len(t, edited.ReplyMarkup.InlineKeyboard[0], 2)
+	assert.Equal(t, "Listen 🇬🇧", edited.ReplyMarkup.InlineKeyboard[0][0].Text)
+	assert.Equal(t, "Listen 🇩🇪", edited.ReplyMarkup.InlineKeyboard[0][1].Text)
+	for i, side := range []string{"source", "target"} {
+		assert.Equal(t, "pronunciation:"+telegramCompactUUID(translationID)+":"+side, edited.ReplyMarkup.InlineKeyboard[0][i].CallbackData)
+	}
 }
 
 func seedPronunciationTranslation(t *testing.T) (uuid.UUID, *models.Word) {

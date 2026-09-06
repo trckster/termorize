@@ -65,22 +65,23 @@ func TestWithoutPronunciationButtonsPreservesOtherActions(t *testing.T) {
 	markup := &inlineKeyboardMarkup{InlineKeyboard: [][]inlineKeyboardButton{
 		{
 			{Text: "Add", CallbackData: "vocabulary:add:translation"},
-			{Text: "Pronunciation", CallbackData: "pronunciation:translation"},
+			{Text: "Listen 🇬🇧", CallbackData: "pronunciation:translation:source"},
+			{Text: "Listen 🇪🇸", CallbackData: "pronunciation:translation:target"},
 		},
 		{{Text: "Website", URL: "https://example.com"}},
 	}}
 
-	keyboard, removed := withoutPronunciationButtons(markup)
+	keyboard, removed := withoutPronunciationButton(markup, "pronunciation:translation:source")
 
 	require.True(t, removed)
 	require.Equal(t, [][]inlineKeyboardButton{
-		{{Text: "Add", CallbackData: "vocabulary:add:translation"}},
+		{{Text: "Add", CallbackData: "vocabulary:add:translation"}, {Text: "Listen 🇪🇸", CallbackData: "pronunciation:translation:target"}},
 		{{Text: "Website", URL: "https://example.com"}},
 	}, keyboard)
 }
 
 func TestWithoutPronunciationButtonsDoesNotEditAbsentMarkup(t *testing.T) {
-	keyboard, removed := withoutPronunciationButtons(nil)
+	keyboard, removed := withoutPronunciationButton(nil, "pronunciation:translation:source")
 
 	require.False(t, removed)
 	require.Nil(t, keyboard)
