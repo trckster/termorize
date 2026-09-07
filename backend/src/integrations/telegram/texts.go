@@ -476,10 +476,10 @@ func BuildBasicExerciseQuestion(
 		exerciseType == enums.ExerciseTypeChoiceReversed ||
 		exerciseType == enums.ExerciseTypeCharactersReversed ||
 		exerciseType == enums.ExerciseTypeAudioReversed {
-		return buildTranslateQuestionText(translationWord, originalLanguage.DisplayNameWithFlag(), exerciseType, texts)
+		return buildTranslateQuestionText(translationWord, localizedLanguageWithFlag(originalLanguage, texts), exerciseType, texts)
 	}
 
-	return buildTranslateQuestionText(originalWord, translationLanguage.DisplayNameWithFlag(), exerciseType, texts)
+	return buildTranslateQuestionText(originalWord, localizedLanguageWithFlag(translationLanguage, texts), exerciseType, texts)
 }
 
 func BuildKnownVocabularyRepetitionQuestion(question string, texts BotTexts) string {
@@ -489,7 +489,7 @@ func BuildKnownVocabularyRepetitionQuestion(question string, texts BotTexts) str
 func BuildDescriptionExerciseQuestion(description string, language enums.Language, texts BotTexts) string {
 	return fmt.Sprintf(
 		texts.QuestionDescriptionReplyFormat,
-		escapeTelegramMarkdown(localizedLanguageName(language, texts)),
+		escapeTelegramMarkdown(localizedLanguageWithFlag(language, texts)),
 		escapeTelegramMarkdown(description),
 	)
 }
@@ -519,7 +519,7 @@ func BuildSettingsText(systemLanguage enums.Language, dailyExercisesEnabled bool
 		"%s\n\n%s: %s\n\n%s: %s\n\n%s",
 		texts.MenuSettingsTitle,
 		texts.MenuSettingsSystemLanguage,
-		systemLanguage.DisplayNameWithFlag(),
+		localizedLanguageWithFlag(systemLanguage, texts),
 		texts.MenuSettingsDailyExercises,
 		dailyExercisesStatus,
 		texts.MenuSettingsFullVersionNote,

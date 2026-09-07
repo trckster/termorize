@@ -235,7 +235,7 @@ func buildAudioExerciseCaption(answerLanguage enums.Language, texts BotTexts, ca
 		captionFormat = texts.AudioExerciseCancelledCaptionFormat
 	}
 
-	return fmt.Sprintf(captionFormat, answerLanguage.Flag()+" "+localizedLanguageName(answerLanguage, texts))
+	return fmt.Sprintf(captionFormat, localizedLanguageWithFlag(answerLanguage, texts))
 }
 
 func editCancelledAudioExerciseMessage(
