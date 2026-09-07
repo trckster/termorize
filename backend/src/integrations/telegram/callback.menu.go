@@ -69,8 +69,8 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 		}
 
 		messageText := buildAddVocabularyFirstText(
-			user.Settings.TranslationSourceLanguage.DisplayNameWithFlag(),
-			user.Settings.TranslationTargetLanguage.DisplayNameWithFlag(),
+			localizedLanguageWithFlag(user.Settings.TranslationSourceLanguage, t),
+			localizedLanguageWithFlag(user.Settings.TranslationTargetLanguage, t),
 			t,
 		)
 		keyboard := buildAddTranslationKeyboard(user.Settings.TranslationSourceLanguage, user.Settings.TranslationTargetLanguage, t)
@@ -174,8 +174,8 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 		}
 
 		messageText := buildAddVocabularyFirstText(
-			user.Settings.TranslationSourceLanguage.DisplayNameWithFlag(),
-			user.Settings.TranslationTargetLanguage.DisplayNameWithFlag(),
+			localizedLanguageWithFlag(user.Settings.TranslationSourceLanguage, t),
+			localizedLanguageWithFlag(user.Settings.TranslationTargetLanguage, t),
 			t,
 		)
 		keyboard := buildAddTranslationKeyboard(user.Settings.TranslationSourceLanguage, user.Settings.TranslationTargetLanguage, t)
