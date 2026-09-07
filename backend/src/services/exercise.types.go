@@ -192,13 +192,22 @@ type exerciseVocabularyDetails struct {
 	TranslationLanguage enums.Language `gorm:"column:translation_language"`
 }
 
+type VocabularyLearningDistribution struct {
+	NotStarted int64 `json:"not_started"`
+	Beginning  int64 `json:"beginning"`
+	Developing int64 `json:"developing"`
+	Confident  int64 `json:"confident"`
+	Mastered   int64 `json:"mastered"`
+}
+
 type ExerciseStatistics struct {
-	InProgress         int64                     `json:"in_progress" gorm:"column:in_progress"`
-	Done               int64                     `json:"done" gorm:"column:done"`
-	Failed             int64                     `json:"failed" gorm:"column:failed"`
-	Ignored            int64                     `json:"ignored" gorm:"column:ignored"`
-	ExerciseActivity   []ExerciseDailyActivity   `json:"exercise_activity" gorm:"-"`
-	VocabularyActivity []VocabularyDailyActivity `json:"vocabulary_activity" gorm:"-"`
+	VocabularyLearning VocabularyLearningDistribution `json:"vocabulary_learning" gorm:"-"`
+	InProgress         int64                          `json:"in_progress" gorm:"column:in_progress"`
+	Done               int64                          `json:"done" gorm:"column:done"`
+	Failed             int64                          `json:"failed" gorm:"column:failed"`
+	Ignored            int64                          `json:"ignored" gorm:"column:ignored"`
+	ExerciseActivity   []ExerciseDailyActivity        `json:"exercise_activity" gorm:"-"`
+	VocabularyActivity []VocabularyDailyActivity      `json:"vocabulary_activity" gorm:"-"`
 }
 
 type ExerciseDailyActivity struct {

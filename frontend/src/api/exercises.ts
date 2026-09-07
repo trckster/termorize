@@ -3,7 +3,16 @@ import type { Paginated } from '@/api/pagination.ts'
 
 const API_URL = import.meta.env.VITE_API_URL.replace(/\/$/, '')
 
+export type VocabularyLearningDistribution = {
+    not_started: number
+    beginning: number
+    developing: number
+    confident: number
+    mastered: number
+}
+
 export type ExerciseStatistics = {
+    vocabulary_learning: VocabularyLearningDistribution
     in_progress: number
     done: number
     failed: number
