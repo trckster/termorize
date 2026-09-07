@@ -81,7 +81,7 @@ func GetRecentUsersForAdmin(viewerID uint) (*RecentUsersResponse, error) {
 		) AS vocabulary_stats ON vocabulary_stats.user_id = users.id
 		WHERE activity.user_id IS NOT NULL OR users.deleted_at IS NOT NULL
 		GROUP BY users.id, users.name, users.username, users.deleted_at, vocabulary_stats.size
-		ORDER BY users.deleted_at DESC NULLS LAST, latest_usage DESC NULLS LAST, users.id DESC
+		ORDER BY latest_usage DESC NULLS LAST, users.id DESC
 		LIMIT ?
 	`, enums.ExerciseStatusCompleted, enums.ExerciseStatusFailed, recentUsersLimit).Scan(&response.Data).Error
 	if err != nil {

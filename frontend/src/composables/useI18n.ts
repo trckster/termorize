@@ -39,7 +39,7 @@ const en = {
     // Admin users page
     usersHeading: 'Users',
     usersDescription:
-        'Up to 50 users, with deleted accounts first, followed by recent vocabulary additions and finished exercises.',
+        'Up to 50 users, including deleted accounts, sorted by their latest vocabulary addition or finished exercise.',
     usersTotal: 'Total users',
     usersId: 'User ID',
     usersName: 'Name',
@@ -624,7 +624,7 @@ const ru: typeof en = {
     // Admin users page
     usersHeading: 'Пользователи',
     usersDescription:
-        'До 50 пользователей: сначала удалённые аккаунты, затем недавние добавления в словарь и завершённые упражнения.',
+        'До 50 пользователей, включая удалённые аккаунты, по последнему добавлению в словарь или завершённому упражнению.',
     usersTotal: 'Всего пользователей',
     usersId: 'ID пользователя',
     usersName: 'Имя',
