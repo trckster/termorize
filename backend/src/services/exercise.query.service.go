@@ -64,6 +64,27 @@ func GetExerciseStatistics(userID uint) (*ExerciseStatistics, error) {
 		return nil, err
 	}
 
+	// Match the translation knowledge shown in the vocabulary list. Entries
+	// without translation progress belong to the not-started group.
+	if err := db.DB.Raw(`
+		SELECT
+			COUNT(*) FILTER (WHERE COALESCE(progress.knowledge, 0) <= 0) AS not_started,
+			COUNT(*) FILTER (WHERE progress.knowledge BETWEEN 1 AND 34) AS beginning,
+			COUNT(*) FILTER (WHERE progress.knowledge BETWEEN 35 AND 69) AS developing,
+			COUNT(*) FILTER (WHERE progress.knowledge BETWEEN 70 AND 99) AS confident,
+			COUNT(*) FILTER (WHERE progress.knowledge >= 100) AS mastered
+		FROM vocabulary AS v
+		LEFT JOIN LATERAL (
+			SELECT (entry->>'knowledge')::int AS knowledge
+			FROM jsonb_array_elements(v.progress::jsonb) AS entry
+			WHERE entry->>'type' = ?
+			LIMIT 1
+		) AS progress ON TRUE
+		WHERE v.user_id = ? AND v.deleted_at IS NULL
+	`, enums.KnowledgeTypeTranslation, userID).Scan(&statistics.VocabularyLearning).Error; err != nil {
+		return nil, err
+	}
+
 	location := time.UTC
 	var user models.User
 	if err := db.DB.Select("settings").First(&user, userID).Error; err != nil {

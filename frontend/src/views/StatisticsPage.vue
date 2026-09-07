@@ -4,12 +4,14 @@ import { exercisesApi, type ExerciseStatistics } from '@/api/exercises.ts'
 import { Activity, AlertCircle, Ban, CheckCircle2 } from 'lucide-vue-next'
 import { useI18n } from '@/composables/useI18n'
 import { formatNumber } from '@/lib/utils.ts'
+import VocabularyLearningChart from '@/components/statistics/VocabularyLearningChart.vue'
 import WeeklyExerciseChart from '@/components/statistics/WeeklyExerciseChart.vue'
 import VocabularyActivityGrid from '@/components/statistics/VocabularyActivityGrid.vue'
 
 const { t, locale } = useI18n()
 
 const statistics = ref<ExerciseStatistics>({
+    vocabulary_learning: { not_started: 0, beginning: 0, developing: 0, confident: 0, mastered: 0 },
     in_progress: 0,
     done: 0,
     failed: 0,
@@ -142,39 +144,47 @@ onMounted(() => {
                 </div>
             </section>
 
-            <section class="overflow-hidden rounded-xl border border-border bg-card">
-                <header class="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5">
-                    <div>
-                        <h2 class="text-base font-semibold text-foreground">{{ t.statisticsWeeklyTitle }}</h2>
-                        <p class="mt-1 max-w-2xl text-sm leading-5 text-muted-foreground">
-                            {{ t.statisticsWeeklyDescription }}
-                        </p>
-                    </div>
-                    <div class="flex shrink-0 items-center gap-4 text-xs font-medium text-muted-foreground">
-                        <span class="flex items-center gap-2">
-                            <i class="h-0.5 w-5 rounded-full bg-success" />{{ t.statisticsCompleted }}
-                        </span>
-                        <span class="flex items-center gap-2">
-                            <i class="h-0.5 w-5 rounded-full bg-destructive" />{{ t.statisticsFailed }}
-                        </span>
-                    </div>
-                </header>
+            <div class="grid items-stretch gap-6 lg:grid-cols-[minmax(300px,0.9fr)_minmax(0,1.7fr)]">
+                <VocabularyLearningChart
+                    :distribution="statistics.vocabulary_learning"
+                    :loading="isLoading"
+                    :unavailable="!!errorMessage"
+                />
 
-                <div class="overflow-x-auto border-t border-border px-2 py-4 sm:px-4">
-                    <div
-                        v-if="isLoading"
-                        class="h-[250px] min-w-[560px] animate-pulse rounded-lg bg-muted/55 motion-reduce:animate-none"
-                    />
-                    <WeeklyExerciseChart
-                        v-else
-                        :activity="statistics.exercise_activity"
-                        :locale="locale"
-                        :completed-label="t.statisticsCompleted"
-                        :failed-label="t.statisticsFailed"
-                        :tasks-label="t.statisticsTasks"
-                    />
-                </div>
-            </section>
+                <section class="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
+                    <header class="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5">
+                        <div>
+                            <h2 class="text-base font-semibold text-foreground">{{ t.statisticsWeeklyTitle }}</h2>
+                            <p class="mt-1 max-w-2xl text-sm leading-5 text-muted-foreground">
+                                {{ t.statisticsWeeklyDescription }}
+                            </p>
+                        </div>
+                        <div class="flex shrink-0 items-center gap-4 text-xs font-medium text-muted-foreground">
+                            <span class="flex items-center gap-2">
+                                <i class="h-0.5 w-5 rounded-full bg-success" />{{ t.statisticsCompleted }}
+                            </span>
+                            <span class="flex items-center gap-2">
+                                <i class="h-0.5 w-5 rounded-full bg-destructive" />{{ t.statisticsFailed }}
+                            </span>
+                        </div>
+                    </header>
+
+                    <div class="overflow-x-auto border-t border-border px-2 py-4 sm:px-4">
+                        <div
+                            v-if="isLoading"
+                            class="h-[250px] min-w-[560px] animate-pulse rounded-lg bg-muted/55 motion-reduce:animate-none"
+                        />
+                        <WeeklyExerciseChart
+                            v-else
+                            :activity="statistics.exercise_activity"
+                            :locale="locale"
+                            :completed-label="t.statisticsCompleted"
+                            :failed-label="t.statisticsFailed"
+                            :tasks-label="t.statisticsTasks"
+                        />
+                    </div>
+                </section>
+            </div>
 
             <section class="overflow-hidden rounded-xl border border-border bg-card">
                 <header class="px-4 py-4 sm:px-5">
