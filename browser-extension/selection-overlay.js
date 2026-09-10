@@ -40,7 +40,7 @@
         return LANGUAGE_NAMES[code] || String(code || '').toUpperCase()
     }
 
-    function close() {
+    function close(restoreFocus = true) {
         const focusTarget = previouslyFocused
         overlayGeneration += 1
         resizeObserver?.disconnect()
@@ -52,7 +52,7 @@
         anchorRect = null
         latestRequest += 1
         previouslyFocused = null
-        if (focusTarget?.isConnected) focusTarget.focus({ preventScroll: true })
+        if (restoreFocus && focusTarget?.isConnected) focusTarget.focus({ preventScroll: true })
     }
 
     function isCurrentOverlay(generation, overlayElements) {
@@ -69,7 +69,7 @@
     function positionHost(rect) {
         if (!host) return
         const margin = 12
-        const width = Math.min(380, window.innerWidth - margin * 2)
+        const width = Math.min(560, window.innerWidth - margin * 2)
         let left = rect?.left ?? window.innerWidth - width - 20
         left = Math.max(margin, Math.min(left, window.innerWidth - width - margin))
         let top = rect?.bottom ? rect.bottom + 10 : 72
@@ -78,13 +78,18 @@
         host.style.left = `${left}px`
         host.style.top = `${Math.max(margin, top)}px`
 
+        if (elements && !elements.workspace.hidden) {
+            for (const input of [elements.source, elements.translated]) {
+                input.style.height = 'auto'
+                input.style.height = `${input.scrollHeight + input.offsetHeight - input.clientHeight}px`
+            }
+        }
+
         const height = host.getBoundingClientRect().height
         if (top + height > window.innerHeight - margin && rect?.top) {
-            top = Math.max(margin, rect.top - height - 10)
-            host.style.top = `${top}px`
-        } else if (top + height > window.innerHeight - margin) {
-            host.style.top = `${Math.max(margin, window.innerHeight - height - margin)}px`
+            top = rect.top - height - 10
         }
+        host.style.top = `${Math.max(margin, Math.min(top, window.innerHeight - height - margin))}px`
     }
 
     function template() {
@@ -97,7 +102,7 @@
                     --muted: #596960; --border: #d5e0d9; --strong-border: #c5d3cb;
                     --primary: #217a4b; --primary-hover: #19663d; --primary-fg: #f6fff9;
                     --error: #a4312b; --warning: #835b10; --success: #17643b;
-                    width: 100%; max-height: min(540px, calc(100vh - 24px)); overflow: auto; padding: 16px;
+                    width: 100%; max-height: calc(100vh - 24px); overflow: auto; scrollbar-gutter: stable; padding: 16px;
                     color: var(--fg); background: var(--bg); border: 1px solid var(--border); border-radius: 13px;
                     box-shadow: 0 18px 50px rgb(10 31 20 / 24%); font: 14px/1.45 ui-sans-serif,
                         system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -114,12 +119,7 @@
                     background: var(--primary); border-radius: 8px; font-size: 14px; font-weight: 800; }
                 h2 { font-size: 15px; font-weight: 750; letter-spacing: -.015em; }
                 .subtitle { margin-top: 1px; color: var(--muted); font-size: 11px; }
-                .close { position: relative; width: 34px; height: 34px; padding: 0; color: transparent; background: transparent;
-                    border: 0; border-radius: 8px; cursor: pointer; }
-                .close:hover { background: var(--muted-surface); }
-                .close::before, .close::after { position: absolute; top: 16px; left: 9px; width: 16px; height: 1.5px;
-                    content: ""; background: var(--muted); border-radius: 999px; }
-                .close::before { transform: rotate(45deg); } .close::after { transform: rotate(-45deg); }
+                .panel:focus { outline: none; }
                 .signed-in { gap: 7px; margin: -2px 0 12px; color: var(--muted); font-size: 11px; }
                 .dot { width: 6px; height: 6px; background: var(--primary); border-radius: 50%; }
                 .target-field { display: grid; grid-template-columns: 1fr 176px; gap: 12px; align-items: center;
@@ -129,7 +129,7 @@
                 .field { display: grid; gap: 6px; }
                 .field-head { justify-content: space-between; font-size: 11px; font-weight: 700; }
                 .language { color: var(--muted); font-weight: 600; }
-                textarea { min-height: 68px; resize: vertical; padding: 9px 10px; caret-color: var(--primary); font-size: 13px; line-height: 1.45; }
+                textarea { min-height: 68px; resize: none; overflow: hidden; padding: 9px 10px; caret-color: var(--primary); font-size: 13px; line-height: 1.45; }
                 .arrow { display: flex; align-items: center; gap: 7px; margin: 8px 0; color: var(--muted); }
                 .arrow::before, .arrow::after { height: 1px; flex: 1; content: ""; background: var(--border); }
                 .arrow svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -160,13 +160,12 @@
                 }
                 @media (prefers-reduced-motion: reduce) { .panel { animation: none; } }
             </style>
-            <section class="panel" role="dialog" aria-modal="false" aria-labelledby="termorize-selection-title">
+            <section class="panel" role="dialog" aria-modal="false" aria-labelledby="termorize-selection-title" tabindex="-1">
                 <header class="header">
                     <div class="brand">
                         <span class="mark" aria-hidden="true">T</span>
                         <div><h2 id="termorize-selection-title">TermoClip</h2><p class="subtitle">Selected-text translation</p></div>
                     </div>
-                    <button class="close" type="button" aria-label="Close TermoClip"></button>
                 </header>
                 <div class="loading state"><p>Loading your language settings…</p></div>
                 <div class="signed-out state" hidden>
@@ -205,6 +204,7 @@
         elements.message.textContent = text
         if (variant) elements.message.dataset.variant = variant
         else delete elements.message.dataset.variant
+        positionHost(anchorRect)
     }
 
     function showState(state) {
@@ -441,13 +441,15 @@
             save: shadow.querySelector('.save'),
         }
 
-        shadow.querySelector('.close').addEventListener('click', trustedListener(close))
         shadow
             .querySelector('.login')
             .addEventListener('click', trustedListener(() => runtimeMessage({ type: 'OPEN_TERMORIZE' })))
         elements.retry.addEventListener('click', trustedListener(() => translate(generation)))
         elements.save.addEventListener('click', trustedListener(() => save(generation)))
         elements.target.addEventListener('change', trustedListener(() => changeTarget(generation)))
+        for (const input of [elements.source, elements.translated]) {
+            input.addEventListener('input', () => positionHost(anchorRect))
+        }
         shadow.addEventListener('keydown', (event) => {
             if (event.isTrusted && event.key === 'Escape') {
                 event.preventDefault()
@@ -456,9 +458,14 @@
         })
 
         positionHost(anchorRect)
-        shadow.querySelector('.close').focus()
+        shadow.querySelector('.panel').focus({ preventScroll: true })
         void initialize(selection, generation)
     }
+
+    window.addEventListener('resize', () => positionHost(anchorRect))
+    window.addEventListener('pointerdown', (event) => {
+        if (event.isTrusted && host && !event.composedPath().includes(host)) close(false)
+    }, true)
 
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (sender.id !== chrome.runtime.id || message?.type !== 'OPEN_SELECTION_OVERLAY') return false
