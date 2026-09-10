@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict')
 const { describe, it } = require('node:test')
+const vm = require('node:vm')
 const {
     ME_ENDPOINT,
     TARGET_LANGUAGE_ENDPOINT,
@@ -13,6 +14,7 @@ const {
     isValidVocabularyPayload,
     saveSelection,
     saveVocabulary,
+    selectedTextInPage,
     translateSelectedText,
     updateTargetLanguage,
 } = require('./background.js')
@@ -482,5 +484,114 @@ describe('saveSelection', () => {
         await saveSelection({ ...validPayload, translation_id: 'translation-id', edited: true }, dependencies)
 
         assert.deepEqual(urls, [`${VOCABULARY_ENDPOINT}/translation`, VOCABULARY_ENDPOINT])
+    })
+})
+
+
+describe('selectedTextInPage privacy', () => {
+    function captureInput(type, nested = false) {
+        class Input {
+            constructor() {
+                this.type = type
+                this.selectionStart = 0
+                this.selectionEnd = 6
+            }
+            get value() {
+                assert.notEqual(type, 'password', 'password values must not even be read')
+                return 'hello!'
+            }
+            getBoundingClientRect() {
+                return { left: 1, top: 2, right: 3, bottom: 4 }
+            }
+        }
+        const input = new Input()
+        const windowApi = {
+            getSelection() {
+                assert.fail('must not fall back to a stale page selection')
+            },
+        }
+        windowApi.top = windowApi
+        return vm.runInNewContext(`(${selectedTextInPage.toString()})()`, {
+            window: windowApi,
+            document: {
+                activeElement: nested ? { shadowRoot: { activeElement: input } } : input,
+                hasFocus: () => true,
+            },
+            HTMLInputElement: Input,
+            HTMLTextAreaElement: class {},
+        })
+    }
+
+    it('does not extract selected passwords, including inside shadow roots', () => {
+        for (const nested of [false, true]) {
+            const result = captureInput('password', nested)
+            assert.equal(result.text, '')
+            assert.equal(result.rect, null)
+            assert.equal(result.activeFrameChain, true)
+        }
+    })
+
+    it('still extracts selected ordinary input text', () => {
+        assert.equal(captureInput('text').text, 'hello!')
+    })
+})
+
+describe('request deadlines', () => {
+    function untilAborted(signal) {
+        return new Promise((_, reject) => {
+            signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+        })
+    }
+
+    it('returns a retryable network error when response headers stall', async () => {
+        const result = await getSession({
+            chromeApi: chromeWithCookie({ value: 'session-jwt' }),
+            timeoutMs: 5,
+            fetchApi: async (_url, { signal }) => untilAborted(signal),
+        })
+        assert.deepEqual(result, { ok: false, reason: 'network' })
+    })
+
+    it('times out stalled response bodies and releases queued language updates', async () => {
+        let requests = 0
+        const dependencies = {
+            chromeApi: chromeWithCookie({ value: 'session-jwt' }),
+            timeoutMs: 5,
+            fetchApi: async (_url, { signal }) => {
+                requests += 1
+                return {
+                    ok: true,
+                    status: 200,
+                    json: requests === 1
+                        ? () => untilAborted(signal)
+                        : async () => ({ settings: { translation_target_language: 'it' } }),
+                }
+            },
+        }
+        const first = updateTargetLanguage('de', dependencies)
+        const second = updateTargetLanguage('it', dependencies)
+        assert.deepEqual(await first, { ok: false, reason: 'network' })
+        assert.equal((await second).ok, true)
+        assert.equal(requests, 2)
+    })
+})
+
+
+describe('message dispatch', () => {
+    it('ignores inherited object names instead of calling them as handlers', () => {
+        const context = vm.createContext({ URL, Set })
+        vm.runInContext(require('node:fs').readFileSync(require.resolve('./background.js'), 'utf8'), context)
+        let listener
+        context.registerMessageHandler({
+            runtime: {
+                id: 'extension-id',
+                onMessage: { addListener: (handler) => { listener = handler } },
+            },
+        })
+        for (const type of ['constructor', 'toString', '__proto__', 'UNKNOWN']) {
+            assert.equal(listener({ type }, { id: 'extension-id' }, () => {
+                assert.fail('unknown message must not receive a handler response')
+            }), false)
+        }
     })
 })

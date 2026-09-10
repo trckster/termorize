@@ -14,6 +14,8 @@ const LANGUAGE_NAMES = {
 const elements = {
     loading: document.querySelector('#loading-state'),
     signedOut: document.querySelector('#signed-out-state'),
+    sessionError: document.querySelector('#session-error-state'),
+    retrySession: document.querySelector('#retry-session'),
     workspace: document.querySelector('#workspace'),
     accountName: document.querySelector('#account-name'),
     targetLanguage: document.querySelector('#target-language'),
@@ -80,6 +82,7 @@ function setSaving(saving) {
 }
 
 function showSignedOut() {
+    elements.sessionError.hidden = true
     elements.loading.hidden = true
     elements.workspace.hidden = true
     elements.signedOut.hidden = false
@@ -246,6 +249,7 @@ async function changeTargetLanguage() {
 }
 
 async function initialize() {
+    elements.sessionError.hidden = true
     elements.loading.hidden = false
     elements.signedOut.hidden = true
     elements.workspace.hidden = true
@@ -255,7 +259,14 @@ async function initialize() {
     ])
 
     if (!session.ok) {
-        showSignedOut()
+        if (session.reason === 'unauthorized') showSignedOut()
+        else {
+            elements.loading.hidden = true
+            elements.sessionError.hidden = false
+            elements.sessionError.querySelector('p').textContent = session.reason === 'network'
+                ? 'Could not reach Termorize. Check your connection and try again.'
+                : 'Termorize could not load your account. Try again in a moment.'
+        }
         return
     }
 
@@ -267,6 +278,7 @@ elements.targetLanguage.addEventListener('change', changeTargetLanguage)
 elements.retry.addEventListener('click', translate)
 elements.signIn.addEventListener('click', () => void runtimeMessage({ type: 'OPEN_TERMORIZE' }))
 elements.checkSession.addEventListener('click', initialize)
+elements.retrySession.addEventListener('click', initialize)
 elements.openApp.addEventListener('click', () => void runtimeMessage({ type: 'OPEN_TERMORIZE' }))
 
 void initialize()

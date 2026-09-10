@@ -174,6 +174,11 @@
                     <p>Open Termorize, sign in, then press Alt + T again.</p>
                     <button class="button primary login" type="button">Sign in to Termorize</button>
                 </div>
+                <div class="session-error state" hidden>
+                    <h2>Could not load your account</h2>
+                    <p role="status">Check your connection and try again.</p>
+                    <button class="button primary retry-session" type="button">Try again</button>
+                </div>
                 <div class="empty state" hidden>
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10M7 8h8M7 12h10M7 16h6M5 2v20M19 2v20" /></svg>
                     <h2>No text selected</h2>
@@ -183,13 +188,13 @@
                     <div class="signed-in"><span class="dot" aria-hidden="true"></span><span class="account">Signed in</span></div>
                     <label class="target-field"><span>Translate to</span><select class="target"></select></label>
                     <div class="field">
-                        <div class="field-head"><span>Selected text</span><span class="language source-language">Detecting…</span></div>
-                        <textarea class="source" rows="2" maxlength="5000"></textarea>
+                        <div class="field-head"><label for="termorize-selection-source">Selected text</label><span class="language source-language">Detecting…</span></div>
+                        <textarea id="termorize-selection-source" class="source" rows="2" maxlength="5000"></textarea>
                     </div>
                     <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m8 10 4 4 4-4" /></svg></div>
                     <div class="field">
-                        <div class="field-head"><span>Translation</span><span class="language translated-language"></span></div>
-                        <textarea class="translated" rows="2" maxlength="5000"></textarea>
+                        <div class="field-head"><label for="termorize-selection-translated">Translation</label><span class="language translated-language"></span></div>
+                        <textarea id="termorize-selection-translated" class="translated" rows="2" maxlength="5000"></textarea>
                     </div>
                     <div class="message" role="status" aria-live="polite"></div>
                     <div class="actions">
@@ -210,6 +215,7 @@
     function showState(state) {
         elements.loading.hidden = state !== 'loading'
         elements.signedOut.hidden = state !== 'signed-out'
+        elements.sessionError.hidden = state !== 'session-error'
         elements.empty.hidden = state !== 'empty'
         elements.workspace.hidden = state !== 'workspace'
         positionHost(anchorRect)
@@ -395,7 +401,13 @@
         const session = await runtimeMessage({ type: 'GET_SESSION' })
         if (!isCurrentOverlay(generation, overlayElements)) return
         if (!session.ok) {
-            showState('signed-out')
+            if (session.reason === 'unauthorized') showState('signed-out')
+            else {
+                overlayElements.sessionError.querySelector('p').textContent = session.reason === 'network'
+                    ? 'Could not reach Termorize. Check your connection and try again.'
+                    : 'Termorize could not load your account. Try again in a moment.'
+                showState('session-error')
+            }
             return
         }
 
@@ -428,6 +440,7 @@
         elements = {
             loading: shadow.querySelector('.loading'),
             signedOut: shadow.querySelector('.signed-out'),
+            sessionError: shadow.querySelector('.session-error'),
             empty: shadow.querySelector('.empty'),
             workspace: shadow.querySelector('.workspace'),
             account: shadow.querySelector('.account'),
@@ -444,6 +457,10 @@
         shadow
             .querySelector('.login')
             .addEventListener('click', trustedListener(() => runtimeMessage({ type: 'OPEN_TERMORIZE' })))
+        shadow.querySelector('.retry-session').addEventListener('click', trustedListener(() => {
+            showState('loading')
+            return initialize(selection, generation)
+        }))
         elements.retry.addEventListener('click', trustedListener(() => translate(generation)))
         elements.save.addEventListener('click', trustedListener(() => save(generation)))
         elements.target.addEventListener('change', trustedListener(() => changeTarget(generation)))
