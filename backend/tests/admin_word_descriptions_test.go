@@ -23,7 +23,9 @@ func seedAdminDescription(t *testing.T, word, description string) models.WordDes
 	t.Helper()
 	w := models.Word{Word: word, Language: enums.LanguageEn}
 	require.NoError(t, db.DB.Create(&w).Error)
-	d := models.WordDescription{WordID: w.ID, Model: config.GetOpenRouterModel(), Description: description}
+	translation := models.Word{Word: "traduzione " + word, Language: enums.LanguageIt}
+	require.NoError(t, db.DB.Create(&translation).Error)
+	d := models.WordDescription{WordID: w.ID, TranslationWordID: &translation.ID, Model: config.GetOpenRouterModel(), Description: description}
 	require.NoError(t, db.DB.Create(&d).Error)
 	return d
 }
@@ -59,6 +61,8 @@ func TestAdminDescriptionsSearchPaginationAndModels(t *testing.T) {
 			assert.Equal(t, 2, response.Pagination.TotalPages)
 		} else {
 			assert.EqualValues(t, 1, response.Pagination.Total)
+			assert.Equal(t, "traduzione cat", response.Data[0].Translation)
+			assert.Equal(t, enums.LanguageIt, response.Data[0].TranslationLanguage)
 		}
 	}
 	for _, query := range []string{"page=0", "page_size=101", "page=abc", "page_size=-1"} {
@@ -97,19 +101,25 @@ func TestAdminDescriptionPreviewRequiresApprovalAndUsesSelectedModel(t *testing.
 			admin := testkit.CreateUser(t, testkit.WithAdmin())
 			existing := seedAdminDescription(t, "cat", "Old clue.")
 			calls := 0
-			mockAdminDescription(t, &testkit.FakeOpenRouter{GenerateDescriptionFunc: func(word, wordLanguage, descriptionLanguage string) (*openrouter.GeneratedDescription, error) {
+			mockAdminDescription(t, &testkit.FakeOpenRouter{GenerateDescriptionFunc: func(word, wordLanguage, translation, translationLanguage, descriptionLanguage string) (*openrouter.GeneratedDescription, error) {
 				calls++
 				assert.Equal(t, "cat", word)
+				assert.Equal(t, "English", wordLanguage)
+				assert.Equal(t, "traduzione cat", translation)
+				assert.Equal(t, "Italian", translationLanguage)
 				assert.Equal(t, "English", descriptionLanguage)
 				return &openrouter.GeneratedDescription{Description: "A small pet that purrs."}, nil
 			}}, model)
 			preview := previewAdminDescription(t, admin, existing, model)
 			require.Equal(t, model, preview.Model)
-			cached, err := services.GetOrCreateWordDescription(existing.WordID)
+			assert.Equal(t, *existing.TranslationWordID, preview.TranslationWordID)
+			assert.Equal(t, "traduzione cat", preview.Translation)
+			assert.Equal(t, enums.LanguageIt, preview.TranslationLanguage)
+			cached, err := services.GetOrCreateWordDescription(existing.WordID, *existing.TranslationWordID)
 			require.NoError(t, err)
 			assert.Equal(t, "Old clue.", cached.Description)
-			testkit.RequireStatus(t, testkit.AuthedRequest(t, admin, http.MethodPost, "/api/admin/word-descriptions/"+existing.ID.String()+"/approve", map[string]any{"model": preview.Model, "description": preview.Description}), http.StatusOK)
-			cached, err = services.GetOrCreateWordDescription(existing.WordID)
+			testkit.RequireStatus(t, testkit.AuthedRequest(t, admin, http.MethodPost, "/api/admin/word-descriptions/"+existing.ID.String()+"/approve", map[string]any{"model": preview.Model, "description": preview.Description, "translation_word_id": preview.TranslationWordID}), http.StatusOK)
+			cached, err = services.GetOrCreateWordDescription(existing.WordID, *existing.TranslationWordID)
 			require.NoError(t, err)
 			assert.Equal(t, preview.Description, cached.Description)
 			assert.Equal(t, model, cached.Model)
@@ -129,7 +139,7 @@ func TestAdminDescriptionPreviewReturnsCurrentSnapshot(t *testing.T) {
 	preview := previewAdminDescription(t, admin, existing, config.GetOpenRouterModel())
 	require.Equal(t, "Clue updated by another admin.", preview.OriginalDescription)
 
-	require.NoError(t, services.ApproveWordDescriptionForAdmin(existing.ID, preview.Model, preview.Description))
+	require.NoError(t, services.ApproveWordDescriptionForAdmin(existing.ID, preview.TranslationWordID, preview.Model, preview.Description))
 }
 
 func TestAdminDescriptionRejectsInvalidPreviewAndPreservesCache(t *testing.T) {
@@ -138,7 +148,7 @@ func TestAdminDescriptionRejectsInvalidPreviewAndPreservesCache(t *testing.T) {
 			testkit.Truncate(t)
 			admin := testkit.CreateUser(t, testkit.WithAdmin())
 			existing := seedAdminDescription(t, "cat", "Old clue.")
-			fake := &testkit.FakeOpenRouter{GenerateDescriptionFunc: func(string, string, string) (*openrouter.GeneratedDescription, error) {
+			fake := &testkit.FakeOpenRouter{GenerateDescriptionFunc: func(string, string, string, string, string) (*openrouter.GeneratedDescription, error) {
 				if scenario == "provider" {
 					return nil, errors.New("unavailable")
 				}
@@ -158,7 +168,7 @@ func TestAdminDescriptionRejectsInvalidPreviewAndPreservesCache(t *testing.T) {
 			}
 			mockAdminDescription(t, fake, config.GetOpenRouterModel())
 			testkit.RequireStatus(t, testkit.AuthedRequest(t, admin, http.MethodPost, "/api/admin/word-descriptions/"+existing.ID.String()+"/preview", map[string]any{"model": config.GetOpenRouterModel()}), http.StatusInternalServerError)
-			cached, err := services.GetOrCreateWordDescription(existing.WordID)
+			cached, err := services.GetOrCreateWordDescription(existing.WordID, *existing.TranslationWordID)
 			require.NoError(t, err)
 			assert.Equal(t, "Old clue.", cached.Description)
 		})
@@ -169,15 +179,15 @@ func TestAdminDescriptionApprovalSavesSubmittedValuesWithoutPreview(t *testing.T
 	testkit.Truncate(t)
 	admin := testkit.CreateUser(t, testkit.WithAdmin())
 	existing := seedAdminDescription(t, "cat", "Old clue.")
-	mockAdminDescription(t, &testkit.FakeOpenRouter{GenerateDescriptionFunc: func(string, string, string) (*openrouter.GeneratedDescription, error) {
+	mockAdminDescription(t, &testkit.FakeOpenRouter{GenerateDescriptionFunc: func(string, string, string, string, string) (*openrouter.GeneratedDescription, error) {
 		t.Fatal("approval must not generate a description")
 		return nil, nil
 	}}, "openai/gpt-5.6-sol")
 	submitted := "A description accepted by the admin."
 	rec := testkit.AuthedRequest(t, admin, http.MethodPost, "/api/admin/word-descriptions/"+existing.ID.String()+"/approve",
-		map[string]any{"model": "openai/gpt-5.6-sol", "description": submitted})
+		map[string]any{"model": "openai/gpt-5.6-sol", "description": submitted, "translation_word_id": existing.TranslationWordID})
 	testkit.RequireStatus(t, rec, http.StatusOK)
-	cached, err := services.GetOrCreateWordDescription(existing.WordID)
+	cached, err := services.GetOrCreateWordDescription(existing.WordID, *existing.TranslationWordID)
 	require.NoError(t, err)
 	assert.Equal(t, submitted, cached.Description)
 	assert.Equal(t, "openai/gpt-5.6-sol", cached.Model)
@@ -196,15 +206,86 @@ func TestAdminDescriptionApprovalReplacesExistingModelCache(t *testing.T) {
 	testkit.Truncate(t)
 	admin := testkit.CreateUser(t, testkit.WithAdmin())
 	existing := seedAdminDescription(t, "cat", "Old clue.")
-	other := models.WordDescription{WordID: existing.WordID, Model: "moonshotai/kimi-k2.6", Description: "Previous Kimi clue."}
+	other := models.WordDescription{WordID: existing.WordID, TranslationWordID: existing.TranslationWordID, Model: "moonshotai/kimi-k2.6", Description: "Previous Kimi clue."}
 	require.NoError(t, db.DB.Create(&other).Error)
 	preview := previewAdminDescription(t, admin, existing, other.Model)
-	require.NoError(t, services.ApproveWordDescriptionForAdmin(existing.ID, preview.Model, preview.Description))
-	cached, err := services.GetOrCreateWordDescription(existing.WordID)
+	require.NoError(t, services.ApproveWordDescriptionForAdmin(existing.ID, preview.TranslationWordID, preview.Model, preview.Description))
+	cached, err := services.GetOrCreateWordDescription(existing.WordID, *existing.TranslationWordID)
 	require.NoError(t, err)
 	assert.Equal(t, preview.Description, cached.Description)
 	assert.Equal(t, other.Model, cached.Model)
 	var count int64
 	require.NoError(t, db.DB.Model(&models.WordDescription{}).Where("word_id = ?", existing.WordID).Count(&count).Error)
 	assert.EqualValues(t, 1, count)
+}
+
+func TestAdminLegacyDescriptionPreviewAndApprovalPreserveTranslationContext(t *testing.T) {
+	for _, reversed := range []bool{false, true} {
+		t.Run(map[bool]string{false: "direct", true: "reversed"}[reversed], func(t *testing.T) {
+			testkit.Truncate(t)
+			admin := testkit.CreateUser(t, testkit.WithAdmin())
+			vocabulary := exerciseSeedVocabulary(t, admin.ID, "cat", "il gatto", enums.LanguageEn, enums.LanguageIt)
+			word, translation := vocabulary.Translation.Original, vocabulary.Translation.Translation
+			if reversed {
+				word, translation = translation, word
+			}
+			existing := models.WordDescription{WordID: word.ID, Model: config.GetOpenRouterModel(), Description: "Old clue."}
+			require.NoError(t, db.DB.Create(&existing).Error)
+			testkit.MockGoogleTranslate(t, &testkit.FakeGoogleTranslate{DetectFunc: func(string) (string, error) { return string(word.Language), nil }})
+			calls := 0
+			mockAdminDescription(t, &testkit.FakeOpenRouter{GenerateDescriptionFunc: func(answer, wordLanguage, translated, translationLanguage, descriptionLanguage string) (*openrouter.GeneratedDescription, error) {
+				calls++
+				assert.Equal(t, word.Word, answer)
+				assert.Equal(t, word.Language.DisplayName(), wordLanguage)
+				assert.Equal(t, word.Language.DisplayName(), descriptionLanguage)
+				assert.Equal(t, translation.Word, translated)
+				assert.Equal(t, translation.Language.DisplayName(), translationLanguage)
+				clue := "A small pet that purrs."
+				if reversed {
+					clue = "Un piccolo animale domestico che fa le fusa."
+				}
+				return &openrouter.GeneratedDescription{Description: clue}, nil
+			}}, config.GetOpenRouterModel())
+
+			preview := previewAdminDescription(t, admin, existing, config.GetOpenRouterModel())
+			assert.Equal(t, translation.ID, preview.TranslationWordID)
+			assert.Equal(t, translation.Word, preview.Translation)
+			assert.Equal(t, translation.Language, preview.TranslationLanguage)
+			var unchanged models.WordDescription
+			require.NoError(t, db.DB.First(&unchanged, "id = ?", existing.ID).Error)
+			assert.Nil(t, unchanged.TranslationWordID, "preview must preserve the legacy row until approval")
+			rec := testkit.AuthedRequest(t, admin, http.MethodPost, "/api/admin/word-descriptions/"+existing.ID.String()+"/approve", preview)
+			testkit.RequireStatus(t, rec, http.StatusOK)
+			cached, err := services.GetOrCreateWordDescription(word.ID, translation.ID)
+			require.NoError(t, err)
+			assert.Equal(t, preview.Description, cached.Description)
+			assert.Equal(t, &translation.ID, cached.TranslationWordID)
+			assert.NotNil(t, cached.ApprovedAt)
+			assert.Equal(t, 1, calls)
+			var count int64
+			require.NoError(t, db.DB.Model(&models.WordDescription{}).Where("word_id = ?", word.ID).Count(&count).Error)
+			assert.EqualValues(t, 1, count)
+		})
+	}
+}
+
+func TestAdminDescriptionApprovalRejectsMissingOrMismatchedTranslation(t *testing.T) {
+	for _, translationID := range []string{"", "not-a-uuid", uuid.NewString()} {
+		t.Run(translationID, func(t *testing.T) {
+			testkit.Truncate(t)
+			admin := testkit.CreateUser(t, testkit.WithAdmin())
+			existing := seedAdminDescription(t, "cat", "Old clue.")
+			payload := map[string]any{"model": config.GetOpenRouterModel(), "description": "New clue."}
+			if translationID != "" {
+				payload["translation_word_id"] = translationID
+			}
+			rec := testkit.AuthedRequest(t, admin, http.MethodPost, "/api/admin/word-descriptions/"+existing.ID.String()+"/approve", payload)
+			testkit.RequireStatus(t, rec, http.StatusBadRequest)
+			var unchanged models.WordDescription
+			require.NoError(t, db.DB.First(&unchanged, "id = ?", existing.ID).Error)
+			assert.Equal(t, "Old clue.", unchanged.Description)
+			assert.Equal(t, existing.TranslationWordID, unchanged.TranslationWordID)
+			assert.Nil(t, unchanged.ApprovedAt)
+		})
+	}
 }

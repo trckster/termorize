@@ -65,8 +65,10 @@ func TestDescriptionExerciseDirectionsUseAndCacheWordDefinitions(t *testing.T) {
 			}))
 			vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
 			expectedWordID := vocabulary.Translation.Original.ID
+			expectedTranslation := vocabulary.Translation.Translation
 			if test.exerciseType == enums.ExerciseTypeDescriptionReversed {
 				expectedWordID = vocabulary.Translation.Translation.ID
+				expectedTranslation = vocabulary.Translation.Original
 			}
 			testkit.MockGoogleTranslate(t, &testkit.FakeGoogleTranslate{
 				DetectFunc: func(string) (string, error) {
@@ -77,9 +79,11 @@ func TestDescriptionExerciseDirectionsUseAndCacheWordDefinitions(t *testing.T) {
 			calls := 0
 			validationCalls := 0
 			testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{
-				GenerateDescriptionFunc: func(word, wordLanguage, descriptionLanguage string) (*openrouter.GeneratedDescription, error) {
+				GenerateDescriptionFunc: func(word, wordLanguage, translation, translationLanguage, descriptionLanguage string) (*openrouter.GeneratedDescription, error) {
 					calls++
 					assert.Equal(t, test.expectedWord, word)
+					assert.Equal(t, expectedTranslation.Word, translation)
+					assert.Equal(t, expectedTranslation.Language.DisplayName(), translationLanguage)
 					assert.Equal(t, test.expectedLanguage.DisplayName(), wordLanguage)
 					assert.Equal(t, test.expectedLanguage.DisplayName(), descriptionLanguage)
 					return &openrouter.GeneratedDescription{Description: test.description}, nil
@@ -112,6 +116,7 @@ func TestDescriptionExerciseDirectionsUseAndCacheWordDefinitions(t *testing.T) {
 			require.NoError(t, db.DB.Where("word_id = ?", expectedWordID).Find(&descriptions).Error)
 			require.Len(t, descriptions, 1)
 			assert.Equal(t, config.GetOpenRouterModel(), descriptions[0].Model)
+			assert.Equal(t, &expectedTranslation.ID, descriptions[0].TranslationWordID)
 			assert.Equal(t, first.Description, descriptions[0].Description)
 
 			result, err := services.VerifyExerciseAnswer(first.ExerciseID, user.ID, test.almostCorrectAnswer)
@@ -350,7 +355,7 @@ func TestDescriptionExerciseRejectsClueContainingDescribedWord(t *testing.T) {
 			user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{MainLearningLanguage: test.mainLanguage}))
 			exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
 			testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{
-				GenerateDescriptionFunc: func(string, string, string) (*openrouter.GeneratedDescription, error) {
+				GenerateDescriptionFunc: func(string, string, string, string, string) (*openrouter.GeneratedDescription, error) {
 					return &openrouter.GeneratedDescription{Description: test.clue}, nil
 				},
 			})
@@ -400,7 +405,7 @@ func TestDescriptionExerciseRejectsModelReportedInflectedForms(t *testing.T) {
 			}))
 			exerciseSeedVocabulary(t, user.ID, test.word, test.translation, test.language, test.translationLang)
 			testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{
-				GenerateDescriptionFunc: func(string, string, string) (*openrouter.GeneratedDescription, error) {
+				GenerateDescriptionFunc: func(string, string, string, string, string) (*openrouter.GeneratedDescription, error) {
 					return &openrouter.GeneratedDescription{Description: test.description}, nil
 				},
 				DescriptionContainsAnswerFormFunc: func(word, wordLanguage, description string) (bool, error) {
@@ -422,7 +427,7 @@ func TestDescriptionExerciseRejectsOversizedClue(t *testing.T) {
 	user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{MainLearningLanguage: enums.LanguageEn}))
 	exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
 	testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{
-		GenerateDescriptionFunc: func(string, string, string) (*openrouter.GeneratedDescription, error) {
+		GenerateDescriptionFunc: func(string, string, string, string, string) (*openrouter.GeneratedDescription, error) {
 			return &openrouter.GeneratedDescription{Description: strings.Repeat("x", 301)}, nil
 		},
 	})
@@ -443,7 +448,7 @@ func TestDescriptionExerciseRejectsClueInWrongLanguage(t *testing.T) {
 		DetectFunc: func(string) (string, error) { return "it", nil },
 	})
 	testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{
-		GenerateDescriptionFunc: func(string, string, string) (*openrouter.GeneratedDescription, error) {
+		GenerateDescriptionFunc: func(string, string, string, string, string) (*openrouter.GeneratedDescription, error) {
 			return &openrouter.GeneratedDescription{Description: "Un materiale sottile usato per scrivere."}, nil
 		},
 	})
@@ -461,7 +466,7 @@ func TestDescriptionExercisePropagatesOpenRouterFailureWhenExplicitlyRequested(t
 	user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{MainLearningLanguage: enums.LanguageEn}))
 	exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
 	testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{
-		GenerateDescriptionFunc: func(string, string, string) (*openrouter.GeneratedDescription, error) {
+		GenerateDescriptionFunc: func(string, string, string, string, string) (*openrouter.GeneratedDescription, error) {
 			return nil, errors.New("model unavailable")
 		},
 	})
@@ -481,7 +486,7 @@ func TestDescriptionExerciseRechecksEligibilityAfterGeneration(t *testing.T) {
 	generationStarted := make(chan struct{})
 	releaseGeneration := make(chan struct{})
 	testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{
-		GenerateDescriptionFunc: func(string, string, string) (*openrouter.GeneratedDescription, error) {
+		GenerateDescriptionFunc: func(string, string, string, string, string) (*openrouter.GeneratedDescription, error) {
 			close(generationStarted)
 			<-releaseGeneration
 			return &openrouter.GeneratedDescription{Description: "A thin material used for writing or printing."}, nil
@@ -523,23 +528,76 @@ func TestDescriptionExerciseRechecksEligibilityAfterGeneration(t *testing.T) {
 	assert.Zero(t, count)
 }
 
-func TestDescriptionCacheUniquePerWordAndModel(t *testing.T) {
+func TestDescriptionCacheUniquePerWordTranslationAndModel(t *testing.T) {
 	testkit.Truncate(t)
 	user := testkit.CreateUser(t)
 	vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
 	description := models.WordDescription{
-		WordID:      vocabulary.Translation.Original.ID,
-		Model:       config.GetOpenRouterModel(),
-		Description: "First clue.",
+		WordID:            vocabulary.Translation.Original.ID,
+		TranslationWordID: &vocabulary.Translation.Translation.ID,
+		Model:             config.GetOpenRouterModel(),
+		Description:       "First clue.",
 	}
 	require.NoError(t, db.DB.Create(&description).Error)
 
 	duplicate := models.WordDescription{
-		WordID:      vocabulary.Translation.Original.ID,
-		Model:       config.GetOpenRouterModel(),
-		Description: "Second clue.",
+		WordID:            vocabulary.Translation.Original.ID,
+		TranslationWordID: &vocabulary.Translation.Translation.ID,
+		Model:             config.GetOpenRouterModel(),
+		Description:       "Second clue.",
 	}
 	assert.Error(t, db.DB.Create(&duplicate).Error)
+}
+
+func TestDescriptionCacheSeparatesMeaningsAndIgnoresLegacyClues(t *testing.T) {
+	testkit.Truncate(t)
+	user := testkit.CreateUser(t)
+	vocabulary := exerciseSeedVocabulary(t, user.ID, "bank", "la banca", enums.LanguageEn, enums.LanguageIt)
+	word := vocabulary.Translation.Original
+	financialTranslation := vocabulary.Translation.Translation
+	riverTranslation := models.Word{Word: "la riva", Language: enums.LanguageIt}
+	require.NoError(t, db.DB.Create(&riverTranslation).Error)
+	now := time.Now()
+	legacy := models.WordDescription{
+		WordID: word.ID, Model: config.GetOpenRouterModel(), Description: "An old clue without translation context.", ApprovedAt: &now,
+	}
+	require.NoError(t, db.DB.Create(&legacy).Error)
+
+	clues := map[string]string{
+		"la banca": "A place where people deposit money.",
+		"la riva":  "The land along the edge of a river.",
+	}
+	calls := 0
+	testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{
+		GenerateDescriptionFunc: func(answer, wordLanguage, translation, translationLanguage, descriptionLanguage string) (*openrouter.GeneratedDescription, error) {
+			calls++
+			assert.Equal(t, "bank", answer)
+			assert.Equal(t, "English", wordLanguage)
+			assert.Equal(t, "Italian", translationLanguage)
+			assert.Equal(t, "English", descriptionLanguage)
+			return &openrouter.GeneratedDescription{Description: clues[translation]}, nil
+		},
+	})
+
+	financial, err := services.GetOrCreateWordDescription(word.ID, financialTranslation.ID)
+	require.NoError(t, err)
+	require.NoError(t, services.ApproveWordDescriptionForAdmin(financial.ID, financialTranslation.ID, "openai/gpt-5.6-sol", financial.Description))
+	river, err := services.GetOrCreateWordDescription(word.ID, riverTranslation.ID)
+	require.NoError(t, err)
+	assert.NotEqual(t, financial.ID, river.ID)
+	assert.Equal(t, clues[financialTranslation.Word], financial.Description)
+	assert.Equal(t, clues[riverTranslation.Word], river.Description)
+
+	for _, translation := range []*models.Word{financialTranslation, &riverTranslation} {
+		cached, err := services.GetOrCreateWordDescription(word.ID, translation.ID)
+		require.NoError(t, err)
+		assert.Equal(t, clues[translation.Word], cached.Description)
+		assert.Equal(t, &translation.ID, cached.TranslationWordID)
+	}
+	assert.Equal(t, 2, calls, "each meaning is generated once, even with an approved clue for the other meaning")
+	var descriptions []models.WordDescription
+	require.NoError(t, db.DB.Where("word_id = ?", word.ID).Find(&descriptions).Error)
+	assert.Len(t, descriptions, 3, "legacy descriptions remain available for admin review")
 }
 
 func TestConcurrentDescriptionCacheMissGeneratesOnce(t *testing.T) {
@@ -550,7 +608,7 @@ func TestConcurrentDescriptionCacheMissGeneratesOnce(t *testing.T) {
 	generationStarted := make(chan struct{})
 	releaseGeneration := make(chan struct{})
 	testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{
-		GenerateDescriptionFunc: func(string, string, string) (*openrouter.GeneratedDescription, error) {
+		GenerateDescriptionFunc: func(string, string, string, string, string) (*openrouter.GeneratedDescription, error) {
 			if calls.Add(1) == 1 {
 				close(generationStarted)
 				<-releaseGeneration
@@ -567,7 +625,7 @@ func TestConcurrentDescriptionCacheMissGeneratesOnce(t *testing.T) {
 	for index := 0; index < workers; index++ {
 		go func(index int) {
 			defer waitGroup.Done()
-			descriptions[index], errorsByWorker[index] = services.GetOrCreateWordDescription(vocabulary.Translation.Original.ID)
+			descriptions[index], errorsByWorker[index] = services.GetOrCreateWordDescription(vocabulary.Translation.Original.ID, vocabulary.Translation.Translation.ID)
 		}(index)
 	}
 

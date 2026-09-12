@@ -74,14 +74,15 @@ func ApproveAdminWordDescription(c *gin.Context) {
 		return
 	}
 	var request struct {
-		Model       string `json:"model" binding:"required"`
-		Description string `json:"description" binding:"required"`
+		Model             string    `json:"model" binding:"required"`
+		Description       string    `json:"description" binding:"required"`
+		TranslationWordID uuid.UUID `json:"translation_word_id" binding:"required"`
 	}
 	if c.ShouldBindJSON(&request) != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	if err := services.ApproveWordDescriptionForAdmin(id, request.Model, request.Description); err != nil {
+	if err := services.ApproveWordDescriptionForAdmin(id, request.TranslationWordID, request.Model, request.Description); err != nil {
 		adminDescriptionError(c, err)
 		return
 	}
@@ -90,7 +91,7 @@ func ApproveAdminWordDescription(c *gin.Context) {
 
 func adminDescriptionError(c *gin.Context, err error) {
 	switch {
-	case services.InvalidPaginationError(err), errors.Is(err, services.ErrInvalidDescriptionModel):
+	case services.InvalidPaginationError(err), errors.Is(err, services.ErrInvalidDescriptionModel), errors.Is(err, services.ErrInvalidDescriptionTranslation):
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		c.AbortWithStatus(http.StatusNotFound)

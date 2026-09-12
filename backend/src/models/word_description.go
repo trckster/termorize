@@ -7,11 +7,13 @@ import (
 )
 
 type WordDescription struct {
-	ID          uuid.UUID `gorm:"default:gen_random_uuid()"`
-	WordID      uuid.UUID
-	Model       string
-	Description string
-	CreatedAt   time.Time
-	ApprovedAt  *time.Time
-	Word        *Word
+	ID                uuid.UUID `gorm:"default:gen_random_uuid()"`
+	WordID            uuid.UUID
+	TranslationWordID *uuid.UUID
+	Model             string
+	Description       string
+	CreatedAt         time.Time
+	ApprovedAt        *time.Time
+	Word              *Word
+	TranslationWord   *Word
 }

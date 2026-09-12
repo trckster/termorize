@@ -102,7 +102,7 @@ const approve = async () => {
     approving.value = true
     approvalError.value = false
     try {
-        await adminApi.approveWordDescription(original.value.id, preview.value.model, preview.value.description)
+        await adminApi.approveWordDescription(original.value.id, preview.value)
         if (disposed) return
         dialogOpen.value = false
         preview.value = null
@@ -201,6 +201,9 @@ onBeforeUnmount(() => {
                             {{ t.descriptionsRegenerate }}
                         </Button>
                     </div>
+                    <p v-if="description.translation" class="break-words text-sm text-muted-foreground">
+                        {{ description.translation }} ({{ languageLabel(description.translation_language) }})
+                    </p>
                     <p class="break-words leading-7">{{ description.description }}</p>
                     <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                         <span class="break-all">{{ description.model }}</span>
@@ -253,6 +256,11 @@ onBeforeUnmount(() => {
                     <DialogDescription>{{ t.descriptionsPreviewNote }}</DialogDescription>
                 </DialogHeader>
                 <div class="space-y-4 py-2">
+                    <p v-if="preview" class="break-words text-sm text-muted-foreground">
+                        {{ original?.word }} → {{ preview.translation }} ({{
+                            languageLabel(preview.translation_language)
+                        }})
+                    </p>
                     <section class="rounded-lg border border-border p-4">
                         <h3 class="mb-2 text-sm font-medium text-muted-foreground">{{ t.descriptionsCurrent }}</h3>
                         <p class="break-words leading-6">{{ preview?.original_description }}</p>
