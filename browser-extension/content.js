@@ -157,25 +157,19 @@ function createShortcutHints() {
     const hints = createElement('aside', 'termorize-shortcut-hints')
     hints.setAttribute('aria-label', 'TermoClip keyboard shortcuts')
 
-    const heading = createElement('div', 'termorize-shortcut-heading')
-    const mark = createElement('span', 'termorize-shortcut-mark', 'T')
-    mark.setAttribute('aria-hidden', 'true')
-    heading.append(mark, createElement('strong', 'termorize-shortcut-title', 'Save to Termorize'))
-
     const list = createElement('div', 'termorize-shortcut-list')
     const shortcuts = [
-        ['Review before saving', 'Ctrl', 'E'],
-        ['Save immediately', 'Ctrl', 'S'],
+        ['Save to Termorize', 'Ctrl + S'],
+        ['Review before saving', 'Ctrl + E'],
     ]
-    for (const [label, modifier, key] of shortcuts) {
+    for (const [label, shortcut] of shortcuts) {
         const row = createElement('div', 'termorize-shortcut-row')
-        const keys = createElement('span', 'termorize-shortcut-keys')
-        keys.append(createElement('kbd', 'termorize-kbd', modifier), ' + ', createElement('kbd', 'termorize-kbd', key))
+        const keys = createElement('kbd', 'termorize-kbd', shortcut)
         row.append(createElement('span', 'termorize-shortcut-label', label), keys)
         list.append(row)
     }
 
-    hints.append(heading, list)
+    hints.append(list)
     return hints
 }
 

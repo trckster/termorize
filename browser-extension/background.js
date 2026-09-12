@@ -7,6 +7,7 @@ const TARGET_LANGUAGE_ENDPOINT = `${SETTINGS_ENDPOINT}/translation-target-langua
 const SUPPORTED_LANGUAGE_CODES = ['en', 'ru', 'it', 'de', 'es', 'fr', 'pl', 'tr', 'pt', 'uk']
 const SUPPORTED_LANGUAGES = new Set(SUPPORTED_LANGUAGE_CODES)
 const MAX_TEXT_LENGTH = 5000
+const REQUEST_TIMEOUT_MS = 25000
 const COMMAND_ACTIONS = {
     'save-with-editing': 'edit',
     'save-without-editing': 'save',
@@ -64,10 +65,12 @@ async function authenticatedRequest(url, options = {}, dependencies = {}) {
 
     if (!cookie?.value) return { ok: false, reason: 'unauthorized' }
 
-    let response
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), dependencies.timeoutMs ?? REQUEST_TIMEOUT_MS)
     try {
-        response = await fetchApi(url, {
+        const response = await fetchApi(url, {
             ...options,
+            signal: controller.signal,
             headers: {
                 Accept: 'application/json',
                 Authorization: `Bearer ${cookie.value}`,
@@ -75,14 +78,17 @@ async function authenticatedRequest(url, options = {}, dependencies = {}) {
                 ...options.headers,
             },
         })
+
+        const body = await readJson(response)
+        if (controller.signal.aborted) return { ok: false, reason: 'network' }
+        if (response.status === 401) return { ok: false, reason: 'unauthorized' }
+
+        return { ok: Boolean(response.ok), status: response.status, body }
     } catch {
         return { ok: false, reason: 'network' }
+    } finally {
+        clearTimeout(timeout)
     }
-
-    const body = await readJson(response)
-    if (response.status === 401) return { ok: false, reason: 'unauthorized' }
-
-    return { ok: Boolean(response.ok), status: response.status, body }
 }
 
 async function getSession(dependencies = {}) {
@@ -274,6 +280,17 @@ function selectedTextInPage() {
     const activeElement = deepestActiveElement(document)
     const focusDelegatedToFrame = ['FRAME', 'IFRAME'].includes(activeElement?.tagName)
 
+    // Never send password contents, or fall back to a stale page selection while typing one.
+    if (activeElement instanceof HTMLInputElement && activeElement.type === 'password') {
+        return {
+            text: '',
+            rect: null,
+            focused: document.hasFocus(),
+            focusDelegatedToFrame: false,
+            activeFrameChain: isInActiveFrameChain(),
+        }
+    }
+
     if (
         (activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement) &&
         typeof activeElement.selectionStart === 'number' &&
@@ -462,7 +479,7 @@ function registerMessageHandler(chromeApi = chrome) {
             SAVE_SELECTION: () => saveSelection(message.payload, { chromeApi }),
         }
 
-        if (handlers[message?.type]) {
+        if (Object.hasOwn(handlers, message?.type)) {
             handlers[message.type]()
                 .then(sendResponse)
                 .catch(() => sendResponse({ ok: false, reason: 'server' }))

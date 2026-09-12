@@ -14,6 +14,18 @@
         pt: 'Portuguese',
         uk: 'Ukrainian',
     }
+    const LANGUAGE_FLAGS = {
+        en: '🇬🇧',
+        ru: '🇷🇺',
+        it: '🇮🇹',
+        de: '🇩🇪',
+        es: '🇪🇸',
+        fr: '🇫🇷',
+        pl: '🇵🇱',
+        tr: '🇹🇷',
+        pt: '🇵🇹',
+        uk: '🇺🇦',
+    }
 
     let host = null
     let currentTranslation = null
@@ -23,6 +35,40 @@
     let resizeObserver = null
     let overlayGeneration = 0
     let previouslyFocused = null
+    let translationTimer = null
+    let savedNotification = null
+    let notificationTimer = null
+
+    function showSavedNotification() {
+        window.clearTimeout(notificationTimer)
+        savedNotification?.remove()
+        savedNotification = document.createElement('div')
+        savedNotification.id = 'termorize-selection-saved'
+        const shadow = savedNotification.attachShadow({ mode: 'closed' })
+        shadow.innerHTML = `
+            <style>
+                :host { all: initial; position: fixed; z-index: 2147483647; bottom: 20px;
+                    left: 50%; transform: translateX(-50%); max-width: calc(100vw - 32px); pointer-events: none; }
+                .notice { padding: 9px 14px; border: 1px solid #c5d3cb; border-radius: 9px;
+                    color: #17211d; background: #f3fbf6; box-shadow: 0 4px 16px rgb(10 31 20 / 12%);
+                    font: 13px/1.45 system-ui, sans-serif; text-align: center; }
+                @media (prefers-color-scheme: dark) {
+                    .notice { color: #edf5f0; background: #142019; border-color: #405348; }
+                }
+            </style>
+            <div class="notice" role="status" aria-live="polite" aria-atomic="true"></div>`
+        document.documentElement.append(savedNotification)
+        // Populate the live region after insertion so assistive technology can announce it.
+        const notification = savedNotification
+        window.setTimeout(() => {
+            if (notification === savedNotification) shadow.querySelector('.notice').textContent = 'Translation saved'
+        }, 0)
+        notificationTimer = window.setTimeout(() => {
+            savedNotification?.remove()
+            savedNotification = null
+            notificationTimer = null
+        }, 3000)
+    }
 
     function runtimeMessage(message) {
         return new Promise((resolve) => {
@@ -40,7 +86,13 @@
         return LANGUAGE_NAMES[code] || String(code || '').toUpperCase()
     }
 
-    function close() {
+    function languageLabel(code) {
+        return `${LANGUAGE_FLAGS[code] || '🏳'} ${languageName(code)}`
+    }
+
+    function close(restoreFocus = true) {
+        window.clearTimeout(translationTimer)
+        translationTimer = null
         const focusTarget = previouslyFocused
         overlayGeneration += 1
         resizeObserver?.disconnect()
@@ -52,7 +104,7 @@
         anchorRect = null
         latestRequest += 1
         previouslyFocused = null
-        if (focusTarget?.isConnected) focusTarget.focus({ preventScroll: true })
+        if (restoreFocus && focusTarget?.isConnected) focusTarget.focus({ preventScroll: true })
     }
 
     function isCurrentOverlay(generation, overlayElements) {
@@ -69,7 +121,7 @@
     function positionHost(rect) {
         if (!host) return
         const margin = 12
-        const width = Math.min(380, window.innerWidth - margin * 2)
+        const width = Math.min(560, window.innerWidth - margin * 2)
         let left = rect?.left ?? window.innerWidth - width - 20
         left = Math.max(margin, Math.min(left, window.innerWidth - width - margin))
         let top = rect?.bottom ? rect.bottom + 10 : 72
@@ -78,13 +130,18 @@
         host.style.left = `${left}px`
         host.style.top = `${Math.max(margin, top)}px`
 
+        if (elements && !elements.workspace.hidden) {
+            for (const input of [elements.source, elements.translated]) {
+                input.style.height = 'auto'
+                input.style.height = `${input.scrollHeight + input.offsetHeight - input.clientHeight}px`
+            }
+        }
+
         const height = host.getBoundingClientRect().height
         if (top + height > window.innerHeight - margin && rect?.top) {
-            top = Math.max(margin, rect.top - height - 10)
-            host.style.top = `${top}px`
-        } else if (top + height > window.innerHeight - margin) {
-            host.style.top = `${Math.max(margin, window.innerHeight - height - margin)}px`
+            top = rect.top - height - 10
         }
+        host.style.top = `${Math.max(margin, Math.min(top, window.innerHeight - height - margin))}px`
     }
 
     function template() {
@@ -97,7 +154,7 @@
                     --muted: #596960; --border: #d5e0d9; --strong-border: #c5d3cb;
                     --primary: #217a4b; --primary-hover: #19663d; --primary-fg: #f6fff9;
                     --error: #a4312b; --warning: #835b10; --success: #17643b;
-                    width: 100%; max-height: min(540px, calc(100vh - 24px)); overflow: auto; padding: 16px;
+                    width: 100%; max-height: calc(100vh - 24px); overflow: auto; scrollbar-gutter: stable; padding: 8px;
                     color: var(--fg); background: var(--bg); border: 1px solid var(--border); border-radius: 13px;
                     box-shadow: 0 18px 50px rgb(10 31 20 / 24%); font: 14px/1.45 ui-sans-serif,
                         system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -107,37 +164,33 @@
                 button:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid #2f8c5a; outline-offset: 2px; }
                 textarea::selection { color: #10231a; background: #cfe9d9; }
                 h2, p { margin: 0; }
-                .header, .brand, .field-head, .actions, .signed-in { display: flex; align-items: center; }
-                .header { justify-content: space-between; margin-bottom: 14px; }
-                .brand { gap: 9px; }
-                .mark { display: grid; width: 30px; height: 30px; place-items: center; color: var(--primary-fg);
-                    background: var(--primary); border-radius: 8px; font-size: 14px; font-weight: 800; }
+                .field-head, .actions { display: flex; align-items: center; }
                 h2 { font-size: 15px; font-weight: 750; letter-spacing: -.015em; }
-                .subtitle { margin-top: 1px; color: var(--muted); font-size: 11px; }
-                .close { position: relative; width: 34px; height: 34px; padding: 0; color: transparent; background: transparent;
-                    border: 0; border-radius: 8px; cursor: pointer; }
-                .close:hover { background: var(--muted-surface); }
-                .close::before, .close::after { position: absolute; top: 16px; left: 9px; width: 16px; height: 1.5px;
-                    content: ""; background: var(--muted); border-radius: 999px; }
-                .close::before { transform: rotate(45deg); } .close::after { transform: rotate(-45deg); }
-                .signed-in { gap: 7px; margin: -2px 0 12px; color: var(--muted); font-size: 11px; }
-                .dot { width: 6px; height: 6px; background: var(--primary); border-radius: 50%; }
-                .target-field { display: grid; grid-template-columns: 1fr 176px; gap: 12px; align-items: center;
-                    margin-bottom: 14px; font-size: 12px; font-weight: 700; }
+                .panel:focus { outline: none; }
                 select, textarea { width: 100%; color: var(--fg); background: var(--surface); border: 1px solid var(--strong-border); border-radius: 8px; }
-                select { min-height: 40px; padding: 0 32px 0 10px; cursor: pointer; }
+                .target-control { position: relative; display: inline-grid; max-width: 60%; color: var(--fg); }
+                .target-label { min-height: 32px; padding: 7px 26px 7px 9px; white-space: nowrap;
+                    background: var(--surface); border: 1px solid var(--strong-border); border-radius: 7px; }
+                .target-control:hover .target-label { background: var(--muted-surface); }
+                .target-control:focus-within { outline: 2px solid #2f8c5a; outline-offset: 2px; border-radius: 7px; }
+                .target-control::after { content: ''; position: absolute; right: 10px; top: 50%; width: 6px; height: 6px;
+                    border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted);
+                    transform: translateY(-70%) rotate(45deg); pointer-events: none; }
+                select { position: absolute; inset: 0; height: 100%; min-width: 0; opacity: 0; cursor: pointer; }
+                select:disabled { cursor: wait; }
                 .field { display: grid; gap: 6px; }
                 .field-head { justify-content: space-between; font-size: 11px; font-weight: 700; }
                 .language { color: var(--muted); font-weight: 600; }
-                textarea { min-height: 68px; resize: vertical; padding: 9px 10px; caret-color: var(--primary); font-size: 13px; line-height: 1.45; }
+                textarea { min-height: 68px; resize: none; overflow: hidden; padding: 9px 10px; caret-color: var(--primary); font-size: 13px; line-height: 1.45; }
                 .arrow { display: flex; align-items: center; gap: 7px; margin: 8px 0; color: var(--muted); }
                 .arrow::before, .arrow::after { height: 1px; flex: 1; content: ""; background: var(--border); }
                 .arrow svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
                 .message { min-height: 18px; margin-top: 8px; color: var(--muted); font-size: 11px; }
+                .message:empty { display: none; }
                 .message[data-variant="error"] { color: var(--error); }
                 .message[data-variant="warning"] { color: var(--warning); }
                 .message[data-variant="success"] { color: var(--success); }
-                .actions { gap: 8px; margin-top: 8px; }
+                .actions { gap: 8px; margin-top: 6px; }
                 .button { min-height: 40px; padding: 0 13px; border: 1px solid transparent; border-radius: 8px;
                     font-size: 12px; font-weight: 700; cursor: pointer; }
                 .button.primary { margin-left: auto; color: var(--primary-fg); background: var(--primary); }
@@ -160,14 +213,7 @@
                 }
                 @media (prefers-reduced-motion: reduce) { .panel { animation: none; } }
             </style>
-            <section class="panel" role="dialog" aria-modal="false" aria-labelledby="termorize-selection-title">
-                <header class="header">
-                    <div class="brand">
-                        <span class="mark" aria-hidden="true">T</span>
-                        <div><h2 id="termorize-selection-title">TermoClip</h2><p class="subtitle">Selected-text translation</p></div>
-                    </div>
-                    <button class="close" type="button" aria-label="Close TermoClip"></button>
-                </header>
+            <section class="panel" role="dialog" aria-modal="false" aria-label="TermoClip selected-text translation" tabindex="-1">
                 <div class="loading state"><p>Loading your language settings…</p></div>
                 <div class="signed-out state" hidden>
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15v2M8 10V7a4 4 0 0 1 8 0v3M6 10h12v10H6z" /></svg>
@@ -175,26 +221,34 @@
                     <p>Open Termorize, sign in, then press Alt + T again.</p>
                     <button class="button primary login" type="button">Sign in to Termorize</button>
                 </div>
+                <div class="session-error state" hidden>
+                    <h2>Could not load your account</h2>
+                    <p role="status">Check your connection and try again.</p>
+                    <button class="button primary retry-session" type="button">Try again</button>
+                </div>
                 <div class="empty state" hidden>
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10M7 8h8M7 12h10M7 16h6M5 2v20M19 2v20" /></svg>
                     <h2>No text selected</h2>
                     <p>Highlight a word or phrase on this page, then press Alt + T.</p>
                 </div>
                 <div class="workspace" hidden>
-                    <div class="signed-in"><span class="dot" aria-hidden="true"></span><span class="account">Signed in</span></div>
-                    <label class="target-field"><span>Translate to</span><select class="target"></select></label>
                     <div class="field">
-                        <div class="field-head"><span>Selected text</span><span class="language source-language">Detecting…</span></div>
-                        <textarea class="source" rows="2" maxlength="5000"></textarea>
+                        <div class="field-head"><label for="termorize-selection-source">Selected text</label><span class="language source-language">Detecting…</span></div>
+                        <textarea id="termorize-selection-source" class="source" rows="2" maxlength="5000"></textarea>
                     </div>
                     <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m8 10 4 4 4-4" /></svg></div>
                     <div class="field">
-                        <div class="field-head"><span>Translation</span><span class="language translated-language"></span></div>
-                        <textarea class="translated" rows="2" maxlength="5000"></textarea>
+                        <div class="field-head">
+                            <label for="termorize-selection-translated">Translation</label>
+                            <span class="target-control">
+                                <span class="target-label" aria-hidden="true"></span>
+                                <select class="target" aria-label="Translate to"></select>
+                            </span>
+                        </div>
+                        <textarea id="termorize-selection-translated" class="translated" rows="2" maxlength="5000"></textarea>
                     </div>
                     <div class="message" role="status" aria-live="polite"></div>
                     <div class="actions">
-                        <button class="button secondary retry" type="button">Translate again</button>
                         <button class="button primary save" type="button">Save to vocabulary</button>
                     </div>
                 </div>
@@ -205,11 +259,13 @@
         elements.message.textContent = text
         if (variant) elements.message.dataset.variant = variant
         else delete elements.message.dataset.variant
+        positionHost(anchorRect)
     }
 
     function showState(state) {
         elements.loading.hidden = state !== 'loading'
         elements.signedOut.hidden = state !== 'signed-out'
+        elements.sessionError.hidden = state !== 'session-error'
         elements.empty.hidden = state !== 'empty'
         elements.workspace.hidden = state !== 'workspace'
         positionHost(anchorRect)
@@ -217,8 +273,7 @@
 
     function setBusy(busy) {
         elements.target.disabled = busy
-        elements.retry.disabled = busy
-        elements.source.disabled = busy
+        elements.targetLabel.style.opacity = busy ? '0.55' : ''
         elements.translated.disabled = busy
         elements.save.disabled = busy || !currentTranslation
         if (busy) {
@@ -232,7 +287,7 @@
 
     function setSaving(saving) {
         elements.target.disabled = saving
-        elements.retry.disabled = saving
+        elements.targetLabel.style.opacity = saving ? '0.55' : ''
         elements.source.disabled = saving
         elements.translated.disabled = saving
         elements.save.disabled = saving || !currentTranslation
@@ -243,10 +298,11 @@
         for (const code of languages) {
             const option = document.createElement('option')
             option.value = code
-            option.textContent = languageName(code)
+            option.textContent = languageLabel(code)
             option.selected = code === selected
             elements.target.append(option)
         }
+        elements.targetLabel.textContent = languageLabel(elements.target.value)
     }
 
     function errorMessage(response) {
@@ -260,10 +316,33 @@
         return 'Termorize could not translate this selection. Try again in a moment.'
     }
 
+    function scheduleTranslation(event) {
+        window.clearTimeout(translationTimer)
+        translationTimer = null
+        latestRequest += 1
+        currentTranslation = null
+        elements.save.textContent = 'Save to vocabulary'
+        setBusy(true)
+        if (!elements.source.value.trim()) {
+            setBusy(false)
+            setMessage('Enter or select text to translate.', 'warning')
+            return
+        }
+        if (event?.isComposing) return
+        const generation = overlayGeneration
+        translationTimer = window.setTimeout(() => {
+            translationTimer = null
+            void translate(generation)
+        }, 400)
+    }
+
     async function translate(generation = overlayGeneration) {
         const overlayElements = elements
         if (!isCurrentOverlay(generation, overlayElements)) return
 
+        window.clearTimeout(translationTimer)
+        translationTimer = null
+        const requestId = ++latestRequest
         const text = overlayElements.source.value.trim()
         if (!text) {
             currentTranslation = null
@@ -273,10 +352,9 @@
             return
         }
 
-        const requestId = ++latestRequest
         currentTranslation = null
+        overlayElements.save.textContent = 'Save to vocabulary'
         overlayElements.sourceLanguage.textContent = 'Detecting…'
-        overlayElements.translatedLanguage.textContent = languageName(overlayElements.target.value)
         setBusy(true)
 
         const response = await runtimeMessage({
@@ -293,7 +371,7 @@
                 return
             }
             overlayElements.sourceLanguage.textContent = response.detectedLanguage
-                ? languageName(response.detectedLanguage)
+                ? languageLabel(response.detectedLanguage)
                 : 'Auto-detected'
             overlayElements.translated.value = ''
             setMessage(errorMessage(response), response.reason === 'same-language' ? 'warning' : 'error')
@@ -303,10 +381,9 @@
         currentTranslation = response.translation
         overlayElements.source.value = response.translation.original
         overlayElements.translated.value = response.translation.translated
-        overlayElements.sourceLanguage.textContent = languageName(response.translation.originalLanguage)
-        overlayElements.translatedLanguage.textContent = languageName(response.translation.targetLanguage)
+        overlayElements.sourceLanguage.textContent = languageLabel(response.translation.originalLanguage)
         overlayElements.save.disabled = false
-        setMessage('Ready to save. You can edit either field first.')
+        setMessage()
         positionHost(anchorRect)
     }
 
@@ -318,6 +395,7 @@
         overlayElements.save.disabled = true
         overlayElements.save.textContent = 'Save to vocabulary'
         const targetLanguage = overlayElements.target.value
+        overlayElements.targetLabel.textContent = languageLabel(targetLanguage)
         const [settingsResponse] = await Promise.all([
             runtimeMessage({ type: 'UPDATE_TARGET_LANGUAGE', targetLanguage }),
             translate(generation),
@@ -357,11 +435,14 @@
         })
 
         if (!isCurrentOverlay(generation, overlayElements)) return
+        if (response.ok) {
+            close()
+            showSavedNotification()
+            return
+        }
         setSaving(false)
-        overlayElements.save.textContent = response.ok ? 'Saved' : 'Save to vocabulary'
-        overlayElements.save.disabled = response.ok
-        if (response.ok) setMessage('Saved to your Termorize vocabulary.', 'success')
-        else if (response.reason === 'duplicate') setMessage('This word pair is already in your vocabulary.', 'warning')
+        overlayElements.save.textContent = 'Save to vocabulary'
+        if (response.reason === 'duplicate') setMessage('This word pair is already in your vocabulary.', 'warning')
         else if (response.reason === 'unauthorized') showState('signed-out')
         else {
             setMessage(
@@ -395,12 +476,17 @@
         const session = await runtimeMessage({ type: 'GET_SESSION' })
         if (!isCurrentOverlay(generation, overlayElements)) return
         if (!session.ok) {
-            showState('signed-out')
+            if (session.reason === 'unauthorized') showState('signed-out')
+            else {
+                overlayElements.sessionError.querySelector('p').textContent = session.reason === 'network'
+                    ? 'Could not reach Termorize. Check your connection and try again.'
+                    : 'Termorize could not load your account. Try again in a moment.'
+                showState('session-error')
+            }
             return
         }
 
         showState('workspace')
-        overlayElements.account.textContent = `Signed in as ${session.user.name}`
         fillLanguages(session.languages, session.user.settings.translation_target_language || 'ru')
         overlayElements.source.value = selection.text
         await translate(generation)
@@ -428,26 +514,32 @@
         elements = {
             loading: shadow.querySelector('.loading'),
             signedOut: shadow.querySelector('.signed-out'),
+            sessionError: shadow.querySelector('.session-error'),
             empty: shadow.querySelector('.empty'),
             workspace: shadow.querySelector('.workspace'),
-            account: shadow.querySelector('.account'),
             target: shadow.querySelector('.target'),
+            targetLabel: shadow.querySelector('.target-label'),
             source: shadow.querySelector('.source'),
             translated: shadow.querySelector('.translated'),
             sourceLanguage: shadow.querySelector('.source-language'),
-            translatedLanguage: shadow.querySelector('.translated-language'),
             message: shadow.querySelector('.message'),
-            retry: shadow.querySelector('.retry'),
             save: shadow.querySelector('.save'),
         }
 
-        shadow.querySelector('.close').addEventListener('click', trustedListener(close))
         shadow
             .querySelector('.login')
             .addEventListener('click', trustedListener(() => runtimeMessage({ type: 'OPEN_TERMORIZE' })))
-        elements.retry.addEventListener('click', trustedListener(() => translate(generation)))
+        shadow.querySelector('.retry-session').addEventListener('click', trustedListener(() => {
+            showState('loading')
+            return initialize(selection, generation)
+        }))
+        elements.source.addEventListener('input', trustedListener(scheduleTranslation))
+        elements.source.addEventListener('compositionend', trustedListener(scheduleTranslation))
         elements.save.addEventListener('click', trustedListener(() => save(generation)))
         elements.target.addEventListener('change', trustedListener(() => changeTarget(generation)))
+        for (const input of [elements.source, elements.translated]) {
+            input.addEventListener('input', () => positionHost(anchorRect))
+        }
         shadow.addEventListener('keydown', (event) => {
             if (event.isTrusted && event.key === 'Escape') {
                 event.preventDefault()
@@ -456,9 +548,14 @@
         })
 
         positionHost(anchorRect)
-        shadow.querySelector('.close').focus()
+        shadow.querySelector('.panel').focus({ preventScroll: true })
         void initialize(selection, generation)
     }
+
+    window.addEventListener('resize', () => positionHost(anchorRect))
+    window.addEventListener('pointerdown', (event) => {
+        if (event.isTrusted && host && !event.composedPath().includes(host)) close(false)
+    }, true)
 
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (sender.id !== chrome.runtime.id || message?.type !== 'OPEN_SELECTION_OVERLAY') return false
