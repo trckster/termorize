@@ -1,6 +1,6 @@
 # Chrome Web Store listing
 
-This is the copy-and-paste source of truth for the TermoClip extension listing. It matches version `1.1.1` and the disclosures in the public privacy policy.
+This is the copy-and-paste source of truth for the TermoClip extension listing. It matches version `1.1.2` and the disclosures in the public privacy policy.
 
 ## Product details
 
