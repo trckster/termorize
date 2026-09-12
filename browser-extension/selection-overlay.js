@@ -105,7 +105,7 @@
                     --muted: #596960; --border: #d5e0d9; --strong-border: #c5d3cb;
                     --primary: #217a4b; --primary-hover: #19663d; --primary-fg: #f6fff9;
                     --error: #a4312b; --warning: #835b10; --success: #17643b;
-                    width: 100%; max-height: calc(100vh - 24px); overflow: auto; scrollbar-gutter: stable; padding: 16px;
+                    width: 100%; max-height: calc(100vh - 24px); overflow: auto; scrollbar-gutter: stable; padding: 8px;
                     color: var(--fg); background: var(--bg); border: 1px solid var(--border); border-radius: 13px;
                     box-shadow: 0 18px 50px rgb(10 31 20 / 24%); font: 14px/1.45 ui-sans-serif,
                         system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -128,10 +128,11 @@
                 .arrow::before, .arrow::after { height: 1px; flex: 1; content: ""; background: var(--border); }
                 .arrow svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
                 .message { min-height: 18px; margin-top: 8px; color: var(--muted); font-size: 11px; }
+                .message:empty { display: none; }
                 .message[data-variant="error"] { color: var(--error); }
                 .message[data-variant="warning"] { color: var(--warning); }
                 .message[data-variant="success"] { color: var(--success); }
-                .actions { gap: 8px; margin-top: 8px; }
+                .actions { gap: 8px; margin-top: 6px; }
                 .button { min-height: 40px; padding: 0 13px; border: 1px solid transparent; border-radius: 8px;
                     font-size: 12px; font-weight: 700; cursor: pointer; }
                 .button.primary { margin-left: auto; color: var(--primary-fg); background: var(--primary); }
@@ -315,7 +316,7 @@
         overlayElements.translated.value = response.translation.translated
         overlayElements.sourceLanguage.textContent = languageName(response.translation.originalLanguage)
         overlayElements.save.disabled = false
-        setMessage('Ready to save. You can edit either field first.')
+        setMessage()
         positionHost(anchorRect)
     }
 
