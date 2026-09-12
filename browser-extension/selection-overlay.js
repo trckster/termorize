@@ -168,7 +168,15 @@
                 h2 { font-size: 15px; font-weight: 750; letter-spacing: -.015em; }
                 .panel:focus { outline: none; }
                 select, textarea { width: 100%; color: var(--fg); background: var(--surface); border: 1px solid var(--strong-border); border-radius: 8px; }
-                select { width: auto; max-width: 60%; min-height: 32px; padding: 0 32px 0 10px; cursor: pointer; }
+                .target-control { position: relative; display: inline-grid; max-width: 60%; color: var(--fg); }
+                .target-label { visibility: hidden; min-height: 32px; padding: 7px 26px 7px 9px; white-space: nowrap; }
+                .target-control::after { content: ''; position: absolute; right: 10px; top: 50%; width: 6px; height: 6px;
+                    border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted);
+                    transform: translateY(-70%) rotate(45deg); pointer-events: none; }
+                select { appearance: none; -webkit-appearance: none; position: absolute; inset: 0; height: 100%;
+                    min-width: 0; padding: 0 26px 0 9px; border-radius: 7px; cursor: pointer; }
+                select:hover:not(:disabled) { background: var(--muted-surface); }
+                select:disabled { cursor: wait; opacity: .65; }
                 .field { display: grid; gap: 6px; }
                 .field-head { justify-content: space-between; font-size: 11px; font-weight: 700; }
                 .language { color: var(--muted); font-weight: 600; }
@@ -229,7 +237,13 @@
                     </div>
                     <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m8 10 4 4 4-4" /></svg></div>
                     <div class="field">
-                        <div class="field-head"><label for="termorize-selection-translated">Translation</label><select class="target" aria-label="Translate to"></select></div>
+                        <div class="field-head">
+                            <label for="termorize-selection-translated">Translation</label>
+                            <span class="target-control">
+                                <span class="target-label" aria-hidden="true"></span>
+                                <select class="target" aria-label="Translate to"></select>
+                            </span>
+                        </div>
                         <textarea id="termorize-selection-translated" class="translated" rows="2" maxlength="5000"></textarea>
                     </div>
                     <div class="message" role="status" aria-live="polite"></div>
@@ -285,6 +299,7 @@
             option.selected = code === selected
             elements.target.append(option)
         }
+        elements.targetLabel.textContent = languageLabel(elements.target.value)
     }
 
     function errorMessage(response) {
@@ -377,6 +392,7 @@
         overlayElements.save.disabled = true
         overlayElements.save.textContent = 'Save to vocabulary'
         const targetLanguage = overlayElements.target.value
+        overlayElements.targetLabel.textContent = languageLabel(targetLanguage)
         const [settingsResponse] = await Promise.all([
             runtimeMessage({ type: 'UPDATE_TARGET_LANGUAGE', targetLanguage }),
             translate(generation),
@@ -499,6 +515,7 @@
             empty: shadow.querySelector('.empty'),
             workspace: shadow.querySelector('.workspace'),
             target: shadow.querySelector('.target'),
+            targetLabel: shadow.querySelector('.target-label'),
             source: shadow.querySelector('.source'),
             translated: shadow.querySelector('.translated'),
             sourceLanguage: shadow.querySelector('.source-language'),
