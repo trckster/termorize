@@ -273,6 +273,7 @@
 
     function setBusy(busy) {
         elements.target.disabled = busy
+        elements.targetLabel.style.opacity = busy ? '0.55' : ''
         elements.translated.disabled = busy
         elements.save.disabled = busy || !currentTranslation
         if (busy) {
@@ -286,6 +287,7 @@
 
     function setSaving(saving) {
         elements.target.disabled = saving
+        elements.targetLabel.style.opacity = saving ? '0.55' : ''
         elements.source.disabled = saving
         elements.translated.disabled = saving
         elements.save.disabled = saving || !currentTranslation
