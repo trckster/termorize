@@ -23,6 +23,7 @@
     let resizeObserver = null
     let overlayGeneration = 0
     let previouslyFocused = null
+    let translationTimer = null
 
     function runtimeMessage(message) {
         return new Promise((resolve) => {
@@ -41,6 +42,8 @@
     }
 
     function close(restoreFocus = true) {
+        window.clearTimeout(translationTimer)
+        translationTimer = null
         const focusTarget = previouslyFocused
         overlayGeneration += 1
         resizeObserver?.disconnect()
@@ -112,11 +115,9 @@
                 button:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid #2f8c5a; outline-offset: 2px; }
                 textarea::selection { color: #10231a; background: #cfe9d9; }
                 h2, p { margin: 0; }
-                .field-head, .actions, .signed-in { display: flex; align-items: center; }
+                .field-head, .actions { display: flex; align-items: center; }
                 h2 { font-size: 15px; font-weight: 750; letter-spacing: -.015em; }
                 .panel:focus { outline: none; }
-                .signed-in { gap: 7px; margin: 0 0 12px; color: var(--muted); font-size: 11px; }
-                .dot { width: 6px; height: 6px; background: var(--primary); border-radius: 50%; }
                 select, textarea { width: 100%; color: var(--fg); background: var(--surface); border: 1px solid var(--strong-border); border-radius: 8px; }
                 select { width: auto; max-width: 60%; min-height: 32px; padding: 0 32px 0 10px; cursor: pointer; }
                 .field { display: grid; gap: 6px; }
@@ -172,7 +173,6 @@
                     <p>Highlight a word or phrase on this page, then press Alt + T.</p>
                 </div>
                 <div class="workspace" hidden>
-                    <div class="signed-in"><span class="dot" aria-hidden="true"></span><span class="account">Signed in</span></div>
                     <div class="field">
                         <div class="field-head"><label for="termorize-selection-source">Selected text</label><span class="language source-language">Detecting…</span></div>
                         <textarea id="termorize-selection-source" class="source" rows="2" maxlength="5000"></textarea>
@@ -184,7 +184,6 @@
                     </div>
                     <div class="message" role="status" aria-live="polite"></div>
                     <div class="actions">
-                        <button class="button secondary retry" type="button">Translate again</button>
                         <button class="button primary save" type="button">Save to vocabulary</button>
                     </div>
                 </div>
@@ -209,8 +208,6 @@
 
     function setBusy(busy) {
         elements.target.disabled = busy
-        elements.retry.disabled = busy
-        elements.source.disabled = busy
         elements.translated.disabled = busy
         elements.save.disabled = busy || !currentTranslation
         if (busy) {
@@ -224,7 +221,6 @@
 
     function setSaving(saving) {
         elements.target.disabled = saving
-        elements.retry.disabled = saving
         elements.source.disabled = saving
         elements.translated.disabled = saving
         elements.save.disabled = saving || !currentTranslation
@@ -252,10 +248,33 @@
         return 'Termorize could not translate this selection. Try again in a moment.'
     }
 
+    function scheduleTranslation(event) {
+        window.clearTimeout(translationTimer)
+        translationTimer = null
+        latestRequest += 1
+        currentTranslation = null
+        elements.save.textContent = 'Save to vocabulary'
+        setBusy(true)
+        if (!elements.source.value.trim()) {
+            setBusy(false)
+            setMessage('Enter or select text to translate.', 'warning')
+            return
+        }
+        if (event?.isComposing) return
+        const generation = overlayGeneration
+        translationTimer = window.setTimeout(() => {
+            translationTimer = null
+            void translate(generation)
+        }, 400)
+    }
+
     async function translate(generation = overlayGeneration) {
         const overlayElements = elements
         if (!isCurrentOverlay(generation, overlayElements)) return
 
+        window.clearTimeout(translationTimer)
+        translationTimer = null
+        const requestId = ++latestRequest
         const text = overlayElements.source.value.trim()
         if (!text) {
             currentTranslation = null
@@ -265,8 +284,8 @@
             return
         }
 
-        const requestId = ++latestRequest
         currentTranslation = null
+        overlayElements.save.textContent = 'Save to vocabulary'
         overlayElements.sourceLanguage.textContent = 'Detecting…'
         setBusy(true)
 
@@ -396,7 +415,6 @@
         }
 
         showState('workspace')
-        overlayElements.account.textContent = `Signed in as ${session.user.name}`
         fillLanguages(session.languages, session.user.settings.translation_target_language || 'ru')
         overlayElements.source.value = selection.text
         await translate(generation)
@@ -427,13 +445,11 @@
             sessionError: shadow.querySelector('.session-error'),
             empty: shadow.querySelector('.empty'),
             workspace: shadow.querySelector('.workspace'),
-            account: shadow.querySelector('.account'),
             target: shadow.querySelector('.target'),
             source: shadow.querySelector('.source'),
             translated: shadow.querySelector('.translated'),
             sourceLanguage: shadow.querySelector('.source-language'),
             message: shadow.querySelector('.message'),
-            retry: shadow.querySelector('.retry'),
             save: shadow.querySelector('.save'),
         }
 
@@ -444,7 +460,8 @@
             showState('loading')
             return initialize(selection, generation)
         }))
-        elements.retry.addEventListener('click', trustedListener(() => translate(generation)))
+        elements.source.addEventListener('input', trustedListener(scheduleTranslation))
+        elements.source.addEventListener('compositionend', trustedListener(scheduleTranslation))
         elements.save.addEventListener('click', trustedListener(() => save(generation)))
         elements.target.addEventListener('change', trustedListener(() => changeTarget(generation)))
         for (const input of [elements.source, elements.translated]) {
