@@ -14,6 +14,18 @@
         pt: 'Portuguese',
         uk: 'Ukrainian',
     }
+    const LANGUAGE_FLAGS = {
+        en: '🇬🇧',
+        ru: '🇷🇺',
+        it: '🇮🇹',
+        de: '🇩🇪',
+        es: '🇪🇸',
+        fr: '🇫🇷',
+        pl: '🇵🇱',
+        tr: '🇹🇷',
+        pt: '🇵🇹',
+        uk: '🇺🇦',
+    }
 
     let host = null
     let currentTranslation = null
@@ -72,6 +84,10 @@
 
     function languageName(code) {
         return LANGUAGE_NAMES[code] || String(code || '').toUpperCase()
+    }
+
+    function languageLabel(code) {
+        return `${LANGUAGE_FLAGS[code] || '🏳'} ${languageName(code)}`
     }
 
     function close(restoreFocus = true) {
@@ -265,7 +281,7 @@
         for (const code of languages) {
             const option = document.createElement('option')
             option.value = code
-            option.textContent = languageName(code)
+            option.textContent = languageLabel(code)
             option.selected = code === selected
             elements.target.append(option)
         }
@@ -337,7 +353,7 @@
                 return
             }
             overlayElements.sourceLanguage.textContent = response.detectedLanguage
-                ? languageName(response.detectedLanguage)
+                ? languageLabel(response.detectedLanguage)
                 : 'Auto-detected'
             overlayElements.translated.value = ''
             setMessage(errorMessage(response), response.reason === 'same-language' ? 'warning' : 'error')
@@ -347,7 +363,7 @@
         currentTranslation = response.translation
         overlayElements.source.value = response.translation.original
         overlayElements.translated.value = response.translation.translated
-        overlayElements.sourceLanguage.textContent = languageName(response.translation.originalLanguage)
+        overlayElements.sourceLanguage.textContent = languageLabel(response.translation.originalLanguage)
         overlayElements.save.disabled = false
         setMessage()
         positionHost(anchorRect)
