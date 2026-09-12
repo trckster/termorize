@@ -22,7 +22,7 @@ function overlayHarness() {
         }
         attachShadow() { return this.shadow = new Element() }
         append() {}
-        remove() {}
+        remove() { this.removed = true }
         replaceChildren() {}
         focus() {}
         getBoundingClientRect() { return { height: 300 } }
@@ -36,6 +36,7 @@ function overlayHarness() {
     let nextTimer = 0
     let receive
     let host
+    const created = []
     const windowApi = new Element()
     Object.assign(windowApi, {
         innerWidth: 1000, innerHeight: 800,
@@ -47,7 +48,7 @@ function overlayHarness() {
         document: {
             activeElement: null,
             documentElement: new Element(),
-            createElement() { return host = new Element() },
+            createElement() { host = new Element(); created.push(host); return host },
         },
         ResizeObserver: class { observe() {} disconnect() {} },
         chrome: { runtime: {
@@ -65,7 +66,7 @@ function overlayHarness() {
     }
     open()
     return {
-        requests, timers,
+        requests, timers, created,
         field(selector) { return host.shadow.querySelector(selector) },
         edit(text, extra) {
             const input = host.shadow.querySelector('.source')
@@ -150,4 +151,38 @@ it('cancels pending edits on dismissal and translates a newly opened selection',
     respond(ui.requests[1], 'new result')
     await settle()
     assert.equal(ui.field('.translated').value, 'new result')
+})
+
+
+it('closes after successful saving and briefly shows a confirmation', async () => {
+    const ui = overlayHarness()
+    await settle()
+    respond(ui.requests[0])
+    await settle()
+    const popup = ui.created[0]
+    ui.field('.save').emit('click')
+    assert.equal(ui.requests[1].message.type, 'SAVE_SELECTION')
+    assert.notEqual(popup.removed, true)
+    ui.requests[1].reply({ ok: true })
+    await settle()
+    assert.equal(popup.removed, true)
+    const notice = ui.created.find(element => element.id === 'termorize-selection-saved')
+    assert.ok(notice)
+    assert.notEqual(notice.removed, true)
+    ui.flush()
+    assert.equal(notice.shadow.querySelector('.notice').textContent, 'Translation saved')
+    assert.equal(notice.removed, true)
+})
+
+it('keeps the popup open when saving fails and allows retrying', async () => {
+    const ui = overlayHarness()
+    await settle()
+    respond(ui.requests[0])
+    await settle()
+    ui.field('.save').emit('click')
+    ui.requests[1].reply({ ok: false, reason: 'network' })
+    await settle()
+    assert.notEqual(ui.created[0].removed, true)
+    assert.equal(ui.field('.save').disabled, false)
+    assert.equal(ui.created.some(element => element.id === 'termorize-selection-saved'), false)
 })

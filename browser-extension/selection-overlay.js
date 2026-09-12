@@ -24,6 +24,39 @@
     let overlayGeneration = 0
     let previouslyFocused = null
     let translationTimer = null
+    let savedNotification = null
+    let notificationTimer = null
+
+    function showSavedNotification() {
+        window.clearTimeout(notificationTimer)
+        savedNotification?.remove()
+        savedNotification = document.createElement('div')
+        savedNotification.id = 'termorize-selection-saved'
+        const shadow = savedNotification.attachShadow({ mode: 'closed' })
+        shadow.innerHTML = `
+            <style>
+                :host { all: initial; position: fixed; z-index: 2147483647; bottom: 20px;
+                    left: 50%; transform: translateX(-50%); max-width: calc(100vw - 32px); pointer-events: none; }
+                .notice { padding: 9px 14px; border: 1px solid #c5d3cb; border-radius: 9px;
+                    color: #17211d; background: #f3fbf6; box-shadow: 0 4px 16px rgb(10 31 20 / 12%);
+                    font: 13px/1.45 system-ui, sans-serif; text-align: center; }
+                @media (prefers-color-scheme: dark) {
+                    .notice { color: #edf5f0; background: #142019; border-color: #405348; }
+                }
+            </style>
+            <div class="notice" role="status" aria-live="polite" aria-atomic="true"></div>`
+        document.documentElement.append(savedNotification)
+        // Populate the live region after insertion so assistive technology can announce it.
+        const notification = savedNotification
+        window.setTimeout(() => {
+            if (notification === savedNotification) shadow.querySelector('.notice').textContent = 'Translation saved'
+        }, 0)
+        notificationTimer = window.setTimeout(() => {
+            savedNotification?.remove()
+            savedNotification = null
+            notificationTimer = null
+        }, 3000)
+    }
 
     function runtimeMessage(message) {
         return new Promise((resolve) => {
@@ -367,11 +400,14 @@
         })
 
         if (!isCurrentOverlay(generation, overlayElements)) return
+        if (response.ok) {
+            close()
+            showSavedNotification()
+            return
+        }
         setSaving(false)
-        overlayElements.save.textContent = response.ok ? 'Saved' : 'Save to vocabulary'
-        overlayElements.save.disabled = response.ok
-        if (response.ok) setMessage('Saved to your Termorize vocabulary.', 'success')
-        else if (response.reason === 'duplicate') setMessage('This word pair is already in your vocabulary.', 'warning')
+        overlayElements.save.textContent = 'Save to vocabulary'
+        if (response.reason === 'duplicate') setMessage('This word pair is already in your vocabulary.', 'warning')
         else if (response.reason === 'unauthorized') showState('signed-out')
         else {
             setMessage(
