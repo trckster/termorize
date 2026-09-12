@@ -81,9 +81,10 @@ func processDueExercises() {
 		}
 		if isDescriptionExerciseType(exercise.ExerciseType) {
 			descriptionWordID := exercise.OriginalWordID
+			translationWordID := exercise.TranslationWordID
 			descriptionLanguage := exercise.OriginalLanguage
 			if exercise.ExerciseType == enums.ExerciseTypeDescriptionReversed {
-				descriptionWordID = exercise.TranslationWordID
+				descriptionWordID, translationWordID = translationWordID, descriptionWordID
 				descriptionLanguage = exercise.TranslationLanguage
 			}
 			eligible, checkErr := services.IsDescriptionLanguageEligible(exercise.UserID, descriptionLanguage)
@@ -98,7 +99,7 @@ func processDueExercises() {
 				continue
 			}
 
-			description, loadErr := services.GetOrCreateWordDescription(descriptionWordID)
+			description, loadErr := services.GetOrCreateWordDescription(descriptionWordID, translationWordID)
 			if loadErr != nil {
 				logger.L().Warnw("replacing description exercise after generation failed", "error", loadErr, "exercise_id", exercise.ExerciseID)
 				if _, replaceErr := services.ReplacePendingDescriptionExercise(exercise.ExerciseID, true); replaceErr != nil {

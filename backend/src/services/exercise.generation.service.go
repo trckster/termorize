@@ -121,10 +121,11 @@ func createRandomExerciseForVocabulary(userID uint, vocabularyID uuid.UUID, requ
 	var description string
 	if isDescriptionExerciseType(exerciseType) {
 		descriptionWordID := vocabulary.Translation.Original.ID
+		translationWordID := vocabulary.Translation.Translation.ID
 		if isReversedExerciseType(exerciseType) {
-			descriptionWordID = vocabulary.Translation.Translation.ID
+			descriptionWordID, translationWordID = translationWordID, descriptionWordID
 		}
-		generated, generationErr := GetOrCreateWordDescription(descriptionWordID)
+		generated, generationErr := GetOrCreateWordDescription(descriptionWordID, translationWordID)
 		if generationErr != nil {
 			if len(requestedTypes) > 0 {
 				return nil, generationErr

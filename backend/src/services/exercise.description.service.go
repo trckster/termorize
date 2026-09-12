@@ -245,10 +245,10 @@ func ReplacePendingDescriptionExercise(exerciseID uuid.UUID, excludeDescription 
 	return replaced, err
 }
 
-func GetOrCreateWordDescription(wordID uuid.UUID) (*models.WordDescription, error) {
+func GetOrCreateWordDescription(wordID, translationWordID uuid.UUID) (*models.WordDescription, error) {
 	model := config.GetOpenRouterModel()
 	var cached models.WordDescription
-	err := descriptionCacheQuery(db.DB, wordID, model).Take(&cached).Error
+	err := descriptionCacheQuery(db.DB, wordID, translationWordID, model).Take(&cached).Error
 	if err == nil {
 		return &cached, nil
 	}
@@ -258,12 +258,12 @@ func GetOrCreateWordDescription(wordID uuid.UUID) (*models.WordDescription, erro
 
 	var description *models.WordDescription
 	err = db.DB.Transaction(func(tx *gorm.DB) error {
-		lockKey := "word-description:" + wordID.String() + ":" + model
+		lockKey := descriptionLockKey(wordID, translationWordID)
 		if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", lockKey).Error; err != nil {
 			return err
 		}
 
-		if err := descriptionCacheQuery(tx, wordID, model).Take(&cached).Error; err == nil {
+		if err := descriptionCacheQuery(tx, wordID, translationWordID, model).Take(&cached).Error; err == nil {
 			description = &cached
 			return nil
 		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -275,15 +275,21 @@ func GetOrCreateWordDescription(wordID uuid.UUID) (*models.WordDescription, erro
 			return err
 		}
 
-		generatedText, err := generateValidatedDescription(word, openrouter.NewClient())
+		var translation models.Word
+		if err := tx.Where("id = ?", translationWordID).Take(&translation).Error; err != nil {
+			return err
+		}
+
+		generatedText, err := generateValidatedDescription(word, translation, openrouter.NewClient())
 		if err != nil {
 			return err
 		}
 
 		created := models.WordDescription{
-			WordID:      word.ID,
-			Model:       model,
-			Description: generatedText,
+			WordID:            word.ID,
+			TranslationWordID: &translationWordID,
+			Model:             model,
+			Description:       generatedText,
 		}
 		if err := tx.Create(&created).Error; err != nil {
 			return err
@@ -298,15 +304,21 @@ func GetOrCreateWordDescription(wordID uuid.UUID) (*models.WordDescription, erro
 }
 
 // An approved description takes precedence regardless of its generating model.
-func descriptionCacheQuery(tx *gorm.DB, wordID uuid.UUID, model string) *gorm.DB {
-	return tx.Where("word_id = ? AND (approved_at IS NOT NULL OR model = ?)", wordID, model).
+func descriptionCacheQuery(tx *gorm.DB, wordID, translationWordID uuid.UUID, model string) *gorm.DB {
+	return tx.Where("word_id = ? AND translation_word_id = ? AND (approved_at IS NOT NULL OR model = ?)", wordID, translationWordID, model).
 		Order("approved_at DESC NULLS LAST, created_at DESC, id DESC")
 }
 
-func generateValidatedDescription(word models.Word, client openrouter.Client) (string, error) {
+func descriptionLockKey(wordID, translationWordID uuid.UUID) string {
+	return "word-description:" + wordID.String() + ":" + translationWordID.String()
+}
+
+func generateValidatedDescription(word, translation models.Word, client openrouter.Client) (string, error) {
 	generated, err := client.GenerateDescription(
 		word.Word,
 		word.Language.DisplayName(),
+		translation.Word,
+		translation.Language.DisplayName(),
 		word.Language.DisplayName(),
 	)
 	if err != nil {

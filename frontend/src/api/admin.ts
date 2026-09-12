@@ -35,6 +35,8 @@ export type AdminWordDescription = {
     word_id: string
     word: string
     language: string
+    translation: string
+    translation_language: string
     model: string
     description: string
     created_at: string
@@ -42,6 +44,9 @@ export type AdminWordDescription = {
 }
 export type DescriptionModel = { id: string; name: string; tier: 'basic' | 'medium' | 'smart' }
 export type DescriptionPreview = {
+    translation_word_id: string
+    translation: string
+    translation_language: string
     model: string
     description: string
     original_description: string
@@ -63,10 +68,11 @@ export const adminApi = {
             model,
         }).then(unwrapBody)
     },
-    async approveWordDescription(id: string, model: string, description: string): Promise<unknown> {
+    async approveWordDescription(id: string, preview: DescriptionPreview): Promise<unknown> {
         return apiCall(`/admin/word-descriptions/${encodeURIComponent(id)}/approve`, 'POST', {
-            model,
-            description,
+            model: preview.model,
+            description: preview.description,
+            translation_word_id: preview.translation_word_id,
         }).then(unwrapBody)
     },
     async getUsers(): Promise<AdminUsersResponse> {
