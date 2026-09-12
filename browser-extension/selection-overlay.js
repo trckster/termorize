@@ -112,20 +112,13 @@
                 button:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid #2f8c5a; outline-offset: 2px; }
                 textarea::selection { color: #10231a; background: #cfe9d9; }
                 h2, p { margin: 0; }
-                .header, .brand, .field-head, .actions, .signed-in { display: flex; align-items: center; }
-                .header { justify-content: space-between; margin-bottom: 14px; }
-                .brand { gap: 9px; }
-                .mark { display: grid; width: 30px; height: 30px; place-items: center; color: var(--primary-fg);
-                    background: var(--primary); border-radius: 8px; font-size: 14px; font-weight: 800; }
+                .field-head, .actions, .signed-in { display: flex; align-items: center; }
                 h2 { font-size: 15px; font-weight: 750; letter-spacing: -.015em; }
-                .subtitle { margin-top: 1px; color: var(--muted); font-size: 11px; }
                 .panel:focus { outline: none; }
-                .signed-in { gap: 7px; margin: -2px 0 12px; color: var(--muted); font-size: 11px; }
+                .signed-in { gap: 7px; margin: 0 0 12px; color: var(--muted); font-size: 11px; }
                 .dot { width: 6px; height: 6px; background: var(--primary); border-radius: 50%; }
-                .target-field { display: grid; grid-template-columns: 1fr 176px; gap: 12px; align-items: center;
-                    margin-bottom: 14px; font-size: 12px; font-weight: 700; }
                 select, textarea { width: 100%; color: var(--fg); background: var(--surface); border: 1px solid var(--strong-border); border-radius: 8px; }
-                select { min-height: 40px; padding: 0 32px 0 10px; cursor: pointer; }
+                select { width: auto; max-width: 60%; min-height: 32px; padding: 0 32px 0 10px; cursor: pointer; }
                 .field { display: grid; gap: 6px; }
                 .field-head { justify-content: space-between; font-size: 11px; font-weight: 700; }
                 .language { color: var(--muted); font-weight: 600; }
@@ -160,13 +153,7 @@
                 }
                 @media (prefers-reduced-motion: reduce) { .panel { animation: none; } }
             </style>
-            <section class="panel" role="dialog" aria-modal="false" aria-labelledby="termorize-selection-title" tabindex="-1">
-                <header class="header">
-                    <div class="brand">
-                        <span class="mark" aria-hidden="true">T</span>
-                        <div><h2 id="termorize-selection-title">TermoClip</h2><p class="subtitle">Selected-text translation</p></div>
-                    </div>
-                </header>
+            <section class="panel" role="dialog" aria-modal="false" aria-label="TermoClip selected-text translation" tabindex="-1">
                 <div class="loading state"><p>Loading your language settings…</p></div>
                 <div class="signed-out state" hidden>
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15v2M8 10V7a4 4 0 0 1 8 0v3M6 10h12v10H6z" /></svg>
@@ -186,14 +173,13 @@
                 </div>
                 <div class="workspace" hidden>
                     <div class="signed-in"><span class="dot" aria-hidden="true"></span><span class="account">Signed in</span></div>
-                    <label class="target-field"><span>Translate to</span><select class="target"></select></label>
                     <div class="field">
                         <div class="field-head"><label for="termorize-selection-source">Selected text</label><span class="language source-language">Detecting…</span></div>
                         <textarea id="termorize-selection-source" class="source" rows="2" maxlength="5000"></textarea>
                     </div>
                     <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m8 10 4 4 4-4" /></svg></div>
                     <div class="field">
-                        <div class="field-head"><label for="termorize-selection-translated">Translation</label><span class="language translated-language"></span></div>
+                        <div class="field-head"><label for="termorize-selection-translated">Translation</label><select class="target" aria-label="Translate to"></select></div>
                         <textarea id="termorize-selection-translated" class="translated" rows="2" maxlength="5000"></textarea>
                     </div>
                     <div class="message" role="status" aria-live="polite"></div>
@@ -282,7 +268,6 @@
         const requestId = ++latestRequest
         currentTranslation = null
         overlayElements.sourceLanguage.textContent = 'Detecting…'
-        overlayElements.translatedLanguage.textContent = languageName(overlayElements.target.value)
         setBusy(true)
 
         const response = await runtimeMessage({
@@ -310,7 +295,6 @@
         overlayElements.source.value = response.translation.original
         overlayElements.translated.value = response.translation.translated
         overlayElements.sourceLanguage.textContent = languageName(response.translation.originalLanguage)
-        overlayElements.translatedLanguage.textContent = languageName(response.translation.targetLanguage)
         overlayElements.save.disabled = false
         setMessage('Ready to save. You can edit either field first.')
         positionHost(anchorRect)
@@ -448,7 +432,6 @@
             source: shadow.querySelector('.source'),
             translated: shadow.querySelector('.translated'),
             sourceLanguage: shadow.querySelector('.source-language'),
-            translatedLanguage: shadow.querySelector('.translated-language'),
             message: shadow.querySelector('.message'),
             retry: shadow.querySelector('.retry'),
             save: shadow.querySelector('.save'),
