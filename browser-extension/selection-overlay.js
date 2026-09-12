@@ -169,14 +169,15 @@
                 .panel:focus { outline: none; }
                 select, textarea { width: 100%; color: var(--fg); background: var(--surface); border: 1px solid var(--strong-border); border-radius: 8px; }
                 .target-control { position: relative; display: inline-grid; max-width: 60%; color: var(--fg); }
-                .target-label { visibility: hidden; min-height: 32px; padding: 7px 26px 7px 9px; white-space: nowrap; }
+                .target-label { min-height: 32px; padding: 7px 26px 7px 9px; white-space: nowrap;
+                    background: var(--surface); border: 1px solid var(--strong-border); border-radius: 7px; }
+                .target-control:hover .target-label { background: var(--muted-surface); }
+                .target-control:focus-within { outline: 2px solid #2f8c5a; outline-offset: 2px; border-radius: 7px; }
                 .target-control::after { content: ''; position: absolute; right: 10px; top: 50%; width: 6px; height: 6px;
                     border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted);
                     transform: translateY(-70%) rotate(45deg); pointer-events: none; }
-                select { appearance: none; -webkit-appearance: none; position: absolute; inset: 0; height: 100%;
-                    min-width: 0; padding: 0 26px 0 9px; border-radius: 7px; cursor: pointer; }
-                select:hover:not(:disabled) { background: var(--muted-surface); }
-                select:disabled { cursor: wait; opacity: .65; }
+                select { position: absolute; inset: 0; height: 100%; min-width: 0; opacity: 0; cursor: pointer; }
+                select:disabled { cursor: wait; }
                 .field { display: grid; gap: 6px; }
                 .field-head { justify-content: space-between; font-size: 11px; font-weight: 700; }
                 .language { color: var(--muted); font-weight: 600; }
