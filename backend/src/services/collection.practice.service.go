@@ -160,10 +160,11 @@ func createCollectionPracticeTargetExercise(
 	var description string
 	if isDescriptionExerciseType(exerciseType) {
 		descriptionWordID := vocabulary.Translation.Original.ID
+		translationWordID := vocabulary.Translation.Translation.ID
 		if isReversedExerciseType(exerciseType) {
-			descriptionWordID = vocabulary.Translation.Translation.ID
+			descriptionWordID, translationWordID = translationWordID, descriptionWordID
 		}
-		generated, generationErr := GetOrCreateWordDescription(descriptionWordID)
+		generated, generationErr := GetOrCreateWordDescription(descriptionWordID, translationWordID)
 		if generationErr != nil {
 			exerciseType, options, err = selectCollectionPracticeExerciseType(optionsByType, excludeAudio, true)
 			if err != nil {

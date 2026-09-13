@@ -42,13 +42,13 @@ func MockGoogleTranslate(t *testing.T, fake *FakeGoogleTranslate) *FakeGoogleTra
 
 type FakeOpenRouter struct {
 	GenerateFunc                      func(prompt string, allowedLanguages []string) (*openrouter.GeneratedCollection, error)
-	GenerateDescriptionFunc           func(word, wordLanguage, descriptionLanguage string) (*openrouter.GeneratedDescription, error)
+	GenerateDescriptionFunc           func(word, wordLanguage, translation, translationLanguage, descriptionLanguage string) (*openrouter.GeneratedDescription, error)
 	DescriptionContainsAnswerFormFunc func(word, wordLanguage, description string) (bool, error)
 }
 
-func (f *FakeOpenRouter) GenerateDescription(word, wordLanguage, descriptionLanguage string) (*openrouter.GeneratedDescription, error) {
+func (f *FakeOpenRouter) GenerateDescription(word, wordLanguage, translation, translationLanguage, descriptionLanguage string) (*openrouter.GeneratedDescription, error) {
 	if f.GenerateDescriptionFunc != nil {
-		return f.GenerateDescriptionFunc(word, wordLanguage, descriptionLanguage)
+		return f.GenerateDescriptionFunc(word, wordLanguage, translation, translationLanguage, descriptionLanguage)
 	}
 	return &openrouter.GeneratedDescription{Description: "A short clue in " + descriptionLanguage + "."}, nil
 }

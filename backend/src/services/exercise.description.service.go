@@ -56,8 +56,7 @@ func lockDescriptionLanguageEligibility(tx *gorm.DB, userID uint, language enums
 }
 
 func descriptionLanguageEligible(settings models.UserSettings, language enums.Language) bool {
-	return settings.MainLearningLanguage == language &&
-		!containsLanguage(settings.IgnoredDescriptionLanguages, language)
+	return !containsLanguage(settings.IgnoredDescriptionLanguages, language)
 }
 
 func IgnoreDescriptionLanguageForExercise(exerciseID uuid.UUID, userID uint) (*models.User, error) {
@@ -105,10 +104,10 @@ func IgnoreDescriptionLanguageForExercise(exerciseID uuid.UUID, userID uint) (*m
 			}
 		}
 		if newlyIgnored {
-			if err := cancelInProgressDescriptionExercises(tx, userID); err != nil {
+			if err := cancelInProgressDescriptionExercises(tx, userID, []enums.Language{descriptionLanguage}); err != nil {
 				return err
 			}
-			return replacePendingDescriptionExercises(tx, userID)
+			return replacePendingDescriptionExercises(tx, userID, []enums.Language{descriptionLanguage})
 		}
 		return nil
 	})
@@ -181,9 +180,25 @@ func IsPendingDescriptionExercise(exerciseID uuid.UUID) (bool, error) {
 	return count == 1, nil
 }
 
-func replacePendingDescriptionExercises(tx *gorm.DB, userID uint) error {
+func descriptionExercisesForLanguages(tx *gorm.DB, languages []enums.Language) *gorm.DB {
+	ids := tx.Table("vocabulary_exercises AS ve").Select("ve.exercise_id").
+		Joins("JOIN exercises AS e ON e.id = ve.exercise_id").
+		Joins("JOIN vocabulary AS v ON v.id = ve.vocabulary_id").
+		Joins("JOIN translations AS t ON t.id = v.translation_id").
+		Joins("JOIN words AS original ON original.id = t.original_id").
+		Joins("JOIN words AS translated ON translated.id = t.translation_id").
+		Where("ve.is_correct = true").
+		Where("(e.type = ? AND original.language IN ?) OR (e.type = ? AND translated.language IN ?)",
+			enums.ExerciseTypeDescriptionDirect, languages, enums.ExerciseTypeDescriptionReversed, languages)
+	return tx.Model(&models.Exercise{}).Where("id IN (?)", ids)
+}
+
+func replacePendingDescriptionExercises(tx *gorm.DB, userID uint, languages []enums.Language) error {
+	if len(languages) == 0 {
+		return nil
+	}
 	var replacements []pendingDescriptionReplacement
-	if err := tx.Model(&models.Exercise{}).
+	if err := descriptionExercisesForLanguages(tx, languages).
 		Select("id AS exercise_id", "scheduled_for").
 		Where("user_id = ? AND status = ? AND type IN ? AND scheduled_for IS NOT NULL", userID, enums.ExerciseStatusPending, descriptionExerciseTypes).
 		Order("scheduled_for ASC, created_at ASC").
@@ -207,8 +222,11 @@ func replacePendingDescriptionExercises(tx *gorm.DB, userID uint) error {
 	return nil
 }
 
-func cancelInProgressDescriptionExercises(tx *gorm.DB, userID uint) error {
-	return tx.Where(
+func cancelInProgressDescriptionExercises(tx *gorm.DB, userID uint, languages []enums.Language) error {
+	if len(languages) == 0 {
+		return nil
+	}
+	return descriptionExercisesForLanguages(tx, languages).Where(
 		"user_id = ? AND status = ? AND type IN ?",
 		userID,
 		enums.ExerciseStatusInProgress,
@@ -245,10 +263,10 @@ func ReplacePendingDescriptionExercise(exerciseID uuid.UUID, excludeDescription 
 	return replaced, err
 }
 
-func GetOrCreateWordDescription(wordID uuid.UUID) (*models.WordDescription, error) {
+func GetOrCreateWordDescription(wordID, translationWordID uuid.UUID) (*models.WordDescription, error) {
 	model := config.GetOpenRouterModel()
 	var cached models.WordDescription
-	err := descriptionCacheQuery(db.DB, wordID, model).Take(&cached).Error
+	err := descriptionCacheQuery(db.DB, wordID, translationWordID, model).Take(&cached).Error
 	if err == nil {
 		return &cached, nil
 	}
@@ -258,12 +276,12 @@ func GetOrCreateWordDescription(wordID uuid.UUID) (*models.WordDescription, erro
 
 	var description *models.WordDescription
 	err = db.DB.Transaction(func(tx *gorm.DB) error {
-		lockKey := "word-description:" + wordID.String() + ":" + model
+		lockKey := descriptionLockKey(wordID, translationWordID)
 		if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", lockKey).Error; err != nil {
 			return err
 		}
 
-		if err := descriptionCacheQuery(tx, wordID, model).Take(&cached).Error; err == nil {
+		if err := descriptionCacheQuery(tx, wordID, translationWordID, model).Take(&cached).Error; err == nil {
 			description = &cached
 			return nil
 		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -275,15 +293,21 @@ func GetOrCreateWordDescription(wordID uuid.UUID) (*models.WordDescription, erro
 			return err
 		}
 
-		generatedText, err := generateValidatedDescription(word, openrouter.NewClient())
+		var translation models.Word
+		if err := tx.Where("id = ?", translationWordID).Take(&translation).Error; err != nil {
+			return err
+		}
+
+		generatedText, err := generateValidatedDescription(word, translation, openrouter.NewClient())
 		if err != nil {
 			return err
 		}
 
 		created := models.WordDescription{
-			WordID:      word.ID,
-			Model:       model,
-			Description: generatedText,
+			WordID:            word.ID,
+			TranslationWordID: &translationWordID,
+			Model:             model,
+			Description:       generatedText,
 		}
 		if err := tx.Create(&created).Error; err != nil {
 			return err
@@ -298,15 +322,21 @@ func GetOrCreateWordDescription(wordID uuid.UUID) (*models.WordDescription, erro
 }
 
 // An approved description takes precedence regardless of its generating model.
-func descriptionCacheQuery(tx *gorm.DB, wordID uuid.UUID, model string) *gorm.DB {
-	return tx.Where("word_id = ? AND (approved_at IS NOT NULL OR model = ?)", wordID, model).
+func descriptionCacheQuery(tx *gorm.DB, wordID, translationWordID uuid.UUID, model string) *gorm.DB {
+	return tx.Where("word_id = ? AND translation_word_id = ? AND (approved_at IS NOT NULL OR model = ?)", wordID, translationWordID, model).
 		Order("approved_at DESC NULLS LAST, created_at DESC, id DESC")
 }
 
-func generateValidatedDescription(word models.Word, client openrouter.Client) (string, error) {
+func descriptionLockKey(wordID, translationWordID uuid.UUID) string {
+	return "word-description:" + wordID.String() + ":" + translationWordID.String()
+}
+
+func generateValidatedDescription(word, translation models.Word, client openrouter.Client) (string, error) {
 	generated, err := client.GenerateDescription(
 		word.Word,
 		word.Language.DisplayName(),
+		translation.Word,
+		translation.Language.DisplayName(),
 		word.Language.DisplayName(),
 	)
 	if err != nil {

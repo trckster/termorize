@@ -25,6 +25,7 @@ func TestDescriptionPromptRequiresAClueInTheRequestedLanguage(t *testing.T) {
 	require.Contains(t, prompt, "in Ukrainian")
 	require.Contains(t, prompt, "Do not include the given text")
 	require.Contains(t, prompt, "a direct translation")
+	require.Contains(t, prompt, "Use the supplied translation to identify the specific meaning")
 	require.Contains(t, prompt, `{"description": string}`)
 }
 
@@ -57,6 +58,11 @@ func TestDescriptionRequestsUseSelectedModelAndSupportedSampling(t *testing.T) {
 				} else {
 					require.Contains(t, request, "temperature")
 				}
+				if calls == 0 {
+					messages := request["messages"].([]any)
+					require.Equal(t, "user", messages[1].(map[string]any)["role"])
+					require.Equal(t, `Describe the concept represented by "cat" in English, whose translation is "il gatto" in Italian.`, messages[1].(map[string]any)["content"])
+				}
 				content := `{"description":"A small pet that purrs."}`
 				if calls > 0 {
 					content = `{"contains_answer_form":false}`
@@ -65,7 +71,7 @@ func TestDescriptionRequestsUseSelectedModelAndSupportedSampling(t *testing.T) {
 				payload, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"message": map[string]any{"content": content}}}})
 				return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader(payload)), Header: make(http.Header)}, nil
 			})}}
-			result, err := c.GenerateDescription("cat", "English", "English")
+			result, err := c.GenerateDescription("cat", "English", "il gatto", "Italian", "English")
 			require.NoError(t, err)
 			contains, err := c.DescriptionContainsAnswerForm("cat", "English", result.Description)
 			require.NoError(t, err)

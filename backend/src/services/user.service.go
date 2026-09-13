@@ -82,23 +82,18 @@ func UpdateUserSettings(userID uint, settings models.UserSettings) (*models.User
 		wasDailyQuestionsEnabled := user.Settings.Telegram.DailyQuestionsEnabled
 		previousIgnoredAudioLanguages := append([]enums.Language(nil), user.Settings.IgnoredAudioLanguages...)
 		previousIgnoredDescriptionLanguages := append([]enums.Language(nil), user.Settings.IgnoredDescriptionLanguages...)
-		previousMainLearningLanguage := user.Settings.MainLearningLanguage
 		settings.Telegram.BotEnabled = user.Settings.Telegram.BotEnabled
 		settings = settings.WithDefaults()
 		newlyIgnoredLanguages := newlyIgnoredAudioLanguages(previousIgnoredAudioLanguages, settings.IgnoredAudioLanguages)
 		newlyIgnoredDescriptionLanguages := newlyIgnoredAudioLanguages(previousIgnoredDescriptionLanguages, settings.IgnoredDescriptionLanguages)
-		descriptionEligibilityChanged := previousMainLearningLanguage != settings.MainLearningLanguage ||
-			containsLanguage(newlyIgnoredDescriptionLanguages, settings.MainLearningLanguage)
 
 		user.Settings = settings
 
 		if err := tx.Model(&user).Update("settings", settings).Error; err != nil {
 			return err
 		}
-		if descriptionEligibilityChanged {
-			if err := cancelInProgressDescriptionExercises(tx, user.ID); err != nil {
-				return err
-			}
+		if err := cancelInProgressDescriptionExercises(tx, user.ID, newlyIgnoredDescriptionLanguages); err != nil {
+			return err
 		}
 
 		if wasDailyQuestionsEnabled && !settings.Telegram.DailyQuestionsEnabled {
@@ -109,10 +104,8 @@ func UpdateUserSettings(userID uint, settings models.UserSettings) (*models.User
 			if err := replacePendingAudioExercisesForLanguages(tx, user.ID, newlyIgnoredLanguages); err != nil {
 				return err
 			}
-			if descriptionEligibilityChanged {
-				if err := replacePendingDescriptionExercises(tx, user.ID); err != nil {
-					return err
-				}
+			if err := replacePendingDescriptionExercises(tx, user.ID, newlyIgnoredDescriptionLanguages); err != nil {
+				return err
 			}
 		}
 

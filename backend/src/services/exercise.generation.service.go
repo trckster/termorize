@@ -121,10 +121,11 @@ func createRandomExerciseForVocabulary(userID uint, vocabularyID uuid.UUID, requ
 	var description string
 	if isDescriptionExerciseType(exerciseType) {
 		descriptionWordID := vocabulary.Translation.Original.ID
+		translationWordID := vocabulary.Translation.Translation.ID
 		if isReversedExerciseType(exerciseType) {
-			descriptionWordID = vocabulary.Translation.Translation.ID
+			descriptionWordID, translationWordID = translationWordID, descriptionWordID
 		}
-		generated, generationErr := GetOrCreateWordDescription(descriptionWordID)
+		generated, generationErr := GetOrCreateWordDescription(descriptionWordID, translationWordID)
 		if generationErr != nil {
 			if len(requestedTypes) > 0 {
 				return nil, generationErr
@@ -503,8 +504,7 @@ func descriptionLanguageEligibleWithDB(conn *gorm.DB, userID uint, language enum
 	if err := conn.Select("settings").Where("id = ?", userID).Take(&user).Error; err != nil {
 		return false
 	}
-	return user.Settings.MainLearningLanguage == language &&
-		!containsLanguage(user.Settings.IgnoredDescriptionLanguages, language)
+	return descriptionLanguageEligible(user.Settings, language)
 }
 
 func ignoredAudioLanguageWithDB(conn *gorm.DB, userID uint, language enums.Language) bool {
