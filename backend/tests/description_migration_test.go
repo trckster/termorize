@@ -10,9 +10,121 @@ import (
 	"termorize/src/models"
 	"termorize/src/testkit"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
+
+// Recreate the nullable pre-upgrade cache on one connection without altering
+// the real schema used by the application tests.
+func descriptionMigrationDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	tx := db.DB.Begin()
+	require.NoError(t, tx.Error)
+	t.Cleanup(func() { tx.Rollback() })
+	require.NoError(t, tx.Exec(`
+		CREATE TEMP TABLE word_descriptions
+		    (LIKE public.word_descriptions INCLUDING DEFAULTS INCLUDING INDEXES) ON COMMIT DROP;
+		ALTER TABLE word_descriptions ALTER COLUMN translation_word_id DROP NOT NULL;
+		CREATE TEMP TABLE word_description_backfill_archive
+		    (LIKE public.word_description_backfill_archive INCLUDING DEFAULTS INCLUDING INDEXES) ON COMMIT DROP;
+	`).Error)
+	return tx
+}
+
+func TestDescriptionContextMigrationRequiresFirstSavedCounterpart(t *testing.T) {
+	migration, err := os.ReadFile("src/data/migrations/0021_require_description_translation_context.sql")
+	require.NoError(t, err)
+	for _, test := range []struct {
+		name          string
+		pairs         [][3]int // original index, translated index, creation offset
+		initial       int
+		expected      int
+		conflict      bool
+		archiveReason string
+	}{
+		{name: "earliest outgoing", pairs: [][3]int{{0, 1, 10}, {0, 2, 0}}, expected: 2},
+		{name: "earliest incoming", pairs: [][3]int{{1, 0, 10}, {2, 0, 0}}, expected: 2},
+		{name: "earliest across directions", pairs: [][3]int{{0, 1, 10}, {2, 0, 0}}, expected: 2},
+		{name: "timestamp tie uses ID", pairs: [][3]int{{0, 1, 0}, {2, 0, 0}}, expected: 2},
+		{name: "duplicate pairs", pairs: [][3]int{{0, 1, 0}, {0, 1, 10}, {1, 0, 20}}, expected: 1},
+		{name: "existing context", pairs: [][3]int{{0, 1, 0}}, initial: 2, expected: 2},
+		{name: "missing counterpart", archiveReason: "no_translation"},
+		{name: "existing cache wins", pairs: [][3]int{{0, 1, 0}, {0, 2, 10}}, conflict: true, archiveReason: "existing_context"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			testkit.Truncate(t)
+			conn := descriptionMigrationDB(t)
+			words := []models.Word{
+				{Word: "bank", Language: enums.LanguageEn},
+				{Word: "la banca", Language: enums.LanguageIt},
+				{Word: "la riva", Language: enums.LanguageIt},
+			}
+			require.NoError(t, conn.Create(&words).Error)
+			now := time.Now().UTC().Truncate(time.Microsecond)
+			for index, pair := range test.pairs {
+				translation := models.Translation{
+					ID:         uuid.UUID{15: byte(len(test.pairs) - index)},
+					OriginalID: words[pair[0]].ID, TranslationID: words[pair[1]].ID,
+					Source: enums.TranslationSourceGoogle, CreatedAt: now.Add(time.Duration(pair[2]) * time.Second),
+				}
+				if index > 0 {
+					user := testkit.CreateUser(t)
+					translation.Source, translation.UserID = enums.TranslationSourceUser, &user.ID
+				}
+				require.NoError(t, conn.Create(&translation).Error)
+			}
+			legacy := models.WordDescription{
+				WordID: words[0].ID, Model: "model", Description: "Original approved clue.", CreatedAt: now, ApprovedAt: &now,
+			}
+			if test.initial != 0 {
+				legacy.TranslationWordID = &words[test.initial].ID
+			}
+			require.NoError(t, conn.Create(&legacy).Error)
+			contextual := models.WordDescription{
+				WordID: words[0].ID, TranslationWordID: &words[1].ID, Model: "model", Description: "Newer contextual clue.",
+			}
+			if test.conflict {
+				require.NoError(t, conn.Create(&contextual).Error)
+			}
+			for range 2 {
+				require.NoError(t, conn.Exec(string(migration)).Error)
+				var stored models.WordDescription
+				if test.archiveReason != "" {
+					assert.ErrorIs(t, conn.First(&stored, "id = ?", legacy.ID).Error, gorm.ErrRecordNotFound)
+					require.NoError(t, conn.Table("word_description_backfill_archive").First(&stored, "id = ?", legacy.ID).Error)
+					var reason string
+					require.NoError(t, conn.Table("word_description_backfill_archive").Select("reason").Where("id = ?", legacy.ID).Scan(&reason).Error)
+					assert.Equal(t, test.archiveReason, reason)
+				} else {
+					require.NoError(t, conn.First(&stored, "id = ?", legacy.ID).Error)
+					assert.Equal(t, &words[test.expected].ID, stored.TranslationWordID)
+				}
+				assert.Equal(t, legacy.Description, stored.Description)
+				assert.Equal(t, legacy.Model, stored.Model)
+				assert.WithinDuration(t, now, stored.CreatedAt, time.Microsecond)
+				require.NotNil(t, stored.ApprovedAt)
+				assert.WithinDuration(t, now, *stored.ApprovedAt, time.Microsecond)
+				if test.conflict {
+					var preserved models.WordDescription
+					require.NoError(t, conn.First(&preserved, "id = ?", contextual.ID).Error)
+					assert.Equal(t, contextual.Description, preserved.Description)
+					assert.Equal(t, contextual.TranslationWordID, preserved.TranslationWordID)
+				}
+				var missing int64
+				require.NoError(t, conn.Model(&models.WordDescription{}).Where("translation_word_id IS NULL").Count(&missing).Error)
+				assert.Zero(t, missing)
+			}
+			invalid := models.WordDescription{WordID: words[0].ID, Model: "another-model", Description: "Missing context."}
+			var pgError *pgconn.PgError
+			require.ErrorAs(t, conn.Create(&invalid).Error, &pgError)
+			assert.Equal(t, "23502", pgError.Code)
+			assert.Equal(t, "translation_word_id", pgError.ColumnName)
+		})
+	}
+}
 
 func TestDescriptionTranslationBackfill(t *testing.T) {
 	migration, err := os.ReadFile("src/data/migrations/0020_backfill_description_translation_context.sql")
@@ -38,12 +150,13 @@ func TestDescriptionTranslationBackfill(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			testkit.Truncate(t)
+			conn := descriptionMigrationDB(t)
 			words := []models.Word{
 				{Word: "bank", Language: enums.LanguageEn},
 				{Word: "la banca", Language: enums.LanguageIt},
 				{Word: "la riva", Language: enums.LanguageIt},
 			}
-			require.NoError(t, db.DB.Create(&words).Error)
+			require.NoError(t, conn.Create(&words).Error)
 			for index, pair := range test.pairs {
 				translation := models.Translation{
 					OriginalID: words[pair[0]].ID, TranslationID: words[pair[1]].ID,
@@ -54,7 +167,7 @@ func TestDescriptionTranslationBackfill(t *testing.T) {
 					translation.Source = enums.TranslationSourceUser
 					translation.UserID = &user.ID
 				}
-				require.NoError(t, db.DB.Create(&translation).Error)
+				require.NoError(t, conn.Create(&translation).Error)
 			}
 			now := time.Now().UTC().Truncate(time.Microsecond)
 			legacy := models.WordDescription{
@@ -64,20 +177,20 @@ func TestDescriptionTranslationBackfill(t *testing.T) {
 			if test.initial != 0 {
 				legacy.TranslationWordID = &words[test.initial].ID
 			}
-			require.NoError(t, db.DB.Create(&legacy).Error)
+			require.NoError(t, conn.Create(&legacy).Error)
 			var contextual models.WordDescription
 			if test.conflictModel != "" {
 				contextual = models.WordDescription{
 					WordID: words[0].ID, TranslationWordID: &words[1].ID,
 					Model: test.conflictModel, Description: "A newer contextual clue.",
 				}
-				require.NoError(t, db.DB.Create(&contextual).Error)
+				require.NoError(t, conn.Create(&contextual).Error)
 			}
 
 			for range 2 {
-				require.NoError(t, db.DB.Exec(string(migration)).Error, "backfill must also be safe to rerun")
+				require.NoError(t, conn.Exec(string(migration)).Error, "backfill must also be safe to rerun")
 				var stored models.WordDescription
-				require.NoError(t, db.DB.First(&stored, "id = ?", legacy.ID).Error)
+				require.NoError(t, conn.First(&stored, "id = ?", legacy.ID).Error)
 				if test.expected == 0 {
 					assert.Nil(t, stored.TranslationWordID)
 				} else {
@@ -89,12 +202,12 @@ func TestDescriptionTranslationBackfill(t *testing.T) {
 				require.NotNil(t, stored.ApprovedAt)
 				assert.WithinDuration(t, now, *stored.ApprovedAt, time.Microsecond)
 				var count int64
-				require.NoError(t, db.DB.Model(&models.WordDescription{}).Count(&count).Error)
+				require.NoError(t, conn.Model(&models.WordDescription{}).Count(&count).Error)
 				expectedCount := int64(1)
 				if test.conflictModel != "" {
 					expectedCount++
 					var preserved models.WordDescription
-					require.NoError(t, db.DB.First(&preserved, "id = ?", contextual.ID).Error)
+					require.NoError(t, conn.First(&preserved, "id = ?", contextual.ID).Error)
 					assert.Equal(t, contextual.Description, preserved.Description)
 					assert.Equal(t, contextual.TranslationWordID, preserved.TranslationWordID)
 				}

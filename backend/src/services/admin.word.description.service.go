@@ -94,20 +94,6 @@ func PreviewWordDescriptionForAdmin(id uuid.UUID, model string) (*WordDescriptio
 		return nil, err
 	}
 	translation := existing.TranslationWord
-	if translation == nil {
-		// Legacy clues have no recorded meaning. Use the oldest saved translation
-		// for the preview and return it so approval preserves that exact context.
-		var pair models.Translation
-		if err := db.DB.Preload("Original").Preload("Translation").
-			Where("original_id = ? OR translation_id = ?", existing.WordID, existing.WordID).
-			Order("created_at ASC, id ASC").Take(&pair).Error; err != nil {
-			return nil, err
-		}
-		translation = pair.Translation
-		if pair.TranslationID == existing.WordID {
-			translation = pair.Original
-		}
-	}
 	description, err := generateValidatedDescription(*existing.Word, *translation, openrouter.NewClientWithModel(model))
 	if err != nil {
 		return nil, err
@@ -131,27 +117,15 @@ func ApproveWordDescriptionForAdmin(id, translationWordID uuid.UUID, model, desc
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&existing, "id = ?", id).Error; err != nil {
 			return err
 		}
-		if existing.TranslationWordID != nil {
-			if *existing.TranslationWordID != translationWordID {
-				return ErrInvalidDescriptionTranslation
-			}
-		} else {
-			var count int64
-			if err := tx.Model(&models.Translation{}).
-				Where("(original_id = ? AND translation_id = ?) OR (original_id = ? AND translation_id = ?)",
-					existing.WordID, translationWordID, translationWordID, existing.WordID).Count(&count).Error; err != nil {
-				return err
-			}
-			if count == 0 {
-				return ErrInvalidDescriptionTranslation
-			}
+		if *existing.TranslationWordID != translationWordID {
+			return ErrInvalidDescriptionTranslation
 		}
 		now := time.Now()
 		replacement := models.WordDescription{WordID: existing.WordID, TranslationWordID: &translationWordID, Model: model, Description: description, CreatedAt: now, ApprovedAt: &now}
 		if err := tx.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "word_id"}, {Name: "translation_word_id"}, {Name: "model"}}, DoUpdates: clause.Assignments(map[string]any{"description": description, "created_at": now, "approved_at": now})}).Create(&replacement).Error; err != nil {
 			return err
 		}
-		if existing.Model != model || existing.TranslationWordID == nil {
+		if existing.Model != model {
 			if err := tx.Delete(&existing).Error; err != nil {
 				return err
 			}

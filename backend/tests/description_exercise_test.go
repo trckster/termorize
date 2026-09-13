@@ -619,7 +619,7 @@ func TestDescriptionCacheUniquePerWordTranslationAndModel(t *testing.T) {
 	assert.Error(t, db.DB.Create(&duplicate).Error)
 }
 
-func TestDescriptionCacheSeparatesMeaningsAndIgnoresLegacyClues(t *testing.T) {
+func TestDescriptionCacheSeparatesMeanings(t *testing.T) {
 	testkit.Truncate(t)
 	user := testkit.CreateUser(t)
 	vocabulary := exerciseSeedVocabulary(t, user.ID, "bank", "la banca", enums.LanguageEn, enums.LanguageIt)
@@ -627,11 +627,6 @@ func TestDescriptionCacheSeparatesMeaningsAndIgnoresLegacyClues(t *testing.T) {
 	financialTranslation := vocabulary.Translation.Translation
 	riverTranslation := models.Word{Word: "la riva", Language: enums.LanguageIt}
 	require.NoError(t, db.DB.Create(&riverTranslation).Error)
-	now := time.Now()
-	legacy := models.WordDescription{
-		WordID: word.ID, Model: config.GetOpenRouterModel(), Description: "An old clue without translation context.", ApprovedAt: &now,
-	}
-	require.NoError(t, db.DB.Create(&legacy).Error)
 
 	clues := map[string]string{
 		"la banca": "A place where people deposit money.",
@@ -667,7 +662,7 @@ func TestDescriptionCacheSeparatesMeaningsAndIgnoresLegacyClues(t *testing.T) {
 	assert.Equal(t, 2, calls, "each meaning is generated once, even with an approved clue for the other meaning")
 	var descriptions []models.WordDescription
 	require.NoError(t, db.DB.Where("word_id = ?", word.ID).Find(&descriptions).Error)
-	assert.Len(t, descriptions, 3, "legacy descriptions remain available for admin review")
+	assert.Len(t, descriptions, 2)
 }
 
 func TestConcurrentDescriptionCacheMissGeneratesOnce(t *testing.T) {

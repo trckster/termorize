@@ -219,7 +219,7 @@ func TestAdminDescriptionApprovalReplacesExistingModelCache(t *testing.T) {
 	assert.EqualValues(t, 1, count)
 }
 
-func TestAdminLegacyDescriptionPreviewAndApprovalPreserveTranslationContext(t *testing.T) {
+func TestAdminDescriptionDirectionsPreserveTranslationContext(t *testing.T) {
 	for _, reversed := range []bool{false, true} {
 		t.Run(map[bool]string{false: "direct", true: "reversed"}[reversed], func(t *testing.T) {
 			testkit.Truncate(t)
@@ -229,7 +229,7 @@ func TestAdminLegacyDescriptionPreviewAndApprovalPreserveTranslationContext(t *t
 			if reversed {
 				word, translation = translation, word
 			}
-			existing := models.WordDescription{WordID: word.ID, Model: config.GetOpenRouterModel(), Description: "Old clue."}
+			existing := models.WordDescription{WordID: word.ID, TranslationWordID: &translation.ID, Model: config.GetOpenRouterModel(), Description: "Old clue."}
 			require.NoError(t, db.DB.Create(&existing).Error)
 			testkit.MockGoogleTranslate(t, &testkit.FakeGoogleTranslate{DetectFunc: func(string) (string, error) { return string(word.Language), nil }})
 			calls := 0
@@ -253,7 +253,8 @@ func TestAdminLegacyDescriptionPreviewAndApprovalPreserveTranslationContext(t *t
 			assert.Equal(t, translation.Language, preview.TranslationLanguage)
 			var unchanged models.WordDescription
 			require.NoError(t, db.DB.First(&unchanged, "id = ?", existing.ID).Error)
-			assert.Nil(t, unchanged.TranslationWordID, "preview must preserve the legacy row until approval")
+			assert.Equal(t, &translation.ID, unchanged.TranslationWordID)
+			assert.Equal(t, "Old clue.", unchanged.Description, "preview must preserve the row until approval")
 			rec := testkit.AuthedRequest(t, admin, http.MethodPost, "/api/admin/word-descriptions/"+existing.ID.String()+"/approve", preview)
 			testkit.RequireStatus(t, rec, http.StatusOK)
 			cached, err := services.GetOrCreateWordDescription(word.ID, translation.ID)
