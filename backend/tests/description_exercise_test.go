@@ -36,7 +36,7 @@ func TestDescriptionExerciseDirectionsUseAndCacheWordDefinitions(t *testing.T) {
 		{
 			name:                "direct",
 			exerciseType:        enums.ExerciseTypeDescriptionDirect,
-			mainLanguage:        enums.LanguageEn,
+			mainLanguage:        enums.LanguageDe,
 			expectedWord:        "paper",
 			expectedLanguage:    enums.LanguageEn,
 			expectedAnswer:      "paper",
@@ -47,7 +47,7 @@ func TestDescriptionExerciseDirectionsUseAndCacheWordDefinitions(t *testing.T) {
 		{
 			name:                "reversed",
 			exerciseType:        enums.ExerciseTypeDescriptionReversed,
-			mainLanguage:        enums.LanguageIt,
+			mainLanguage:        enums.LanguageDe,
 			expectedWord:        "carta",
 			expectedLanguage:    enums.LanguageIt,
 			expectedAnswer:      "carta",
@@ -167,7 +167,7 @@ func TestIgnoringDescriptionLanguageReplacesQueuedExerciseAtSameTime(t *testing.
 
 	var replacement models.Exercise
 	require.NoError(t, db.DB.Where("user_id = ? AND status = ?", user.ID, enums.ExerciseStatusPending).Take(&replacement).Error)
-	assert.False(t, replacement.Type == enums.ExerciseTypeDescriptionDirect || replacement.Type == enums.ExerciseTypeDescriptionReversed)
+	assert.NotEqual(t, enums.ExerciseTypeDescriptionDirect, replacement.Type, "Italian descriptions remain eligible")
 	require.NotNil(t, replacement.ScheduledFor)
 	assert.WithinDuration(t, scheduledFor, *replacement.ScheduledFor, time.Microsecond)
 }
@@ -240,9 +240,10 @@ func TestDescriptionSettingsChangesCancelInProgressExercisesWithoutScoring(t *te
 			},
 		},
 		{
-			name: "change active learning language",
+			name: "ignore language other than main learning language",
 			updatePayload: func(payload map[string]any) {
 				payload["main_learning_language"] = "de"
+				payload["ignored_description_languages"] = []string{"en"}
 			},
 		},
 	}
@@ -297,6 +298,75 @@ func TestIgnoringUnrelatedDescriptionLanguageKeepsQueuedExercise(t *testing.T) {
 	assert.False(t, active.DeletedAt.Valid)
 }
 
+func TestChangingMainLearningLanguageKeepsDescriptionExercises(t *testing.T) {
+	testkit.Truncate(t)
+	user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{MainLearningLanguage: enums.LanguageEn}))
+	vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
+	var exercises []models.Exercise
+	for _, exerciseType := range []enums.ExerciseType{enums.ExerciseTypeDescriptionDirect, enums.ExerciseTypeDescriptionReversed} {
+		for _, status := range []enums.ExerciseStatus{enums.ExerciseStatusPending, enums.ExerciseStatusInProgress} {
+			exercise := exerciseSeedExercise(t, user.ID, exerciseType, status, vocabulary.ID)
+			when := time.Now().UTC().Add(time.Hour)
+			require.NoError(t, db.DB.Model(&exercise).Update("scheduled_for", when).Error)
+			exercises = append(exercises, exercise)
+		}
+	}
+	payload := authSettingsValidPayload()
+	payload["main_learning_language"] = "de"
+	testkit.RequireStatus(t, testkit.AuthedRequest(t, user, http.MethodPut, "/api/settings", payload), http.StatusOK)
+	for _, exercise := range exercises {
+		var unchanged models.Exercise
+		require.NoError(t, db.DB.First(&unchanged, "id = ?", exercise.ID).Error)
+		assert.Equal(t, exercise.Status, unchanged.Status)
+		assert.Nil(t, exerciseLink(t, exercise.ID, vocabulary.ID).Result)
+	}
+	for _, language := range []enums.Language{enums.LanguageEn, enums.LanguageIt} {
+		eligible, err := services.IsDescriptionLanguageEligible(user.ID, language)
+		require.NoError(t, err)
+		assert.True(t, eligible)
+	}
+}
+
+func TestDescriptionLanguageOptOutOnlyAffectsSelectedLanguage(t *testing.T) {
+	for _, route := range []string{"settings", "exercise"} {
+		for _, ignored := range []enums.Language{enums.LanguageEn, enums.LanguageIt} {
+			t.Run(route+"/"+string(ignored), func(t *testing.T) {
+				testkit.Truncate(t)
+				user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{MainLearningLanguage: enums.LanguageDe}))
+				vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
+				var exercises []models.Exercise
+				var ignoredExercise models.Exercise
+				for _, exerciseType := range []enums.ExerciseType{enums.ExerciseTypeDescriptionDirect, enums.ExerciseTypeDescriptionReversed} {
+					for _, status := range []enums.ExerciseStatus{enums.ExerciseStatusPending, enums.ExerciseStatusInProgress} {
+						exercise := exerciseSeedExercise(t, user.ID, exerciseType, status, vocabulary.ID)
+						when := time.Now().UTC().Add(time.Hour)
+						require.NoError(t, db.DB.Model(&exercise).Update("scheduled_for", when).Error)
+						exercises = append(exercises, exercise)
+						if status == enums.ExerciseStatusInProgress && (exerciseType == enums.ExerciseTypeDescriptionDirect) == (ignored == enums.LanguageEn) {
+							ignoredExercise = exercise
+						}
+					}
+				}
+				if route == "settings" {
+					payload := authSettingsValidPayload()
+					payload["main_learning_language"] = "de"
+					payload["ignored_description_languages"] = []string{string(ignored)}
+					testkit.RequireStatus(t, testkit.AuthedRequest(t, user, http.MethodPut, "/api/settings", payload), http.StatusOK)
+				} else {
+					testkit.RequireStatus(t, testkit.AuthedRequest(t, user, http.MethodPost, "/api/exercises/"+ignoredExercise.ID.String()+"/ignore-description-language", nil), http.StatusOK)
+				}
+				for _, exercise := range exercises {
+					var stored models.Exercise
+					require.NoError(t, db.DB.Unscoped().First(&stored, "id = ?", exercise.ID).Error)
+					shouldCancel := (exercise.Type == enums.ExerciseTypeDescriptionDirect) == (ignored == enums.LanguageEn)
+					assert.Equal(t, shouldCancel, stored.DeletedAt.Valid, "%s / %s", exercise.Type, exercise.Status)
+					assert.Nil(t, exerciseLink(t, exercise.ID, vocabulary.ID).Result)
+				}
+			})
+		}
+	}
+}
+
 func TestIgnoredDescriptionLanguageValidationRejectsUnsupportedCode(t *testing.T) {
 	testkit.Truncate(t)
 	user := testkit.CreateUser(t)
@@ -311,14 +381,14 @@ func TestIgnoredDescriptionLanguageValidationRejectsUnsupportedCode(t *testing.T
 	assert.Empty(t, unchanged.Settings.IgnoredDescriptionLanguages)
 }
 
-func TestDescriptionExerciseOnlyUsesEligibleLearningLanguage(t *testing.T) {
+func TestDescriptionExerciseRejectsIgnoredLanguageRegardlessOfMainLanguage(t *testing.T) {
 	tests := []struct {
 		name     string
 		settings models.UserSettings
 	}{
 		{
 			name:     "different main learning language",
-			settings: models.UserSettings{MainLearningLanguage: enums.LanguageDe},
+			settings: models.UserSettings{MainLearningLanguage: enums.LanguageDe, IgnoredDescriptionLanguages: []enums.Language{enums.LanguageEn}},
 		},
 		{
 			name: "ignored description language",

@@ -504,8 +504,7 @@ func descriptionLanguageEligibleWithDB(conn *gorm.DB, userID uint, language enum
 	if err := conn.Select("settings").Where("id = ?", userID).Take(&user).Error; err != nil {
 		return false
 	}
-	return user.Settings.MainLearningLanguage == language &&
-		!containsLanguage(user.Settings.IgnoredDescriptionLanguages, language)
+	return descriptionLanguageEligible(user.Settings, language)
 }
 
 func ignoredAudioLanguageWithDB(conn *gorm.DB, userID uint, language enums.Language) bool {

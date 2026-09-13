@@ -56,8 +56,7 @@ func lockDescriptionLanguageEligibility(tx *gorm.DB, userID uint, language enums
 }
 
 func descriptionLanguageEligible(settings models.UserSettings, language enums.Language) bool {
-	return settings.MainLearningLanguage == language &&
-		!containsLanguage(settings.IgnoredDescriptionLanguages, language)
+	return !containsLanguage(settings.IgnoredDescriptionLanguages, language)
 }
 
 func IgnoreDescriptionLanguageForExercise(exerciseID uuid.UUID, userID uint) (*models.User, error) {
@@ -105,10 +104,10 @@ func IgnoreDescriptionLanguageForExercise(exerciseID uuid.UUID, userID uint) (*m
 			}
 		}
 		if newlyIgnored {
-			if err := cancelInProgressDescriptionExercises(tx, userID); err != nil {
+			if err := cancelInProgressDescriptionExercises(tx, userID, []enums.Language{descriptionLanguage}); err != nil {
 				return err
 			}
-			return replacePendingDescriptionExercises(tx, userID)
+			return replacePendingDescriptionExercises(tx, userID, []enums.Language{descriptionLanguage})
 		}
 		return nil
 	})
@@ -181,9 +180,25 @@ func IsPendingDescriptionExercise(exerciseID uuid.UUID) (bool, error) {
 	return count == 1, nil
 }
 
-func replacePendingDescriptionExercises(tx *gorm.DB, userID uint) error {
+func descriptionExercisesForLanguages(tx *gorm.DB, languages []enums.Language) *gorm.DB {
+	ids := tx.Table("vocabulary_exercises AS ve").Select("ve.exercise_id").
+		Joins("JOIN exercises AS e ON e.id = ve.exercise_id").
+		Joins("JOIN vocabulary AS v ON v.id = ve.vocabulary_id").
+		Joins("JOIN translations AS t ON t.id = v.translation_id").
+		Joins("JOIN words AS original ON original.id = t.original_id").
+		Joins("JOIN words AS translated ON translated.id = t.translation_id").
+		Where("ve.is_correct = true").
+		Where("(e.type = ? AND original.language IN ?) OR (e.type = ? AND translated.language IN ?)",
+			enums.ExerciseTypeDescriptionDirect, languages, enums.ExerciseTypeDescriptionReversed, languages)
+	return tx.Model(&models.Exercise{}).Where("id IN (?)", ids)
+}
+
+func replacePendingDescriptionExercises(tx *gorm.DB, userID uint, languages []enums.Language) error {
+	if len(languages) == 0 {
+		return nil
+	}
 	var replacements []pendingDescriptionReplacement
-	if err := tx.Model(&models.Exercise{}).
+	if err := descriptionExercisesForLanguages(tx, languages).
 		Select("id AS exercise_id", "scheduled_for").
 		Where("user_id = ? AND status = ? AND type IN ? AND scheduled_for IS NOT NULL", userID, enums.ExerciseStatusPending, descriptionExerciseTypes).
 		Order("scheduled_for ASC, created_at ASC").
@@ -207,8 +222,11 @@ func replacePendingDescriptionExercises(tx *gorm.DB, userID uint) error {
 	return nil
 }
 
-func cancelInProgressDescriptionExercises(tx *gorm.DB, userID uint) error {
-	return tx.Where(
+func cancelInProgressDescriptionExercises(tx *gorm.DB, userID uint, languages []enums.Language) error {
+	if len(languages) == 0 {
+		return nil
+	}
+	return descriptionExercisesForLanguages(tx, languages).Where(
 		"user_id = ? AND status = ? AND type IN ?",
 		userID,
 		enums.ExerciseStatusInProgress,
