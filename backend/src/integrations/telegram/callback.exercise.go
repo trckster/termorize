@@ -118,11 +118,11 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 		return nil
 	}
 
-	if err := removeMessageInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID); err != nil {
-		logger.L().Warnw("failed to remove inline keyboard", "error", err, "chat_id", callback.Message.Chat.ID, "message_id", callback.Message.MessageID)
-	}
-
 	if hasAnswer {
+		if err := removeMessageInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID); err != nil {
+			logger.L().Warnw("failed to remove inline keyboard", "error", err, "chat_id", callback.Message.Chat.ID, "message_id", callback.Message.MessageID)
+		}
+
 		result, err := services.VerifyExerciseChoice(exerciseID, exercise.UserID, selectedVocabularyID)
 		if err != nil {
 			if errors.Is(err, services.ErrExerciseNotInProgress) {
@@ -183,7 +183,23 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 		translationKnowledge,
 		t,
 	)
-	return SendMessageMarkdown(callback.From.ID, answerText)
+	keyboard := &inlineKeyboardMarkup{InlineKeyboard: [][]inlineKeyboardButton{}}
+	if exercise.ExerciseType == enums.ExerciseTypeAudioDirect || exercise.ExerciseType == enums.ExerciseTypeAudioReversed {
+		return editMessageCaptionTolerant(editMessageCaptionRequest{
+			ChatID:      callback.Message.Chat.ID,
+			MessageID:   callback.Message.MessageID,
+			Caption:     answerText,
+			ParseMode:   telegramParseModeMarkdown,
+			ReplyMarkup: keyboard,
+		})
+	}
+	return editMessageTextTolerant(editMessageTextRequest{
+		ChatID:      callback.Message.Chat.ID,
+		MessageID:   callback.Message.MessageID,
+		Text:        answerText,
+		ParseMode:   telegramParseModeMarkdown,
+		ReplyMarkup: keyboard,
+	})
 }
 
 func ignoredExerciseText(exercise *services.TelegramMessageExercise, t BotTexts) string {
