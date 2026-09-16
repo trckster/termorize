@@ -30,8 +30,6 @@ The extension supports English, Russian, Italian, German, Spanish, French, Polis
 
 A Termorize session is required. You can sign in through Telegram or use a temporary guest account from the Termorize home page. If a shortcut conflicts with another browser command, it can be reassigned at `chrome://extensions/shortcuts`.
 
-Google Translate is a trademark of Google LLC. TermoClip is an independent extension and is not affiliated with, sponsored by, or endorsed by Google LLC.
-
 **Category**
 
 Productivity
