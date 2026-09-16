@@ -40,6 +40,8 @@ services:
 
   scheduler:
     image: termorize-backend:local
+    # Reuse the backend image built locally; it is not published to a registry.
+    pull_policy: never
     depends_on:
       postgres:
         condition: service_healthy
