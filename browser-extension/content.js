@@ -184,9 +184,34 @@ function createUi() {
     const toastViewport = createElement('div', 'termorize-toast-viewport')
     toastViewport.setAttribute('aria-live', 'polite')
     toastViewport.setAttribute('aria-atomic', 'true')
-    root.append(toastViewport, createShortcutHints())
+    root.append(toastViewport)
     shadow.append(stylesheet, root)
     document.body.append(extensionHost)
+
+    // Keep the hints with Google's footer actions, including after SPA rerenders.
+    const hintsHost = createElement('div', 'termorize-shortcut-host')
+    hintsHost.style.cssText = 'flex: 0 0 100%; order: 1;'
+    const hintsShadow = hintsHost.attachShadow({ mode: 'closed' })
+    const hintsRoot = createElement('div', 'termorize-extension-root')
+    hintsRoot.append(createShortcutHints())
+    hintsShadow.append(stylesheet.cloneNode(), hintsRoot)
+
+    function placeShortcutHints() {
+        const actions = document
+            .querySelector('[data-probe-id="translation_history_footer_button"]')
+            ?.closest('nav')
+        if (!actions) {
+            hintsHost.remove()
+            return
+        }
+        if (hintsHost.parentElement === actions) return
+        actions.style.flexWrap = 'wrap'
+        actions.style.rowGap = '12px'
+        actions.append(hintsHost)
+    }
+
+    placeShortcutHints()
+    new MutationObserver(placeShortcutHints).observe(document.body, { childList: true, subtree: true })
 
     let toastTimer = null
     let dialog = null

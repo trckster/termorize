@@ -28,7 +28,7 @@
 .termorize-shortcut-hints {
     width: fit-content;
     max-width: calc(100% - 32px);
-    margin: 24px auto 32px;
+    margin: 0 auto;
     color: #64736b;
     opacity: 0.65;
     pointer-events: none;

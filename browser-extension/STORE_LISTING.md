@@ -1,6 +1,6 @@
 # Chrome Web Store listing
 
-This is the copy-and-paste source of truth for the TermoClip extension listing. It matches version `1.1.2` and the disclosures in the public privacy policy.
+This is the copy-and-paste source of truth for the TermoClip extension listing. It matches version `1.1.3` and the disclosures in the public privacy policy.
 
 ## Product details
 
@@ -29,8 +29,6 @@ Move useful words from any page into Termorize without copying and pasting.
 The extension supports English, Russian, Italian, German, Spanish, French, Polish, Turkish, Portuguese, and Ukrainian. Choose explicit source and target languages in Google Translate before saving.
 
 A Termorize session is required. You can sign in through Telegram or use a temporary guest account from the Termorize home page. If a shortcut conflicts with another browser command, it can be reassigned at `chrome://extensions/shortcuts`.
-
-Google Translate is a trademark of Google LLC. TermoClip is an independent extension and is not affiliated with, sponsored by, or endorsed by Google LLC.
 
 **Category**
 
