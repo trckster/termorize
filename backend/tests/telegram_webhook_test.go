@@ -176,8 +176,9 @@ func TestTelegramDescriptionExerciseAcceptsRegularReply(t *testing.T) {
 
 	rec := telegramUpdate(t, update)
 	testkit.RequireStatus(t, rec, http.StatusOK)
-	require.Len(t, tg.RequestsFor("sendMessage"), 1)
-	assert.Contains(t, string(tg.RequestsFor("sendMessage")[0].Body), "That's right")
+	require.Len(t, tg.RequestsFor("editMessageText"), 1)
+	assert.Empty(t, tg.RequestsFor("sendMessage"))
+	assert.Contains(t, string(tg.RequestsFor("editMessageText")[0].Body), "That's right")
 
 	completed := exerciseReload(t, exercise.ID)
 	assert.Equal(t, enums.ExerciseStatusCompleted, completed.Status)
@@ -1103,7 +1104,10 @@ func TestTelegramWebhookCharacterExerciseUsesSquareBoardAndCompletes(t *testing.
 	require.True(t, ok)
 	assert.Empty(t, keyboard)
 
-	require.True(t, tg.Sent("sendMessage"), "completion should send the exercise result")
+	assert.Empty(t, tg.RequestsFor("sendMessage"))
+	assert.Contains(t, finalEdit["text"], telegram.GetBotTexts(enums.LanguageRu).ExerciseSuccess)
+	assert.Contains(t, finalEdit["text"], "letter")
+	assert.NotContains(t, finalEdit["text"], "＿")
 	link := exerciseLink(t, exercise.ID, vocabulary.ID)
 	require.NotNil(t, link.ResultReason)
 	assert.Equal(t, services.ExerciseVocabularyResultReasonCharacterAnswer, *link.ResultReason)
@@ -1131,11 +1135,7 @@ func TestTelegramWebhookCharacterExerciseUsesSquareBoardAndCompletes(t *testing.
 	testkit.RequireStatus(t, rec, http.StatusOK)
 	assert.Len(t, tg.RequestsFor("sendMessage"), feedbackCount, "a retried callback must not duplicate feedback")
 
-	retryEdits := tg.RequestsFor("editMessageText")
-	require.Len(t, retryEdits, len([]rune("letter"))+3)
-	var retryEdit map[string]any
-	require.NoError(t, json.Unmarshal(retryEdits[len(retryEdits)-1].Body, &retryEdit))
-	assert.Contains(t, retryEdit["text"], "l e t t e r")
+	assert.Len(t, tg.RequestsFor("editMessageText"), len(editRequests), "replay must preserve the final result")
 }
 
 func TestTelegramWebhookExerciseIDKEditsOriginalMessage(t *testing.T) {
@@ -1907,8 +1907,13 @@ func telegramMyChatMember(telegramID int64, oldStatus, newStatus string) map[str
 	}
 }
 
-func TestTelegramWebhookCharacterExerciseAcceptsReplies(t *testing.T) {
-	for _, exerciseType := range []enums.ExerciseType{enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed} {
+func TestTelegramWebhookExerciseRepliesDeliverResults(t *testing.T) {
+	for _, exerciseType := range []enums.ExerciseType{
+		enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed,
+		enums.ExerciseTypeDescriptionDirect, enums.ExerciseTypeDescriptionReversed,
+		enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed,
+		enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed,
+	} {
 		for _, verdict := range []string{"correct", "almost", "wrong"} {
 			t.Run(string(exerciseType)+"/"+verdict, func(t *testing.T) {
 				testkit.Truncate(t)
@@ -1920,13 +1925,19 @@ func TestTelegramWebhookCharacterExerciseAcceptsReplies(t *testing.T) {
 				exercise := exerciseSeedExercise(t, user.ID, exerciseType, enums.ExerciseStatusPending, vocabulary.ID)
 				answer := "letter"
 				order := []int{0, 1, 2, 3, 4, 5, -1, -1, -1}
-				if exerciseType == enums.ExerciseTypeCharactersReversed {
+				if exerciseType == enums.ExerciseTypeCharactersReversed || exerciseType == enums.ExerciseTypeBasicReversed || exerciseType == enums.ExerciseTypeAudioReversed || exerciseType == enums.ExerciseTypeDescriptionDirect {
 					answer = "carta"
 					order = []int{0, 1, 2, 3, 4, -1, -1, -1, -1}
 				}
-				require.NoError(t, services.StartCharacterExercise(exercise.ID, messageID, order))
-				_, _, err := services.ApplyCharacterTap(exercise.ID, user.ID, 0)
-				require.NoError(t, err)
+				isCharacters := exerciseType == enums.ExerciseTypeCharactersDirect || exerciseType == enums.ExerciseTypeCharactersReversed
+				isDescription := exerciseType == enums.ExerciseTypeDescriptionDirect || exerciseType == enums.ExerciseTypeDescriptionReversed
+				if isCharacters {
+					require.NoError(t, services.StartCharacterExercise(exercise.ID, messageID, order))
+					_, _, err := services.ApplyCharacterTap(exercise.ID, user.ID, 0)
+					require.NoError(t, err)
+				} else {
+					require.NoError(t, db.DB.Model(&models.Exercise{}).Where("id = ?", exercise.ID).Updates(map[string]any{"telegram_message_id": messageID, "status": enums.ExerciseStatusInProgress}).Error)
+				}
 				status := enums.ExerciseStatusCompleted
 				delta := services.ExerciseCharacterCorrectProgressDelta
 				switch verdict {
@@ -1940,6 +1951,16 @@ func TestTelegramWebhookCharacterExerciseAcceptsReplies(t *testing.T) {
 				default:
 					answer = "  " + answer + "  "
 				}
+				if !isCharacters {
+					switch verdict {
+					case "correct":
+						delta = services.ExerciseBasicCorrectProgressDelta
+					case "almost":
+						delta = services.ExerciseBasicAlmostProgressDelta
+					default:
+						delta = services.ExerciseBasicWrongProgressDelta
+					}
+				}
 				update := telegramPrivateMessage(telegramID, answer)
 				update["message"].(map[string]any)["reply_to_message"] = map[string]any{"message_id": messageID}
 				testkit.RequireStatus(t, telegramUpdate(t, update), http.StatusOK)
@@ -1949,11 +1970,168 @@ func TestTelegramWebhookCharacterExerciseAcceptsReplies(t *testing.T) {
 				assert.Equal(t, verdict, *link.Result)
 				require.NotNil(t, link.ProgressDelta)
 				assert.Equal(t, delta, *link.ProgressDelta)
-				require.Len(t, tg.RequestsFor("editMessageReplyMarkup"), 1)
-				require.Len(t, tg.RequestsFor("sendMessage"), 1)
-				testkit.RequireStatus(t, telegramUpdate(t, update), http.StatusOK)
+				if isCharacters || isDescription {
+					assert.Empty(t, tg.RequestsFor("sendMessage"))
+					assert.Empty(t, tg.RequestsFor("editMessageReplyMarkup"))
+					require.Len(t, tg.RequestsFor("editMessageText"), 1)
+					assertTelegramExerciseResultEdit(t, tg.RequestsFor("editMessageText")[0], telegramID, messageID, verdict)
+					testkit.RequireStatus(t, telegramUpdate(t, update), http.StatusOK)
+					assert.Len(t, tg.RequestsFor("editMessageText"), 1)
+					assert.Empty(t, tg.RequestsFor("sendMessage"))
+				} else {
+					require.Len(t, tg.RequestsFor("editMessageReplyMarkup"), 1)
+					require.Len(t, tg.RequestsFor("sendMessage"), 1)
+					assert.Empty(t, tg.RequestsFor("editMessageText"))
+				}
 				assert.Equal(t, delta, *exerciseLink(t, exercise.ID, vocabulary.ID).ProgressDelta)
-				assert.Len(t, tg.RequestsFor("editMessageReplyMarkup"), 1)
+			})
+		}
+	}
+}
+
+func assertTelegramExerciseResultEdit(t *testing.T, request testkit.TelegramRequest, chatID, messageID int64, verdict string) {
+	t.Helper()
+	var edit struct {
+		ChatID      int64  `json:"chat_id"`
+		MessageID   int64  `json:"message_id"`
+		Text        string `json:"text"`
+		ParseMode   string `json:"parse_mode"`
+		ReplyMarkup struct {
+			InlineKeyboard [][]any `json:"inline_keyboard"`
+		} `json:"reply_markup"`
+	}
+	require.NoError(t, json.Unmarshal(request.Body, &edit))
+	assert.Equal(t, chatID, edit.ChatID)
+	assert.Equal(t, messageID, edit.MessageID)
+	assert.Equal(t, "Markdown", edit.ParseMode)
+	require.NotNil(t, edit.ReplyMarkup.InlineKeyboard)
+	assert.Empty(t, edit.ReplyMarkup.InlineKeyboard)
+	texts := telegram.GetBotTexts(enums.LanguageRu)
+	feedback := map[string]string{"correct": texts.ExerciseSuccess, "almost": texts.ExerciseAlmost, "wrong": texts.ExerciseInvalid, "skipped": texts.ExerciseIDK}
+	assert.Contains(t, edit.Text, feedback[verdict])
+	assert.Contains(t, edit.Text, "carta")
+	assert.Contains(t, edit.Text, "letter")
+	assert.Contains(t, edit.Text, enums.LanguageIt.Flag())
+	assert.Contains(t, edit.Text, enums.LanguageEn.Flag())
+	assert.NotContains(t, edit.Text, "＿")
+}
+
+func TestTelegramWebhookChoiceAnswersEditExerciseMessage(t *testing.T) {
+	for _, exerciseType := range []enums.ExerciseType{enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed} {
+		for _, verdict := range []string{"correct", "wrong"} {
+			t.Run(string(exerciseType)+"/"+verdict, func(t *testing.T) {
+				testkit.Truncate(t)
+				tg := testkit.MockTelegramAPI(t)
+				const telegramID int64 = 555020
+				const messageID int64 = 120
+				user := testkit.CreateUser(t, testkit.WithTelegramID(telegramID))
+				vocabularyIDs := make([]uuid.UUID, 0, 4)
+				for _, pair := range [][2]string{{"carta", "letter"}, {"cane", "dog"}, {"gatto", "cat"}, {"casa", "house"}} {
+					vocabulary := exerciseSeedVocabulary(t, user.ID, pair[0], pair[1], enums.LanguageIt, enums.LanguageEn)
+					vocabularyIDs = append(vocabularyIDs, vocabulary.ID)
+				}
+				exercise := exerciseSeedChoiceExercise(t, user.ID, exerciseType, enums.ExerciseStatusInProgress, vocabularyIDs)
+				require.NoError(t, db.DB.Model(&models.Exercise{}).Where("id = ?", exercise.ID).Update("telegram_message_id", messageID).Error)
+				selected := vocabularyIDs[0]
+				status := enums.ExerciseStatusCompleted
+				if verdict == "wrong" {
+					selected = vocabularyIDs[1]
+					status = enums.ExerciseStatusFailed
+				}
+				update := exerciseResultCallback(telegramID, messageID, "choice-result", "answer:"+telegramCompactUUID(exercise.ID)+":"+telegramCompactUUID(selected))
+				for range 2 {
+					testkit.RequireStatus(t, telegramUpdate(t, update), http.StatusOK)
+				}
+				assert.Equal(t, status, exerciseReload(t, exercise.ID).Status)
+				link := exerciseLink(t, exercise.ID, vocabularyIDs[0])
+				require.NotNil(t, link.Result)
+				assert.Equal(t, verdict, *link.Result)
+				assert.Empty(t, tg.RequestsFor("sendMessage"))
+				assert.Empty(t, tg.RequestsFor("editMessageReplyMarkup"))
+				require.Len(t, tg.RequestsFor("editMessageText"), 1)
+				assertTelegramExerciseResultEdit(t, tg.RequestsFor("editMessageText")[0], telegramID, messageID, verdict)
+				require.Len(t, tg.RequestsFor("answerCallbackQuery"), 2)
+				for _, request := range tg.RequestsFor("answerCallbackQuery") {
+					var acknowledgement map[string]any
+					require.NoError(t, json.Unmarshal(request.Body, &acknowledgement))
+					assert.Equal(t, "choice-result", acknowledgement["callback_query_id"])
+				}
+			})
+		}
+	}
+}
+
+func exerciseResultCallback(telegramID, messageID int64, callbackID, action string) map[string]any {
+	return map[string]any{
+		"update_id": 200,
+		"callback_query": map[string]any{
+			"id":   callbackID,
+			"data": "exercise:" + action,
+			"from": map[string]any{"id": telegramID, "is_bot": false},
+			"message": map[string]any{
+				"message_id": messageID,
+				"text":       "Translate carta\n\nl ＿ ＿ ＿ ＿ ＿",
+				"chat":       map[string]any{"id": telegramID, "type": "private"},
+			},
+		},
+	}
+}
+
+func TestTelegramWebhookCharacterResultsDoNotRestoreUnansweredSlots(t *testing.T) {
+	for _, exerciseType := range []enums.ExerciseType{enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed} {
+		for _, verdict := range []string{"correct", "almost", "wrong", "skipped"} {
+			t.Run(string(exerciseType)+"/"+verdict, func(t *testing.T) {
+				testkit.Truncate(t)
+				tg := testkit.MockTelegramAPI(t)
+				const telegramID int64 = 555021
+				const messageID int64 = 121
+				user := testkit.CreateUser(t, testkit.WithTelegramID(telegramID))
+				vocabulary := exerciseSeedVocabulary(t, user.ID, "carta", "letter", enums.LanguageIt, enums.LanguageEn)
+				exercise := exerciseSeedExercise(t, user.ID, exerciseType, enums.ExerciseStatusPending, vocabulary.ID)
+				order := []int{0, 1, 2, 3, 4, 5, -1, -1, -1}
+				if exerciseType == enums.ExerciseTypeCharactersReversed {
+					order = []int{0, 1, 2, 3, 4, -1, -1, -1, -1}
+				}
+				require.NoError(t, services.StartCharacterExercise(exercise.ID, messageID, order))
+				indices := []int{0, 1, 2, 3, 4, 5}
+				if exerciseType == enums.ExerciseTypeCharactersReversed {
+					indices = indices[:5]
+				}
+				switch verdict {
+				case "almost":
+					indices[0], indices[1] = indices[1], indices[0]
+				case "wrong":
+					indices[0], indices[3] = indices[3], indices[0]
+					indices[1], indices[4] = indices[4], indices[1]
+				case "skipped":
+					indices = indices[:1]
+				}
+				for _, index := range indices {
+					update := exerciseResultCallback(telegramID, messageID, "character-tap", "ct:"+telegramCompactUUID(exercise.ID)+":"+strconv.Itoa(index))
+					testkit.RequireStatus(t, telegramUpdate(t, update), http.StatusOK)
+				}
+				if verdict == "skipped" {
+					update := exerciseResultCallback(telegramID, messageID, "character-skip", "idk:"+exercise.ID.String())
+					testkit.RequireStatus(t, telegramUpdate(t, update), http.StatusOK)
+				}
+				edits := tg.RequestsFor("editMessageText")
+				require.NotEmpty(t, edits)
+				assertTelegramExerciseResultEdit(t, edits[len(edits)-1], telegramID, messageID, verdict)
+				link := exerciseLink(t, exercise.ID, vocabulary.ID)
+				require.NotNil(t, link.Result)
+				expectedResult := verdict
+				if verdict == "skipped" {
+					expectedResult = services.ExerciseVocabularyResultIgnored
+				}
+				assert.Equal(t, expectedResult, *link.Result)
+				for _, action := range []string{"ct:" + telegramCompactUUID(exercise.ID) + ":0", "cc:" + telegramCompactUUID(exercise.ID), "idk:" + exercise.ID.String()} {
+					testkit.RequireStatus(t, telegramUpdate(t, exerciseResultCallback(telegramID, messageID, "stale-character", action)), http.StatusOK)
+				}
+				assert.Len(t, tg.RequestsFor("editMessageText"), len(edits))
+				assert.Empty(t, tg.RequestsFor("sendMessage"))
+				assert.Empty(t, tg.RequestsFor("editMessageReplyMarkup"))
+				assert.Equal(t, *link.ProgressDelta, *exerciseLink(t, exercise.ID, vocabulary.ID).ProgressDelta)
+				assert.Len(t, tg.RequestsFor("answerCallbackQuery"), len(edits)+3)
 			})
 		}
 	}

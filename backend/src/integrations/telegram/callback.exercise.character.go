@@ -4,9 +4,7 @@ import (
 	"errors"
 	"math"
 	"strconv"
-	"strings"
 	"termorize/src/enums"
-	"termorize/src/logger"
 	"termorize/src/services"
 
 	"github.com/google/uuid"
@@ -79,13 +77,7 @@ func handleCharacterTap(callback *callbackQuery, payload []string, t BotTexts) e
 	case enums.ExerciseStatusIgnored:
 		return sendIgnoredExerciseMessage(callback.Message.Chat.ID, callback.Message.MessageID, callback.From.ID, exercise, t)
 	case enums.ExerciseStatusCompleted, enums.ExerciseStatusFailed:
-		board := completedCharacterBoard(exercise)
-		return EditCharacterBoardMessage(
-			callback.Message.Chat.ID,
-			callback.Message.MessageID,
-			buildCharacterBoardText(questionText, board),
-			[][]inlineKeyboardButton{},
-		)
+		return nil
 	}
 
 	if len(exercise.Vocabulary) == 0 || exercise.Vocabulary[0].Translation == nil {
@@ -125,37 +117,7 @@ func handleCharacterTap(callback *callbackQuery, payload []string, t BotTexts) e
 		return err
 	}
 
-	if err := EditCharacterBoardMessage(
-		callback.Message.Chat.ID,
-		callback.Message.MessageID,
-		buildCharacterBoardText(questionText, board),
-		[][]inlineKeyboardButton{},
-	); err != nil {
-		logger.L().Warnw("failed to finalize character exercise board", "error", err, "exercise_id", exercise.ExerciseID)
-	}
-
-	switch result.Result {
-	case "correct":
-		return SendMessageMarkdown(callback.From.ID, buildExerciseSuccessResultText(result.Knowledge, t))
-	case "almost":
-		return SendMessageMarkdown(callback.From.ID, buildExerciseAlmostResultText(
-			exercise.OriginalWord,
-			exercise.TranslationWord,
-			exercise.OriginalLanguage,
-			exercise.TranslationLanguage,
-			result.Knowledge,
-			t,
-		))
-	default:
-		return SendMessageMarkdown(callback.From.ID, buildExerciseInvalidResultText(
-			exercise.OriginalWord,
-			exercise.TranslationWord,
-			exercise.OriginalLanguage,
-			exercise.TranslationLanguage,
-			result.Knowledge,
-			t,
-		))
-	}
+	return sendExerciseAnswerResult(callback.Message.Chat.ID, callback.Message.MessageID, exercise, result, t)
 }
 
 func handleCharacterBackspace(callback *callbackQuery, payload []string, t BotTexts) error {
@@ -186,21 +148,7 @@ func handleCharacterBackspace(callback *callbackQuery, payload []string, t BotTe
 	case enums.ExerciseStatusIgnored:
 		return sendIgnoredExerciseMessage(callback.Message.Chat.ID, callback.Message.MessageID, callback.From.ID, exercise, t)
 	case enums.ExerciseStatusCompleted, enums.ExerciseStatusFailed:
-		questionText := BuildBasicExerciseQuestion(
-			exercise.OriginalWord,
-			exercise.TranslationWord,
-			exercise.OriginalLanguage,
-			exercise.TranslationLanguage,
-			exercise.ExerciseType,
-			t,
-		)
-		board := completedCharacterBoard(exercise)
-		return EditCharacterBoardMessage(
-			callback.Message.Chat.ID,
-			callback.Message.MessageID,
-			buildCharacterBoardText(questionText, board),
-			[][]inlineKeyboardButton{},
-		)
+		return nil
 	}
 
 	board, err := services.RemoveLastCharacterSelection(exercise.ExerciseID, exercise.UserID)
@@ -379,21 +327,4 @@ func characterExerciseAnswer(exercise *services.TelegramMessageExercise) string 
 		return exercise.OriginalWord
 	}
 	return exercise.TranslationWord
-}
-
-func completedCharacterBoard(exercise *services.TelegramMessageExercise) *services.CharacterBoardState {
-	if exercise.CharacterBoard != nil {
-		return exercise.CharacterBoard
-	}
-
-	characters := services.AnswerCharacters(characterExerciseAnswer(exercise))
-	chosen := make([]int, len(characters))
-	for index := range chosen {
-		chosen[index] = index
-	}
-	return &services.CharacterBoardState{
-		Characters: characters,
-		Chosen:     chosen,
-		Answer:     strings.Join(characters, ""),
-	}
 }

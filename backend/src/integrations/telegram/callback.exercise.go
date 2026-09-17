@@ -3,7 +3,6 @@ package telegram
 import (
 	"errors"
 	"termorize/src/enums"
-	"termorize/src/logger"
 	"termorize/src/services"
 
 	"github.com/google/uuid"
@@ -100,8 +99,14 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 	case enums.ExerciseStatusIgnored:
 		return sendIgnoredExerciseMessage(callback.Message.Chat.ID, callback.Message.MessageID, callback.From.ID, exercise, t)
 	case enums.ExerciseStatusCompleted:
+		if editsExerciseAnswer(exercise.ExerciseType) {
+			return nil
+		}
 		return SendMessage(callback.From.ID, t.ExerciseCompleted)
 	case enums.ExerciseStatusFailed:
+		if editsExerciseAnswer(exercise.ExerciseType) {
+			return nil
+		}
 		return SendMessage(callback.From.ID, t.ExerciseFailed)
 	}
 
@@ -119,10 +124,6 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 	}
 
 	if hasAnswer {
-		if err := removeMessageInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID); err != nil {
-			logger.L().Warnw("failed to remove inline keyboard", "error", err, "chat_id", callback.Message.Chat.ID, "message_id", callback.Message.MessageID)
-		}
-
 		result, err := services.VerifyExerciseChoice(exerciseID, exercise.UserID, selectedVocabularyID)
 		if err != nil {
 			if errors.Is(err, services.ErrExerciseNotInProgress) {
@@ -136,19 +137,7 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 			return err
 		}
 
-		switch result.Result {
-		case "correct":
-			return SendMessageMarkdown(callback.From.ID, buildExerciseSuccessResultText(result.Knowledge, t))
-		default:
-			return SendMessageMarkdown(callback.From.ID, buildExerciseInvalidResultText(
-				exercise.OriginalWord,
-				exercise.TranslationWord,
-				exercise.OriginalLanguage,
-				exercise.TranslationLanguage,
-				result.Knowledge,
-				t,
-			))
-		}
+		return sendExerciseAnswerResult(callback.Message.Chat.ID, callback.Message.MessageID, exercise, result, t)
 	}
 
 	updated, translationKnowledge, err := services.FinishExercise(
