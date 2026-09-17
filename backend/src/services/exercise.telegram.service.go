@@ -231,6 +231,12 @@ func buildTelegramMessageExercise(exercise models.Exercise) (*TelegramMessageExe
 	}
 
 	if correctVocabulary != nil {
+		if correctVocabulary.Result != nil && correctVocabulary.KnowledgeAfter != nil {
+			telegramExercise.AnswerResult = &VerifyAnswerResult{
+				Result:    *correctVocabulary.Result,
+				Knowledge: *correctVocabulary.KnowledgeAfter,
+			}
+		}
 		telegramExercise.OriginalWord = correctVocabulary.OriginalWord
 		telegramExercise.OriginalLanguage = correctVocabulary.OriginalLanguage
 		telegramExercise.TranslationWord = correctVocabulary.TranslationWord
