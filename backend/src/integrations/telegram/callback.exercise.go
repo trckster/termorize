@@ -100,12 +100,12 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 		return sendIgnoredExerciseMessage(callback.Message.Chat.ID, callback.Message.MessageID, callback.From.ID, exercise, t)
 	case enums.ExerciseStatusCompleted:
 		if editsExerciseAnswer(exercise.ExerciseType) {
-			return nil
+			return restoreExerciseAnswerResult(callback.Message.Chat.ID, callback.Message.MessageID, exercise, t)
 		}
 		return SendMessage(callback.From.ID, t.ExerciseCompleted)
 	case enums.ExerciseStatusFailed:
 		if editsExerciseAnswer(exercise.ExerciseType) {
-			return nil
+			return restoreExerciseAnswerResult(callback.Message.Chat.ID, callback.Message.MessageID, exercise, t)
 		}
 		return SendMessage(callback.From.ID, t.ExerciseFailed)
 	}

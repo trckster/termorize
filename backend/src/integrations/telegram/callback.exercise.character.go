@@ -77,7 +77,7 @@ func handleCharacterTap(callback *callbackQuery, payload []string, t BotTexts) e
 	case enums.ExerciseStatusIgnored:
 		return sendIgnoredExerciseMessage(callback.Message.Chat.ID, callback.Message.MessageID, callback.From.ID, exercise, t)
 	case enums.ExerciseStatusCompleted, enums.ExerciseStatusFailed:
-		return nil
+		return restoreExerciseAnswerResult(callback.Message.Chat.ID, callback.Message.MessageID, exercise, t)
 	}
 
 	if len(exercise.Vocabulary) == 0 || exercise.Vocabulary[0].Translation == nil {
@@ -148,7 +148,7 @@ func handleCharacterBackspace(callback *callbackQuery, payload []string, t BotTe
 	case enums.ExerciseStatusIgnored:
 		return sendIgnoredExerciseMessage(callback.Message.Chat.ID, callback.Message.MessageID, callback.From.ID, exercise, t)
 	case enums.ExerciseStatusCompleted, enums.ExerciseStatusFailed:
-		return nil
+		return restoreExerciseAnswerResult(callback.Message.Chat.ID, callback.Message.MessageID, exercise, t)
 	}
 
 	board, err := services.RemoveLastCharacterSelection(exercise.ExerciseID, exercise.UserID)

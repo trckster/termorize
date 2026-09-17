@@ -35,12 +35,12 @@ func handleExerciseAnswer(message *message) (bool, error) {
 		return true, sendIgnoredExerciseMessage(message.Chat.ID, message.ReplyToMessage.MessageID, message.Chat.ID, exercise, t)
 	case enums.ExerciseStatusCompleted:
 		if editsExerciseAnswer(exercise.ExerciseType) {
-			return true, nil
+			return true, restoreExerciseAnswerResult(message.Chat.ID, message.ReplyToMessage.MessageID, exercise, t)
 		}
 		return true, SendMessage(message.Chat.ID, t.ExerciseCompleted)
 	case enums.ExerciseStatusFailed:
 		if editsExerciseAnswer(exercise.ExerciseType) {
-			return true, nil
+			return true, restoreExerciseAnswerResult(message.Chat.ID, message.ReplyToMessage.MessageID, exercise, t)
 		}
 		return true, SendMessage(message.Chat.ID, t.ExerciseFailed)
 	case enums.ExerciseStatusPending, enums.ExerciseStatusInProgress:
@@ -93,6 +93,13 @@ func editsExerciseAnswer(exerciseType enums.ExerciseType) bool {
 	}
 }
 
+func restoreExerciseAnswerResult(chatID int64, messageID int64, exercise *services.TelegramMessageExercise, t BotTexts) error {
+	if exercise.AnswerResult == nil {
+		return nil
+	}
+	return sendExerciseAnswerResult(chatID, messageID, exercise, exercise.AnswerResult, t)
+}
+
 func sendExerciseAnswerResult(chatID int64, messageID int64, exercise *services.TelegramMessageExercise, result *services.VerifyAnswerResult, t BotTexts) error {
 	var answerText string
 	switch result.Result {
@@ -106,6 +113,11 @@ func sendExerciseAnswerResult(chatID int64, messageID int64, exercise *services.
 		}
 	case "almost":
 		answerText = buildExerciseAlmostResultText(
+			exercise.OriginalWord, exercise.TranslationWord,
+			exercise.OriginalLanguage, exercise.TranslationLanguage, result.Knowledge, t,
+		)
+	case services.ExerciseVocabularyResultIgnored:
+		answerText = buildExerciseIDKResultText(
 			exercise.OriginalWord, exercise.TranslationWord,
 			exercise.OriginalLanguage, exercise.TranslationLanguage, result.Knowledge, t,
 		)

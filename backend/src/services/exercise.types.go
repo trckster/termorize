@@ -141,6 +141,7 @@ type TelegramMessageExercise struct {
 	TranslationWord     string         `gorm:"column:translation_word"`
 	TranslationLanguage enums.Language `gorm:"column:translation_language"`
 	Vocabulary          []models.Vocabulary
+	AnswerResult        *VerifyAnswerResult `gorm:"-"`
 	CharacterBoard      *CharacterBoardState
 }
 
