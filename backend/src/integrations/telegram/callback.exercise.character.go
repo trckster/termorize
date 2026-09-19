@@ -117,7 +117,7 @@ func handleCharacterTap(callback *callbackQuery, payload []string, t BotTexts) e
 		return err
 	}
 
-	return sendExerciseAnswerResult(callback.Message.Chat.ID, callback.Message.MessageID, exercise, result, t)
+	return editExerciseAnswerResult(callback.Message.Chat.ID, callback.Message.MessageID, exercise, result, t)
 }
 
 func handleCharacterBackspace(callback *callbackQuery, payload []string, t BotTexts) error {

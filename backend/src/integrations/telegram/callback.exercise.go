@@ -99,12 +99,12 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 	case enums.ExerciseStatusIgnored:
 		return sendIgnoredExerciseMessage(callback.Message.Chat.ID, callback.Message.MessageID, callback.From.ID, exercise, t)
 	case enums.ExerciseStatusCompleted:
-		if editsExerciseAnswer(exercise.ExerciseType) {
+		if exercise.AnswerResult != nil && exercise.ExerciseType != enums.ExerciseTypeMatchPairs {
 			return restoreExerciseAnswerResult(callback.Message.Chat.ID, callback.Message.MessageID, exercise, t)
 		}
 		return SendMessage(callback.From.ID, t.ExerciseCompleted)
 	case enums.ExerciseStatusFailed:
-		if editsExerciseAnswer(exercise.ExerciseType) {
+		if exercise.AnswerResult != nil && exercise.ExerciseType != enums.ExerciseTypeMatchPairs {
 			return restoreExerciseAnswerResult(callback.Message.Chat.ID, callback.Message.MessageID, exercise, t)
 		}
 		return SendMessage(callback.From.ID, t.ExerciseFailed)
@@ -137,7 +137,7 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 			return err
 		}
 
-		return sendExerciseAnswerResult(callback.Message.Chat.ID, callback.Message.MessageID, exercise, result, t)
+		return editExerciseAnswerResult(callback.Message.Chat.ID, callback.Message.MessageID, exercise, result, t)
 	}
 
 	updated, translationKnowledge, err := services.FinishExercise(
@@ -155,40 +155,10 @@ func handleExerciseCallback(callback *callbackQuery, payload []string) error {
 		return nil
 	}
 
-	words, err := services.GetExerciseWordsByTelegram(exerciseID, callback.From.ID)
-	if err != nil {
-		return err
-	}
-
-	if words == nil {
-		return nil
-	}
-
-	answerText := buildExerciseIDKResultText(
-		words.OriginalWord,
-		words.TranslationWord,
-		words.OriginalLanguage,
-		words.TranslationLanguage,
-		translationKnowledge,
-		t,
-	)
-	keyboard := &inlineKeyboardMarkup{InlineKeyboard: [][]inlineKeyboardButton{}}
-	if exercise.ExerciseType == enums.ExerciseTypeAudioDirect || exercise.ExerciseType == enums.ExerciseTypeAudioReversed {
-		return editMessageCaptionTolerant(editMessageCaptionRequest{
-			ChatID:      callback.Message.Chat.ID,
-			MessageID:   callback.Message.MessageID,
-			Caption:     answerText,
-			ParseMode:   telegramParseModeMarkdown,
-			ReplyMarkup: keyboard,
-		})
-	}
-	return editMessageTextTolerant(editMessageTextRequest{
-		ChatID:      callback.Message.Chat.ID,
-		MessageID:   callback.Message.MessageID,
-		Text:        answerText,
-		ParseMode:   telegramParseModeMarkdown,
-		ReplyMarkup: keyboard,
-	})
+	return editExerciseAnswerResult(callback.Message.Chat.ID, callback.Message.MessageID, exercise, &services.VerifyAnswerResult{
+		Result:    services.ExerciseVocabularyResultIgnored,
+		Knowledge: translationKnowledge,
+	}, t)
 }
 
 func ignoredExerciseText(exercise *services.TelegramMessageExercise, t BotTexts) string {
