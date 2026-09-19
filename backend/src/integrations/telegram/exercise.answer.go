@@ -34,13 +34,13 @@ func handleExerciseAnswer(message *message) (bool, error) {
 	case enums.ExerciseStatusIgnored:
 		return true, sendIgnoredExerciseMessage(message.Chat.ID, message.ReplyToMessage.MessageID, message.Chat.ID, exercise, t)
 	case enums.ExerciseStatusCompleted:
-		if editsExerciseAnswer(exercise.ExerciseType) {
-			return true, restoreExerciseAnswerResult(message.Chat.ID, message.ReplyToMessage.MessageID, exercise, t)
+		if exercise.AnswerResult != nil && exercise.ExerciseType != enums.ExerciseTypeMatchPairs {
+			return true, replyWithExerciseAnswerResult(message, exercise, exercise.AnswerResult, t)
 		}
 		return true, SendMessage(message.Chat.ID, t.ExerciseCompleted)
 	case enums.ExerciseStatusFailed:
-		if editsExerciseAnswer(exercise.ExerciseType) {
-			return true, restoreExerciseAnswerResult(message.Chat.ID, message.ReplyToMessage.MessageID, exercise, t)
+		if exercise.AnswerResult != nil && exercise.ExerciseType != enums.ExerciseTypeMatchPairs {
+			return true, replyWithExerciseAnswerResult(message, exercise, exercise.AnswerResult, t)
 		}
 		return true, SendMessage(message.Chat.ID, t.ExerciseFailed)
 	case enums.ExerciseStatusPending, enums.ExerciseStatusInProgress:
@@ -60,12 +60,6 @@ func handleExerciseAnswer(message *message) (bool, error) {
 		return true, SendReplyMessage(message.Chat.ID, t.ExerciseUseButtons, message.MessageID)
 	}
 
-	if !editsExerciseAnswer(exercise.ExerciseType) {
-		if err := removeMessageInlineKeyboard(message.Chat.ID, message.ReplyToMessage.MessageID); err != nil {
-			logger.L().Warnw("failed to remove inline keyboard", "error", err, "chat_id", message.Chat.ID, "message_id", message.ReplyToMessage.MessageID)
-		}
-	}
-
 	result, err := services.VerifyExerciseAnswer(exercise.ExerciseID, exercise.UserID, message.Text)
 	if err != nil {
 		if errors.Is(err, services.ErrExerciseNotInProgress) {
@@ -79,64 +73,73 @@ func handleExerciseAnswer(message *message) (bool, error) {
 		return false, err
 	}
 
-	return true, sendExerciseAnswerResult(message.Chat.ID, message.ReplyToMessage.MessageID, exercise, result, t)
+	return true, replyWithExerciseAnswerResult(message, exercise, result, t)
 }
 
-func editsExerciseAnswer(exerciseType enums.ExerciseType) bool {
-	switch exerciseType {
-	case enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed,
-		enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed,
-		enums.ExerciseTypeDescriptionDirect, enums.ExerciseTypeDescriptionReversed:
-		return true
-	default:
-		return false
+func replyWithExerciseAnswerResult(message *message, exercise *services.TelegramMessageExercise, result *services.VerifyAnswerResult, t BotTexts) error {
+	if err := removeMessageInlineKeyboard(message.Chat.ID, message.ReplyToMessage.MessageID); err != nil {
+		logger.L().Warnw("failed to remove inline keyboard", "error", err, "chat_id", message.Chat.ID, "message_id", message.ReplyToMessage.MessageID)
 	}
+	_, err := sendMessage(sendMessageRequest{
+		ChatID:           message.Chat.ID,
+		Text:             buildExerciseAnswerResultText(exercise, result, t),
+		ParseMode:        telegramParseModeMarkdown,
+		ReplyToMessageID: &message.MessageID,
+	})
+	return err
 }
 
 func restoreExerciseAnswerResult(chatID int64, messageID int64, exercise *services.TelegramMessageExercise, t BotTexts) error {
 	if exercise.AnswerResult == nil {
 		return nil
 	}
-	return sendExerciseAnswerResult(chatID, messageID, exercise, exercise.AnswerResult, t)
+	return editExerciseAnswerResult(chatID, messageID, exercise, exercise.AnswerResult, t)
 }
 
-func sendExerciseAnswerResult(chatID int64, messageID int64, exercise *services.TelegramMessageExercise, result *services.VerifyAnswerResult, t BotTexts) error {
-	var answerText string
+func editExerciseAnswerResult(chatID int64, messageID int64, exercise *services.TelegramMessageExercise, result *services.VerifyAnswerResult, t BotTexts) error {
+	answerText := buildExerciseAnswerResultText(exercise, result, t)
+	keyboard := &inlineKeyboardMarkup{InlineKeyboard: [][]inlineKeyboardButton{}}
+	if exercise.ExerciseType == enums.ExerciseTypeAudioDirect || exercise.ExerciseType == enums.ExerciseTypeAudioReversed {
+		return editMessageCaptionTolerant(editMessageCaptionRequest{
+			ChatID:      chatID,
+			MessageID:   messageID,
+			Caption:     answerText,
+			ParseMode:   telegramParseModeMarkdown,
+			ReplyMarkup: keyboard,
+		})
+	}
+	return editMessageTextTolerant(editMessageTextRequest{
+		ChatID:      chatID,
+		MessageID:   messageID,
+		Text:        answerText,
+		ParseMode:   telegramParseModeMarkdown,
+		ReplyMarkup: keyboard,
+	})
+}
+
+func buildExerciseAnswerResultText(exercise *services.TelegramMessageExercise, result *services.VerifyAnswerResult, t BotTexts) string {
 	switch result.Result {
 	case "correct":
-		answerText = buildExerciseSuccessResultText(result.Knowledge, t)
-		if editsExerciseAnswer(exercise.ExerciseType) {
-			answerText = t.ExerciseSuccess + "\n\n" + buildExerciseAnswerPairText(
-				exercise.OriginalWord, exercise.TranslationWord,
-				exercise.OriginalLanguage, exercise.TranslationLanguage, t,
-			) + "\n\n" + fmt.Sprintf(t.ExerciseTranslationKnowledgeUpFormat, result.Knowledge)
-		}
+		return t.ExerciseSuccess + "\n\n" + buildExerciseAnswerPairText(
+			exercise.OriginalWord, exercise.TranslationWord,
+			exercise.OriginalLanguage, exercise.TranslationLanguage, t,
+		) + "\n\n" + fmt.Sprintf(t.ExerciseTranslationKnowledgeUpFormat, result.Knowledge)
 	case "almost":
-		answerText = buildExerciseAlmostResultText(
+		return buildExerciseAlmostResultText(
 			exercise.OriginalWord, exercise.TranslationWord,
 			exercise.OriginalLanguage, exercise.TranslationLanguage, result.Knowledge, t,
 		)
 	case services.ExerciseVocabularyResultIgnored:
-		answerText = buildExerciseIDKResultText(
+		return buildExerciseIDKResultText(
 			exercise.OriginalWord, exercise.TranslationWord,
 			exercise.OriginalLanguage, exercise.TranslationLanguage, result.Knowledge, t,
 		)
 	default:
-		answerText = buildExerciseInvalidResultText(
+		return buildExerciseInvalidResultText(
 			exercise.OriginalWord, exercise.TranslationWord,
 			exercise.OriginalLanguage, exercise.TranslationLanguage, result.Knowledge, t,
 		)
 	}
-	if editsExerciseAnswer(exercise.ExerciseType) {
-		return editMessageTextTolerant(editMessageTextRequest{
-			ChatID:      chatID,
-			MessageID:   messageID,
-			Text:        answerText,
-			ParseMode:   telegramParseModeMarkdown,
-			ReplyMarkup: &inlineKeyboardMarkup{InlineKeyboard: [][]inlineKeyboardButton{}},
-		})
-	}
-	return SendMessageMarkdown(chatID, answerText)
 }
 
 func cancelledExerciseText(exerciseType enums.ExerciseType, texts BotTexts) string {
@@ -144,10 +147,6 @@ func cancelledExerciseText(exerciseType enums.ExerciseType, texts BotTexts) stri
 		return texts.ExerciseDescriptionCancelled
 	}
 	return texts.ExerciseAudioCancelled
-}
-
-func buildExerciseSuccessResultText(translationKnowledge int, t BotTexts) string {
-	return t.ExerciseSuccess + "\n\n" + fmt.Sprintf(t.ExerciseTranslationKnowledgeUpFormat, translationKnowledge)
 }
 
 func buildExerciseAlmostResultText(originalWord string, translationWord string, originalLanguage enums.Language, translationLanguage enums.Language, translationKnowledge int, t BotTexts) string {
