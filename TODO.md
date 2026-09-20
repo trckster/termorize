@@ -63,8 +63,8 @@ Recheck these files when implementation starts, since the repository may evolve.
 
 ### 1. Classify imported words
 
-- [x] Add PostgreSQL enum `word_type` with `unknown` and `idiom`.
-- [x] Add `words.type word_type NOT NULL DEFAULT 'unknown'`.
+- [x] Add PostgreSQL enum `type` with `unknown` and `idiom`.
+- [x] Add `words.type type NOT NULL DEFAULT 'unknown'`.
 - [x] Update backend models/types as needed. Existing words and ordinary new saves
   remain `unknown` unless explicitly classified.
 - [x] Import complete expressions, such as `бить баклуши`, as a single `words.word`.

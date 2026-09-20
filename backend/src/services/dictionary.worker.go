@@ -282,11 +282,11 @@ func commitDictionaryBatch(conn *gorm.DB, job *models.DictionaryImportJob, batch
 			if err != nil {
 				return err
 			}
-			if word.Type == enums.WordTypeIdiom {
+			if word.Type == enums.TypeIdiom {
 				job.Skipped++
 				continue
 			}
-			if err := tx.Model(word).Update("type", enums.WordTypeIdiom).Error; err != nil {
+			if err := tx.Model(word).Update("type", enums.TypeIdiom).Error; err != nil {
 				return err
 			}
 			if created {

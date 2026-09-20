@@ -1,5 +1,5 @@
-CREATE TYPE word_type AS ENUM ('unknown', 'idiom');
-ALTER TABLE words ADD COLUMN type word_type NOT NULL DEFAULT 'unknown';
+CREATE TYPE type AS ENUM ('unknown', 'idiom');
+ALTER TABLE words ADD COLUMN type type NOT NULL DEFAULT 'unknown';
 CREATE INDEX words_language_lower_word_idx ON words (language, LOWER(word));
 
 CREATE TABLE dictionaries (

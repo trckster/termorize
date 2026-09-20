@@ -11,6 +11,6 @@ type Word struct {
 	ID        uuid.UUID      `json:"id" gorm:"default:gen_random_uuid()"`
 	Word      string         `json:"word"`
 	Language  enums.Language `json:"language"`
-	Type      enums.WordType `json:"type" gorm:"default:unknown"`
+	Type      enums.Type     `json:"type" gorm:"default:unknown"`
 	CreatedAt time.Time      `json:"-"`
 }

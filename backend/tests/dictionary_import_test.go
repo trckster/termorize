@@ -72,7 +72,7 @@ func TestDictionaryImportPromotesExistingWordsAndPreservesVocabulary(t *testing.
 	require.NoError(t, db.DB.First(&translation, "id = ?", vocabulary.TranslationID).Error)
 	var oldWord models.Word
 	require.NoError(t, db.DB.First(&oldWord, "id = ?", translation.OriginalID).Error)
-	assert.Equal(t, enums.WordTypeUnknown, oldWord.Type)
+	assert.Equal(t, enums.TypeUnknown, oldWord.Type)
 	var originalVocabulary models.Vocabulary
 	require.NoError(t, db.DB.First(&originalVocabulary, "id = ?", vocabulary.ID).Error)
 	fixture, err := os.ReadFile("src/integrations/kaikki/testdata/enwiktionary.jsonl")
@@ -115,7 +115,7 @@ func TestDictionaryImportPromotesExistingWordsAndPreservesVocabulary(t *testing.
 	assert.Equal(t, *job.TotalBytes, job.DownloadedBytes)
 	var promoted models.Word
 	require.NoError(t, db.DB.First(&promoted, "id = ?", oldWord.ID).Error)
-	assert.Equal(t, enums.WordTypeIdiom, promoted.Type)
+	assert.Equal(t, enums.TypeIdiom, promoted.Type)
 	promoted.Type = oldWord.Type
 	assert.Equal(t, oldWord, promoted)
 	var unchanged models.Vocabulary
@@ -145,10 +145,10 @@ func TestDictionaryImportPromotesExistingWordsAndPreservesVocabulary(t *testing.
 	saved, err := services.GetOrCreateWord(db.DB, "rain cats and dogs", enums.LanguageEn)
 	require.NoError(t, err)
 	assert.Equal(t, oldWord.ID, saved.ID)
-	assert.Equal(t, enums.WordTypeIdiom, saved.Type)
+	assert.Equal(t, enums.TypeIdiom, saved.Type)
 	ordinary, err := services.GetOrCreateWord(db.DB, "ordinary", enums.LanguageEn)
 	require.NoError(t, err)
-	assert.Equal(t, enums.WordTypeUnknown, ordinary.Type)
+	assert.Equal(t, enums.TypeUnknown, ordinary.Type)
 	rec = testkit.AuthedRequest(t, admin, http.MethodGet, startPath, nil)
 	testkit.RequireStatus(t, rec, http.StatusOK)
 	var history services.DictionaryImportHistory
@@ -311,7 +311,7 @@ func TestDictionaryImportOverlappingSourcesAndBoundedMalformedRecords(t *testing
 	require.NoError(t, db.DB.Find(&words).Error)
 	require.Len(t, words, 1)
 	assert.Equal(t, enums.LanguageIt, words[0].Language)
-	assert.Equal(t, enums.WordTypeIdiom, words[0].Type)
+	assert.Equal(t, enums.TypeIdiom, words[0].Type)
 	requireDictionaryTempEmpty(t, worker.TempDir)
 }
 
@@ -457,7 +457,7 @@ func TestDictionaryImportAndOrdinarySavesShareCaseInsensitiveIdentity(t *testing
 	var words []models.Word
 	require.NoError(t, db.DB.Find(&words).Error)
 	require.Len(t, words, 1)
-	assert.Equal(t, enums.WordTypeIdiom, words[0].Type)
+	assert.Equal(t, enums.TypeIdiom, words[0].Type)
 }
 
 func TestDictionaryWordLockDoesNotBlockSavesDuringGoogleTranslation(t *testing.T) {
