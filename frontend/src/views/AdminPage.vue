@@ -13,6 +13,7 @@ const { t } = useI18n()
                         { path: '/admin/users', label: t.navUsers },
                         { path: '/admin/word-audios', label: t.navWordAudios },
                         { path: '/admin/descriptions', label: t.navDescriptions },
+                        { path: '/admin/dictionaries', label: t.navDictionaries },
                     ]"
                     :key="tab.path"
                     :to="tab.path"

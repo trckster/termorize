@@ -92,6 +92,11 @@ const router = createRouter({
                     meta: { requiresAdmin: true },
                     children: [
                         { path: '', redirect: '/admin/users' },
+                        {
+                            path: 'dictionaries',
+                            name: 'dictionaries',
+                            component: () => import('@/views/DictionariesPage.vue'),
+                        },
                         { path: 'users', name: 'users', component: () => import('@/views/UsersPage.vue') },
                         {
                             path: 'word-audios',

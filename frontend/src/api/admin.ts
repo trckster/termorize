@@ -52,7 +52,52 @@ export type DescriptionPreview = {
     original_description: string
 }
 
+export type Dictionary = {
+    id: string
+    name: string
+    edition: string
+    url: string
+    license: string
+    attribution: string
+    download_url: string
+}
+
+export type DictionaryImportJob = {
+    id: string
+    dictionary_id: string
+    source_name: string
+    edition: string
+    download_url: string
+    status: 'queued' | 'downloading' | 'importing' | 'succeeded' | 'failed' | 'interrupted'
+    processed: number
+    inserted: number
+    classified: number
+    skipped: number
+    failed: number
+    downloaded_bytes: number
+    total_bytes: number | null
+    error: string
+    record_errors: string[]
+    created_at: string
+    updated_at: string
+    started_at: string | null
+    finished_at: string | null
+}
+
 export const adminApi = {
+    async getDictionaries(): Promise<Dictionary[]> {
+        return apiCall<Dictionary[]>('/admin/dictionaries').then(unwrapBody)
+    },
+    async getDictionaryImports(id: string, page = 1): Promise<Paginated<DictionaryImportJob>> {
+        return apiCall<Paginated<DictionaryImportJob>>(`/admin/dictionaries/${encodeURIComponent(id)}/imports`, 'GET', {
+            page,
+        }).then(unwrapBody)
+    },
+    async startDictionaryImport(id: string): Promise<DictionaryImportJob> {
+        return apiCall<DictionaryImportJob>(`/admin/dictionaries/${encodeURIComponent(id)}/imports`, 'POST').then(
+            unwrapBody
+        )
+    },
     async getDescriptionModels(): Promise<DescriptionModel[]> {
         return apiCall<DescriptionModel[]>('/admin/description-models').then(unwrapBody)
     },

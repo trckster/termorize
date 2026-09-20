@@ -3,6 +3,39 @@ import { useAuthStore } from '@/stores/auth'
 import { formatNumber } from '@/lib/utils.ts'
 
 const en = {
+    navDictionaries: 'Dictionaries',
+    dictionariesIntro:
+        'Import explicitly classified English, Russian, and Italian idioms from Wiktionary. Source editions can contain entries in several languages.',
+    dictionariesBackground:
+        'Imports continue after you leave this page. An update downloads the source again and preserves existing vocabulary.',
+    dictionariesEmpty: 'No dictionary sources configured.',
+    dictionaryImport: 'Import',
+    dictionaryUpdate: 'Update',
+    dictionaryRetry: 'Retry import',
+    dictionaryInProgress: 'Import in progress',
+    dictionaryQueued: 'Queued',
+    dictionaryDownloading: 'Downloading',
+    dictionaryImporting: 'Importing idioms',
+    dictionaryCompleted: 'Completed',
+    dictionaryCompletedWithErrors: 'Completed with record errors',
+    dictionaryFailed: 'Import failed',
+    dictionaryInterrupted: 'Interrupted — retry available',
+    dictionaryProcessed: 'Processed records',
+    dictionaryInserted: 'Inserted idioms',
+    dictionaryClassified: 'Newly classified',
+    dictionarySkipped: 'Skipped records',
+    dictionaryFailedRecords: 'Failed records',
+    dictionaryDownloaded: 'downloaded',
+    dictionaryNoImports: 'No imports yet.',
+    dictionarySourceDetails: 'Source and attribution',
+    dictionaryHistory: 'Previous imports',
+    dictionaryRecordErrors: 'Record errors (first 10)',
+    dictionaryLoading: 'Loading dictionaries…',
+    dictionaryLoadError: 'Could not refresh dictionary status. Please retry.',
+    dictionaryRefresh: 'Refresh',
+    dictionaryAlreadyActive: 'An import is already active for this source.',
+    dictionaryStartError: 'Could not confirm the import. Refresh its status before retrying.',
+
     // Navigation
     navHome: 'Home',
     navVocabulary: 'Vocabulary',
@@ -600,6 +633,39 @@ const en = {
 }
 
 const ru: typeof en = {
+    navDictionaries: 'Словари',
+    dictionariesIntro:
+        'Импорт английских, русских и итальянских идиом с явной классификацией в Викисловаре. Один исходный словарь может содержать статьи на разных языках.',
+    dictionariesBackground:
+        'Импорт продолжится после закрытия страницы. Обновление скачивает источник заново и сохраняет существующий словарный запас.',
+    dictionariesEmpty: 'Источники словарей не настроены.',
+    dictionaryImport: 'Импортировать',
+    dictionaryUpdate: 'Обновить',
+    dictionaryRetry: 'Повторить импорт',
+    dictionaryInProgress: 'Идёт импорт',
+    dictionaryQueued: 'В очереди',
+    dictionaryDownloading: 'Скачивание',
+    dictionaryImporting: 'Импорт идиом',
+    dictionaryCompleted: 'Завершён',
+    dictionaryCompletedWithErrors: 'Завершён с ошибками в записях',
+    dictionaryFailed: 'Ошибка импорта',
+    dictionaryInterrupted: 'Прерван — можно повторить',
+    dictionaryProcessed: 'Обработано записей',
+    dictionaryInserted: 'Добавлено идиом',
+    dictionaryClassified: 'Классифицировано',
+    dictionarySkipped: 'Пропущено записей',
+    dictionaryFailedRecords: 'Записей с ошибками',
+    dictionaryDownloaded: 'скачано',
+    dictionaryNoImports: 'Импортов пока нет.',
+    dictionarySourceDetails: 'Источник и авторство',
+    dictionaryHistory: 'Предыдущие импорты',
+    dictionaryRecordErrors: 'Ошибки записей (первые 10)',
+    dictionaryLoading: 'Загрузка словарей…',
+    dictionaryLoadError: 'Не удалось обновить статус словаря. Повторите попытку.',
+    dictionaryRefresh: 'Обновить статус',
+    dictionaryAlreadyActive: 'Импорт этого источника уже выполняется.',
+    dictionaryStartError: 'Не удалось подтвердить импорт. Обновите статус перед повторной попыткой.',
+
     // Navigation
     navHome: 'Главная',
     navVocabulary: 'Словарь',
