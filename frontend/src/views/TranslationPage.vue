@@ -28,6 +28,7 @@ import {
     hasMeaningfulVocabularyEdits,
     isEditableVocabularySaveShortcut,
     isEditableVocabularyShortcut,
+    isTranslationFieldSwitchShortcut,
     type EditableVocabularyPair,
     type TranslationField,
 } from '@/lib/translationPageState.ts'
@@ -405,6 +406,10 @@ const handleSwapLanguages = () => {
 }
 
 const handleTextareaTab = (field: 'source' | 'target', event: KeyboardEvent) => {
+    if (!isTranslationFieldSwitchShortcut(event)) {
+        return
+    }
+
     event.preventDefault()
     void focusTextarea(field === 'source' ? 'target' : 'source')
 }
