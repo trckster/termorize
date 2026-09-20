@@ -123,7 +123,7 @@ func TestDescriptionExerciseDirectionsUseAndCacheWordDefinitions(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, services.ExerciseVocabularyResultAlmost, result.Result)
 			assert.Equal(t, test.expectedAnswer, result.CorrectAnswer)
-			assert.Equal(t, services.ExerciseBasicAlmostProgressDelta, result.ProgressDelta)
+			assert.Equal(t, services.ExerciseDescriptionAlmostProgressDelta, result.ProgressDelta)
 		})
 	}
 }

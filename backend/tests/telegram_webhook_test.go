@@ -184,7 +184,7 @@ func TestTelegramDescriptionExerciseAcceptsRegularReply(t *testing.T) {
 	assert.Equal(t, enums.ExerciseStatusCompleted, completed.Status)
 	link := exerciseLink(t, exercise.ID, vocabulary.ID)
 	require.NotNil(t, link.ProgressDelta)
-	assert.Equal(t, services.ExerciseBasicCorrectProgressDelta, *link.ProgressDelta)
+	assert.Equal(t, services.ExerciseDescriptionCorrectProgressDelta, *link.ProgressDelta)
 }
 
 func TestTelegramWebhookIgnoredExerciseReportsDeletedVocabulary(t *testing.T) {
@@ -1965,13 +1965,25 @@ func TestTelegramWebhookExerciseRepliesDeliverResults(t *testing.T) {
 					answer = "  " + answer + "  "
 				}
 				if !isCharacters {
-					switch verdict {
-					case "correct":
-						delta = services.ExerciseBasicCorrectProgressDelta
-					case "almost":
-						delta = services.ExerciseBasicAlmostProgressDelta
+					switch {
+					case exerciseType == enums.ExerciseTypeAudioDirect || exerciseType == enums.ExerciseTypeAudioReversed:
+						delta = map[string]int{
+							"correct": services.ExerciseAudioCorrectProgressDelta,
+							"almost":  services.ExerciseAudioAlmostProgressDelta,
+							"wrong":   services.ExerciseAudioWrongProgressDelta,
+						}[verdict]
+					case exerciseType == enums.ExerciseTypeDescriptionDirect || exerciseType == enums.ExerciseTypeDescriptionReversed:
+						delta = map[string]int{
+							"correct": services.ExerciseDescriptionCorrectProgressDelta,
+							"almost":  services.ExerciseDescriptionAlmostProgressDelta,
+							"wrong":   services.ExerciseDescriptionWrongProgressDelta,
+						}[verdict]
 					default:
-						delta = services.ExerciseBasicWrongProgressDelta
+						delta = map[string]int{
+							"correct": services.ExerciseBasicCorrectProgressDelta,
+							"almost":  services.ExerciseBasicAlmostProgressDelta,
+							"wrong":   services.ExerciseBasicWrongProgressDelta,
+						}[verdict]
 					}
 				}
 				update := telegramPrivateMessage(telegramID, answer)

@@ -18,7 +18,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestAudioExerciseDirectionsAndBasicScoring(t *testing.T) {
+func TestAudioExerciseDirectionsAndScoring(t *testing.T) {
 	testkit.Truncate(t)
 	user := testkit.CreateUser(t)
 	vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
@@ -34,7 +34,7 @@ func TestAudioExerciseDirectionsAndBasicScoring(t *testing.T) {
 	directResult, err := services.VerifyExerciseAnswer(direct.ExerciseID, user.ID, "carta")
 	require.NoError(t, err)
 	assert.Equal(t, "correct", directResult.Result)
-	assert.Equal(t, services.ExerciseBasicCorrectProgressDelta, directResult.ProgressDelta)
+	assert.Equal(t, services.ExerciseAudioCorrectProgressDelta, directResult.ProgressDelta)
 
 	reversed, err := services.CreateRandomExerciseOfTypes(user.ID, enums.ExerciseTypeAudioReversed)
 	require.NoError(t, err)
@@ -47,7 +47,7 @@ func TestAudioExerciseDirectionsAndBasicScoring(t *testing.T) {
 	reversedResult, err := services.VerifyExerciseAnswer(reversed.ExerciseID, user.ID, "papre")
 	require.NoError(t, err)
 	assert.Equal(t, "almost", reversedResult.Result)
-	assert.Equal(t, services.ExerciseBasicAlmostProgressDelta, reversedResult.ProgressDelta)
+	assert.Equal(t, services.ExerciseAudioAlmostProgressDelta, reversedResult.ProgressDelta)
 }
 
 func TestAudioExercisesSupportPortugueseAndUkrainian(t *testing.T) {
