@@ -262,8 +262,15 @@ type characterStateJSON struct {
 }
 
 type VerifyAnswerResult struct {
-	Result        string
-	CorrectAnswer string
-	Knowledge     int
-	ProgressDelta int
+	DescriptionFeedback *DescriptionFeedback
+	Result              string
+	CorrectAnswer       string
+	Knowledge           int
+	ProgressDelta       int
+}
+
+type DescriptionFeedback struct {
+	Translation       string         `json:"translation"`
+	Language          enums.Language `json:"language"`
+	AnswerTranslation string         `json:"answer_translation"`
 }

@@ -217,6 +217,7 @@ func createCollectionPracticeTargetExercise(
 		}
 
 		exercise.Type = exerciseType
+		exercise.Description = description
 		if err := tx.Create(&exercise).Error; err != nil {
 			return err
 		}

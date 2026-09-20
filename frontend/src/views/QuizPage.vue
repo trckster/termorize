@@ -1495,6 +1495,23 @@ onBeforeUnmount(() => {
                             <div class="space-y-1">
                                 <p class="text-sm text-muted-foreground">{{ t.quizCorrectAnswer }}</p>
                                 <p class="text-xl font-medium">{{ verifyResult?.correct_answer }}</p>
+                                <p
+                                    v-if="verifyResult?.description_feedback"
+                                    class="text-base text-muted-foreground"
+                                    :lang="verifyResult.description_feedback.language"
+                                >
+                                    {{ getFlag(verifyResult.description_feedback.language) }}
+                                    {{ verifyResult.description_feedback.answer_translation }}
+                                </p>
+                            </div>
+                            <div v-if="verifyResult?.description_feedback?.translation" class="space-y-1">
+                                <p class="text-sm text-muted-foreground">{{ t.quizDescriptionTranslation }}</p>
+                                <p
+                                    class="break-words text-base leading-relaxed"
+                                    :lang="verifyResult.description_feedback.language"
+                                >
+                                    {{ verifyResult.description_feedback.translation }}
+                                </p>
                             </div>
                             <p v-if="!isCollectionPractice" class="text-sm text-muted-foreground">
                                 {{ t.quizKnowledge }}: {{ verifyResult?.knowledge }}%

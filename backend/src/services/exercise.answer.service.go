@@ -97,12 +97,16 @@ func VerifyExerciseAnswer(exerciseID uuid.UUID, userID uint, answer string) (*Ve
 		return nil, ErrExerciseNotInProgress
 	}
 
-	return &VerifyAnswerResult{
+	result := &VerifyAnswerResult{
 		Result:        resultType,
 		CorrectAnswer: expectedAnswer,
 		Knowledge:     knowledge,
 		ProgressDelta: progressDelta,
-	}, nil
+	}
+	if isDescriptionExerciseType(exercise.Type) {
+		AddDescriptionFeedback(exerciseID, userID, result)
+	}
+	return result, nil
 }
 
 func VerifyExerciseChoice(exerciseID uuid.UUID, userID uint, selectedVocabularyID uuid.UUID) (*VerifyAnswerResult, error) {
