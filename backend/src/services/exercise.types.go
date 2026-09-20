@@ -270,6 +270,7 @@ type VerifyAnswerResult struct {
 }
 
 type DescriptionFeedback struct {
+	Original          string         `json:"original"`
 	Translation       string         `json:"translation"`
 	Language          enums.Language `json:"language"`
 	AnswerTranslation string         `json:"answer_translation"`

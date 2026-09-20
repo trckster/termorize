@@ -95,6 +95,9 @@ const isAudioQuestion = computed(
 const isDescriptionQuestion = computed(
     () => currentExercise.value?.type === 'description/direct' || currentExercise.value?.type === 'description/reversed'
 )
+const hasDescriptionFeedback = computed(() =>
+    Boolean(verifyResult.value?.description_feedback?.original || verifyResult.value?.description_feedback?.translation)
+)
 const isAnswerDisabled = computed(() => isSubmitting.value || audioIgnoreState.value !== 'idle')
 const audioSpokenLanguageName = computed(() =>
     settingsStore.getLanguageName(
@@ -738,7 +741,7 @@ function advanceFromFeedback() {
 
 function scheduleFeedbackAdvance() {
     clearFeedbackAdvance()
-    if (verifyResult.value?.description_feedback?.translation) return
+    if (hasDescriptionFeedback.value) return
     const delay = matchCompleteResult.value ? MATCH_FEEDBACK_ADVANCE_DELAY_MS : FEEDBACK_ADVANCE_DELAY_MS
     feedbackTimeoutId.value = window.setTimeout(advanceFromFeedback, delay)
 }
@@ -863,7 +866,7 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 function handleQuizBodyClick(event: MouseEvent) {
-    if (state.value !== 'feedback' || event.button !== 0 || verifyResult.value?.description_feedback?.translation) {
+    if (state.value !== 'feedback' || event.button !== 0 || hasDescriptionFeedback.value) {
         return
     }
 
@@ -1505,6 +1508,12 @@ onBeforeUnmount(() => {
                                     {{ verifyResult.description_feedback.answer_translation }}
                                 </p>
                             </div>
+                            <div v-if="verifyResult?.description_feedback?.original" class="space-y-1">
+                                <p class="text-sm text-muted-foreground">{{ t.quizDescriptionOriginal }}</p>
+                                <p class="break-words text-base leading-relaxed" :lang="currentExercise?.language">
+                                    {{ verifyResult.description_feedback.original }}
+                                </p>
+                            </div>
                             <div v-if="verifyResult?.description_feedback?.translation" class="space-y-1">
                                 <p class="text-sm text-muted-foreground">{{ t.quizDescriptionTranslation }}</p>
                                 <p
@@ -1517,10 +1526,7 @@ onBeforeUnmount(() => {
                             <p v-if="!isCollectionPractice" class="text-sm text-muted-foreground">
                                 {{ t.quizKnowledge }}: {{ verifyResult?.knowledge }}%
                             </p>
-                            <Button
-                                v-if="verifyResult?.description_feedback?.translation"
-                                @click.stop="advanceFromFeedback"
-                            >
+                            <Button v-if="hasDescriptionFeedback" @click.stop="advanceFromFeedback">
                                 {{ t.quizShortcutContinue }}
                             </Button>
                         </template>

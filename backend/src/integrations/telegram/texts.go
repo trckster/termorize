@@ -28,6 +28,7 @@ type BotTexts struct {
 	ExerciseAudioCancelled                 string
 	ExerciseDescriptionCancelled           string
 	ExerciseDescriptionTranslation         string
+	ExerciseDescriptionOriginal            string
 	ExerciseUseButtons                     string
 	ExerciseSuccess                        string
 	ExerciseAlmost                         string
@@ -149,6 +150,7 @@ var botTextsEn = BotTexts{
 	ExerciseAudioCancelled:                 "This audio exercise was cancelled and is no longer scored.",
 	ExerciseDescriptionCancelled:           "This description exercise was cancelled and is no longer scored.",
 	ExerciseDescriptionTranslation:         "Description translation:",
+	ExerciseDescriptionOriginal:            "Original description:",
 	ExerciseUseButtons:                     "Use one of the buttons below.",
 	ExerciseSuccess:                        "That's right! ✅",
 	ExerciseAlmost:                         "Almost! The correct answer is:",
@@ -305,6 +307,7 @@ var botTextsRu = BotTexts{
 	ExerciseAudioCancelled:                 "Это аудиоупражнение отменено и больше не влияет на результат.",
 	ExerciseDescriptionCancelled:           "Это упражнение с описанием отменено и больше не влияет на результат.",
 	ExerciseDescriptionTranslation:         "Перевод описания:",
+	ExerciseDescriptionOriginal:            "Исходное описание:",
 	ExerciseUseButtons:                     "Используй одну из кнопок ниже.",
 	ExerciseSuccess:                        "Правильно! ✅",
 	ExerciseAlmost:                         "Почти! Правильный ответ:",

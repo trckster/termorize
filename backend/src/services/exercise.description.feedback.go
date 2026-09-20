@@ -36,7 +36,7 @@ func AddDescriptionFeedback(exerciseID uuid.UUID, userID uint, result *VerifyAns
 		source, target = target, source
 		answerTranslation = vocabulary.OriginalWord
 	}
-	feedback := &DescriptionFeedback{Language: target, AnswerTranslation: answerTranslation}
+	feedback := &DescriptionFeedback{Original: exercise.Description, Language: target, AnswerTranslation: answerTranslation}
 	result.DescriptionFeedback = feedback
 	if exercise.DescriptionTranslation != "" {
 		feedback.Translation = exercise.DescriptionTranslation
@@ -60,6 +60,7 @@ func AddDescriptionFeedback(exerciseID uuid.UUID, userID uint, result *VerifyAns
 		}
 		description = cached.Description
 	}
+	feedback.Original = description
 	translated, err := google.NewTranslateClient().Translate(description, string(source), string(target))
 	if err != nil {
 		logger.L().Warnw("failed to translate exercise description", "exercise_id", exerciseID, "error", err)

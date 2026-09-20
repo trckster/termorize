@@ -60,6 +60,7 @@ func TestDescriptionFeedbackRetriesTranslationOnTelegramReplay(t *testing.T) {
 				require.NoError(t, json.Unmarshal(request.Body, &sent))
 				assert.Contains(t, sent.Text, "paper")
 				assert.Contains(t, sent.Text, "carta")
+				assert.Contains(t, sent.Text, "Original description:\n🇬🇧 Original clue.")
 				if i == 0 {
 					assert.NotContains(t, sent.Text, "Description translation:")
 				} else {
@@ -98,6 +99,7 @@ func TestDescriptionFeedbackLegacySnapshotFallback(t *testing.T) {
 			result, err := services.VerifyExerciseAnswer(exercise.ExerciseID, user.ID, "unrelated")
 			require.NoError(t, err)
 			require.NotNil(t, result.DescriptionFeedback)
+			assert.Equal(t, exercise.Description, result.DescriptionFeedback.Original)
 			assert.Equal(t, "Legacy translation.", result.DescriptionFeedback.Translation)
 			assert.Equal(t, 1, calls)
 			assert.Equal(t, exercise.Description, exerciseReload(t, exercise.ExerciseID).Description)

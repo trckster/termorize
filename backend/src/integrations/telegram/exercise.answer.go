@@ -127,6 +127,13 @@ func addDescriptionFeedback(exercise *services.TelegramMessageExercise, result *
 
 func buildExerciseAnswerResultText(exercise *services.TelegramMessageExercise, result *services.VerifyAnswerResult, t BotTexts) string {
 	text := buildExerciseAnswerOutcomeText(exercise, result, t)
+	if feedback := result.DescriptionFeedback; feedback != nil && feedback.Original != "" {
+		language := exercise.OriginalLanguage
+		if exercise.ExerciseType == enums.ExerciseTypeDescriptionReversed {
+			language = exercise.TranslationLanguage
+		}
+		text += "\n\n" + t.ExerciseDescriptionOriginal + "\n" + language.Flag() + " " + escapeTelegramMarkdown(feedback.Original)
+	}
 	if feedback := result.DescriptionFeedback; feedback != nil && feedback.Translation != "" {
 		text += "\n\n" + t.ExerciseDescriptionTranslation + "\n" + feedback.Language.Flag() + " " + escapeTelegramMarkdown(feedback.Translation)
 	}

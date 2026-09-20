@@ -111,6 +111,7 @@ export type RandomExercise = {
 
 export type VerifyResult = {
     description_feedback?: {
+        original: string
         translation: string
         language: string
         answer_translation: string

@@ -77,6 +77,7 @@ func TestDescriptionFeedbackVerify(t *testing.T) {
 					return
 				}
 				require.NotNil(t, response.Feedback)
+				assert.Equal(t, originalClue, response.Feedback.Original)
 				assert.Equal(t, enums.Language(target), response.Feedback.Language)
 				assert.Equal(t, wordTranslation, response.Feedback.AnswerTranslation)
 				assert.Equal(t, 1, calls)
@@ -105,12 +106,12 @@ func TestTelegramDescriptionFeedbackAndReplay(t *testing.T) {
 				vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
 				exercise := exerciseSeedExercise(t, user.ID, exerciseType, enums.ExerciseStatusInProgress, vocabulary.ID)
 				require.NoError(t, db.DB.Model(&exercise).Update("telegram_message_id", messageID).Error)
-				require.NoError(t, services.SaveExerciseDescription(exercise.ID, "Original clue."))
+				require.NoError(t, services.SaveExerciseDescription(exercise.ID, "Original *clue* [daily]."))
 				calls := 0
 				testkit.MockGoogleTranslate(t, &testkit.FakeGoogleTranslate{
 					TranslateFunc: func(text, source, target string) (string, error) {
 						calls++
-						assert.Equal(t, "Original clue.", text)
+						assert.Equal(t, "Original *clue* [daily].", text)
 						if exerciseType == enums.ExerciseTypeDescriptionDirect {
 							assert.Equal(t, "en", source)
 							assert.Equal(t, "it", target)
@@ -137,6 +138,11 @@ func TestTelegramDescriptionFeedbackAndReplay(t *testing.T) {
 					require.NoError(t, json.Unmarshal(tg.RequestsFor(method)[attempt].Body, &sent))
 					assert.Contains(t, sent.Text, "paper")
 					assert.Contains(t, sent.Text, "carta")
+					originalFlag := enums.LanguageEn.Flag()
+					if exerciseType == enums.ExerciseTypeDescriptionReversed {
+						originalFlag = enums.LanguageIt.Flag()
+					}
+					assert.Contains(t, sent.Text, originalFlag+` Original \*clue\* \[daily].`)
 					assert.Contains(t, sent.Text, `Translated \*clue\* \[daily].`)
 				}
 				assert.Equal(t, 1, calls, "replay reuses the saved translation")
