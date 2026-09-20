@@ -24,6 +24,12 @@ const (
 	ExerciseBasicCorrectProgressDelta          = 15
 	ExerciseBasicAlmostProgressDelta           = 5
 	ExerciseBasicWrongProgressDelta            = -15
+	ExerciseAudioCorrectProgressDelta          = 17
+	ExerciseAudioAlmostProgressDelta           = 7
+	ExerciseAudioWrongProgressDelta            = -12
+	ExerciseDescriptionCorrectProgressDelta    = 20
+	ExerciseDescriptionAlmostProgressDelta     = 10
+	ExerciseDescriptionWrongProgressDelta      = -10
 	ExerciseCharacterCorrectProgressDelta      = 10
 	ExerciseCharacterAlmostProgressDelta       = 5
 	ExerciseCharacterWrongProgressDelta        = -20

@@ -173,13 +173,23 @@ func exerciseProgressDelta(exercise *models.Exercise, regularDelta int) int {
 
 func exerciseProgressDeltasForType(exerciseType enums.ExerciseType) exerciseProgressDeltas {
 	switch exerciseType {
-	case enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed,
-		enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed,
-		enums.ExerciseTypeDescriptionDirect, enums.ExerciseTypeDescriptionReversed:
+	case enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed:
 		return exerciseProgressDeltas{
 			Correct: ExerciseBasicCorrectProgressDelta,
 			Almost:  ExerciseBasicAlmostProgressDelta,
 			Wrong:   ExerciseBasicWrongProgressDelta,
+		}
+	case enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed:
+		return exerciseProgressDeltas{
+			Correct: ExerciseAudioCorrectProgressDelta,
+			Almost:  ExerciseAudioAlmostProgressDelta,
+			Wrong:   ExerciseAudioWrongProgressDelta,
+		}
+	case enums.ExerciseTypeDescriptionDirect, enums.ExerciseTypeDescriptionReversed:
+		return exerciseProgressDeltas{
+			Correct: ExerciseDescriptionCorrectProgressDelta,
+			Almost:  ExerciseDescriptionAlmostProgressDelta,
+			Wrong:   ExerciseDescriptionWrongProgressDelta,
 		}
 	case enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed:
 		return exerciseProgressDeltas{

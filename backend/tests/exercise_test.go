@@ -936,6 +936,12 @@ func TestRandomExerciseUserPathCompletesAndAppearsInHistory(t *testing.T) {
 	if body.Type == enums.ExerciseTypeCharactersDirect || body.Type == enums.ExerciseTypeCharactersReversed {
 		expectedDelta = services.ExerciseCharacterCorrectProgressDelta
 	}
+	if body.Type == enums.ExerciseTypeAudioDirect || body.Type == enums.ExerciseTypeAudioReversed {
+		expectedDelta = services.ExerciseAudioCorrectProgressDelta
+	}
+	if body.Type == enums.ExerciseTypeDescriptionDirect || body.Type == enums.ExerciseTypeDescriptionReversed {
+		expectedDelta = services.ExerciseDescriptionCorrectProgressDelta
+	}
 	assert.Equal(t, expectedDelta, verification.ProgressDelta)
 	assert.Equal(t, expectedDelta, verification.Knowledge)
 

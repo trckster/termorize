@@ -150,7 +150,7 @@ func TestTelegramDescriptionFeedbackAndReplay(t *testing.T) {
 				assert.Equal(t, enums.ExerciseStatusFailed, exerciseReload(t, exercise.ID).Status)
 				link := exerciseLink(t, exercise.ID, vocabulary.ID)
 				require.NotNil(t, link.ProgressDelta)
-				assert.Equal(t, services.ExerciseBasicWrongProgressDelta, *link.ProgressDelta)
+				assert.Equal(t, services.ExerciseDescriptionWrongProgressDelta, *link.ProgressDelta)
 				if interaction == "idk" {
 					assert.Len(t, tg.RequestsFor("answerCallbackQuery"), 2)
 					assert.Empty(t, tg.RequestsFor("sendMessage"))
