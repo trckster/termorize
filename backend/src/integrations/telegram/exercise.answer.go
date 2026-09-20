@@ -77,6 +77,7 @@ func handleExerciseAnswer(message *message) (bool, error) {
 }
 
 func replyWithExerciseAnswerResult(message *message, exercise *services.TelegramMessageExercise, result *services.VerifyAnswerResult, t BotTexts) error {
+	addDescriptionFeedback(exercise, result)
 	if err := removeMessageInlineKeyboard(message.Chat.ID, message.ReplyToMessage.MessageID); err != nil {
 		logger.L().Warnw("failed to remove inline keyboard", "error", err, "chat_id", message.Chat.ID, "message_id", message.ReplyToMessage.MessageID)
 	}
@@ -97,6 +98,7 @@ func restoreExerciseAnswerResult(chatID int64, messageID int64, exercise *servic
 }
 
 func editExerciseAnswerResult(chatID int64, messageID int64, exercise *services.TelegramMessageExercise, result *services.VerifyAnswerResult, t BotTexts) error {
+	addDescriptionFeedback(exercise, result)
 	answerText := buildExerciseAnswerResultText(exercise, result, t)
 	keyboard := &inlineKeyboardMarkup{InlineKeyboard: [][]inlineKeyboardButton{}}
 	if exercise.ExerciseType == enums.ExerciseTypeAudioDirect || exercise.ExerciseType == enums.ExerciseTypeAudioReversed {
@@ -117,7 +119,28 @@ func editExerciseAnswerResult(chatID int64, messageID int64, exercise *services.
 	})
 }
 
+func addDescriptionFeedback(exercise *services.TelegramMessageExercise, result *services.VerifyAnswerResult) {
+	if exercise.ExerciseType == enums.ExerciseTypeDescriptionDirect || exercise.ExerciseType == enums.ExerciseTypeDescriptionReversed {
+		services.AddDescriptionFeedback(exercise.ExerciseID, exercise.UserID, result)
+	}
+}
+
 func buildExerciseAnswerResultText(exercise *services.TelegramMessageExercise, result *services.VerifyAnswerResult, t BotTexts) string {
+	text := buildExerciseAnswerOutcomeText(exercise, result, t)
+	if feedback := result.DescriptionFeedback; feedback != nil && feedback.Original != "" {
+		language := exercise.OriginalLanguage
+		if exercise.ExerciseType == enums.ExerciseTypeDescriptionReversed {
+			language = exercise.TranslationLanguage
+		}
+		text += "\n\n" + t.ExerciseDescriptionOriginal + "\n" + language.Flag() + " " + escapeTelegramMarkdown(feedback.Original)
+	}
+	if feedback := result.DescriptionFeedback; feedback != nil && feedback.Translation != "" {
+		text += "\n\n" + t.ExerciseDescriptionTranslation + "\n" + feedback.Language.Flag() + " " + escapeTelegramMarkdown(feedback.Translation)
+	}
+	return text
+}
+
+func buildExerciseAnswerOutcomeText(exercise *services.TelegramMessageExercise, result *services.VerifyAnswerResult, t BotTexts) string {
 	switch result.Result {
 	case "correct":
 		return t.ExerciseSuccess + "\n\n" + buildExerciseAnswerPairText(

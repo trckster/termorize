@@ -110,6 +110,12 @@ export type RandomExercise = {
 }
 
 export type VerifyResult = {
+    description_feedback?: {
+        original: string
+        translation: string
+        language: string
+        answer_translation: string
+    } | null
     result: 'correct' | 'almost' | 'wrong'
     correct_answer: string
     knowledge: number

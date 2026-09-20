@@ -153,10 +153,11 @@ func VerifyExercise(c *gin.Context) {
 	}
 
 	c.JSON(nethttp.StatusOK, gin.H{
-		"result":         result.Result,
-		"correct_answer": result.CorrectAnswer,
-		"knowledge":      result.Knowledge,
-		"progress_delta": result.ProgressDelta,
+		"result":               result.Result,
+		"correct_answer":       result.CorrectAnswer,
+		"description_feedback": result.DescriptionFeedback,
+		"knowledge":            result.Knowledge,
+		"progress_delta":       result.ProgressDelta,
 	})
 }
 

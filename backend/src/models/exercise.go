@@ -11,6 +11,8 @@ import (
 type Exercise struct {
 	ID                          uuid.UUID            `json:"id" gorm:"default:gen_random_uuid()"`
 	Type                        enums.ExerciseType   `json:"type"`
+	Description                 string               `json:"-"`
+	DescriptionTranslation      string               `json:"-"`
 	Status                      enums.ExerciseStatus `json:"status"`
 	UserID                      uint                 `json:"-"`
 	TelegramMessageID           *int64               `json:"-"`

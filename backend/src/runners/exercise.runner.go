@@ -125,6 +125,10 @@ func processDueExercises() {
 				}
 				continue
 			}
+			if err := services.SaveExerciseDescription(exercise.ExerciseID, description.Description); err != nil {
+				logger.L().Warnw("failed to save exercise description", "error", err, "exercise_id", exercise.ExerciseID)
+				continue
+			}
 			questionText = telegram.BuildDescriptionExerciseQuestion(description.Description, descriptionLanguage, texts)
 		}
 
