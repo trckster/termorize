@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { ArrowUpDown, Loader2, Play } from 'lucide-vue-next'
-import { useRouter } from 'vue-router'
+import { ArrowUpDown, Loader2 } from 'lucide-vue-next'
 import { settingsApi } from '@/api/settings.ts'
 import { translationApi } from '@/api/translation.ts'
 import { vocabularyApi } from '@/api/vocabulary.ts'
@@ -40,7 +39,6 @@ type LanguageSelectorInstance = {
 
 const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
-const router = useRouter()
 const { isPhoneViewport } = usePhoneViewport()
 const { t } = useI18n()
 
@@ -868,23 +866,6 @@ onBeforeUnmount(() => {
                     <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + Shift + L</Kbd>
                 </div>
             </div>
-
-            <section class="mt-8 border-t border-border py-8 text-center sm:mt-10 sm:py-10">
-                <div class="mx-auto flex max-w-sm flex-col items-center">
-                    <div class="space-y-2">
-                        <h2 class="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-                            {{ t.quizCardTitle }}
-                        </h2>
-                        <p class="mx-auto max-w-[30ch] text-sm leading-6 text-muted-foreground">
-                            {{ t.quizCardDescription }}
-                        </p>
-                    </div>
-                    <Button size="lg" class="mt-6 w-full sm:w-auto" @click="router.push({ name: 'quiz' })">
-                        <Play class="size-4 fill-current" />
-                        {{ t.quizRun }}
-                    </Button>
-                </div>
-            </section>
         </div>
     </main>
 </template>

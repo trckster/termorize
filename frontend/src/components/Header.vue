@@ -1,82 +1,91 @@
 <template>
     <header class="pt-safe border-b border-border bg-background">
-        <div class="flex min-h-[3.75rem] items-center justify-between px-4 py-2 sm:min-h-0 sm:px-6 sm:py-4">
-            <router-link
-                to="/translation"
-                class="-ml-2 inline-flex min-h-11 items-center rounded-md px-2 text-sm font-semibold tracking-tight transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:hidden"
-            >
-                Termorize
-            </router-link>
-            <nav class="hidden md:flex gap-8">
+        <div class="flex min-h-[3.75rem] items-center justify-between gap-4 px-4 py-2 sm:min-h-0 sm:px-6 sm:py-4">
+            <div class="flex shrink-0 items-center gap-6">
                 <router-link
                     to="/translation"
-                    :aria-current="route.path === '/translation' ? 'page' : undefined"
-                    :class="[
-                        'text-sm font-medium transition-colors hover:text-foreground',
-                        route.path === '/translation' ? 'text-foreground' : 'text-muted-foreground',
-                    ]"
+                    class="-ml-2 inline-flex min-h-11 items-center rounded-md px-2 text-sm font-semibold tracking-tight transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:hidden"
                 >
-                    {{ t.navHome }}
+                    Termorize
                 </router-link>
-                <router-link
-                    to="/vocabulary"
-                    :aria-current="route.path === '/vocabulary' ? 'page' : undefined"
-                    :class="[
-                        'text-sm font-medium transition-colors hover:text-foreground',
-                        route.path === '/vocabulary' ? 'text-foreground' : 'text-muted-foreground',
-                    ]"
-                >
-                    {{ t.navVocabulary }}
-                </router-link>
-                <router-link
-                    to="/collections"
-                    :aria-current="route.path.startsWith('/collections') ? 'page' : undefined"
-                    :class="[
-                        'text-sm font-medium transition-colors hover:text-foreground',
-                        route.path.startsWith('/collections') ? 'text-foreground' : 'text-muted-foreground',
-                    ]"
-                >
-                    {{ t.navCollections }}
-                </router-link>
-                <router-link
-                    to="/exercises"
-                    :aria-current="route.path === '/exercises' ? 'page' : undefined"
-                    :class="[
-                        'text-sm font-medium transition-colors hover:text-foreground',
-                        route.path === '/exercises' ? 'text-foreground' : 'text-muted-foreground',
-                    ]"
-                >
-                    {{ t.navExercises }}
-                </router-link>
-                <router-link
-                    to="/statistics"
-                    :aria-current="route.path === '/statistics' ? 'page' : undefined"
-                    :class="[
-                        'text-sm font-medium transition-colors hover:text-foreground',
-                        route.path === '/statistics' ? 'text-foreground' : 'text-muted-foreground',
-                    ]"
-                >
-                    {{ t.navStatistics }}
-                </router-link>
-                <router-link
-                    v-if="user?.is_admin"
-                    to="/admin"
-                    :aria-current="route.path.startsWith('/admin') ? 'page' : undefined"
-                    :class="[
-                        'text-sm font-medium transition-colors hover:text-foreground',
-                        route.path.startsWith('/admin') ? 'text-foreground' : 'text-muted-foreground',
-                    ]"
-                >
-                    {{ t.navAdmin }}
-                </router-link>
-            </nav>
+                <nav class="flex shrink-0 items-center gap-4 lg:gap-8">
+                    <router-link
+                        to="/translation"
+                        :aria-current="route.path === '/translation' ? 'page' : undefined"
+                        :class="[
+                            'hidden text-sm font-medium transition-colors hover:text-foreground md:block',
+                            route.path === '/translation' ? 'text-foreground' : 'text-muted-foreground',
+                        ]"
+                    >
+                        {{ t.navHome }}
+                    </router-link>
+                    <router-link
+                        to="/vocabulary"
+                        :aria-current="route.path === '/vocabulary' ? 'page' : undefined"
+                        :class="[
+                            'hidden text-sm font-medium transition-colors hover:text-foreground md:block',
+                            route.path === '/vocabulary' ? 'text-foreground' : 'text-muted-foreground',
+                        ]"
+                    >
+                        {{ t.navVocabulary }}
+                    </router-link>
+                    <router-link
+                        to="/collections"
+                        :aria-current="route.path.startsWith('/collections') ? 'page' : undefined"
+                        :class="[
+                            'hidden text-sm font-medium transition-colors hover:text-foreground md:block',
+                            route.path.startsWith('/collections') ? 'text-foreground' : 'text-muted-foreground',
+                        ]"
+                    >
+                        {{ t.navCollections }}
+                    </router-link>
+                    <router-link
+                        to="/exercises"
+                        :aria-current="route.path === '/exercises' ? 'page' : undefined"
+                        :class="[
+                            'hidden text-sm font-medium transition-colors hover:text-foreground md:block',
+                            route.path === '/exercises' ? 'text-foreground' : 'text-muted-foreground',
+                        ]"
+                    >
+                        {{ t.navExercises }}
+                    </router-link>
+                    <router-link
+                        to="/statistics"
+                        :aria-current="route.path === '/statistics' ? 'page' : undefined"
+                        :class="[
+                            'hidden text-sm font-medium transition-colors hover:text-foreground md:block',
+                            route.path === '/statistics' ? 'text-foreground' : 'text-muted-foreground',
+                        ]"
+                    >
+                        {{ t.navStatistics }}
+                    </router-link>
+                    <router-link
+                        :to="{ name: 'quiz-intro', query: { from: route.fullPath } }"
+                        data-practice-trigger
+                        class="inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-sm text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-0"
+                    >
+                        {{ t.navPractice }} <span aria-hidden="true">🎯</span>
+                    </router-link>
+                    <router-link
+                        v-if="user?.is_admin"
+                        to="/admin"
+                        :aria-current="route.path.startsWith('/admin') ? 'page' : undefined"
+                        :class="[
+                            'hidden text-sm font-medium transition-colors hover:text-foreground lg:block',
+                            route.path.startsWith('/admin') ? 'text-foreground' : 'text-muted-foreground',
+                        ]"
+                    >
+                        {{ t.navAdmin }}
+                    </router-link>
+                </nav>
+            </div>
 
-            <div class="flex min-w-0 items-center gap-4">
-                <div ref="profileMenuRef" class="relative">
+            <div class="flex min-w-11 items-center gap-4">
+                <div ref="profileMenuRef" class="relative min-w-0">
                     <button
                         ref="profileMenuButtonRef"
                         @click.stop="toggleProfileMenu"
-                        class="inline-flex h-11 w-11 min-w-0 items-center justify-center rounded-md text-left transition-colors hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 min-[480px]:h-auto min-[480px]:w-auto min-[480px]:max-w-[11rem] min-[480px]:gap-2 min-[480px]:px-2 min-[480px]:py-2 sm:max-w-none sm:gap-3"
+                        class="inline-flex h-11 w-11 min-w-0 items-center justify-center rounded-md text-left transition-colors hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 min-[480px]:h-auto min-[480px]:w-auto min-[480px]:max-w-[11rem] min-[480px]:gap-2 min-[480px]:px-2 min-[480px]:py-2 sm:max-w-full sm:gap-3"
                         aria-haspopup="menu"
                         :aria-label="t.headerOpenProfileMenu"
                         :aria-expanded="isProfileMenuOpen"
