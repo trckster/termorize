@@ -6,7 +6,39 @@ import {
     hasMeaningfulVocabularyEdits,
     isEditableVocabularySaveShortcut,
     isEditableVocabularyShortcut,
+    isTranslationFieldSwitchShortcut,
 } from './translationPageState.ts'
+
+describe('isTranslationFieldSwitchShortcut', () => {
+    const shortcut = {
+        key: 'Tab',
+        altKey: false,
+        ctrlKey: false,
+        metaKey: false,
+        shiftKey: false,
+    }
+    const modifiers = ['altKey', 'ctrlKey', 'metaKey', 'shiftKey']
+
+    it('switches fields on plain Tab', () => {
+        assert.equal(isTranslationFieldSwitchShortcut(shortcut), true)
+    })
+
+    for (let mask = 1; mask < 1 << modifiers.length; mask++) {
+        const pressed = modifiers.filter((_, index) => mask & (1 << index))
+
+        it(`leaves Tab with ${pressed.join(' + ')} to the browser`, () => {
+            const event = { ...shortcut, ...Object.fromEntries(pressed.map((modifier) => [modifier, true])) }
+
+            assert.equal(isTranslationFieldSwitchShortcut(event), false)
+        })
+    }
+
+    for (const key of ['Enter', 'Escape', 'ArrowLeft', ' ', 'a']) {
+        it(`does not switch fields on ${JSON.stringify(key)}`, () => {
+            assert.equal(isTranslationFieldSwitchShortcut({ ...shortcut, key }), false)
+        })
+    }
+})
 
 describe('getLanguageChangeDirection', () => {
     it('updates the text on the side whose language changed', () => {

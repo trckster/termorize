@@ -21,6 +21,10 @@ export const isEditableVocabularySaveShortcut = (
     event: Pick<KeyboardEvent, 'altKey' | 'ctrlKey' | 'isComposing' | 'key' | 'metaKey' | 'shiftKey'>
 ) => event.key === 'Enter' && event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey && !event.isComposing
 
+export const isTranslationFieldSwitchShortcut = (
+    event: Pick<KeyboardEvent, 'altKey' | 'ctrlKey' | 'key' | 'metaKey' | 'shiftKey'>
+) => event.key === 'Tab' && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey
+
 export const createProgrammaticChangeGuard = <Field extends string>() => {
     const pendingChanges = new Map<Field, string>()
 
