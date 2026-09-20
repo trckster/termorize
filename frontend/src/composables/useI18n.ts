@@ -8,6 +8,7 @@ const en = {
     navVocabulary: 'Vocabulary',
     navExercises: 'Exercises',
     navStatistics: 'Statistics',
+    navPractice: 'Practice',
     navAdmin: 'Admin',
     navDescriptions: 'Descriptions',
     descriptionsIntro:
@@ -392,9 +393,11 @@ const en = {
     languageSelectorNoResults: 'No languages found.',
 
     // Quiz
-    quizCardTitle: 'Practice your vocabulary',
-    quizCardDescription: '10 questions. Keep your vocabulary moving.',
-    quizRun: 'Run',
+    quizIntroTitle: 'Ready to practice?',
+    quizIntroDescription: '10 questions from your saved vocabulary.',
+    quizStart: 'Start quiz',
+    quizStarting: 'Starting…',
+    quizBackToApp: 'Back to the app',
     quizTitle: 'Quiz',
     quizLoading: 'Loading question...',
     quizLoadError: 'Failed to load question. Please try again.',
@@ -602,6 +605,7 @@ const ru: typeof en = {
     navVocabulary: 'Словарь',
     navExercises: 'Упражнения',
     navStatistics: 'Статистика',
+    navPractice: 'Практика',
     navAdmin: 'Администрирование',
     navDescriptions: 'Описания',
     descriptionsIntro: 'Сгенерированные подсказки для упражнений. Создайте новое описание и подтвердите замену.',
@@ -991,9 +995,11 @@ const ru: typeof en = {
     languageSelectorNoResults: 'Языки не найдены.',
 
     // Quiz
-    quizCardTitle: 'Практикуйте словарь',
-    quizCardDescription: '10 вопросов. Освежите слова в памяти.',
-    quizRun: 'Запустить',
+    quizIntroTitle: 'Готовы к практике?',
+    quizIntroDescription: '10 вопросов из вашего словаря.',
+    quizStart: 'Начать тест',
+    quizStarting: 'Запускаем…',
+    quizBackToApp: 'Вернуться в приложение',
     quizTitle: 'Тест',
     quizLoading: 'Загрузка вопроса...',
     quizLoadError: 'Не удалось загрузить вопрос. Попробуйте ещё раз.',

@@ -32,6 +32,12 @@ const router = createRouter({
             component: () => import('@/views/CollectionRoutePage.vue'),
         },
         {
+            path: '/quiz/intro',
+            name: 'quiz-intro',
+            component: () => import('@/views/QuizIntroPage.vue'),
+            meta: { requiresAuth: true },
+        },
+        {
             path: '/quiz',
             name: 'quiz',
             component: () => import('@/views/QuizPage.vue'),
