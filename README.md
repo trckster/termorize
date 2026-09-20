@@ -17,7 +17,7 @@ A vocabulary trainer for the web and Telegram. Translate, save, practice, and tr
 - **Progress tracking** — Review exercise history, mastery changes, and activity charts.
 - **Collections** — Build, reorder, filter, and share themed word sets.
 - **Telegram bot** — Schedule synced daily exercises by count, timezone, and active hours.
-- **Custom appearance** — Choose three green palettes, light or dark mode, and app languages.
+- **Custom appearance** — Choose nine green, orange, and purple palettes, light or dark mode, and app languages.
 - **Browser extension** — Translate selected text on ordinary web pages with `Alt+T`, then edit or save it. A context-menu fallback handles embedded cross-origin frames. On Google Translate, save the current pair with `Ctrl+S` or review it first with `Ctrl+E`. See [installation instructions](browser-extension/README.md).
 
 ## Screenshots
