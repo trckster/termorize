@@ -147,7 +147,7 @@ const en = {
     settingsAppearanceTitle: 'Appearance',
     settingsAppearanceDescription: 'Choose how Termorize looks on this device.',
     settingsAppearanceThemeLabel: 'Color palette',
-    settingsAppearanceThemeExplanation: 'Pick a green palette. Your choice is saved on this device.',
+    settingsAppearanceThemeExplanation: 'Pick a green, orange, or purple palette. Your choice is saved on this device.',
     settingsAppearanceModeLabel: 'Dark mode',
     settingsAppearanceModeExplanation: 'Switch between light and dark. Defaults to your system setting.',
     settingsAppearanceModeLight: 'Light',
@@ -155,6 +155,12 @@ const en = {
     themeDescEvergreen: 'Deep emerald on cool, neutral surfaces.',
     themeDescSage: 'Warm, soft herbal green on paper.',
     themeDescEmerald: 'Vivid emerald on cool slate.',
+    themeDescCitrine: 'Golden orange on warm limestone.',
+    themeDescTangerine: 'Bright citrus on soft ivory.',
+    themeDescTerracotta: 'Muted clay on warm sand.',
+    themeDescIris: 'Cool violet on misty periwinkle.',
+    themeDescAmethyst: 'Rich purple on lavender porcelain.',
+    themeDescPlum: 'Soft plum on rose-tinted stone.',
 
     // Settings - Languages section
     settingsLanguagesTitle: 'Languages',
@@ -736,7 +742,8 @@ const ru: typeof en = {
     settingsAppearanceTitle: 'Оформление',
     settingsAppearanceDescription: 'Выберите, как выглядит Termorize на этом устройстве.',
     settingsAppearanceThemeLabel: 'Цветовая палитра',
-    settingsAppearanceThemeExplanation: 'Выберите зелёную палитру. Выбор сохраняется на этом устройстве.',
+    settingsAppearanceThemeExplanation:
+        'Выберите зелёную, оранжевую или фиолетовую палитру. Выбор сохраняется на этом устройстве.',
     settingsAppearanceModeLabel: 'Тёмная тема',
     settingsAppearanceModeExplanation: 'Переключение светлой и тёмной темы. По умолчанию используется системная тема.',
     settingsAppearanceModeLight: 'Светлая',
@@ -744,6 +751,12 @@ const ru: typeof en = {
     themeDescEvergreen: 'Глубокий изумруд на прохладных нейтральных поверхностях.',
     themeDescSage: 'Тёплый мягкий травяной зелёный.',
     themeDescEmerald: 'Яркий изумруд на прохладном сланцевом фоне.',
+    themeDescCitrine: 'Золотистый оранжевый на тёплом известняке.',
+    themeDescTangerine: 'Яркий цитрус на мягком фоне слоновой кости.',
+    themeDescTerracotta: 'Приглушённая глина на тёплом песке.',
+    themeDescIris: 'Холодный фиолетовый на дымчатом сиреневом фоне.',
+    themeDescAmethyst: 'Насыщенный фиолетовый на лавандовом фарфоре.',
+    themeDescPlum: 'Мягкий сливовый на камне с розовым оттенком.',
 
     // Settings - Languages section
     settingsLanguagesTitle: 'Языки',

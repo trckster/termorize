@@ -268,18 +268,11 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .learning-card {
-    --learning-not_started: #a3b4b9;
-    --learning-beginning: #a0d7ed;
-    --learning-developing: #44acd4;
-    --learning-confident: #306eaf;
-    --learning-mastered: #10a477;
-}
-:global(.dark .learning-card) {
-    --learning-not_started: #63777e;
-    --learning-beginning: #abdff0;
-    --learning-developing: #51b8df;
-    --learning-confident: #3f7fc5;
-    --learning-mastered: #24c493;
+    --learning-not_started: color-mix(in srgb, hsl(var(--muted-foreground)) 60%, hsl(var(--card)));
+    --learning-beginning: color-mix(in srgb, hsl(var(--primary)) 28%, hsl(var(--card)));
+    --learning-developing: color-mix(in srgb, hsl(var(--primary)) 52%, hsl(var(--card)));
+    --learning-confident: color-mix(in srgb, hsl(var(--primary)) 76%, hsl(var(--card)));
+    --learning-mastered: hsl(var(--primary));
 }
 .learning-segment {
     cursor: pointer;

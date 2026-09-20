@@ -12,6 +12,12 @@ const descriptions = computed<Record<PaletteId, string>>(() => ({
     evergreen: t.value.themeDescEvergreen,
     sage: t.value.themeDescSage,
     emerald: t.value.themeDescEmerald,
+    citrine: t.value.themeDescCitrine,
+    tangerine: t.value.themeDescTangerine,
+    terracotta: t.value.themeDescTerracotta,
+    iris: t.value.themeDescIris,
+    amethyst: t.value.themeDescAmethyst,
+    plum: t.value.themeDescPlum,
 }))
 </script>
 
@@ -45,12 +51,17 @@ const descriptions = computed<Record<PaletteId, string>>(() => ({
                         >
                             <Check class="h-3 w-3" />
                         </span>
-                        <span class="flex items-center gap-1.5" aria-hidden="true">
+                        <span
+                            class="flex items-center gap-1.5"
+                            :data-theme="option.id"
+                            :class="{ dark: isDark }"
+                            aria-hidden="true"
+                        >
                             <span
-                                v-for="(color, i) in option.preview"
-                                :key="i"
+                                v-for="token in ['primary', 'accent', 'border']"
+                                :key="token"
                                 class="h-6 w-6 rounded-full border border-black/5 first:h-7 first:w-7"
-                                :style="{ backgroundColor: color }"
+                                :style="{ backgroundColor: `hsl(var(--${token}))` }"
                             />
                         </span>
                         <span>

@@ -8,8 +8,10 @@
  * convention and is what makes opacity modifiers (e.g. `bg-primary/90`,
  * `bg-destructive/5`) work correctly.
  *
- * Three selectable palettes, each with a light + dark mode:
+ * Nine selectable palettes, each with a light + dark mode:
  *   - evergreen (default) · sage · emerald
+ *   - citrine · tangerine · terracotta
+ *   - iris · amethyst · plum
  * The active palette is set via `data-theme` on <html>; dark mode via the
  * `.dark` class. Both are persisted in localStorage (see useTheme.ts) and
  * applied pre-paint by the inline script in index.html.
@@ -222,6 +224,372 @@
         --app-gradient: linear-gradient(150deg, hsl(213, 30%, 8%) 0%, hsl(192, 40%, 11%) 55%, hsl(213, 30%, 8%) 100%);
         color-scheme: dark;
     }
+
+    [data-theme='citrine'] {
+        --background: 35 20% 97%;
+        --foreground: 35 22% 14%;
+        --card: 35 20% 99.5%;
+        --card-foreground: 35 22% 14%;
+        --popover: 35 20% 99.5%;
+        --popover-foreground: 35 22% 14%;
+        --primary: 34 88% 29%;
+        --primary-foreground: 35 30% 99%;
+        --secondary: 38 60% 94%;
+        --secondary-foreground: 35 20% 22%;
+        --muted: 38 54% 92%;
+        --muted-foreground: 35 14% 36%;
+        --accent: 35 30% 87%;
+        --accent-foreground: 34 50% 25%;
+        --destructive: 0 72% 40%;
+        --destructive-foreground: 0 0% 99%;
+        --border: 35 20% 84%;
+        --input: 35 14% 57%;
+        --ring: 34 88% 29%;
+        --success: 152 56% 28%;
+        --success-foreground: 150 30% 99%;
+        --warning: 40 90% 28%;
+        --warning-foreground: 40 30% 99%;
+        --info: 208 72% 35%;
+        --info-foreground: 208 30% 99%;
+        --overlay: 35 25% 9%;
+        --app-gradient: linear-gradient(150deg, hsl(35 20% 97%) 0%, hsl(35 24% 95.5%) 55%, hsl(35 20% 97%) 100%);
+    }
+
+    [data-theme='citrine'].dark {
+        --background: 30 20% 8%;
+        --foreground: 30 12% 94%;
+        --card: 30 20% 11.5%;
+        --card-foreground: 30 12% 94%;
+        --popover: 30 20% 11.5%;
+        --popover-foreground: 30 12% 94%;
+        --primary: 35 90% 62%;
+        --primary-foreground: 30 30% 10%;
+        --secondary: 30 20% 16%;
+        --secondary-foreground: 30 12% 92%;
+        --muted: 30 16% 19%;
+        --muted-foreground: 30 12% 72%;
+        --accent: 34 26% 22%;
+        --accent-foreground: 35 36% 92%;
+        --destructive: 0 72% 72%;
+        --destructive-foreground: 0 30% 10%;
+        --border: 30 16% 23%;
+        --input: 30 16% 36%;
+        --ring: 35 90% 62%;
+        --success: 152 48% 66%;
+        --success-foreground: 152 30% 10%;
+        --warning: 43 86% 66%;
+        --warning-foreground: 40 40% 10%;
+        --info: 208 76% 72%;
+        --info-foreground: 208 40% 10%;
+        --overlay: 30 25% 4%;
+        --app-gradient: linear-gradient(150deg, hsl(30 20% 8%) 0%, hsl(30 23% 10%) 55%, hsl(30 20% 8%) 100%);
+        color-scheme: dark;
+    }
+
+    [data-theme='tangerine'] {
+        --background: 30 30% 98%;
+        --foreground: 30 22% 14%;
+        --card: 30 30% 99.5%;
+        --card-foreground: 30 22% 14%;
+        --popover: 30 30% 99.5%;
+        --popover-foreground: 30 22% 14%;
+        --primary: 24 90% 34%;
+        --primary-foreground: 30 30% 99%;
+        --secondary: 32 48% 95%;
+        --secondary-foreground: 30 20% 22%;
+        --muted: 32 42% 93%;
+        --muted-foreground: 30 14% 36%;
+        --accent: 27 65% 90%;
+        --accent-foreground: 24 50% 25%;
+        --destructive: 0 72% 40%;
+        --destructive-foreground: 0 0% 99%;
+        --border: 30 30% 84%;
+        --input: 30 24% 57%;
+        --ring: 24 90% 34%;
+        --success: 152 56% 28%;
+        --success-foreground: 150 30% 99%;
+        --warning: 40 90% 28%;
+        --warning-foreground: 40 30% 99%;
+        --info: 208 72% 35%;
+        --info-foreground: 208 30% 99%;
+        --overlay: 30 25% 9%;
+        --app-gradient: linear-gradient(150deg, hsl(30 30% 98%) 0%, hsl(30 34% 96.5%) 55%, hsl(30 30% 98%) 100%);
+    }
+
+    [data-theme='tangerine'].dark {
+        --background: 24 24% 7%;
+        --foreground: 24 12% 94%;
+        --card: 24 24% 10.5%;
+        --card-foreground: 24 12% 94%;
+        --popover: 24 24% 10.5%;
+        --popover-foreground: 24 12% 94%;
+        --primary: 26 94% 64%;
+        --primary-foreground: 24 30% 10%;
+        --secondary: 24 24% 15%;
+        --secondary-foreground: 24 12% 92%;
+        --muted: 24 20% 18%;
+        --muted-foreground: 24 12% 72%;
+        --accent: 26 34% 20%;
+        --accent-foreground: 26 36% 92%;
+        --destructive: 0 72% 72%;
+        --destructive-foreground: 0 30% 10%;
+        --border: 24 20% 22%;
+        --input: 24 20% 35%;
+        --ring: 26 94% 64%;
+        --success: 152 48% 66%;
+        --success-foreground: 152 30% 10%;
+        --warning: 43 86% 66%;
+        --warning-foreground: 40 40% 10%;
+        --info: 208 76% 72%;
+        --info-foreground: 208 40% 10%;
+        --overlay: 24 25% 4%;
+        --app-gradient: linear-gradient(150deg, hsl(24 24% 7%) 0%, hsl(24 27% 9%) 55%, hsl(24 24% 7%) 100%);
+        color-scheme: dark;
+    }
+
+    [data-theme='terracotta'] {
+        --background: 24 22% 96.5%;
+        --foreground: 24 22% 14%;
+        --card: 24 22% 99.5%;
+        --card-foreground: 24 22% 14%;
+        --popover: 24 22% 99.5%;
+        --popover-foreground: 24 22% 14%;
+        --primary: 17 52% 39%;
+        --primary-foreground: 24 30% 99%;
+        --secondary: 25 28% 93%;
+        --secondary-foreground: 24 20% 22%;
+        --muted: 25 22% 91%;
+        --muted-foreground: 24 14% 36%;
+        --accent: 19 34% 87%;
+        --accent-foreground: 17 50% 25%;
+        --destructive: 0 72% 40%;
+        --destructive-foreground: 0 0% 99%;
+        --border: 24 22% 84%;
+        --input: 24 16% 57%;
+        --ring: 17 52% 39%;
+        --success: 152 56% 28%;
+        --success-foreground: 150 30% 99%;
+        --warning: 40 90% 28%;
+        --warning-foreground: 40 30% 99%;
+        --info: 208 72% 35%;
+        --info-foreground: 208 30% 99%;
+        --overlay: 24 25% 9%;
+        --app-gradient: linear-gradient(150deg, hsl(24 22% 96.5%) 0%, hsl(24 26% 95%) 55%, hsl(24 22% 96.5%) 100%);
+    }
+
+    [data-theme='terracotta'].dark {
+        --background: 18 16% 9%;
+        --foreground: 18 12% 94%;
+        --card: 18 16% 12.5%;
+        --card-foreground: 18 12% 94%;
+        --popover: 18 16% 12.5%;
+        --popover-foreground: 18 12% 94%;
+        --primary: 18 65% 68%;
+        --primary-foreground: 18 30% 10%;
+        --secondary: 18 16% 17%;
+        --secondary-foreground: 18 12% 92%;
+        --muted: 18 12% 20%;
+        --muted-foreground: 18 12% 72%;
+        --accent: 18 24% 23%;
+        --accent-foreground: 18 36% 92%;
+        --destructive: 0 72% 72%;
+        --destructive-foreground: 0 30% 10%;
+        --border: 18 12% 24%;
+        --input: 18 12% 37%;
+        --ring: 18 65% 68%;
+        --success: 152 48% 66%;
+        --success-foreground: 152 30% 10%;
+        --warning: 43 86% 66%;
+        --warning-foreground: 40 40% 10%;
+        --info: 208 76% 72%;
+        --info-foreground: 208 40% 10%;
+        --overlay: 18 25% 4%;
+        --app-gradient: linear-gradient(150deg, hsl(18 16% 9%) 0%, hsl(18 19% 11%) 55%, hsl(18 16% 9%) 100%);
+        color-scheme: dark;
+    }
+
+    [data-theme='iris'] {
+        --background: 245 28% 98%;
+        --foreground: 245 22% 14%;
+        --card: 245 28% 99.5%;
+        --card-foreground: 245 22% 14%;
+        --popover: 245 28% 99.5%;
+        --popover-foreground: 245 22% 14%;
+        --primary: 252 52% 48%;
+        --primary-foreground: 245 30% 99%;
+        --secondary: 246 30% 95%;
+        --secondary-foreground: 245 20% 22%;
+        --muted: 246 24% 93%;
+        --muted-foreground: 245 14% 36%;
+        --accent: 250 42% 91%;
+        --accent-foreground: 252 50% 25%;
+        --destructive: 0 72% 40%;
+        --destructive-foreground: 0 0% 99%;
+        --border: 245 28% 84%;
+        --input: 245 22% 57%;
+        --ring: 252 52% 48%;
+        --success: 152 56% 28%;
+        --success-foreground: 150 30% 99%;
+        --warning: 40 90% 28%;
+        --warning-foreground: 40 30% 99%;
+        --info: 208 72% 35%;
+        --info-foreground: 208 30% 99%;
+        --overlay: 245 25% 9%;
+        --app-gradient: linear-gradient(150deg, hsl(245 28% 98%) 0%, hsl(245 32% 96.5%) 55%, hsl(245 28% 98%) 100%);
+    }
+
+    [data-theme='iris'].dark {
+        --background: 244 24% 8%;
+        --foreground: 244 12% 94%;
+        --card: 244 24% 11.5%;
+        --card-foreground: 244 12% 94%;
+        --popover: 244 24% 11.5%;
+        --popover-foreground: 244 12% 94%;
+        --primary: 250 78% 78%;
+        --primary-foreground: 244 30% 10%;
+        --secondary: 244 24% 16%;
+        --secondary-foreground: 244 12% 92%;
+        --muted: 244 20% 19%;
+        --muted-foreground: 244 12% 72%;
+        --accent: 250 30% 23%;
+        --accent-foreground: 250 36% 92%;
+        --destructive: 0 72% 72%;
+        --destructive-foreground: 0 30% 10%;
+        --border: 244 20% 23%;
+        --input: 244 20% 36%;
+        --ring: 250 78% 78%;
+        --success: 152 48% 66%;
+        --success-foreground: 152 30% 10%;
+        --warning: 43 86% 66%;
+        --warning-foreground: 40 40% 10%;
+        --info: 208 76% 72%;
+        --info-foreground: 208 40% 10%;
+        --overlay: 244 25% 4%;
+        --app-gradient: linear-gradient(150deg, hsl(244 24% 8%) 0%, hsl(244 27% 10%) 55%, hsl(244 24% 8%) 100%);
+        color-scheme: dark;
+    }
+
+    [data-theme='amethyst'] {
+        --background: 276 24% 98%;
+        --foreground: 276 22% 14%;
+        --card: 276 24% 99.5%;
+        --card-foreground: 276 22% 14%;
+        --popover: 276 24% 99.5%;
+        --popover-foreground: 276 22% 14%;
+        --primary: 277 55% 42%;
+        --primary-foreground: 276 30% 99%;
+        --secondary: 276 26% 95%;
+        --secondary-foreground: 276 20% 22%;
+        --muted: 276 20% 93%;
+        --muted-foreground: 276 14% 36%;
+        --accent: 278 40% 91%;
+        --accent-foreground: 277 50% 25%;
+        --destructive: 0 72% 40%;
+        --destructive-foreground: 0 0% 99%;
+        --border: 276 24% 84%;
+        --input: 276 18% 57%;
+        --ring: 277 55% 42%;
+        --success: 152 56% 28%;
+        --success-foreground: 150 30% 99%;
+        --warning: 40 90% 28%;
+        --warning-foreground: 40 30% 99%;
+        --info: 208 72% 35%;
+        --info-foreground: 208 30% 99%;
+        --overlay: 276 25% 9%;
+        --app-gradient: linear-gradient(150deg, hsl(276 24% 98%) 0%, hsl(276 28% 96.5%) 55%, hsl(276 24% 98%) 100%);
+    }
+
+    [data-theme='amethyst'].dark {
+        --background: 275 22% 8%;
+        --foreground: 275 12% 94%;
+        --card: 275 22% 11.5%;
+        --card-foreground: 275 12% 94%;
+        --popover: 275 22% 11.5%;
+        --popover-foreground: 275 12% 94%;
+        --primary: 277 68% 76%;
+        --primary-foreground: 275 30% 10%;
+        --secondary: 275 22% 16%;
+        --secondary-foreground: 275 12% 92%;
+        --muted: 275 18% 19%;
+        --muted-foreground: 275 12% 72%;
+        --accent: 277 30% 22%;
+        --accent-foreground: 277 36% 92%;
+        --destructive: 0 72% 72%;
+        --destructive-foreground: 0 30% 10%;
+        --border: 275 18% 23%;
+        --input: 275 18% 36%;
+        --ring: 277 68% 76%;
+        --success: 152 48% 66%;
+        --success-foreground: 152 30% 10%;
+        --warning: 43 86% 66%;
+        --warning-foreground: 40 40% 10%;
+        --info: 208 76% 72%;
+        --info-foreground: 208 40% 10%;
+        --overlay: 275 25% 4%;
+        --app-gradient: linear-gradient(150deg, hsl(275 22% 8%) 0%, hsl(275 25% 10%) 55%, hsl(275 22% 8%) 100%);
+        color-scheme: dark;
+    }
+
+    [data-theme='plum'] {
+        --background: 302 16% 97%;
+        --foreground: 302 22% 14%;
+        --card: 302 16% 99.5%;
+        --card-foreground: 302 22% 14%;
+        --popover: 302 16% 99.5%;
+        --popover-foreground: 302 22% 14%;
+        --primary: 305 38% 37%;
+        --primary-foreground: 302 30% 99%;
+        --secondary: 302 18% 94%;
+        --secondary-foreground: 302 20% 22%;
+        --muted: 302 12% 92%;
+        --muted-foreground: 302 14% 36%;
+        --accent: 305 26% 89%;
+        --accent-foreground: 305 38% 25%;
+        --destructive: 0 72% 40%;
+        --destructive-foreground: 0 0% 99%;
+        --border: 302 16% 84%;
+        --input: 302 10% 57%;
+        --ring: 305 38% 37%;
+        --success: 152 56% 28%;
+        --success-foreground: 150 30% 99%;
+        --warning: 40 90% 28%;
+        --warning-foreground: 40 30% 99%;
+        --info: 208 72% 35%;
+        --info-foreground: 208 30% 99%;
+        --overlay: 302 25% 9%;
+        --app-gradient: linear-gradient(150deg, hsl(302 16% 97%) 0%, hsl(302 20% 95.5%) 55%, hsl(302 16% 97%) 100%);
+    }
+
+    [data-theme='plum'].dark {
+        --background: 302 16% 9%;
+        --foreground: 302 12% 94%;
+        --card: 302 16% 12.5%;
+        --card-foreground: 302 12% 94%;
+        --popover: 302 16% 12.5%;
+        --popover-foreground: 302 12% 94%;
+        --primary: 305 46% 73%;
+        --primary-foreground: 302 30% 10%;
+        --secondary: 302 16% 17%;
+        --secondary-foreground: 302 12% 92%;
+        --muted: 302 12% 20%;
+        --muted-foreground: 302 12% 72%;
+        --accent: 305 22% 23%;
+        --accent-foreground: 305 36% 92%;
+        --destructive: 0 72% 72%;
+        --destructive-foreground: 0 30% 10%;
+        --border: 302 12% 24%;
+        --input: 302 12% 37%;
+        --ring: 305 46% 73%;
+        --success: 152 48% 66%;
+        --success-foreground: 152 30% 10%;
+        --warning: 43 86% 66%;
+        --warning-foreground: 40 40% 10%;
+        --info: 208 76% 72%;
+        --info-foreground: 208 40% 10%;
+        --overlay: 302 25% 4%;
+        --app-gradient: linear-gradient(150deg, hsl(302 16% 9%) 0%, hsl(302 19% 11%) 55%, hsl(302 16% 9%) 100%);
+        color-scheme: dark;
+    }
 }
 
 @layer base {
@@ -246,7 +614,6 @@
     select {
         touch-action: manipulation;
     }
-
 }
 
 @layer utilities {

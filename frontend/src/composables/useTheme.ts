@@ -5,23 +5,33 @@ import { ref } from 'vue'
 // assets/index.css (scoped by `data-theme` on <html>); dark mode is the `.dark`
 // class. The inline script in index.html applies both pre-paint to avoid a flash.
 
-export type PaletteId = 'evergreen' | 'sage' | 'emerald'
+export type PaletteId =
+    | 'evergreen'
+    | 'sage'
+    | 'emerald'
+    | 'citrine'
+    | 'tangerine'
+    | 'terracotta'
+    | 'iris'
+    | 'amethyst'
+    | 'plum'
 
 export interface ThemeOption {
     id: PaletteId
     /** Display name — a proper noun, intentionally not translated. */
     name: string
-    /** Representative color for a single chip. */
-    swatch: string
-    /** Literal preview colors [primary, accent, neutral] so a palette can be
-     *  previewed even when a different one is active. */
-    preview: [string, string, string]
 }
 
 export const THEME_OPTIONS: ThemeOption[] = [
-    { id: 'evergreen', name: 'Evergreen', swatch: 'hsl(152 56% 30%)', preview: ['hsl(152 56% 30%)', 'hsl(151 34% 89%)', 'hsl(150 15% 88%)'] },
-    { id: 'sage', name: 'Sage', swatch: 'hsl(140 38% 32%)', preview: ['hsl(140 38% 32%)', 'hsl(108 28% 87%)', 'hsl(95 18% 85%)'] },
-    { id: 'emerald', name: 'Emerald', swatch: 'hsl(160 70% 30%)', preview: ['hsl(160 70% 30%)', 'hsl(162 44% 89%)', 'hsl(208 18% 88%)'] },
+    { id: 'evergreen', name: 'Evergreen' },
+    { id: 'sage', name: 'Sage' },
+    { id: 'emerald', name: 'Emerald' },
+    { id: 'citrine', name: 'Citrine' },
+    { id: 'tangerine', name: 'Tangerine' },
+    { id: 'terracotta', name: 'Terracotta' },
+    { id: 'iris', name: 'Iris' },
+    { id: 'amethyst', name: 'Amethyst' },
+    { id: 'plum', name: 'Plum' },
 ]
 
 const PALETTE_IDS = THEME_OPTIONS.map((o) => o.id)
