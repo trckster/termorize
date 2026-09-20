@@ -738,6 +738,7 @@ function advanceFromFeedback() {
 
 function scheduleFeedbackAdvance() {
     clearFeedbackAdvance()
+    if (verifyResult.value?.description_feedback?.translation) return
     const delay = matchCompleteResult.value ? MATCH_FEEDBACK_ADVANCE_DELAY_MS : FEEDBACK_ADVANCE_DELAY_MS
     feedbackTimeoutId.value = window.setTimeout(advanceFromFeedback, delay)
 }
@@ -862,7 +863,7 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 function handleQuizBodyClick(event: MouseEvent) {
-    if (state.value !== 'feedback' || event.button !== 0) {
+    if (state.value !== 'feedback' || event.button !== 0 || verifyResult.value?.description_feedback?.translation) {
         return
     }
 
@@ -1516,6 +1517,12 @@ onBeforeUnmount(() => {
                             <p v-if="!isCollectionPractice" class="text-sm text-muted-foreground">
                                 {{ t.quizKnowledge }}: {{ verifyResult?.knowledge }}%
                             </p>
+                            <Button
+                                v-if="verifyResult?.description_feedback?.translation"
+                                @click.stop="advanceFromFeedback"
+                            >
+                                {{ t.quizShortcutContinue }}
+                            </Button>
                         </template>
                     </div>
                 </template>
