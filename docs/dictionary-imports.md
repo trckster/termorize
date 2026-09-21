@@ -104,7 +104,8 @@ rollback, history pagination and admin authorization. A blocked Google fake
 verifies unrelated word saves remain available during translation.
 
 From `frontend`, run `pnpm build` and `pnpm test`. Browser verification should
-cover English/dark desktop and Russian/light mobile, starting and retrying jobs,
+cover desktop and mobile with both English and Russian user preferences (admin
+copy always stays English), starting and retrying jobs,
 reload during a download, unknown totals, record errors, refresh after failure,
 admin routing and horizontal overflow. Browser checks can use API fixtures;
 production dictionaries need not be downloaded to verify the UI.
