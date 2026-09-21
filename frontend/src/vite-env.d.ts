@@ -17,6 +17,12 @@ interface ImportMeta {
 
 interface TelegramWebApp {
     initData?: string
+    onEvent?(event: 'settingsButtonClicked', callback: () => void): void
+    offEvent?(event: 'settingsButtonClicked', callback: () => void): void
+    SettingsButton?: {
+        show(): void
+        hide(): void
+    }
 }
 
 interface TelegramGlobal {
