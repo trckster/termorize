@@ -47,6 +47,11 @@ func TestExtractClassificationBoundaries(t *testing.T) {
 	}{
 		{name: "missing optional fields", line: `{"word":"piece of cake","lang_code":"en","tags":["idiomatic"]}`, word: "piece of cake"},
 		{name: "ordinary phrase", line: `{"word":"red apple","lang_code":"en","pos":"phrase"}`},
+		{name: "hard redirect", line: `{"title":"grain of salt","redirect":"with a grain of salt","pos":"hard-redirect"}`},
+		{name: "redirect missing target", line: `{"title":"alias","pos":"hard-redirect"}`, invalid: true},
+		{name: "redirect empty target", line: `{"title":"alias","redirect":" ","pos":"hard-redirect"}`, invalid: true},
+		{name: "redirect wrong field type", line: `{"title":"alias","redirect":{},"pos":"hard-redirect"}`, invalid: true},
+		{name: "redirect without classification", line: `{"title":"alias","redirect":"target"}`, invalid: true},
 		{name: "only a translation", line: `{"word":"обычный","lang_code":"ru","translations":[{"word":"piece of cake","lang_code":"en","tags":["idiomatic"]}]}`},
 		{name: "unrelated category language", line: `{"word":"ordinary","lang_code":"en","categories":["Russian idioms"]}`},
 		{name: "unsupported entry language", line: `{"word":"das ist","lang_code":"de","tags":["idiomatic"]}`},

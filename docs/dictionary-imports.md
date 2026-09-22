@@ -28,7 +28,9 @@ Downloads inspected in memory were discarded; no dictionary dump is committed.
 | Italian | Entry or sense `idiomatic` tag or raw `idiomatico` tag |
 
 No inference is made from spaces, `pos=phrase`, glosses, translations, or related
-terms. Proverb entries and bound morphemes are excluded. Broad Russian
+terms. Hard redirects (`pos=hard-redirect`) contain a title and redirect target
+instead of lexical word/language fields and count as skipped records. Proverb
+entries and bound morphemes are excluded. Broad Russian
 `Фразеология` categories and Italian `Locuzioni` categories are not evidence of an
 idiom. An English-edition idiom can have `pos=verb`.
 
@@ -41,7 +43,8 @@ classifications in the English and Russian editions. No import count is promised
 
 The small JSONL fixtures in `backend/src/integrations/kaikki/testdata` preserve the
 classification fields sampled from those extracts and omit definitions/examples.
-English `rain cats and dogs` and `a-`, all Russian samples, and all Italian samples
+English `rain cats and dogs`, `a-`, and the `grain of salt` redirect, all Russian
+samples, and all Italian samples
 were observed directly. The other two English fixture rows are small synthetic
 cross-language cases using the verified schema. Source attribution: Wiktionary
 contributors, extracted by Tatu Ylonen and contributors using Wiktextract, via

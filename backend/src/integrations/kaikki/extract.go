@@ -23,6 +23,7 @@ type entry struct {
 	Word     string           `json:"word"`
 	Language string           `json:"lang_code"`
 	POS      string           `json:"pos"`
+	Redirect string           `json:"redirect"`
 	Senses   []classification `json:"senses"`
 }
 
@@ -45,6 +46,10 @@ func Extract(edition string, line []byte) (*Idiom, error) {
 	var record entry
 	if err := json.Unmarshal(line, &record); err != nil {
 		return nil, errors.New("invalid entry JSON or field types")
+	}
+	// Hard redirects have a title and target instead of lexical word/language fields.
+	if record.POS == "hard-redirect" && strings.TrimSpace(record.Redirect) != "" {
+		return nil, nil
 	}
 	if record.Word == "" || record.Language == "" {
 		return nil, errors.New("missing word or lang_code")
