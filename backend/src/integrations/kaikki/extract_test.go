@@ -16,7 +16,7 @@ func TestExtractEditionFixtures(t *testing.T) {
 		languages []string
 	}{
 		{"enwiktionary", []string{"rain cats and dogs", "rompere il ghiaccio", "бить баклуши"}, []string{"en", "it", "ru"}},
-		{"ruwiktionary", []string{"al dente", "off the top of one's head"}, []string{"it", "en"}},
+		{"ruwiktionary", []string{"al dente", "off the top of one's head", "бить баклуши"}, []string{"it", "en", "ru"}},
 		{"itwiktionary", []string{"itsy bitsy"}, []string{"en"}},
 	} {
 		t.Run(tt.edition, func(t *testing.T) {
@@ -46,6 +46,9 @@ func TestExtractClassificationBoundaries(t *testing.T) {
 		invalid                   bool
 	}{
 		{name: "missing optional fields", line: `{"word":"piece of cake","lang_code":"en","tags":["idiomatic"]}`, word: "piece of cake"},
+		{name: "space punctuation", line: `{"word":" ","lang_code":"en","pos":"punct"}`},
+		{name: "punctuation with idiomatic tag", line: `{"word":"!","lang_code":"en","pos":"punct","tags":["idiomatic"]}`},
+		{name: "blank idiom", line: `{"word":" ","lang_code":"en","pos":"phrase","tags":["idiomatic"]}`, invalid: true},
 		{name: "ordinary phrase", line: `{"word":"red apple","lang_code":"en","pos":"phrase"}`},
 		{name: "hard redirect", line: `{"title":"grain of salt","redirect":"with a grain of salt","pos":"hard-redirect"}`},
 		{name: "redirect missing target", line: `{"title":"alias","pos":"hard-redirect"}`, invalid: true},

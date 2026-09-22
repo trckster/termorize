@@ -57,14 +57,15 @@ func Extract(edition string, line []byte) (*Idiom, error) {
 	if record.Language != "en" && record.Language != "ru" && record.Language != "it" {
 		return nil, nil
 	}
+	// Punctuation, bound morphemes and proverbs are not standalone idioms, even with idiomatic senses.
+	if slices.Contains([]string{"punct", "prefix", "suffix", "infix", "interfix", "circumfix", "affix", "root", "proverb"}, record.POS) {
+		return nil, nil
+	}
 	word := strings.TrimSpace(record.Word)
 	if word == "" || utf8.RuneCountInString(word) > 500 || strings.ContainsFunc(word, unicode.IsControl) {
 		return nil, errors.New("invalid expression text")
 	}
-	// Bound morphemes and proverb entries are not standalone idioms, even when a sense is idiomatic.
-	if slices.Contains([]string{"prefix", "suffix", "infix", "interfix", "circumfix", "affix", "root", "proverb"}, record.POS) {
-		return nil, nil
-	}
+
 	if !isIdiom(edition, record.Language, record.classification) {
 		matched := false
 		for _, sense := range record.Senses {

@@ -102,12 +102,12 @@ func TestDictionaryImportPromotesExistingWordsAndPreservesVocabulary(t *testing.
 	require.NoError(t, worker.Run(context.Background()))
 	job := loadDictionaryJob(t, queued.ID)
 	assert.Equal(t, "succeeded", job.Status)
-	assert.Equal(t, int64(7), job.Processed)
+	assert.Equal(t, int64(8), job.Processed)
 	assert.Equal(t, int64(2), job.Inserted)
 	assert.Equal(t, int64(1), job.Classified)
-	assert.Equal(t, int64(3), job.Skipped)
+	assert.Equal(t, int64(4), job.Skipped)
 	assert.Equal(t, int64(1), job.Failed)
-	assert.Equal(t, []string{"Line 7: invalid entry JSON or field types"}, job.RecordErrors)
+	assert.Equal(t, []string{"Line 8: invalid entry JSON or field types"}, job.RecordErrors)
 	assert.NotNil(t, job.StartedAt)
 	assert.NotNil(t, job.FinishedAt)
 	assert.Greater(t, job.DownloadedBytes, int64(0))
@@ -133,7 +133,7 @@ func TestDictionaryImportPromotesExistingWordsAndPreservesVocabulary(t *testing.
 	assert.Equal(t, "succeeded", repeated.Status)
 	assert.Zero(t, repeated.Inserted)
 	assert.Zero(t, repeated.Classified)
-	assert.Equal(t, int64(6), repeated.Skipped)
+	assert.Equal(t, int64(7), repeated.Skipped)
 	assert.Equal(t, int32(2), requests.Load(), "retries must download again")
 	var words, vocabularies, translations int64
 	require.NoError(t, db.DB.Model(&models.Word{}).Count(&words).Error)
@@ -483,4 +483,61 @@ func TestDictionaryWordLockDoesNotBlockSavesDuringGoogleTranslation(t *testing.T
 	require.NoError(t, err, "an unrelated save must complete before Google responds")
 	assert.Equal(t, "unrelated", word.Word)
 	once.Do(func() { close(release) })
+}
+
+func TestDictionaryImportProcessesEachEdition(t *testing.T) {
+	for _, tt := range []struct {
+		edition                      string
+		processed, inserted, skipped int64
+		words                        map[string]enums.Language
+	}{
+		{"enwiktionary", 6, 3, 3, map[string]enums.Language{"rain cats and dogs": enums.LanguageEn, "rompere il ghiaccio": enums.LanguageIt, "бить баклуши": enums.LanguageRu}},
+		{"ruwiktionary", 4, 3, 1, map[string]enums.Language{"al dente": enums.LanguageIt, "off the top of one's head": enums.LanguageEn, "бить баклуши": enums.LanguageRu}},
+		{"itwiktionary", 3, 1, 2, map[string]enums.Language{"itsy bitsy": enums.LanguageEn}},
+	} {
+		t.Run(tt.edition, func(t *testing.T) {
+			testkit.Truncate(t)
+			fixture, err := os.ReadFile("src/integrations/kaikki/testdata/" + tt.edition + ".jsonl")
+			require.NoError(t, err)
+			compressed := gzipDictionary(t, string(fixture))
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write(compressed) }))
+			defer server.Close()
+			dictionary := seedDictionary(t, tt.edition, server.URL)
+			worker := newDictionaryWorker(t, server.Client())
+			for attempt := 0; attempt < 2; attempt++ {
+				queued, err := services.StartDictionaryImport(dictionary.ID)
+				require.NoError(t, err)
+				require.NoError(t, worker.Run(context.Background()))
+				job := loadDictionaryJob(t, queued.ID)
+				assert.Equal(t, "succeeded", job.Status)
+				assert.Equal(t, tt.processed, job.Processed)
+				assert.Zero(t, job.Failed)
+				assert.Zero(t, job.Classified)
+				assert.Empty(t, job.RecordErrors)
+				assert.Empty(t, job.Error)
+				if attempt == 0 {
+					assert.Equal(t, tt.inserted, job.Inserted)
+					assert.Equal(t, tt.skipped, job.Skipped)
+				} else {
+					assert.Zero(t, job.Inserted)
+					assert.Equal(t, tt.processed, job.Skipped)
+				}
+				var words []models.Word
+				require.NoError(t, db.DB.Find(&words).Error)
+				require.Len(t, words, len(tt.words))
+				for _, word := range words {
+					language, exists := tt.words[word.Word]
+					require.True(t, exists, "unexpected imported expression: %s", word.Word)
+					assert.Equal(t, language, word.Language)
+					assert.Equal(t, enums.TypeIdiom, word.Type)
+				}
+				for _, model := range []any{&models.Vocabulary{}, &models.Translation{}} {
+					var count int64
+					require.NoError(t, db.DB.Model(model).Count(&count).Error)
+					assert.Zero(t, count)
+				}
+				requireDictionaryTempEmpty(t, worker.TempDir)
+			}
+		})
+	}
 }

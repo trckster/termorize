@@ -20,6 +20,10 @@ Availability and field shapes were checked on 2026-09-21 against the current
 [Kaikki raw downloads](https://kaikki.org/dictionary/rawdata.html) and
 [Wiktextract edition models](https://github.com/tatuylonen/wiktextract/tree/master/src/wiktextract/extractor).
 Downloads inspected in memory were discarded; no dictionary dump is committed.
+Kaikki also offers an [English idiomatic subset](https://kaikki.org/dictionary/English/tags/93/idiomatic/index.html),
+whose JSONL download is marked deprecated. This importer uses raw extracts and
+filters their explicit classifications. It stores idiom text and language, not
+full definitions or every entry in a source.
 
 | Edition | Explicit evidence accepted |
 | --- | --- |
@@ -29,8 +33,8 @@ Downloads inspected in memory were discarded; no dictionary dump is committed.
 
 No inference is made from spaces, `pos=phrase`, glosses, translations, or related
 terms. Hard redirects (`pos=hard-redirect`) contain a title and redirect target
-instead of lexical word/language fields and count as skipped records. Proverb
-entries and bound morphemes are excluded. Broad Russian
+instead of lexical word/language fields and count as skipped records. Punctuation
+(including the space character), proverb entries and bound morphemes are excluded. Broad Russian
 `Фразеология` categories and Italian `Locuzioni` categories are not evidence of an
 idiom. An English-edition idiom can have `pos=verb`.
 
@@ -43,12 +47,41 @@ classifications in the English and Russian editions. No import count is promised
 
 The small JSONL fixtures in `backend/src/integrations/kaikki/testdata` preserve the
 classification fields sampled from those extracts and omit definitions/examples.
-English `rain cats and dogs`, `a-`, and the `grain of salt` redirect, all Russian
-samples, and all Italian samples
-were observed directly. The other two English fixture rows are small synthetic
+English `rain cats and dogs`, `a-`, the `grain of salt` redirect, and the space
+punctuation record, all Russian samples, and all Italian samples were observed
+directly. The other two English fixture rows are small synthetic
 cross-language cases using the verified schema. Source attribution: Wiktionary
 contributors, extracted by Tatu Ylonen and contributors using Wiktextract, via
 Kaikki. Consult the source-specific reuse terms recorded in `dictionaries`.
+
+## Full extract verification
+
+On 2026-09-22, all three configured gzip downloads were streamed in
+full through the application's `kaikki.Extract` parser, with the same 8 MiB line
+limit as the worker. The audit checked gzip completion and every JSONL record;
+no dump was retained and no production data was written.
+
+| Source edition | Records examined | Parsing/validation errors | Qualifying en / ru / it records |
+| --- | ---: | ---: | ---: |
+| English | 10,913,996 | 1 (space punctuation; fixed) | 10,762 / 309 / 836 |
+| Russian | 2,718,090 | 0 | 432 / 4,857 / 7 |
+| Italian | 801,663 | 0 | 1 / 0 / 0 |
+
+The English audit's sole rejection was line 2,492,204: `word=" "`, `pos="punct"`.
+That is a valid space-character entry. The parser now excludes punctuation before
+validating expression text; the observed record and blank-idiom rejection are
+covered by regression tests. The table reports the original full scan; it was not
+rerun after that targeted fix.
+
+Qualifying records are measured before database deduplication, so these are not
+promised insertion totals. All observed record formats are accounted for in
+these source snapshots; missing idiom labels still limit coverage, especially
+in the Italian edition. It does not guarantee the format of future extracts.
+
+Database-backed tests also run every edition's fixtures through gzip download,
+classification, persistence, temporary-file cleanup and a repeat import. They
+verify entry languages independently of edition and leave vocabulary and
+translation tables empty.
 
 ## Worker and storage
 
@@ -66,7 +99,12 @@ removed on success and failure; a worker taking the lock also removes abandoned
 UUID-named downloads from its local directory. Temporary directories must be
 writable and have space for the selected source (the English gzip was about
 2.7 GiB at inspection). Downloads have a six-hour timeout and a 10 GiB size limit.
-No downloads are cached, archived, or included in application images.
+No downloads are cached, archived, or included in application images. Each job
+requests one source download (HTTP redirects may add requests), then parses the
+file locally. Processed-record counts are not network-request counts. Parsing
+commits progress every 500 records; qualifying candidates also require word
+queries/writes. The admin browser polls status separately. Imports never call
+Google Translate or OpenRouter.
 
 The worker streams decompression and reads JSONL with an 8 MiB per-record limit.
 Oversized and malformed records are counted and skipped; the first ten diagnostic
