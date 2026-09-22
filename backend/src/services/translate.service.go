@@ -40,43 +40,44 @@ func DetectLanguage(text string) (enums.Language, bool, error) {
 }
 
 func Translate(fromWord string, fromLanguage enums.Language, toLanguage enums.Language) (*TranslationResult, error) {
-	var result TranslationResult
+	normalizedWord := utils.NormalizeWordCasingForLanguage(fromWord, string(fromLanguage))
+	var existingWord models.Word
+	lookup := db.DB.Where("LOWER(word) = LOWER(?) AND language = ?", normalizedWord, fromLanguage).First(&existingWord)
+	if lookup.Error != nil && !errors.Is(lookup.Error, gorm.ErrRecordNotFound) {
+		return nil, lookup.Error
+	}
+	if lookup.Error == nil {
+		cached, err := findExistingTranslation(db.DB, existingWord.ID, toLanguage)
+		if err != nil {
+			return nil, err
+		}
+		if cached != nil {
+			return translationResult(cached), nil
+		}
+	}
 
-	err := db.DB.Transaction(func(tx *gorm.DB) error {
+	// Google may be slow; hold the word-write lock only while persisting the result.
+	googleClient := google.NewTranslateClient()
+	translatedText, err := googleClient.Translate(fromWord, string(fromLanguage), string(toLanguage))
+	if err != nil {
+		return nil, err
+	}
+	_, translatedText = utils.NormalizeTranslationPairCasing(fromWord, string(fromLanguage), translatedText, string(toLanguage))
+
+	var result TranslationResult
+	err = db.DB.Transaction(func(tx *gorm.DB) error {
 		sourceWord, err := GetOrCreateWord(tx, fromWord, fromLanguage)
 		if err != nil {
 			return err
 		}
-
 		existingTranslation, err := findExistingTranslation(tx, sourceWord.ID, toLanguage)
 		if err != nil {
 			return err
 		}
-
 		if existingTranslation != nil {
-			result = TranslationResult{
-				TranslationID:    existingTranslation.ID,
-				SourceWordID:     existingTranslation.Original.ID,
-				TranslatedWordID: existingTranslation.Translation.ID,
-				SourceWord:       existingTranslation.Original.Word,
-				TranslatedWord:   existingTranslation.Translation.Word,
-				Source:           existingTranslation.Source,
-			}
+			result = *translationResult(existingTranslation)
 			return nil
 		}
-
-		googleClient := google.NewTranslateClient()
-		translatedText, err := googleClient.Translate(fromWord, string(fromLanguage), string(toLanguage))
-		if err != nil {
-			return err
-		}
-
-		_, translatedText = utils.NormalizeTranslationPairCasing(
-			fromWord,
-			string(fromLanguage),
-			translatedText,
-			string(toLanguage),
-		)
 
 		targetWord, err := GetOrCreateWord(tx, translatedText, toLanguage)
 		if err != nil {
@@ -109,6 +110,17 @@ func Translate(fromWord string, fromLanguage enums.Language, toLanguage enums.La
 	}
 
 	return &result, nil
+}
+
+func translationResult(translation *models.Translation) *TranslationResult {
+	return &TranslationResult{
+		TranslationID:    translation.ID,
+		SourceWordID:     translation.Original.ID,
+		TranslatedWordID: translation.Translation.ID,
+		SourceWord:       translation.Original.Word,
+		TranslatedWord:   translation.Translation.Word,
+		Source:           translation.Source,
+	}
 }
 
 func findExistingTranslation(conn *gorm.DB, sourceWordID uuid.UUID, targetLanguage enums.Language) (*models.Translation, error) {

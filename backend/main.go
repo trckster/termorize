@@ -4,6 +4,7 @@ package main
 import _ "termorize/src/utils"
 
 import (
+	"context"
 	"termorize/src/config"
 	"termorize/src/data/db"
 	"termorize/src/http"
@@ -34,6 +35,7 @@ func main() {
 	}
 
 	runners.StartExerciseRunner()
+	runners.StartDictionaryRunner(context.Background())
 
 	http.LaunchServer()
 }

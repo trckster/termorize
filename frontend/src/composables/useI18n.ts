@@ -1,15 +1,42 @@
 import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { formatNumber } from '@/lib/utils.ts'
 
-const en = {
-    // Navigation
-    navHome: 'Home',
-    navVocabulary: 'Vocabulary',
-    navExercises: 'Exercises',
-    navStatistics: 'Statistics',
-    navPractice: 'Practice',
-    navAdmin: 'Admin',
+// Admin copy stays English; client copy supports English and Russian.
+const admin = {
+    navDictionaries: 'Dictionaries',
+    dictionariesIntro:
+        'Import explicitly classified English, Russian, and Italian idioms from Wiktionary. Source editions can contain entries in several languages.',
+    dictionariesBackground:
+        'Imports continue after you leave this page. An update downloads the source again and preserves existing vocabulary.',
+    dictionariesEmpty: 'No dictionary sources configured.',
+    dictionaryImport: 'Import',
+    dictionaryUpdate: 'Update',
+    dictionaryRetry: 'Retry import',
+    dictionaryInProgress: 'Import in progress',
+    dictionaryQueued: 'Queued',
+    dictionaryDownloading: 'Downloading',
+    dictionaryImporting: 'Importing idioms',
+    dictionaryCompleted: 'Completed',
+    dictionaryCompletedWithErrors: 'Completed with record errors',
+    dictionaryFailed: 'Import failed',
+    dictionaryInterrupted: 'Interrupted — retry available',
+    dictionaryProcessed: 'Processed records',
+    dictionaryInserted: 'Inserted idioms',
+    dictionaryClassified: 'Newly classified',
+    dictionarySkipped: 'Skipped records',
+    dictionaryFailedRecords: 'Failed records',
+    dictionaryDownloaded: 'downloaded',
+    dictionaryNoImports: 'No imports yet.',
+    dictionarySourceDetails: 'Source and attribution',
+    dictionaryHistory: 'Previous imports',
+    dictionaryRecordErrors: 'Record errors (first 10)',
+    dictionaryLoading: 'Loading dictionaries…',
+    dictionaryLoadError: 'Could not refresh dictionary status. Please retry.',
+    dictionaryRefresh: 'Refresh',
+    dictionaryAlreadyActive: 'An import is already active for this source.',
+    dictionaryStartError: 'Could not confirm the import. Refresh its status before retrying.',
     navDescriptions: 'Descriptions',
     descriptionsIntro:
         'Generated clues shared across exercises. Regenerate a clue and approve the preview to replace it.',
@@ -36,8 +63,6 @@ const en = {
     descriptionsPage: 'Page {page} of {total}',
     navUsers: 'Users',
     navWordAudios: 'Word audios',
-
-    // Admin users page
     usersHeading: 'Users',
     usersDescription:
         'Up to 50 users, including deleted accounts, sorted by their latest vocabulary addition or finished exercise.',
@@ -52,8 +77,6 @@ const en = {
     usersEmptyDescription: 'Users will appear after adding vocabulary or finishing an exercise.',
     usersNotAvailable: 'Not available',
     usersDeleted: 'Deleted',
-
-    // Admin word audios page
     wordAudiosLabel: 'Admin',
     wordAudiosHeading: 'Word audios',
     wordAudiosDescription: 'Review generated pronunciations, listen to exact stored files, and replace recordings.',
@@ -87,6 +110,18 @@ const en = {
     wordAudiosRegeneratedTitle: 'Audio regenerated',
     wordAudiosRegeneratedDescription: 'A new recording for {word} is ready.',
     wordAudiosRegenerateError: 'Unable to regenerate audio for {word}. The existing file was kept.',
+}
+
+const en = {
+    ...admin,
+
+    // Navigation
+    navHome: 'Home',
+    navVocabulary: 'Vocabulary',
+    navExercises: 'Exercises',
+    navStatistics: 'Statistics',
+    navPractice: 'Practice',
+    navAdmin: 'Admin',
 
     // Header
     headerChangeTheme: 'Change theme',
@@ -600,6 +635,8 @@ const en = {
 }
 
 const ru: typeof en = {
+    ...admin,
+
     // Navigation
     navHome: 'Главная',
     navVocabulary: 'Словарь',
@@ -607,82 +644,6 @@ const ru: typeof en = {
     navStatistics: 'Статистика',
     navPractice: 'Практика',
     navAdmin: 'Администрирование',
-    navDescriptions: 'Описания',
-    descriptionsIntro: 'Сгенерированные подсказки для упражнений. Создайте новое описание и подтвердите замену.',
-    descriptionsSearch: 'Поиск по словам и описаниям…',
-    descriptionsEmpty: 'Описания не найдены.',
-    descriptionsLoadError: 'Не удалось загрузить описания. Попробуйте ещё раз.',
-    descriptionsModel: 'Модель для генерации',
-    descriptionsBasic: 'Базовая (по умолчанию)',
-    descriptionsMedium: 'Средняя',
-    descriptionsSmart: 'Умная',
-    descriptionsRegenerate: 'Перегенерировать',
-    descriptionsPreviewTitle: 'Проверка описания',
-    descriptionsCurrent: 'Текущее описание',
-    descriptionsProposed: 'Новое описание',
-    descriptionsApprove: 'Подтвердить замену',
-    descriptionsCancel: 'Отклонить',
-    descriptionsPreviewNote: 'Текущее описание используется до подтверждения замены.',
-    descriptionsGenerateError: 'Не удалось создать подходящее описание. Повторите попытку или выберите другую модель.',
-    descriptionsApproveError: 'Не удалось сохранить описание. Попробуйте ещё раз.',
-    descriptionsApproved: 'Описание заменено.',
-    descriptionsCreated: 'Создано',
-    descriptionsPrevious: 'Назад',
-    descriptionsNext: 'Далее',
-    descriptionsPage: 'Страница {page} из {total}',
-    navUsers: 'Пользователи',
-    navWordAudios: 'Аудио слов',
-
-    // Admin users page
-    usersHeading: 'Пользователи',
-    usersDescription:
-        'До 50 пользователей, включая удалённые аккаунты, по последнему добавлению в словарь или завершённому упражнению.',
-    usersTotal: 'Всего пользователей',
-    usersId: 'ID пользователя',
-    usersName: 'Имя',
-    usersUsername: 'Имя пользователя',
-    usersVocabularySize: 'Размер словаря',
-    usersLatestUsage: 'Последняя активность',
-    usersLoadError: 'Не удалось загрузить пользователей. Попробуйте ещё раз.',
-    usersEmpty: 'Недавней активности нет',
-    usersEmptyDescription: 'Пользователи появятся после добавления слов или завершения упражнения.',
-    usersNotAvailable: 'Недоступно',
-    usersDeleted: 'Удалён',
-
-    // Admin word audios page
-    wordAudiosLabel: 'Администрирование',
-    wordAudiosHeading: 'Аудио слов',
-    wordAudiosDescription: 'Прослушивайте сохранённые произношения и заменяйте записи новыми.',
-    wordAudiosTotal: 'Всего аудио',
-    wordAudiosSearchLabel: 'Поиск аудио слов',
-    wordAudiosSearchPlaceholder: 'Поиск по слову или тексту...',
-    wordAudiosLoadError: 'Не удалось загрузить аудио слов. Попробуйте ещё раз.',
-    wordAudiosEmpty: 'Аудио ещё не созданы',
-    wordAudiosEmptyDescription: 'Файлы появятся после генерации произношений.',
-    wordAudiosNoResults: 'Подходящих аудио нет',
-    wordAudiosNoResultsDescription: 'Попробуйте другое слово или фразу.',
-    wordAudiosLanguage: 'Язык',
-    wordAudiosWord: 'Слово или текст',
-    wordAudiosAudio: 'Аудио',
-    wordAudiosGenerator: 'Генератор',
-    wordAudiosModel: 'Модель',
-    wordAudiosVoice: 'Голос',
-    wordAudiosGenerated: 'Создано',
-    wordAudiosSize: 'Размер файла',
-    wordAudiosDetails: 'Детали файла',
-    wordAudiosActions: 'Действия',
-    wordAudiosTelegramCached: 'Кэшировано в Telegram',
-    wordAudiosTelegramNotCached: 'Не кэшировано в Telegram',
-    wordAudiosListen: 'Прослушать {word}',
-    wordAudiosPause: 'Приостановить {word}',
-    wordAudiosAudioLoading: 'Загрузка аудио для {word}',
-    wordAudiosAudioError: 'Не удалось воспроизвести аудио для {word}',
-    wordAudiosRegenerate: 'Пересоздать',
-    wordAudiosRegenerating: 'Создаётся...',
-    wordAudiosRegenerateLabel: 'Удалить и пересоздать аудио для {word}',
-    wordAudiosRegeneratedTitle: 'Аудио пересоздано',
-    wordAudiosRegeneratedDescription: 'Новая запись для {word} готова.',
-    wordAudiosRegenerateError: 'Не удалось пересоздать аудио для {word}. Старый файл сохранён.',
 
     // Header
     headerChangeTheme: 'Сменить тему',
@@ -1235,7 +1196,10 @@ export const getLocaleDirection = (language?: string): 'ltr' | 'rtl' => {
 
 export function useI18n() {
     const authStore = useAuthStore()
-    const locale = computed<Locale>(() => getSupportedLocale(authStore.user?.settings.system_language))
+    const route = useRoute()
+    const locale = computed<Locale>(() =>
+        route.meta.requiresAdmin ? 'en' : getSupportedLocale(authStore.user?.settings.system_language)
+    )
     const t = computed<Translations>(() => translations[locale.value])
     const saves = (count: number) => formatSaves(count, locale.value)
     return { t, locale, saves }

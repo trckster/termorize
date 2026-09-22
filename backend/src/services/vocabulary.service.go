@@ -75,17 +75,35 @@ func InvalidPaginationError(err error) bool {
 }
 
 func GetOrCreateWord(conn *gorm.DB, word string, language enums.Language) (*models.Word, error) {
+	var result *models.Word
+	err := conn.Transaction(func(tx *gorm.DB) error {
+		if err := lockWordWrites(tx); err != nil {
+			return err
+		}
+		var err error
+		result, _, err = getOrCreateWordLocked(tx, word, language)
+		return err
+	})
+	return result, err
+}
+
+// One transaction lock avoids reversed word-pair deadlocks and races with dictionary imports.
+func lockWordWrites(conn *gorm.DB) error {
+	return conn.Exec("SELECT pg_advisory_xact_lock(?)", int64(814760924)).Error
+}
+
+func getOrCreateWordLocked(conn *gorm.DB, word string, language enums.Language) (*models.Word, bool, error) {
 	normalizedWord := utils.NormalizeWordCasingForLanguage(word, string(language))
 
 	var existingWord models.Word
 	result := conn.Where("LOWER(word) = LOWER(?) AND language = ?", normalizedWord, language).First(&existingWord)
 
 	if result.Error == nil {
-		return &existingWord, nil
+		return &existingWord, false, nil
 	}
 
 	if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		return nil, result.Error
+		return nil, false, result.Error
 	}
 
 	newWord := models.Word{
@@ -94,10 +112,10 @@ func GetOrCreateWord(conn *gorm.DB, word string, language enums.Language) (*mode
 	}
 
 	if err := conn.Create(&newWord).Error; err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
-	return &newWord, nil
+	return &newWord, true, nil
 }
 
 func CreateVocabulary(userID uint, req CreateVocabularyRequest) (*models.Vocabulary, error) {
