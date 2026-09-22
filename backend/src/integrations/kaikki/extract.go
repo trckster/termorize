@@ -23,6 +23,7 @@ type entry struct {
 	Word     string           `json:"word"`
 	Language string           `json:"lang_code"`
 	POS      string           `json:"pos"`
+	Redirect string           `json:"redirect"`
 	Senses   []classification `json:"senses"`
 }
 
@@ -46,20 +47,25 @@ func Extract(edition string, line []byte) (*Idiom, error) {
 	if err := json.Unmarshal(line, &record); err != nil {
 		return nil, errors.New("invalid entry JSON or field types")
 	}
+	// Hard redirects have a title and target instead of lexical word/language fields.
+	if record.POS == "hard-redirect" && strings.TrimSpace(record.Redirect) != "" {
+		return nil, nil
+	}
 	if record.Word == "" || record.Language == "" {
 		return nil, errors.New("missing word or lang_code")
 	}
 	if record.Language != "en" && record.Language != "ru" && record.Language != "it" {
 		return nil, nil
 	}
+	// Punctuation, bound morphemes and proverbs are not standalone idioms, even with idiomatic senses.
+	if slices.Contains([]string{"punct", "prefix", "suffix", "infix", "interfix", "circumfix", "affix", "root", "proverb"}, record.POS) {
+		return nil, nil
+	}
 	word := strings.TrimSpace(record.Word)
 	if word == "" || utf8.RuneCountInString(word) > 500 || strings.ContainsFunc(word, unicode.IsControl) {
 		return nil, errors.New("invalid expression text")
 	}
-	// Bound morphemes and proverb entries are not standalone idioms, even when a sense is idiomatic.
-	if slices.Contains([]string{"prefix", "suffix", "infix", "interfix", "circumfix", "affix", "root", "proverb"}, record.POS) {
-		return nil, nil
-	}
+
 	if !isIdiom(edition, record.Language, record.classification) {
 		matched := false
 		for _, sense := range record.Senses {
