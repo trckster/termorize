@@ -12,8 +12,7 @@ const auth = useAuthStore()
 const { t } = useI18n()
 const language = ref(auth.user?.settings.main_learning_language || 'en')
 const timezone = computed(() => auth.user?.settings.time_zone || 'UTC')
-const requested = ref(false)
-const loading = ref(false)
+const loading = ref(true)
 const failed = ref(false)
 const daily = ref<DailyIdiom | null>(null)
 const description = ref('')
@@ -24,7 +23,6 @@ let refreshTimer: ReturnType<typeof setInterval> | undefined
 const currentDate = () => localDateInTimezone(new Date(), timezone.value)
 
 async function load() {
-    requested.value = true
     loading.value = true
     failed.value = false
     daily.value = null
@@ -51,12 +49,12 @@ async function load() {
 }
 
 function refreshIfDateChanged() {
-    if (document.visibilityState === 'hidden' || !requested.value || currentDate() === requestedDate) return
+    if (document.visibilityState === 'hidden' || currentDate() === requestedDate) return
     void load()
 }
 
 watch([language, timezone], () => {
-    if (requested.value) void load()
+    void load()
 })
 watch(
     () => auth.user?.settings.main_learning_language,
@@ -66,6 +64,7 @@ watch(
 )
 
 onMounted(() => {
+    void load()
     refreshTimer = setInterval(refreshIfDateChanged, 15_000)
     document.addEventListener('visibilitychange', refreshIfDateChanged)
     window.addEventListener('focus', refreshIfDateChanged)
@@ -79,7 +78,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <section aria-labelledby="daily-idiom-title" class="mt-8 border-t border-border pt-6 sm:mt-10">
+    <section
+        v-if="daily?.idiom || failed"
+        aria-labelledby="daily-idiom-title"
+        class="mt-8 border-t border-border pt-6 sm:mt-10"
+    >
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 id="daily-idiom-title" class="text-lg font-semibold">{{ t.dailyIdiomTitle }}</h2>
             <div class="w-full sm:w-52">
@@ -87,10 +90,7 @@ onBeforeUnmount(() => {
             </div>
         </div>
         <div class="mt-4" aria-live="polite" :aria-busy="loading">
-            <Button v-if="!requested" variant="outline" class="min-h-11" @click="load">
-                {{ t.dailyIdiomShow }}
-            </Button>
-            <div v-else class="space-y-3">
+            <div class="space-y-3">
                 <p v-if="daily?.idiom" :lang="daily.language" class="break-words text-xl font-medium leading-7">
                     {{ daily.idiom.word }}
                 </p>
@@ -105,7 +105,6 @@ onBeforeUnmount(() => {
                     <p role="alert" class="text-sm text-foreground">{{ t.dailyIdiomError }}</p>
                     <Button variant="outline" class="min-h-11" @click="load">{{ t.commonRetry }}</Button>
                 </div>
-                <p v-else-if="daily && !daily.idiom" class="text-sm text-muted-foreground">{{ t.dailyIdiomEmpty }}</p>
             </div>
         </div>
     </section>
