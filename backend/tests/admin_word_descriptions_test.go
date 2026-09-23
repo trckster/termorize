@@ -113,7 +113,7 @@ func TestAdminDescriptionPreviewRequiresApprovalAndUsesSelectedModel(t *testing.
 			}}, model)
 			preview := previewAdminDescription(t, admin, existing, model)
 			require.Equal(t, model, preview.Model)
-			assert.Equal(t, *existing.TranslationWordID, preview.TranslationWordID)
+			assert.Equal(t, existing.TranslationWordID, preview.TranslationWordID)
 			assert.Equal(t, "traduzione cat", preview.Translation)
 			assert.Equal(t, enums.LanguageIt, preview.TranslationLanguage)
 			var rows []models.WordDescription
@@ -261,7 +261,7 @@ func TestAdminDescriptionDirectionsPreserveTranslationContext(t *testing.T) {
 			}}, config.GetOpenRouterModel())
 
 			preview := previewAdminDescription(t, admin, existing, config.GetOpenRouterModel())
-			assert.Equal(t, translation.ID, preview.TranslationWordID)
+			assert.Equal(t, &translation.ID, preview.TranslationWordID)
 			assert.Equal(t, translation.Word, preview.Translation)
 			assert.Equal(t, translation.Language, preview.TranslationLanguage)
 			var unchanged models.WordDescription

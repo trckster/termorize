@@ -1,6 +1,7 @@
 package testkit
 
 import (
+	"context"
 	"testing"
 
 	"termorize/src/integrations/google"
@@ -43,7 +44,15 @@ func MockGoogleTranslate(t *testing.T, fake *FakeGoogleTranslate) *FakeGoogleTra
 type FakeOpenRouter struct {
 	GenerateFunc                      func(prompt string, allowedLanguages []string) (*openrouter.GeneratedCollection, error)
 	GenerateDescriptionFunc           func(word, wordLanguage, translation, translationLanguage, descriptionLanguage string) (*openrouter.GeneratedDescription, error)
+	GenerateIdiomDescriptionFunc      func(ctx context.Context, idiom, language string) (*openrouter.GeneratedDescription, error)
 	DescriptionContainsAnswerFormFunc func(word, wordLanguage, description string) (bool, error)
+}
+
+func (f *FakeOpenRouter) GenerateIdiomDescription(ctx context.Context, idiom, language string) (*openrouter.GeneratedDescription, error) {
+	if f.GenerateIdiomDescriptionFunc != nil {
+		return f.GenerateIdiomDescriptionFunc(ctx, idiom, language)
+	}
+	return &openrouter.GeneratedDescription{Description: "a brief figurative meaning"}, nil
 }
 
 func (f *FakeOpenRouter) GenerateDescription(word, wordLanguage, translation, translationLanguage, descriptionLanguage string) (*openrouter.GeneratedDescription, error) {

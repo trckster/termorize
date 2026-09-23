@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"termorize/src/data/db"
@@ -46,7 +47,7 @@ type AdminWordDescriptionsResponse struct {
 }
 
 type WordDescriptionPreview struct {
-	TranslationWordID   uuid.UUID      `json:"translation_word_id"`
+	TranslationWordID   *uuid.UUID     `json:"translation_word_id"`
 	Translation         string         `json:"translation"`
 	TranslationLanguage enums.Language `json:"translation_language"`
 	Model               string         `json:"model"`
@@ -93,30 +94,41 @@ func PreviewWordDescriptionForAdmin(id uuid.UUID, model string) (*WordDescriptio
 		return nil, err
 	}
 	translation := existing.TranslationWord
+	if existing.TranslationWordID == nil {
+		description, err := generateValidatedIdiomDescription(context.Background(), *existing.Word, openrouter.NewClientWithModel(model))
+		if err != nil {
+			return nil, err
+		}
+		return &WordDescriptionPreview{Model: model, Description: description, OriginalDescription: existing.Description}, nil
+	}
 	description, err := generateValidatedDescription(*existing.Word, *translation, openrouter.NewClientWithModel(model))
 	if err != nil {
 		return nil, err
 	}
 	return &WordDescriptionPreview{
 		Model: model, Description: description, OriginalDescription: existing.Description,
-		TranslationWordID: translation.ID, Translation: translation.Word, TranslationLanguage: translation.Language,
+		TranslationWordID: &translation.ID, Translation: translation.Word, TranslationLanguage: translation.Language,
 	}, nil
 }
 
-func ApproveWordDescriptionForAdmin(id, translationWordID uuid.UUID, model, description string) error {
+func ApproveWordDescriptionForAdmin(id uuid.UUID, translationWordID *uuid.UUID, model, description string) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		var existing models.WordDescription
 		if err := tx.First(&existing, "id = ?", id).Error; err != nil {
 			return err
 		}
-		lockKey := descriptionLockKey(existing.WordID, translationWordID)
+		lockKey := idiomDescriptionLockKey(existing.WordID)
+		if translationWordID != nil {
+			lockKey = descriptionLockKey(existing.WordID, *translationWordID)
+		}
 		if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", lockKey).Error; err != nil {
 			return err
 		}
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&existing, "id = ?", id).Error; err != nil {
 			return err
 		}
-		if *existing.TranslationWordID != translationWordID {
+		if (existing.TranslationWordID == nil) != (translationWordID == nil) ||
+			(existing.TranslationWordID != nil && *existing.TranslationWordID != *translationWordID) {
 			return ErrInvalidDescriptionTranslation
 		}
 		return tx.Model(&existing).Updates(map[string]any{

@@ -74,9 +74,9 @@ func ApproveAdminWordDescription(c *gin.Context) {
 		return
 	}
 	var request struct {
-		Model             string    `json:"model" binding:"required"`
-		Description       string    `json:"description" binding:"required"`
-		TranslationWordID uuid.UUID `json:"translation_word_id" binding:"required"`
+		Model             string     `json:"model" binding:"required"`
+		Description       string     `json:"description" binding:"required"`
+		TranslationWordID *uuid.UUID `json:"translation_word_id"`
 	}
 	if c.ShouldBindJSON(&request) != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
