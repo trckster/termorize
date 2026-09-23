@@ -20,23 +20,18 @@ import (
 	"gorm.io/gorm"
 )
 
-// Contract: authenticated GET with a required supported language; shared local-date
+// Contract: authenticated GET using the saved main learning language; shared local-date
 // assignments, explicit empty results, stable replay, exact below-maximum balancing,
 // and serialized first requests across the same or different dates in a language.
 func TestDailyIdiomEndpoint(t *testing.T) {
 	testkit.Truncate(t)
 	user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{TimeZone: "Pacific/Kiritimati"}))
 	other := testkit.CreateUser(t, testkit.WithSettings(user.Settings))
-	path := "/api/daily-idiom?language=en"
+	path := "/api/daily-idiom"
 	testkit.RequireStatus(t, testkit.Request(t, http.MethodGet, path, nil), http.StatusUnauthorized)
 	stale := testkit.CreateUser(t)
 	require.NoError(t, db.DB.Delete(&stale).Error)
 	testkit.RequireStatus(t, testkit.AuthedRequest(t, stale, http.MethodGet, path, nil), http.StatusUnauthorized)
-	for _, query := range []string{"", "?language=", "?language=zz", "?language=EN"} {
-		rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/daily-idiom"+query, nil)
-		testkit.RequireStatus(t, rec, http.StatusBadRequest)
-		assert.JSONEq(t, `{"error":"language must be a supported language"}`, rec.Body.String())
-	}
 
 	unknown := models.Word{Word: "ordinary", Language: enums.LanguageEn}
 	require.NoError(t, db.DB.Create(&unknown).Error)
@@ -85,6 +80,41 @@ func TestDailyIdiomEndpoint(t *testing.T) {
 	}
 }
 
+func TestDailyIdiomAlwaysUsesSavedMainLearningLanguage(t *testing.T) {
+	testkit.Truncate(t)
+	user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{
+		MainLearningLanguage:      enums.LanguageIt,
+		TranslationSourceLanguage: enums.LanguageEn,
+		TranslationTargetLanguage: enums.LanguageRu,
+	}))
+	italian := seedDailyIdiomWord(t, "essere al settimo cielo", enums.LanguageIt)
+	english := seedDailyIdiomWord(t, "under the weather", enums.LanguageEn)
+	var first services.DailyIdiomResponse
+	for _, path := range []string{"/api/daily-idiom", "/api/daily-idiom?language=en"} {
+		rec := testkit.AuthedRequest(t, user, http.MethodGet, path, nil)
+		testkit.RequireStatus(t, rec, http.StatusOK)
+		var result services.DailyIdiomResponse
+		testkit.DecodeJSON(t, rec, &result)
+		require.NotNil(t, result.Idiom)
+		assert.Equal(t, enums.LanguageIt, result.Language)
+		assert.Equal(t, italian.ID, result.Idiom.WordID)
+		if first.Idiom != nil {
+			assert.Equal(t, first, result)
+		}
+		first = result
+	}
+	user.Settings.MainLearningLanguage = enums.LanguageEn
+	require.NoError(t, db.DB.Model(&user).Update("settings", user.Settings).Error)
+	rec := testkit.AuthedRequest(t, user, http.MethodGet, "/api/daily-idiom", nil)
+	testkit.RequireStatus(t, rec, http.StatusOK)
+	var result services.DailyIdiomResponse
+	testkit.DecodeJSON(t, rec, &result)
+	require.NotNil(t, result.Idiom)
+	assert.Equal(t, enums.LanguageEn, result.Language)
+	assert.Equal(t, english.ID, result.Idiom.WordID)
+	assertDailyIdiomCount(t, 2)
+}
+
 func TestDailyIdiomDatesAndCycles(t *testing.T) {
 	testkit.Truncate(t)
 	west := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{TimeZone: "America/Los_Angeles"}))
@@ -93,29 +123,29 @@ func TestDailyIdiomDatesAndCycles(t *testing.T) {
 		seedDailyIdiomWord(t, fmt.Sprintf("idiom %d", i), enums.LanguageEn)
 	}
 	now := time.Date(2026, 9, 23, 12, 0, 0, 0, time.UTC)
-	first := requestDailyIdiomAt(t, west, enums.LanguageEn, now)
-	second := requestDailyIdiomAt(t, east, enums.LanguageEn, now)
+	first := requestDailyIdiomAt(t, west, now)
+	second := requestDailyIdiomAt(t, east, now)
 	assert.Equal(t, "2026-09-23", first.Date)
 	assert.Equal(t, "2026-09-24", second.Date)
 	assert.NotEqual(t, first.Idiom.WordID, second.Idiom.WordID)
-	assert.Equal(t, first, requestDailyIdiomAt(t, west, enums.LanguageEn, now.Add(time.Hour)))
+	assert.Equal(t, first, requestDailyIdiomAt(t, west, now.Add(time.Hour)))
 	seen := map[uuid.UUID]bool{first.Idiom.WordID: true, second.Idiom.WordID: true}
-	third := requestDailyIdiomAt(t, west, enums.LanguageEn, now.AddDate(0, 0, 10))
+	third := requestDailyIdiomAt(t, west, now.AddDate(0, 0, 10))
 	assert.False(t, seen[third.Idiom.WordID])
 	assertDailyIdiomCount(t, 3)
 	for cycle := range 2 {
 		seen = make(map[uuid.UUID]bool)
 		for day := range 3 {
-			selected := requestDailyIdiomAt(t, west, enums.LanguageEn, now.AddDate(0, 0, 20+cycle*3+day))
+			selected := requestDailyIdiomAt(t, west, now.AddDate(0, 0, 20+cycle*3+day))
 			assert.False(t, seen[selected.Idiom.WordID], "each word appears once per cycle")
 			seen[selected.Idiom.WordID] = true
 		}
 	}
 	assertDailyIdiomCount(t, 9)
 	newcomer := seedDailyIdiomWord(t, "new idiom", enums.LanguageEn)
-	selected := requestDailyIdiomAt(t, west, enums.LanguageEn, now.AddDate(0, 0, 40))
+	selected := requestDailyIdiomAt(t, west, now.AddDate(0, 0, 40))
 	assert.Equal(t, newcomer.ID, selected.Idiom.WordID)
-	assert.Equal(t, first, requestDailyIdiomAt(t, west, enums.LanguageEn, now))
+	assert.Equal(t, first, requestDailyIdiomAt(t, west, now))
 }
 
 func TestDailyIdiomBelowMaximumAndIndependentLanguages(t *testing.T) {
@@ -138,7 +168,7 @@ func TestDailyIdiomBelowMaximumAndIndependentLanguages(t *testing.T) {
 		require.NoError(t, db.DB.Exec("SELECT setseed(0.5)").Error)
 		seen := make(map[uuid.UUID]bool)
 		for range 32 {
-			selected := requestDailyIdiomAt(t, user, enums.LanguageEn, start.AddDate(0, 1, 0))
+			selected := requestDailyIdiomAt(t, user, start.AddDate(0, 1, 0))
 			assert.NotEqual(t, highest.ID, selected.Idiom.WordID, "another language's count must not make the English maximum eligible")
 			seen[selected.Idiom.WordID] = true
 			require.NoError(t, db.DB.Delete(&models.DailyIdiom{}, "id = ?", selected.Idiom.ID).Error)
@@ -147,7 +177,8 @@ func TestDailyIdiomBelowMaximumAndIndependentLanguages(t *testing.T) {
 		assert.True(t, seen[middle.ID], "below-maximum selection must include non-minimum counts")
 		return nil
 	}))
-	selected := requestDailyIdiomAt(t, user, enums.LanguageIt, start.AddDate(0, 1, 0))
+	italianUser := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{MainLearningLanguage: enums.LanguageIt}))
+	selected := requestDailyIdiomAt(t, italianUser, start.AddDate(0, 1, 0))
 	assert.Equal(t, italian.ID, selected.Idiom.WordID, "a single idiom can recur indefinitely")
 }
 
@@ -175,7 +206,7 @@ func TestDailyIdiomConcurrentRequests(t *testing.T) {
 					if differentDates {
 						now = now.AddDate(0, 0, i)
 					}
-					results[i], errors[i] = services.GetDailyIdiom(ctx, user.ID, enums.LanguageEn, now)
+					results[i], errors[i] = services.GetDailyIdiom(ctx, user.ID, now)
 				}()
 			}
 			close(start)
@@ -206,9 +237,9 @@ func seedDailyIdiomWord(t *testing.T, text string, language enums.Language) mode
 	return word
 }
 
-func requestDailyIdiomAt(t *testing.T, user models.User, language enums.Language, now time.Time) *services.DailyIdiomResponse {
+func requestDailyIdiomAt(t *testing.T, user models.User, now time.Time) *services.DailyIdiomResponse {
 	t.Helper()
-	result, err := services.GetDailyIdiom(context.Background(), user.ID, language, now)
+	result, err := services.GetDailyIdiom(context.Background(), user.ID, now)
 	require.NoError(t, err)
 	require.NotNil(t, result.Idiom)
 	return result

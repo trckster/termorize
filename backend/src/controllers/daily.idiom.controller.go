@@ -3,7 +3,6 @@ package controllers
 import (
 	"errors"
 	"net/http"
-	"termorize/src/enums"
 	"termorize/src/services"
 	"time"
 
@@ -13,13 +12,7 @@ import (
 )
 
 func GetDailyIdiom(c *gin.Context) {
-	language := enums.Language(c.Query("language"))
-	if !enums.IsSupportedLanguage(language) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "language must be a supported language"})
-		return
-	}
-
-	result, err := services.GetDailyIdiom(c.Request.Context(), c.GetUint("userID"), language, time.Now())
+	result, err := services.GetDailyIdiom(c.Request.Context(), c.GetUint("userID"), time.Now())
 	if err != nil {
 		ServerError(c, err)
 		return

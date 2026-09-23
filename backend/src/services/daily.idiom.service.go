@@ -34,11 +34,12 @@ func dailyIdiomDate(now time.Time, timezone string) string {
 
 // GetDailyIdiom shares assignments by local date and language, independent of the user.
 // now is the request time, captured before waiting for the selection lock.
-func GetDailyIdiom(ctx context.Context, userID uint, language enums.Language, now time.Time) (*DailyIdiomResponse, error) {
+func GetDailyIdiom(ctx context.Context, userID uint, now time.Time) (*DailyIdiomResponse, error) {
 	var user models.User
 	if err := db.DB.WithContext(ctx).Select("settings").First(&user, userID).Error; err != nil {
 		return nil, err
 	}
+	language := user.Settings.MainLearningLanguage
 	result := &DailyIdiomResponse{Date: dailyIdiomDate(now, user.Settings.TimeZone), Language: language}
 	err := db.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Serialize all dates in this language so adjacent local dates cannot both
