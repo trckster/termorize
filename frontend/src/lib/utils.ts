@@ -64,14 +64,11 @@ export function formatDate(dateString: string) {
         return dateString
     }
 
-    return new Intl.DateTimeFormat(getPreferredLocale(), {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-    }).format(date)
+    // Always display YYYY-MM-DD HH:mm:ss (24-hour), regardless of locale; never use American date/time formats.
+    const pad = (value: number) => String(value).padStart(2, '0')
+    const day = `${String(date.getFullYear()).padStart(4, '0')}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+    const time = `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+    return `${day} ${time}`
 }
 
 export function formatNumber(value: number) {

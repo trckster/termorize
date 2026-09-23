@@ -5,16 +5,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 
 const props = defineProps<{
     activity: VocabularyDailyActivity[]
-    locale: string
     vocabularyLabel: string
     lessLabel: string
     moreLabel: string
 }>()
-
-const monthFormatter = computed(() => new Intl.DateTimeFormat(props.locale, { month: 'long', year: 'numeric' }))
-const dateFormatter = computed(
-    () => new Intl.DateTimeFormat(props.locale, { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })
-)
 
 const months = computed(() => {
     const grouped = new Map<string, VocabularyDailyActivity[]>()
@@ -30,7 +24,7 @@ const months = computed(() => {
             const mondayOffset = (firstDate.getDay() + 6) % 7
             return {
                 key,
-                label: monthFormatter.value.format(firstDate),
+                label: key,
                 days: [...Array.from({ length: mondayOffset }, () => null), ...days],
             }
         })
@@ -50,8 +44,6 @@ const intensityClasses = [
     'border-primary/30 bg-primary/90',
 ]
 const intensityClass = (count: number) => intensityClasses[intensity(count)]
-
-const formatDate = (date: string) => dateFormatter.value.format(new Date(`${date}T00:00:00`))
 </script>
 
 <template>
@@ -81,12 +73,12 @@ const formatDate = (date: string) => dateFormatter.value.format(new Date(`${date
                                     type="button"
                                     class="h-6 w-6 rounded-[5px] border outline-none transition-[transform,box-shadow] duration-200 hover:scale-110 focus-visible:scale-110 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background min-[360px]:h-[22px] min-[360px]:w-[22px] md:h-5 md:w-5"
                                     :class="intensityClass(day.count)"
-                                    :aria-label="`${formatDate(day.date)}: ${day.count} ${vocabularyLabel}`"
+                                    :aria-label="`${day.date}: ${day.count} ${vocabularyLabel}`"
                                 />
                             </TooltipTrigger>
                             <TooltipContent side="top" class="text-xs">
                                 <p class="font-medium">{{ day.count }} {{ vocabularyLabel }}</p>
-                                <p class="text-muted-foreground">{{ formatDate(day.date) }}</p>
+                                <p class="text-muted-foreground">{{ day.date }}</p>
                             </TooltipContent>
                         </Tooltip>
                     </template>
