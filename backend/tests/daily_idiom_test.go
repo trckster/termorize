@@ -38,7 +38,6 @@ func TestDailyIdiomEndpoint(t *testing.T) {
 		assert.JSONEq(t, `{"error":"language must be a supported language"}`, rec.Body.String())
 	}
 
-	// Ordinary words and idioms in another language do not enter the pool.
 	unknown := models.Word{Word: "ordinary", Language: enums.LanguageEn}
 	require.NoError(t, db.DB.Create(&unknown).Error)
 	seedDailyIdiomWord(t, "бить баклуши", enums.LanguageRu)
@@ -67,7 +66,6 @@ func TestDailyIdiomEndpoint(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, []string{before.In(location).Format(time.DateOnly), after.In(location).Format(time.DateOnly)}, selected.Date)
 
-	// A newcomer never replaces a persisted assignment, even for another user.
 	seedDailyIdiomWord(t, "break the ice", enums.LanguageEn)
 	rec = testkit.AuthedRequest(t, other, http.MethodGet, path, nil)
 	testkit.RequireStatus(t, rec, http.StatusOK)
@@ -104,7 +102,7 @@ func TestDailyIdiomDatesAndCycles(t *testing.T) {
 	seen := map[uuid.UUID]bool{first.Idiom.WordID: true, second.Idiom.WordID: true}
 	third := requestDailyIdiomAt(t, west, enums.LanguageEn, now.AddDate(0, 0, 10))
 	assert.False(t, seen[third.Idiom.WordID])
-	assertDailyIdiomCount(t, 3) // A date gap creates no backfill.
+	assertDailyIdiomCount(t, 3)
 	for cycle := range 2 {
 		seen = make(map[uuid.UUID]bool)
 		for day := range 3 {

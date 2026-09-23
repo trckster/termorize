@@ -102,7 +102,7 @@ onBeforeUnmount(() => {
                     {{ t.dailyIdiomLoading }}
                 </p>
                 <div v-else-if="failed" class="flex flex-wrap items-center gap-3">
-                    <p role="alert" class="text-sm text-destructive">{{ t.dailyIdiomError }}</p>
+                    <p role="alert" class="text-sm text-foreground">{{ t.dailyIdiomError }}</p>
                     <Button variant="outline" class="min-h-11" @click="load">{{ t.commonRetry }}</Button>
                 </div>
                 <p v-else-if="daily && !daily.idiom" class="text-sm text-muted-foreground">{{ t.dailyIdiomEmpty }}</p>

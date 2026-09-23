@@ -40,12 +40,17 @@ type descriptionRoundTripper func(*http.Request) (*http.Response, error)
 
 func (f descriptionRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
-func TestDescriptionRequestsUseSelectedModelAndSupportedSampling(t *testing.T) {
+func setupClientTestConfig(t *testing.T) {
+	t.Helper()
 	logger.UseNop()
 	for _, key := range []string{"SECRET", "DB_USER", "DB_PASSWORD", "TELEGRAM_BOT_TOKEN", "TELEGRAM_LOGIN_CLIENT_ID", "TELEGRAM_LOGIN_CLIENT_SECRET", "GOOGLE_API_KEY"} {
 		t.Setenv(key, "test")
 	}
 	config.LoadEnv()
+}
+
+func TestDescriptionRequestsUseSelectedModelAndSupportedSampling(t *testing.T) {
+	setupClientTestConfig(t)
 	for _, model := range []string{"google/gemini-2.5-flash", "moonshotai/kimi-k2.6", "openai/gpt-5.6-sol"} {
 		t.Run(model, func(t *testing.T) {
 			calls := 0

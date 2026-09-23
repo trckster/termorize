@@ -13,6 +13,7 @@ import (
 )
 
 func TestIdiomDescriptionRequest(t *testing.T) {
+	setupClientTestConfig(t)
 	for _, model := range []string{"google/gemini-2.5-flash", "openai/gpt-5.6-sol"} {
 		t.Run(model, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
@@ -43,6 +44,7 @@ func TestIdiomDescriptionRequest(t *testing.T) {
 }
 
 func TestIdiomDescriptionProviderFailures(t *testing.T) {
+	setupClientTestConfig(t)
 	for _, tc := range []struct {
 		name   string
 		status int
