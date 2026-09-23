@@ -18,9 +18,9 @@ const { t } = useI18n()
             :duration="toast.duration"
             class="group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-6 pr-8 shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--reka-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--reka-toast-swipe-move-x)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full"
             :class="{
-                'border-success/50 bg-success/10 text-foreground': toast.variant === 'success',
+                'border-primary/50 bg-accent text-accent-foreground': toast.variant === 'success',
                 'border-destructive bg-destructive text-destructive-foreground': toast.variant === 'destructive',
-                'border-border bg-background text-foreground': toast.variant === 'default' || !toast.variant,
+                'border-border bg-popover text-popover-foreground': toast.variant === 'default' || !toast.variant,
             }"
             @update:open="(open) => !open && removeToast(toast.id)"
         >
@@ -34,7 +34,7 @@ const { t } = useI18n()
             </div>
             <button
                 :aria-label="t.close"
-                class="absolute right-1 top-1 inline-flex h-11 w-11 items-center justify-center rounded-md text-foreground/50 opacity-60 transition-opacity hover:opacity-100 hover:text-foreground focus:opacity-100 focus:outline-none focus:ring-2 group-hover:opacity-100"
+                class="absolute right-1 top-1 inline-flex h-11 w-11 items-center justify-center rounded-md text-current opacity-60 transition-opacity hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-current group-hover:opacity-100"
                 @click="removeToast(toast.id)"
             >
                 <X class="h-4 w-4" />
