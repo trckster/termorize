@@ -17,6 +17,18 @@ import (
 	"gorm.io/gorm"
 )
 
+type legacyWordDescription struct {
+	ID                uuid.UUID `gorm:"default:gen_random_uuid()"`
+	WordID            uuid.UUID
+	TranslationWordID *uuid.UUID
+	Model             string
+	Description       string
+	CreatedAt         time.Time
+	ApprovedAt        *time.Time
+}
+
+func (legacyWordDescription) TableName() string { return "pg_temp.word_descriptions" }
+
 // Recreate the nullable pre-upgrade cache on one connection without altering
 // the real schema used by the application tests.
 func descriptionMigrationDB(t *testing.T) *gorm.DB {
@@ -28,6 +40,9 @@ func descriptionMigrationDB(t *testing.T) *gorm.DB {
 		CREATE TEMP TABLE word_descriptions
 		    (LIKE public.word_descriptions INCLUDING DEFAULTS INCLUDING INDEXES) ON COMMIT DROP;
 		ALTER TABLE word_descriptions ALTER COLUMN translation_word_id DROP NOT NULL;
+		ALTER TABLE word_descriptions ADD COLUMN approved_at TIMESTAMP;
+		ALTER TABLE word_descriptions ADD CONSTRAINT uq_word_descriptions_word_translation_model
+		    UNIQUE NULLS NOT DISTINCT (word_id, translation_word_id, model);
 		CREATE TEMP TABLE word_description_backfill_archive
 		    (LIKE public.word_description_backfill_archive INCLUDING DEFAULTS INCLUDING INDEXES) ON COMMIT DROP;
 	`).Error)
@@ -76,14 +91,14 @@ func TestDescriptionContextMigrationRequiresFirstSavedCounterpart(t *testing.T) 
 				}
 				require.NoError(t, conn.Create(&translation).Error)
 			}
-			legacy := models.WordDescription{
+			legacy := legacyWordDescription{
 				WordID: words[0].ID, Model: "model", Description: "Original approved clue.", CreatedAt: now, ApprovedAt: &now,
 			}
 			if test.initial != 0 {
 				legacy.TranslationWordID = &words[test.initial].ID
 			}
 			require.NoError(t, conn.Create(&legacy).Error)
-			contextual := models.WordDescription{
+			contextual := legacyWordDescription{
 				WordID: words[0].ID, TranslationWordID: &words[1].ID, Model: "model", Description: "Newer contextual clue.",
 			}
 			if test.conflict {
@@ -91,7 +106,7 @@ func TestDescriptionContextMigrationRequiresFirstSavedCounterpart(t *testing.T) 
 			}
 			for range 2 {
 				require.NoError(t, conn.Exec(string(migration)).Error)
-				var stored models.WordDescription
+				var stored legacyWordDescription
 				if test.archiveReason != "" {
 					assert.ErrorIs(t, conn.First(&stored, "id = ?", legacy.ID).Error, gorm.ErrRecordNotFound)
 					require.NoError(t, conn.Table("word_description_backfill_archive").First(&stored, "id = ?", legacy.ID).Error)
@@ -108,16 +123,16 @@ func TestDescriptionContextMigrationRequiresFirstSavedCounterpart(t *testing.T) 
 				require.NotNil(t, stored.ApprovedAt)
 				assert.WithinDuration(t, now, *stored.ApprovedAt, time.Microsecond)
 				if test.conflict {
-					var preserved models.WordDescription
+					var preserved legacyWordDescription
 					require.NoError(t, conn.First(&preserved, "id = ?", contextual.ID).Error)
 					assert.Equal(t, contextual.Description, preserved.Description)
 					assert.Equal(t, contextual.TranslationWordID, preserved.TranslationWordID)
 				}
 				var missing int64
-				require.NoError(t, conn.Model(&models.WordDescription{}).Where("translation_word_id IS NULL").Count(&missing).Error)
+				require.NoError(t, conn.Model(&legacyWordDescription{}).Where("translation_word_id IS NULL").Count(&missing).Error)
 				assert.Zero(t, missing)
 			}
-			invalid := models.WordDescription{WordID: words[0].ID, Model: "another-model", Description: "Missing context."}
+			invalid := legacyWordDescription{WordID: words[0].ID, Model: "another-model", Description: "Missing context."}
 			var pgError *pgconn.PgError
 			require.ErrorAs(t, conn.Create(&invalid).Error, &pgError)
 			assert.Equal(t, "23502", pgError.Code)
@@ -170,7 +185,7 @@ func TestDescriptionTranslationBackfill(t *testing.T) {
 				require.NoError(t, conn.Create(&translation).Error)
 			}
 			now := time.Now().UTC().Truncate(time.Microsecond)
-			legacy := models.WordDescription{
+			legacy := legacyWordDescription{
 				WordID: words[0].ID, Model: "legacy-model", Description: "An approved existing clue.",
 				CreatedAt: now, ApprovedAt: &now,
 			}
@@ -178,9 +193,9 @@ func TestDescriptionTranslationBackfill(t *testing.T) {
 				legacy.TranslationWordID = &words[test.initial].ID
 			}
 			require.NoError(t, conn.Create(&legacy).Error)
-			var contextual models.WordDescription
+			var contextual legacyWordDescription
 			if test.conflictModel != "" {
-				contextual = models.WordDescription{
+				contextual = legacyWordDescription{
 					WordID: words[0].ID, TranslationWordID: &words[1].ID,
 					Model: test.conflictModel, Description: "A newer contextual clue.",
 				}
@@ -189,7 +204,7 @@ func TestDescriptionTranslationBackfill(t *testing.T) {
 
 			for range 2 {
 				require.NoError(t, conn.Exec(string(migration)).Error, "backfill must also be safe to rerun")
-				var stored models.WordDescription
+				var stored legacyWordDescription
 				require.NoError(t, conn.First(&stored, "id = ?", legacy.ID).Error)
 				if test.expected == 0 {
 					assert.Nil(t, stored.TranslationWordID)
@@ -202,11 +217,11 @@ func TestDescriptionTranslationBackfill(t *testing.T) {
 				require.NotNil(t, stored.ApprovedAt)
 				assert.WithinDuration(t, now, *stored.ApprovedAt, time.Microsecond)
 				var count int64
-				require.NoError(t, conn.Model(&models.WordDescription{}).Count(&count).Error)
+				require.NoError(t, conn.Model(&legacyWordDescription{}).Count(&count).Error)
 				expectedCount := int64(1)
 				if test.conflictModel != "" {
 					expectedCount++
-					var preserved models.WordDescription
+					var preserved legacyWordDescription
 					require.NoError(t, conn.First(&preserved, "id = ?", contextual.ID).Error)
 					assert.Equal(t, contextual.Description, preserved.Description)
 					assert.Equal(t, contextual.TranslationWordID, preserved.TranslationWordID)
@@ -215,4 +230,36 @@ func TestDescriptionTranslationBackfill(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRemoveDescriptionApprovalPreservesAllRows(t *testing.T) {
+	testkit.Truncate(t)
+	conn := descriptionMigrationDB(t)
+	wordID, translationID := uuid.New(), uuid.New()
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	rows := []legacyWordDescription{
+		{WordID: wordID, TranslationWordID: &translationID, Model: "old-model", Description: "Approved clue.", CreatedAt: now.Add(-time.Hour), ApprovedAt: &now},
+		{WordID: wordID, TranslationWordID: &translationID, Model: "new-model", Description: "Latest clue.", CreatedAt: now},
+	}
+	require.NoError(t, conn.Create(&rows).Error)
+	migration, err := os.ReadFile("src/data/migrations/0024_remove_description_approval.sql")
+	require.NoError(t, err)
+	require.NoError(t, conn.Exec(string(migration)).Error)
+	var stored []models.WordDescription
+	require.NoError(t, conn.Order("created_at").Find(&stored).Error)
+	require.Len(t, stored, len(rows))
+	for i, row := range rows {
+		assert.Equal(t, row.ID, stored[i].ID)
+		assert.Equal(t, row.WordID, stored[i].WordID)
+		assert.Equal(t, row.TranslationWordID, stored[i].TranslationWordID)
+		assert.Equal(t, row.Model, stored[i].Model)
+		assert.Equal(t, row.Description, stored[i].Description)
+		assert.WithinDuration(t, row.CreatedAt, stored[i].CreatedAt, time.Microsecond)
+	}
+	var approvalColumns int64
+	require.NoError(t, conn.Raw(`SELECT count(*) FROM pg_attribute
+		WHERE attrelid = 'pg_temp.word_descriptions'::regclass
+		AND attname = 'approved_at' AND NOT attisdropped`).Scan(&approvalColumns).Error)
+	assert.Zero(t, approvalColumns)
+	require.NoError(t, conn.Model(&models.WordDescription{}).Where("id = ?", rows[0].ID).Update("model", rows[1].Model).Error)
 }

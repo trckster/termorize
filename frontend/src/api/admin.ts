@@ -40,7 +40,6 @@ export type AdminWordDescription = {
     model: string
     description: string
     created_at: string
-    approved_at: string | null
 }
 export type DescriptionModel = { id: string; name: string; tier: 'basic' | 'medium' | 'smart' }
 export type DescriptionPreview = {

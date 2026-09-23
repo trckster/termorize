@@ -2,7 +2,6 @@ package services
 
 import (
 	"strings"
-	"termorize/src/config"
 	"termorize/src/data/db"
 	"termorize/src/enums"
 	"termorize/src/integrations/google"
@@ -55,7 +54,7 @@ func AddDescriptionFeedback(exerciseID uuid.UUID, userID uint, result *VerifyAns
 			wordID, translationID = translationID, wordID
 		}
 		var cached models.WordDescription
-		if err := descriptionCacheQuery(db.DB, wordID, translationID, config.GetOpenRouterModel()).Take(&cached).Error; err != nil {
+		if err := descriptionCacheQuery(db.DB, wordID, translationID).Take(&cached).Error; err != nil {
 			return
 		}
 		description = cached.Description
