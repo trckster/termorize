@@ -43,7 +43,7 @@ export type AdminWordDescription = {
 }
 export type DescriptionModel = { id: string; name: string; tier: 'basic' | 'medium' | 'smart' }
 export type DescriptionPreview = {
-    translation_word_id: string
+    translation_word_id: string | null
     translation: string
     translation_language: string
     model: string

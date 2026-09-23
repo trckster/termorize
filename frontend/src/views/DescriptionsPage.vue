@@ -256,7 +256,7 @@ onBeforeUnmount(() => {
                     <DialogDescription>{{ t.descriptionsPreviewNote }}</DialogDescription>
                 </DialogHeader>
                 <div class="space-y-4 py-2">
-                    <p v-if="preview" class="break-words text-sm text-muted-foreground">
+                    <p v-if="preview?.translation_word_id" class="break-words text-sm text-muted-foreground">
                         {{ original?.word }} → {{ preview.translation }} ({{
                             languageLabel(preview.translation_language)
                         }})

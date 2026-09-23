@@ -2,6 +2,7 @@ package openrouter
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -35,6 +36,7 @@ type GeneratedDescription struct {
 type Client interface {
 	GenerateCollection(prompt string, allowedLanguages []string) (*GeneratedCollection, error)
 	GenerateDescription(word, wordLanguage, translation, translationLanguage, descriptionLanguage string) (*GeneratedDescription, error)
+	GenerateIdiomDescription(ctx context.Context, idiom, language string) (*GeneratedDescription, error)
 	DescriptionContainsAnswerForm(word, wordLanguage, description string) (bool, error)
 }
 
@@ -205,7 +207,11 @@ func (c *client) GenerateCollection(prompt string, allowedLanguages []string) (*
 }
 
 func (c *client) doRequest(payload []byte) (string, error) {
-	httpReq, err := http.NewRequest(http.MethodPost, apiURL, bytes.NewReader(payload))
+	return c.doRequestWithContext(context.Background(), payload)
+}
+
+func (c *client) doRequestWithContext(ctx context.Context, payload []byte) (string, error) {
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, bytes.NewReader(payload))
 	if err != nil {
 		return "", fmt.Errorf("failed to build openrouter request: %w", err)
 	}

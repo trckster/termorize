@@ -5,6 +5,7 @@ import { settingsApi } from '@/api/settings.ts'
 import { translationApi } from '@/api/translation.ts'
 import { vocabularyApi } from '@/api/vocabulary.ts'
 import LanguageSelector from '@/components/LanguageSelector.vue'
+import DailyIdiom from '@/components/DailyIdiom.vue'
 import PronunciationButton from '@/components/PronunciationButton.vue'
 import { Kbd } from '@/components/ui/kbd'
 import { Button } from '@/components/ui/button'
@@ -871,6 +872,7 @@ onBeforeUnmount(() => {
                     <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + Shift + L</Kbd>
                 </div>
             </div>
+            <DailyIdiom />
         </div>
     </main>
 </template>

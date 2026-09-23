@@ -652,7 +652,7 @@ func TestDescriptionCacheSeparatesMeanings(t *testing.T) {
 
 	financial, err := services.GetOrCreateWordDescription(word.ID, financialTranslation.ID)
 	require.NoError(t, err)
-	require.NoError(t, services.ApproveWordDescriptionForAdmin(financial.ID, financialTranslation.ID, "openai/gpt-5.6-sol", financial.Description))
+	require.NoError(t, services.ApproveWordDescriptionForAdmin(financial.ID, &financialTranslation.ID, "openai/gpt-5.6-sol", financial.Description))
 	river, err := services.GetOrCreateWordDescription(word.ID, riverTranslation.ID)
 	require.NoError(t, err)
 	assert.NotEqual(t, financial.ID, river.ID)
