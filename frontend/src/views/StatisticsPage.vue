@@ -8,7 +8,7 @@ import VocabularyLearningChart from '@/components/statistics/VocabularyLearningC
 import WeeklyExerciseChart from '@/components/statistics/WeeklyExerciseChart.vue'
 import VocabularyActivityGrid from '@/components/statistics/VocabularyActivityGrid.vue'
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 
 const statistics = ref<ExerciseStatistics>({
     vocabulary_learning: { not_started: 0, beginning: 0, developing: 0, confident: 0, mastered: 0 },
@@ -177,7 +177,6 @@ onMounted(() => {
                         <WeeklyExerciseChart
                             v-else
                             :activity="statistics.exercise_activity"
-                            :locale="locale"
                             :completed-label="t.statisticsCompleted"
                             :failed-label="t.statisticsFailed"
                             :tasks-label="t.statisticsTasks"
@@ -205,7 +204,6 @@ onMounted(() => {
                     <VocabularyActivityGrid
                         v-else
                         :activity="statistics.vocabulary_activity"
-                        :locale="locale"
                         :vocabulary-label="t.statisticsVocabularyAdded"
                         :less-label="t.statisticsLess"
                         :more-label="t.statisticsMore"
