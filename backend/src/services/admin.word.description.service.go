@@ -38,7 +38,6 @@ type AdminWordDescription struct {
 	Model               string         `json:"model"`
 	Description         string         `json:"description"`
 	CreatedAt           time.Time      `json:"created_at"`
-	ApprovedAt          *time.Time     `json:"approved_at"`
 }
 
 type AdminWordDescriptionsResponse struct {
@@ -120,16 +119,8 @@ func ApproveWordDescriptionForAdmin(id, translationWordID uuid.UUID, model, desc
 		if *existing.TranslationWordID != translationWordID {
 			return ErrInvalidDescriptionTranslation
 		}
-		now := time.Now()
-		replacement := models.WordDescription{WordID: existing.WordID, TranslationWordID: &translationWordID, Model: model, Description: description, CreatedAt: now, ApprovedAt: &now}
-		if err := tx.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "word_id"}, {Name: "translation_word_id"}, {Name: "model"}}, DoUpdates: clause.Assignments(map[string]any{"description": description, "created_at": now, "approved_at": now})}).Create(&replacement).Error; err != nil {
-			return err
-		}
-		if existing.Model != model {
-			if err := tx.Delete(&existing).Error; err != nil {
-				return err
-			}
-		}
-		return nil
+		return tx.Model(&existing).Updates(map[string]any{
+			"model": model, "description": description, "created_at": time.Now(),
+		}).Error
 	})
 }

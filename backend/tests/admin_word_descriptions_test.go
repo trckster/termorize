@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"termorize/src/config"
 	"termorize/src/data/db"
@@ -115,6 +116,12 @@ func TestAdminDescriptionPreviewRequiresApprovalAndUsesSelectedModel(t *testing.
 			assert.Equal(t, *existing.TranslationWordID, preview.TranslationWordID)
 			assert.Equal(t, "traduzione cat", preview.Translation)
 			assert.Equal(t, enums.LanguageIt, preview.TranslationLanguage)
+			var rows []models.WordDescription
+			require.NoError(t, db.DB.Where("word_id = ?", existing.WordID).Find(&rows).Error)
+			require.Len(t, rows, 1, "generating a preview must not persist a draft")
+			assert.Equal(t, existing.ID, rows[0].ID)
+			assert.Equal(t, existing.Description, rows[0].Description)
+			assert.Equal(t, existing.Model, rows[0].Model)
 			cached, err := services.GetOrCreateWordDescription(existing.WordID, *existing.TranslationWordID)
 			require.NoError(t, err)
 			assert.Equal(t, "Old clue.", cached.Description)
@@ -123,7 +130,7 @@ func TestAdminDescriptionPreviewRequiresApprovalAndUsesSelectedModel(t *testing.
 			require.NoError(t, err)
 			assert.Equal(t, preview.Description, cached.Description)
 			assert.Equal(t, model, cached.Model)
-			assert.NotNil(t, cached.ApprovedAt)
+			assert.Equal(t, existing.ID, cached.ID)
 			assert.Equal(t, 1, calls, "approval must save the preview without generating another clue")
 		})
 	}
@@ -191,7 +198,7 @@ func TestAdminDescriptionApprovalSavesSubmittedValuesWithoutPreview(t *testing.T
 	require.NoError(t, err)
 	assert.Equal(t, submitted, cached.Description)
 	assert.Equal(t, "openai/gpt-5.6-sol", cached.Model)
-	assert.NotNil(t, cached.ApprovedAt)
+	assert.Equal(t, existing.ID, cached.ID)
 }
 
 func TestAdminDescriptionPreviewRejectsUnsupportedModel(t *testing.T) {
@@ -202,21 +209,27 @@ func TestAdminDescriptionPreviewRejectsUnsupportedModel(t *testing.T) {
 		"/api/admin/word-descriptions/"+existing.ID.String()+"/preview", map[string]any{"model": "arbitrary/model"}), http.StatusBadRequest)
 }
 
-func TestAdminDescriptionApprovalReplacesExistingModelCache(t *testing.T) {
+func TestAdminDescriptionLastAcceptanceWinsInPlace(t *testing.T) {
 	testkit.Truncate(t)
 	admin := testkit.CreateUser(t, testkit.WithAdmin())
 	existing := seedAdminDescription(t, "cat", "Old clue.")
-	other := models.WordDescription{WordID: existing.WordID, TranslationWordID: existing.TranslationWordID, Model: "moonshotai/kimi-k2.6", Description: "Previous Kimi clue."}
-	require.NoError(t, db.DB.Create(&other).Error)
-	preview := previewAdminDescription(t, admin, existing, other.Model)
-	require.NoError(t, services.ApproveWordDescriptionForAdmin(existing.ID, preview.TranslationWordID, preview.Model, preview.Description))
-	cached, err := services.GetOrCreateWordDescription(existing.WordID, *existing.TranslationWordID)
-	require.NoError(t, err)
-	assert.Equal(t, preview.Description, cached.Description)
-	assert.Equal(t, other.Model, cached.Model)
-	var count int64
-	require.NoError(t, db.DB.Model(&models.WordDescription{}).Where("word_id = ?", existing.WordID).Count(&count).Error)
-	assert.EqualValues(t, 1, count)
+	first := previewAdminDescription(t, admin, existing, config.GetOpenRouterModel())
+	second := first
+	second.Model = "moonshotai/kimi-k2.6"
+	second.Description = "Another accepted clue."
+	for _, preview := range []services.WordDescriptionPreview{second, first, first} {
+		rec := testkit.AuthedRequest(t, admin, http.MethodPost, "/api/admin/word-descriptions/"+existing.ID.String()+"/approve", preview)
+		testkit.RequireStatus(t, rec, http.StatusOK)
+		var stored models.WordDescription
+		require.NoError(t, db.DB.First(&stored, "id = ?", existing.ID).Error)
+		assert.Equal(t, preview.Description, stored.Description)
+		assert.Equal(t, preview.Model, stored.Model)
+		assert.Equal(t, existing.WordID, stored.WordID)
+		assert.Equal(t, existing.TranslationWordID, stored.TranslationWordID)
+		var count int64
+		require.NoError(t, db.DB.Model(&models.WordDescription{}).Where("word_id = ?", existing.WordID).Count(&count).Error)
+		assert.EqualValues(t, 1, count)
+	}
 }
 
 func TestAdminDescriptionDirectionsPreserveTranslationContext(t *testing.T) {
@@ -261,7 +274,7 @@ func TestAdminDescriptionDirectionsPreserveTranslationContext(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, preview.Description, cached.Description)
 			assert.Equal(t, &translation.ID, cached.TranslationWordID)
-			assert.NotNil(t, cached.ApprovedAt)
+			assert.Equal(t, existing.ID, cached.ID)
 			assert.Equal(t, 1, calls)
 			var count int64
 			require.NoError(t, db.DB.Model(&models.WordDescription{}).Where("word_id = ?", word.ID).Count(&count).Error)
@@ -286,7 +299,33 @@ func TestAdminDescriptionApprovalRejectsMissingOrMismatchedTranslation(t *testin
 			require.NoError(t, db.DB.First(&unchanged, "id = ?", existing.ID).Error)
 			assert.Equal(t, "Old clue.", unchanged.Description)
 			assert.Equal(t, existing.TranslationWordID, unchanged.TranslationWordID)
-			assert.Nil(t, unchanged.ApprovedAt)
 		})
 	}
+}
+
+func TestAdminDescriptionAcceptancePreservesOtherDescriptions(t *testing.T) {
+	testkit.Truncate(t)
+	admin := testkit.CreateUser(t, testkit.WithAdmin())
+	existing := seedAdminDescription(t, "cat", "Old clue.")
+	other := models.WordDescription{
+		WordID: existing.WordID, TranslationWordID: existing.TranslationWordID,
+		Model: "moonshotai/kimi-k2.6", Description: "Another saved clue.",
+	}
+	require.NoError(t, db.DB.Create(&other).Error)
+	payload := map[string]any{"model": other.Model, "description": "Accepted replacement.", "translation_word_id": existing.TranslationWordID}
+	rec := testkit.AuthedRequest(t, admin, http.MethodPost, "/api/admin/word-descriptions/"+existing.ID.String()+"/approve", payload)
+	testkit.RequireStatus(t, rec, http.StatusOK)
+	var unchanged models.WordDescription
+	require.NoError(t, db.DB.First(&unchanged, "id = ?", other.ID).Error)
+	assert.Equal(t, other.Description, unchanged.Description)
+	assert.Equal(t, other.Model, unchanged.Model)
+	assert.WithinDuration(t, other.CreatedAt, unchanged.CreatedAt, time.Microsecond)
+	cached, err := services.GetOrCreateWordDescription(existing.WordID, *existing.TranslationWordID)
+	require.NoError(t, err)
+	assert.Equal(t, existing.ID, cached.ID)
+	assert.Equal(t, payload["description"], cached.Description)
+	assert.Equal(t, other.Model, cached.Model)
+	var count int64
+	require.NoError(t, db.DB.Model(&models.WordDescription{}).Where("word_id = ?", existing.WordID).Count(&count).Error)
+	assert.EqualValues(t, 2, count)
 }

@@ -13,7 +13,6 @@ type WordDescription struct {
 	Model             string
 	Description       string
 	CreatedAt         time.Time
-	ApprovedAt        *time.Time
 	Word              *Word
 	TranslationWord   *Word
 }

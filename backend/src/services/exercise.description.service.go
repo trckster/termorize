@@ -266,7 +266,7 @@ func ReplacePendingDescriptionExercise(exerciseID uuid.UUID, excludeDescription 
 func GetOrCreateWordDescription(wordID, translationWordID uuid.UUID) (*models.WordDescription, error) {
 	model := config.GetOpenRouterModel()
 	var cached models.WordDescription
-	err := descriptionCacheQuery(db.DB, wordID, translationWordID, model).Take(&cached).Error
+	err := descriptionCacheQuery(db.DB, wordID, translationWordID).Take(&cached).Error
 	if err == nil {
 		return &cached, nil
 	}
@@ -281,7 +281,7 @@ func GetOrCreateWordDescription(wordID, translationWordID uuid.UUID) (*models.Wo
 			return err
 		}
 
-		if err := descriptionCacheQuery(tx, wordID, translationWordID, model).Take(&cached).Error; err == nil {
+		if err := descriptionCacheQuery(tx, wordID, translationWordID).Take(&cached).Error; err == nil {
 			description = &cached
 			return nil
 		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -321,10 +321,9 @@ func GetOrCreateWordDescription(wordID, translationWordID uuid.UUID) (*models.Wo
 	return description, nil
 }
 
-// An approved description takes precedence regardless of its generating model.
-func descriptionCacheQuery(tx *gorm.DB, wordID, translationWordID uuid.UUID, model string) *gorm.DB {
-	return tx.Where("word_id = ? AND translation_word_id = ? AND (approved_at IS NOT NULL OR model = ?)", wordID, translationWordID, model).
-		Order("approved_at DESC NULLS LAST, created_at DESC, id DESC")
+func descriptionCacheQuery(tx *gorm.DB, wordID, translationWordID uuid.UUID) *gorm.DB {
+	return tx.Where("word_id = ? AND translation_word_id = ?", wordID, translationWordID).
+		Order("created_at DESC, id DESC")
 }
 
 func descriptionLockKey(wordID, translationWordID uuid.UUID) string {

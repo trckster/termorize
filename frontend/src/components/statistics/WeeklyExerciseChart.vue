@@ -4,7 +4,6 @@ import type { ExerciseDailyActivity } from '@/api/exercises.ts'
 
 const props = defineProps<{
     activity: ExerciseDailyActivity[]
-    locale: string
     completedLabel: string
     failedLabel: string
     tasksLabel: string
@@ -65,13 +64,6 @@ const areaPath = (key: ActivityValue) => {
     return `${smoothLinePath(key)} L ${points.at(-1)!.x} ${baseline} L ${points[0]!.x} ${baseline} Z`
 }
 
-const dateFormatter = computed(() => new Intl.DateTimeFormat(props.locale, { day: 'numeric', month: 'short' }))
-const longDateFormatter = computed(
-    () => new Intl.DateTimeFormat(props.locale, { weekday: 'short', day: 'numeric', month: 'long' })
-)
-const formatDate = (date: string, long = false) =>
-    (long ? longDateFormatter.value : dateFormatter.value).format(new Date(`${date}T00:00:00`))
-
 const activeDay = computed(() => (hoveredIndex.value === null ? null : props.activity[hoveredIndex.value]))
 </script>
 
@@ -81,7 +73,7 @@ const activeDay = computed(() => (hoveredIndex.value === null ? null : props.act
             v-if="activeDay"
             class="pointer-events-none absolute left-1/2 top-1 z-10 -translate-x-1/2 rounded-lg border border-border bg-popover/95 px-3 py-2 text-xs shadow-md"
         >
-            <p class="mb-1.5 font-medium text-popover-foreground">{{ formatDate(activeDay.date, true) }}</p>
+            <p class="mb-1.5 font-medium text-popover-foreground">{{ activeDay.date }}</p>
             <div class="flex gap-3 text-muted-foreground">
                 <span
                     ><i class="mr-1 inline-block h-2 w-2 rounded-full bg-success" />{{ activeDay.completed }}
@@ -166,7 +158,7 @@ const activeDay = computed(() => (hoveredIndex.value === null ? null : props.act
                     text-anchor="middle"
                     class="fill-muted-foreground text-[11px]"
                 >
-                    {{ formatDate(day.date) }}
+                    {{ day.date }}
                 </text>
                 <rect
                     :x="xCenter(index) - groupWidth / 2"
@@ -182,7 +174,7 @@ const activeDay = computed(() => (hoveredIndex.value === null ? null : props.act
                 >
                     <title>
                         {{
-                            `${formatDate(day.date, true)}: ${day.completed} ${completedLabel.toLowerCase()}, ${day.failed} ${failedLabel.toLowerCase()}`
+                            `${day.date}: ${day.completed} ${completedLabel.toLowerCase()}, ${day.failed} ${failedLabel.toLowerCase()}`
                         }}
                     </title>
                 </rect>
