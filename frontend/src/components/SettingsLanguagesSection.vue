@@ -109,103 +109,105 @@ const setDescriptionLanguageIgnored = (language: string, ignored: boolean) => {
             <CardTitle>{{ t.settingsLanguagesTitle }}</CardTitle>
             <CardDescription>{{ t.settingsLanguagesDescription }}</CardDescription>
         </CardHeader>
-        <CardContent class="space-y-4">
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div class="space-y-2 sm:rounded-lg sm:p-4">
-                    <p class="text-sm font-semibold text-foreground">{{ t.settingsSystemLanguageTitle }}</p>
-                    <LanguageSelector
-                        v-model="systemLanguage"
-                        :allowed-values="supportedSystemLanguages"
-                        :placeholder="t.settingsSystemLanguagePlaceholder"
-                        :aria-label="t.settingsSystemLanguageTitle"
-                        name="system-language"
-                    />
-                    <p class="text-xs text-muted-foreground">
-                        {{ t.settingsSystemLanguageNote }}
-                    </p>
-                </div>
-
-                <div class="space-y-2 sm:rounded-lg sm:p-4">
-                    <p class="text-sm font-semibold text-foreground">{{ t.settingsMainLearningLanguageTitle }}</p>
-                    <LanguageSelector
-                        v-model="mainLearningLanguage"
-                        :placeholder="t.settingsMainLearningLanguagePlaceholder"
-                        :aria-label="t.settingsMainLearningLanguageTitle"
-                        name="main-learning-language"
-                    />
-                    <p class="text-xs text-muted-foreground">
-                        {{ t.settingsMainLearningLanguageNote }}
-                    </p>
-                </div>
-            </div>
-
-            <div class="space-y-3 border-t border-border pt-4 sm:mx-4">
-                <div class="space-y-1">
-                    <p class="text-sm font-semibold text-foreground">{{ t.settingsIgnoredAudioLanguagesTitle }}</p>
-                    <p class="text-xs leading-5 text-muted-foreground">
-                        {{ t.settingsIgnoredAudioLanguagesNote }}
-                    </p>
-                </div>
-                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <label
-                        v-for="language in settingsStore.languageOptions"
-                        :key="language.code"
-                        class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-border px-3 py-2 text-sm transition-colors hover:bg-accent/50"
-                    >
-                        <input
-                            type="checkbox"
-                            class="h-4 w-4 rounded border-input accent-primary"
-                            :checked="ignoredAudioLanguages.includes(language.code)"
-                            @change="
-                                setAudioLanguageIgnored(language.code, ($event.target as HTMLInputElement).checked)
-                            "
+        <CardContent>
+            <div class="space-y-4">
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div class="space-y-2 sm:rounded-lg sm:p-4">
+                        <p class="text-sm font-semibold text-foreground">{{ t.settingsSystemLanguageTitle }}</p>
+                        <LanguageSelector
+                            v-model="systemLanguage"
+                            :allowed-values="supportedSystemLanguages"
+                            :placeholder="t.settingsSystemLanguagePlaceholder"
+                            :aria-label="t.settingsSystemLanguageTitle"
+                            name="system-language"
                         />
-                        <span aria-hidden="true" class="text-base">{{ language.emoji }}</span>
-                        <span class="font-medium text-foreground">
-                            {{ settingsStore.getLanguageName(language.code, systemLanguage) }}
-                        </span>
-                    </label>
-                </div>
-            </div>
+                        <p class="text-xs text-muted-foreground">
+                            {{ t.settingsSystemLanguageNote }}
+                        </p>
+                    </div>
 
-            <div class="space-y-3 border-t border-border pt-4 sm:mx-4">
-                <div class="space-y-1">
-                    <p class="text-sm font-semibold text-foreground">
-                        {{ t.settingsIgnoredDescriptionLanguagesTitle }}
-                    </p>
-                    <p class="text-xs leading-5 text-muted-foreground">
-                        {{ t.settingsIgnoredDescriptionLanguagesNote }}
-                    </p>
-                </div>
-                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <label
-                        v-for="language in settingsStore.languageOptions"
-                        :key="language.code"
-                        class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-border px-3 py-2 text-sm transition-colors hover:bg-accent/50"
-                    >
-                        <input
-                            type="checkbox"
-                            class="h-4 w-4 rounded border-input accent-primary"
-                            :checked="ignoredDescriptionLanguages.includes(language.code)"
-                            @change="
-                                setDescriptionLanguageIgnored(
-                                    language.code,
-                                    ($event.target as HTMLInputElement).checked
-                                )
-                            "
+                    <div class="space-y-2 sm:rounded-lg sm:p-4">
+                        <p class="text-sm font-semibold text-foreground">{{ t.settingsMainLearningLanguageTitle }}</p>
+                        <LanguageSelector
+                            v-model="mainLearningLanguage"
+                            :placeholder="t.settingsMainLearningLanguagePlaceholder"
+                            :aria-label="t.settingsMainLearningLanguageTitle"
+                            name="main-learning-language"
                         />
-                        <span aria-hidden="true" class="text-base">{{ language.emoji }}</span>
-                        <span class="font-medium text-foreground">
-                            {{ settingsStore.getLanguageName(language.code, systemLanguage) }}
-                        </span>
-                    </label>
+                        <p class="text-xs text-muted-foreground">
+                            {{ t.settingsMainLearningLanguageNote }}
+                        </p>
+                    </div>
                 </div>
-            </div>
 
-            <div v-if="hasLanguageSettingsChanged" class="sm:px-4">
-                <Button class="w-full sm:w-auto" :disabled="isSaving" @click="saveLanguageSettings">
-                    {{ isSaving ? t.saving : t.save }}
-                </Button>
+                <div class="space-y-3 border-t border-border pt-4 sm:mx-4">
+                    <div class="space-y-1">
+                        <p class="text-sm font-semibold text-foreground">{{ t.settingsIgnoredAudioLanguagesTitle }}</p>
+                        <p class="text-xs leading-5 text-muted-foreground">
+                            {{ t.settingsIgnoredAudioLanguagesNote }}
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <label
+                            v-for="language in settingsStore.languageOptions"
+                            :key="language.code"
+                            class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-border px-3 py-2 text-sm transition-colors hover:bg-accent/50"
+                        >
+                            <input
+                                type="checkbox"
+                                class="h-4 w-4 rounded border-input accent-primary"
+                                :checked="ignoredAudioLanguages.includes(language.code)"
+                                @change="
+                                    setAudioLanguageIgnored(language.code, ($event.target as HTMLInputElement).checked)
+                                "
+                            />
+                            <span aria-hidden="true" class="text-base">{{ language.emoji }}</span>
+                            <span class="font-medium text-foreground">
+                                {{ settingsStore.getLanguageName(language.code, systemLanguage) }}
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="space-y-3 border-t border-border pt-4 sm:mx-4">
+                    <div class="space-y-1">
+                        <p class="text-sm font-semibold text-foreground">
+                            {{ t.settingsIgnoredDescriptionLanguagesTitle }}
+                        </p>
+                        <p class="text-xs leading-5 text-muted-foreground">
+                            {{ t.settingsIgnoredDescriptionLanguagesNote }}
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <label
+                            v-for="language in settingsStore.languageOptions"
+                            :key="language.code"
+                            class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-border px-3 py-2 text-sm transition-colors hover:bg-accent/50"
+                        >
+                            <input
+                                type="checkbox"
+                                class="h-4 w-4 rounded border-input accent-primary"
+                                :checked="ignoredDescriptionLanguages.includes(language.code)"
+                                @change="
+                                    setDescriptionLanguageIgnored(
+                                        language.code,
+                                        ($event.target as HTMLInputElement).checked
+                                    )
+                                "
+                            />
+                            <span aria-hidden="true" class="text-base">{{ language.emoji }}</span>
+                            <span class="font-medium text-foreground">
+                                {{ settingsStore.getLanguageName(language.code, systemLanguage) }}
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <div v-if="hasLanguageSettingsChanged" class="sm:px-4">
+                    <Button class="w-full sm:w-auto" :disabled="isSaving" @click="saveLanguageSettings">
+                        {{ isSaving ? t.saving : t.save }}
+                    </Button>
+                </div>
             </div>
         </CardContent>
     </Card>
