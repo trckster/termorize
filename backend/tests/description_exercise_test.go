@@ -598,7 +598,7 @@ func TestDescriptionExerciseRechecksEligibilityAfterGeneration(t *testing.T) {
 	assert.Zero(t, count)
 }
 
-func TestDescriptionCacheUniquePerWordTranslationAndModel(t *testing.T) {
+func TestDescriptionCacheUsesLatestSavedDescription(t *testing.T) {
 	testkit.Truncate(t)
 	user := testkit.CreateUser(t)
 	vocabulary := exerciseSeedVocabulary(t, user.ID, "paper", "carta", enums.LanguageEn, enums.LanguageIt)
@@ -616,7 +616,13 @@ func TestDescriptionCacheUniquePerWordTranslationAndModel(t *testing.T) {
 		Model:             config.GetOpenRouterModel(),
 		Description:       "Second clue.",
 	}
-	assert.Error(t, db.DB.Create(&duplicate).Error)
+	duplicate.Model = "admin-selected-model"
+	duplicate.CreatedAt = description.CreatedAt.Add(time.Second)
+	require.NoError(t, db.DB.Create(&duplicate).Error)
+	cached, err := services.GetOrCreateWordDescription(description.WordID, *description.TranslationWordID)
+	require.NoError(t, err)
+	assert.Equal(t, duplicate.ID, cached.ID)
+	assert.Equal(t, duplicate.Description, cached.Description)
 }
 
 func TestDescriptionCacheSeparatesMeanings(t *testing.T) {
