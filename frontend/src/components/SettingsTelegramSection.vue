@@ -224,7 +224,12 @@ watch(
 
             <div class="mb-6 space-y-2 sm:p-4">
                 <p class="text-sm font-semibold text-foreground">{{ t.settingsTelegramDailyIdiom }}</p>
-                <ToggleSwitch v-model="dailyIdiomEnabled" :disabled="isSaving" :label="t.settingsTelegramDailyIdiom" />
+                <ToggleSwitch
+                    v-model="dailyIdiomEnabled"
+                    :disabled="isSaving"
+                    :label="t.settingsTelegramDailyIdiom"
+                    class="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                />
                 <p class="text-sm text-muted-foreground">{{ t.settingsTelegramDailyIdiomNote }} {{ timezoneLabel }}.</p>
             </div>
 

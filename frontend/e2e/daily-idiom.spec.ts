@@ -183,12 +183,15 @@ test('capture current idiom interface for the landing', async ({ page }) => {
         ;(document.activeElement as HTMLElement)?.blur()
     })
     await page.screenshot({ path: 'public/images/daily-idiom-translation.png', fullPage: true, animations: 'disabled' })
-    // Inspect both app sizes in the same capture round.
     await page.setViewportSize({ width: 390, height: 844 })
     await page.screenshot({ path: '../tmp/idiom-review/app-mobile.png', fullPage: true, animations: 'disabled' })
     await page.goto('/settings')
     await expect(page.getByRole('switch', { name: 'Daily idiom in Telegram' })).toBeVisible()
-    await page.screenshot({ path: '../tmp/idiom-review/settings-mobile.png', fullPage: true, animations: 'disabled' })
+    const switchControl = page.getByRole('switch', { name: 'Daily idiom in Telegram' })
+    await switchControl.focus()
+    await switchControl
+        .locator('..')
+        .screenshot({ path: '../tmp/idiom-review/settings-mobile.png', animations: 'disabled' })
 })
 
 test('landing explains daily idioms and shows the current app screenshot', async ({ page }) => {

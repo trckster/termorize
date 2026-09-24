@@ -238,6 +238,9 @@ function getErrorMessage(err: unknown, fallback = 'Login failed. Please try agai
                                     height="1009"
                                     fetchpriority="high"
                                 />
+                                <span class="termoclip-image-action">
+                                    View full size <ExternalLink aria-hidden="true" />
+                                </span>
                             </a>
 
                             <div class="preview-flow" aria-label="Learning flow">

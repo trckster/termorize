@@ -108,7 +108,6 @@ func TestDailyIdiomEverySupportedLanguage(t *testing.T) {
 			require.NoError(t, db.DB.Model(&models.User{}).Where("id IN ?", []uint{user.ID, other.ID}).Update("settings", models.UserSettings{}).Error)
 		})
 	}
-	// Every application language can also be the translation target.
 	user := testkit.CreateUser(t)
 	daily, err := services.GetDailyIdiom(context.Background(), user.ID, time.Now())
 	require.NoError(t, err)

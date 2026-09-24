@@ -11,6 +11,7 @@ import (
 	"termorize/src/controllers"
 	"termorize/src/data/db"
 	"termorize/src/enums"
+	"termorize/src/integrations/telegram"
 	"termorize/src/models"
 	"termorize/src/services"
 	"termorize/src/testkit"
@@ -118,4 +119,34 @@ func TestTranslateDailyIdiomFailureDoesNotFallBack(t *testing.T) {
 	var count int64
 	require.NoError(t, db.DB.Model(&models.Translation{}).Count(&count).Error)
 	assert.Zero(t, count)
+}
+
+func TestIdiomReplayDoesNotRestoreDuplicateCustomPair(t *testing.T) {
+	testkit.Truncate(t)
+	denyIdiomGoogle(t)
+	tg := testkit.MockTelegramAPI(t)
+	user := testkit.CreateUser(t)
+	seedDailyIdiomWord(t, "break the ice", enums.LanguageEn)
+	daily, err := services.GetDailyIdiom(context.Background(), user.ID, time.Now())
+	require.NoError(t, err)
+	translated, err := services.TranslateDailyIdiom(context.Background(), daily.Idiom.ID, enums.LanguageRu)
+	require.NoError(t, err)
+	saved, err := services.CreateVocabularyByTranslation(user.ID, translated.TranslationID)
+	require.NoError(t, err)
+	require.NoError(t, services.DeleteVocabulary(user.ID, saved.ID))
+	custom, err := services.CreateVocabulary(user.ID, services.CreateVocabularyRequest{Original: translated.SourceWord, Translation: translated.TranslatedWord, OriginalLanguage: enums.LanguageEn, TranslationLanguage: enums.LanguageRu})
+	require.NoError(t, err)
+	update := telegramMenuCallback(user.TelegramID, "restore-idiom", "unused")
+	update["callback_query"].(map[string]any)["data"] = "idiom:add:" + daily.Idiom.ID.String()
+	testkit.RequireStatus(t, telegramUpdate(t, update), http.StatusOK)
+	var active []models.Vocabulary
+	require.NoError(t, db.DB.Where("user_id = ? AND deleted_at IS NULL", user.ID).Find(&active).Error)
+	require.Len(t, active, 1)
+	assert.Equal(t, custom.ID, active[0].ID)
+	require.Equal(t, 1, tg.Count("editMessageText"))
+	assert.Contains(t, string(tg.RequestsFor("editMessageText")[0].Body), telegram.GetBotTexts(enums.LanguageRu).AddVocabularyExists)
+	require.NoError(t, services.DeleteVocabulary(user.ID, custom.ID))
+	restored, err := services.CreateVocabularyByTranslation(user.ID, translated.TranslationID)
+	require.NoError(t, err)
+	assert.Equal(t, saved.ID, restored.ID)
 }
