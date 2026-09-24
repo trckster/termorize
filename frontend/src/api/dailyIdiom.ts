@@ -1,3 +1,4 @@
+import type { TranslateResponse } from '@/api/translation'
 import apiCall, { unwrapBody } from '@/api/index.ts'
 
 export type DailyIdiom = {
@@ -7,6 +8,11 @@ export type DailyIdiom = {
 }
 
 export const dailyIdiomApi = {
+    translate(id: string, toLanguage: string): Promise<TranslateResponse> {
+        return apiCall<TranslateResponse>(`/daily-idiom/${encodeURIComponent(id)}/translate`, 'POST', {
+            to_language: toLanguage,
+        }).then(unwrapBody)
+    },
     get(): Promise<DailyIdiom> {
         return apiCall<DailyIdiom>('/daily-idiom').then(unwrapBody)
     },

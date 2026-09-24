@@ -13,6 +13,7 @@ func defineProtectedRoutes(group *gin.RouterGroup) {
 	group.GET("/me", controllers.Me)
 	group.GET("/daily-idiom", controllers.GetDailyIdiom)
 	group.GET("/daily-idiom/:id/description", controllers.GetDailyIdiomDescription)
+	group.POST("/daily-idiom/:id/translate", controllers.TranslateDailyIdiom)
 	group.PUT("/settings", controllers.UpdateSettings)
 	group.PATCH("/settings/translation-target-language", controllers.UpdateTranslationTargetLanguage)
 	group.DELETE("/settings/ignored-audio-languages/:language", controllers.RemoveIgnoredAudioLanguage)
