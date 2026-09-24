@@ -146,3 +146,81 @@ test('changing target language keeps the idiom on the LLM route', async ({ page 
     expect(calls.filter((c) => c.path === '/api/translate')).toHaveLength(0)
     await expect(page.locator('#source-text')).toHaveValue('break the ice')
 })
+
+test('Telegram daily idiom setting is off by default and saves both states', async ({ page }) => {
+    const { calls } = await setup(page)
+    await page.goto('/settings')
+    const toggle = page.getByRole('switch', { name: 'Daily idiom in Telegram' })
+    await expect(toggle).toHaveAttribute('aria-checked', 'false')
+    await expect(page.getByText('Daily idiom in Telegram', { exact: true })).toBeVisible()
+    for (const enabled of [true, false]) {
+        await toggle.click()
+        await page.getByRole('button', { name: 'Save', exact: true }).click()
+        await expect
+            .poll(
+                () =>
+                    calls.filter((c) => c.path === '/api/settings' && c.body).at(-1)?.body.telegram.daily_idiom_enabled
+            )
+            .toBe(enabled)
+        await expect(toggle).toHaveAttribute('aria-checked', String(enabled))
+        await expect(page.getByRole('button', { name: 'Save', exact: true })).toHaveCount(0)
+    }
+})
+
+test('capture current idiom interface for the landing', async ({ page }) => {
+    test.skip(!process.env.CAPTURE_IDIOM_PREVIEW, 'Asset capture is opt-in')
+    await page.setViewportSize({ width: 1280, height: 1000 })
+    await page.addInitScript(() => {
+        localStorage.setItem('theme', 'dark')
+        localStorage.setItem('palette', 'emerald')
+    })
+    await setup(page)
+    await page.getByRole('button', { name: 'Translate', exact: true }).click()
+    await expect(page.locator('#target-text')).toHaveValue('растопить лёд')
+    await page.locator('#daily-idiom-title').click()
+    await page.evaluate(() => {
+        window.scrollTo(0, 0)
+        ;(document.activeElement as HTMLElement)?.blur()
+    })
+    await page.screenshot({ path: 'public/images/daily-idiom-translation.png', fullPage: true, animations: 'disabled' })
+    // Inspect both app sizes in the same capture round.
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.screenshot({ path: '../tmp/idiom-review/app-mobile.png', fullPage: true, animations: 'disabled' })
+    await page.goto('/settings')
+    await expect(page.getByRole('switch', { name: 'Daily idiom in Telegram' })).toBeVisible()
+    await page.screenshot({ path: '../tmp/idiom-review/settings-mobile.png', fullPage: true, animations: 'disabled' })
+})
+
+test('landing explains daily idioms and shows the current app screenshot', async ({ page }) => {
+    await page.route('http://127.0.0.1:4173/api/**', (route) =>
+        route.fulfill({
+            status: route.request().url().endsWith('/me') ? 401 : 200,
+            json: { languages: ['en', 'ru'] },
+        })
+    )
+    await page.goto('/')
+    await expect(page.getByText(/Discover a new idiom each day/)).toBeVisible()
+    await expect(page.getByText(/at 11:00 in your timezone/)).toBeVisible()
+    const screenshot = page.locator('img[src="/images/daily-idiom-translation.png"]')
+    await expect(screenshot).toBeVisible()
+    await expect.poll(() => screenshot.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(1280)
+    if (process.env.CAPTURE_IDIOM_PREVIEW) {
+        await page.setViewportSize({ width: 1440, height: 1000 })
+        await page.screenshot({
+            path: '../tmp/idiom-review/landing-desktop.png',
+            fullPage: true,
+            animations: 'disabled',
+        })
+        await page
+            .locator('#telegram')
+            .screenshot({ path: '../tmp/idiom-review/landing-telegram.png', animations: 'disabled' })
+        await page.setViewportSize({ width: 390, height: 844 })
+        await page.evaluate(() => window.scrollTo(0, 0))
+        await page.screenshot({
+            path: '../tmp/idiom-review/landing-mobile.png',
+            fullPage: true,
+            animations: 'disabled',
+        })
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+})

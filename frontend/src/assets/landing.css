@@ -353,141 +353,14 @@
 }
 
 .app-preview {
-    position: relative;
-    display: flex;
-    overflow: hidden;
-    aspect-ratio: 16 / 6.7;
-    padding: clamp(24px, 3.2vw, 38px);
-    background: color-mix(in srgb, var(--landing-primary) 3%, var(--landing-bg));
+    display: block;
+    background: var(--landing-bg);
 }
 
-.translation-preview {
-    display: grid;
+.app-preview img {
+    display: block;
     width: 100%;
-    min-width: 0;
-    grid-template-columns: minmax(0, 1fr) 42px minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 20px;
-}
-
-.translation-card {
-    display: grid;
-    align-self: stretch;
-    min-width: 0;
-    overflow: hidden;
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    border: 1px solid var(--landing-line);
-    border-radius: 14px;
-    background: var(--landing-surface);
-}
-
-.translation-card-head,
-.translation-card-meta {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-}
-
-.translation-card-head {
-    padding: 13px 15px;
-    border-bottom: 1px solid var(--landing-line-soft);
-    color: var(--landing-muted);
-    font-size: 0.75rem;
-}
-
-.translation-card-head strong {
-    display: inline-flex;
-    min-width: 0;
-    align-items: center;
-    gap: 7px;
-    overflow: hidden;
-    color: var(--landing-ink);
-    font-size: 0.8rem;
-    font-weight: 600;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.language-code {
-    display: inline-flex;
-    min-width: 25px;
-    height: 20px;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--landing-line);
-    border-radius: 5px;
-    color: var(--landing-muted);
-    background: var(--landing-surface-muted);
-    font-size: 0.6rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-}
-
-.translation-card-word {
-    display: flex;
-    min-width: 0;
-    align-items: center;
-    padding: 22px;
-    overflow: hidden;
-    color: var(--landing-ink);
-    font-family: var(--font-display);
-    font-size: clamp(1.35rem, 2.7vw, 2rem);
-    font-weight: 600;
-    letter-spacing: -0.025em;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.translation-card-meta {
-    padding: 10px 15px;
-    border-top: 1px solid var(--landing-line-soft);
-    color: var(--landing-muted);
-    font-size: 0.69rem;
-    font-variant-numeric: tabular-nums;
-}
-
-.translation-direction {
-    display: inline-flex;
-    width: 42px;
-    height: 42px;
-    align-items: center;
-    justify-content: center;
-    color: var(--landing-primary-strong);
-}
-
-.translation-direction svg {
-    width: 24px;
-    height: 24px;
-    stroke-width: 1.8;
-}
-
-.translation-save-hint {
-    display: flex;
-    min-height: 34px;
-    grid-column: 1 / -1;
-    align-items: center;
-    justify-self: center;
-    gap: 9px;
-    color: var(--landing-muted);
-    font-size: 0.75rem;
-}
-
-.translation-save-hint svg {
-    width: 15px;
-    height: 15px;
-    color: var(--landing-primary-strong);
-}
-
-.translation-save-hint kbd {
-    padding: 3px 7px;
-    border: 1px solid var(--landing-line);
-    border-radius: 5px;
-    color: var(--landing-ink);
-    background: var(--landing-surface-muted);
-    font-family: var(--font-body);
-    font-size: 0.66rem;
+    height: auto;
 }
 
 .preview-flow {
@@ -1554,72 +1427,6 @@
         padding-inline: 14px;
     }
 
-    .app-preview {
-        aspect-ratio: 1 / 1.03;
-        padding: 14px;
-    }
-
-    .translation-preview {
-        grid-template-columns: minmax(0, 1fr) 22px minmax(0, 1fr);
-        gap: 10px 7px;
-    }
-
-    .translation-card {
-        border-radius: 10px;
-    }
-
-    .translation-card-head {
-        padding: 9px;
-        font-size: 0.66rem;
-    }
-
-    .translation-card-head strong {
-        gap: 5px;
-        font-size: 0.7rem;
-    }
-
-    .language-code {
-        min-width: 22px;
-        height: 18px;
-        font-size: 0.54rem;
-    }
-
-    .translation-card-word {
-        padding: 12px 9px;
-        font-size: clamp(0.94rem, 4.5vw, 1.15rem);
-    }
-
-    .translation-card-meta {
-        justify-content: flex-end;
-        padding: 8px 9px;
-        font-size: 0.6rem;
-    }
-
-    .translation-card-meta span:first-child {
-        display: none;
-    }
-
-    .translation-direction {
-        width: 22px;
-        height: 30px;
-    }
-
-    .translation-direction svg {
-        width: 18px;
-        height: 18px;
-    }
-
-    .translation-save-hint {
-        min-height: 29px;
-        gap: 6px;
-        font-size: 0.66rem;
-    }
-
-    .translation-save-hint kbd {
-        padding: 2px 5px;
-        font-size: 0.58rem;
-    }
-
     .preview-flow {
         grid-template-columns: repeat(3, 1fr);
     }
@@ -1823,18 +1630,6 @@
 }
 
 @media (max-width: 360px) {
-    .translation-card-head {
-        padding-inline: 7px;
-    }
-
-    .translation-card-head strong {
-        gap: 0;
-        font-size: 0;
-    }
-
-    .translation-card-head .language-code {
-        font-size: 0.54rem;
-    }
 }
 
 @media (prefers-reduced-motion: no-preference) {

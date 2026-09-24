@@ -182,8 +182,8 @@ function getErrorMessage(err: unknown, fallback = 'Login failed. Please try agai
 
                         <div class="hero-pitch">
                             <p>
-                                Translate and save new words. Telegram sends exercises from your saved vocabulary
-                                automatically every day.
+                                Translate and save new words. Discover a new idiom each day, refreshed daily in your
+                                learning language. Get idioms and vocabulary practice through Telegram.
                             </p>
 
                             <div class="hero-actions">
@@ -224,45 +224,21 @@ function getErrorMessage(err: unknown, fallback = 'Login failed. Please try agai
                                 <span class="app-frame-view">Translation</span>
                             </div>
 
-                            <div class="app-preview">
-                                <div
-                                    class="translation-preview"
-                                    role="img"
-                                    aria-label="Termorize translation workspace showing whisper translated from English to Russian"
-                                >
-                                    <div class="translation-card">
-                                        <div class="translation-card-head">
-                                            <span>From</span>
-                                            <strong><span class="language-code">EN</span> English</strong>
-                                        </div>
-                                        <div class="translation-card-word">whisper</div>
-                                        <div class="translation-card-meta">
-                                            <span>Source word</span>
-                                            <span>7 characters</span>
-                                        </div>
-                                    </div>
-
-                                    <span class="translation-direction" aria-hidden="true"><ArrowRight /></span>
-
-                                    <div class="translation-card">
-                                        <div class="translation-card-head">
-                                            <span>To</span>
-                                            <strong><span class="language-code">RU</span> Russian</strong>
-                                        </div>
-                                        <div class="translation-card-word" lang="ru">шёпот</div>
-                                        <div class="translation-card-meta">
-                                            <span>Translation</span>
-                                            <span>5 characters</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="translation-save-hint">
-                                        <BookmarkCheck aria-hidden="true" />
-                                        <span>Ready to save to your vocabulary</span>
-                                        <kbd>Ctrl + S</kbd>
-                                    </div>
-                                </div>
-                            </div>
+                            <a
+                                class="app-preview"
+                                href="/images/daily-idiom-translation.png"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label="View the current translator and idiom of the day at full size (opens in a new tab)"
+                            >
+                                <img
+                                    src="/images/daily-idiom-translation.png"
+                                    alt="Termorize: break the ice translated into Russian, with the daily idiom, its meaning and Translate action below"
+                                    width="1280"
+                                    height="1009"
+                                    fetchpriority="high"
+                                />
+                            </a>
 
                             <div class="preview-flow" aria-label="Learning flow">
                                 <div class="preview-step">
@@ -280,11 +256,11 @@ function getErrorMessage(err: unknown, fallback = 'Login failed. Please try agai
                             </div>
                         </div>
 
-                        <aside class="telegram-note" aria-label="Automatic Telegram exercise delivery example">
+                        <aside class="telegram-note" aria-label="Optional daily Telegram delivery">
                             <span class="telegram-note-icon" aria-hidden="true"><Send /></span>
                             <span class="telegram-note-copy">
                                 <strong>Sent automatically</strong>
-                                <span>Random daily exercises</span>
+                                <span>Daily idioms and exercises</span>
                             </span>
                             <ArrowRight aria-hidden="true" />
                         </aside>
@@ -308,7 +284,10 @@ function getErrorMessage(err: unknown, fallback = 'Login failed. Please try agai
                                 <span class="step-icon"><Search aria-hidden="true" /></span>
                                 <div>
                                     <h3>Capture it while it is fresh.</h3>
-                                    <p>Translate with your chosen language pair and save the result in one shortcut.</p>
+                                    <p>
+                                        Translate a word or today’s idiom, then save its meaning to your vocabulary in
+                                        one shortcut.
+                                    </p>
                                 </div>
                             </li>
                             <li>
@@ -503,11 +482,17 @@ function getErrorMessage(err: unknown, fallback = 'Login failed. Please try agai
                 <div class="landing-wrap">
                     <div class="telegram-panel">
                         <div class="telegram-copy">
-                            <h2>Exercises arrive automatically in Telegram.</h2>
+                            <h2>Your daily practice, delivered in Telegram.</h2>
                             <p>
                                 Choose how many exercises you want each day and the time windows that suit you.
                                 Termorize picks from your saved vocabulary and sends each exercise separately at a
                                 random time within those windows.
+                            </p>
+
+                            <p>
+                                Want a daily idiom too? Turn it on in Settings and the bot sends your idiom of the day
+                                at 11:00 in your timezone. Tap “Add to vocabulary” to save it with a translation of its
+                                meaning.
                             </p>
 
                             <ul class="telegram-facts">
