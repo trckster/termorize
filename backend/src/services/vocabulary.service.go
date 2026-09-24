@@ -213,6 +213,9 @@ func CreateVocabularyByTranslation(userID uint, translationID uuid.UUID) (*model
 	var vocabulary models.Vocabulary
 
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := lockWordWrites(tx); err != nil {
+			return err
+		}
 		var translation models.Translation
 		if err := tx.
 			Preload("Original").

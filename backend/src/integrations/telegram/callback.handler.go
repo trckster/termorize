@@ -57,6 +57,8 @@ func routeCallbackData(callback *callbackQuery) error {
 	}
 
 	switch handlerType {
+	case "idiom":
+		return handleIdiomCallback(callback, payload)
 	case callbackTypeExercise:
 		return handleExerciseCallback(callback, payload)
 	case callbackTypeMenu:

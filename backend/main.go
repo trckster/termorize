@@ -35,6 +35,7 @@ func main() {
 	}
 
 	runners.StartExerciseRunner()
+	runners.StartDailyIdiomRunner(context.Background())
 	runners.StartDictionaryRunner(context.Background())
 
 	http.LaunchServer()

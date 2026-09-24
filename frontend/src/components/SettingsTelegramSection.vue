@@ -20,6 +20,7 @@ const { addToast } = useToast()
 const { t } = useI18n()
 
 const botEnabled = ref(false)
+const dailyIdiomEnabled = ref(false)
 const dailyQuestionsEnabled = ref(false)
 const dailyQuestionsCount = ref(10)
 const dailyQuestionsSchedule = ref<UserTelegramScheduleItem[]>([])
@@ -109,6 +110,7 @@ const hasChanged = computed(() => {
     if (!props.settings) return false
 
     const currentTelegram = props.settings.telegram
+    if (dailyIdiomEnabled.value !== (currentTelegram.daily_idiom_enabled ?? false)) return true
     if (dailyQuestionsEnabled.value !== currentTelegram.daily_questions_enabled) return true
     if (dailyQuestionsCount.value !== currentTelegram.daily_questions_count) return true
 
@@ -147,6 +149,7 @@ const saveTelegramSettings = async () => {
             ...props.settings,
             telegram: {
                 bot_enabled: botEnabled.value,
+                daily_idiom_enabled: dailyIdiomEnabled.value,
                 daily_questions_enabled: dailyQuestionsEnabled.value,
                 daily_questions_count: dailyQuestionsCount.value,
                 daily_questions_schedule: dailyQuestionsSchedule.value,
@@ -176,6 +179,7 @@ watch(
     () => props.settings,
     (nextSettings) => {
         botEnabled.value = nextSettings?.telegram.bot_enabled || false
+        dailyIdiomEnabled.value = nextSettings?.telegram.daily_idiom_enabled ?? false
         dailyQuestionsEnabled.value = nextSettings?.telegram.daily_questions_enabled || false
         dailyQuestionsCount.value = nextSettings?.telegram.daily_questions_count || 1
         dailyQuestionsSchedule.value = (nextSettings?.telegram.daily_questions_schedule || []).map((item) => ({
@@ -217,6 +221,11 @@ watch(
                     </template>
                 </div>
             </template>
+
+            <div class="mb-6 space-y-2 sm:p-4">
+                <ToggleSwitch v-model="dailyIdiomEnabled" :disabled="isSaving" :label="t.settingsTelegramDailyIdiom" />
+                <p class="text-sm text-muted-foreground">{{ t.settingsTelegramDailyIdiomNote }} {{ timezoneLabel }}.</p>
+            </div>
 
             <div class="grid grid-cols-1 gap-6 sm:p-4 md:grid-cols-2 md:gap-4">
                 <div class="space-y-2">
