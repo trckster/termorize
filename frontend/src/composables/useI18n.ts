@@ -7,7 +7,7 @@ import { formatNumber } from '@/lib/utils.ts'
 const admin = {
     navDictionaries: 'Dictionaries',
     dictionariesIntro:
-        'Import explicitly classified English, Russian, and Italian idioms from Wiktionary. Source editions can contain entries in several languages.',
+        'Import explicitly classified idioms in all supported learning languages from Wiktionary. Source editions can contain entries in several languages.',
     dictionariesBackground:
         'Imports continue after you leave this page. An update downloads the source again and preserves existing vocabulary.',
     dictionariesEmpty: 'No dictionary sources configured.',
