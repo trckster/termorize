@@ -73,8 +73,8 @@ func TestDailyIdiomDelivery(t *testing.T) {
 				assert.Equal(t, "Идиома дня\n\n🇮🇹 "+word.Word, sent.Text)
 				daily, err := services.GetDailyIdiom(context.Background(), user.ID, now)
 				require.NoError(t, err)
-				require.Len(t, sent.ReplyMarkup.InlineKeyboard, 1)
-				assert.Equal(t, "idiom:add:"+daily.Idiom.ID.String(), sent.ReplyMarkup.InlineKeyboard[0][0].Data)
+				require.Len(t, sent.ReplyMarkup.InlineKeyboard, 3)
+				assert.Equal(t, "idiom:add:"+daily.Idiom.ID.String(), sent.ReplyMarkup.InlineKeyboard[1][0].Data)
 				require.NoError(t, services.DeliverDailyIdioms(context.Background(), now.Add(time.Minute), telegram.SendDailyIdiom))
 				assert.Equal(t, 2, tg.Count("sendMessage"))
 				user.Settings.Telegram.DailyIdiomEnabled = false
@@ -214,4 +214,91 @@ func TestTelegramWebhookIdiomFailuresDoNotConfirmOrSave(t *testing.T) {
 			assert.Zero(t, count)
 		})
 	}
+}
+
+func TestTelegramIdiomPreviewDismissAndSave(t *testing.T) {
+	for _, language := range []enums.Language{enums.LanguageEn, enums.LanguageRu} {
+		t.Run(string(language), func(t *testing.T) {
+			testkit.Truncate(t)
+			tg := testkit.MockTelegramAPI(t)
+			denyIdiomGoogle(t)
+			user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{SystemLanguage: language, MainLearningLanguage: enums.LanguageEn, TranslationSourceLanguage: enums.LanguageEn, TranslationTargetLanguage: enums.LanguageRu, Telegram: models.UserTelegramSettings{DailyIdiomEnabled: true}}))
+			seedDailyIdiomWord(t, "break the ice", enums.LanguageEn)
+			daily, err := services.GetDailyIdiom(context.Background(), user.ID, time.Now())
+			require.NoError(t, err)
+			calls := 0
+			testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{TranslateIdiomFunc: func(context.Context, string, string, string) (string, error) {
+				calls++
+				return "растопить лёд", nil
+			}})
+			callback := func(data string) {
+				update := telegramMenuCallback(user.TelegramID, "preview", "unused")
+				update["callback_query"].(map[string]any)["data"] = data
+				testkit.RequireStatus(t, telegramUpdate(t, update), http.StatusOK)
+			}
+			callback("idiom:dismiss:" + daily.Idiom.ID.String())
+			assert.Zero(t, calls)
+			require.Equal(t, 1, tg.Count("editMessageReplyMarkup"))
+			var dismissed struct {
+				ReplyMarkup struct {
+					Keyboard []any `json:"inline_keyboard"`
+				} `json:"reply_markup"`
+			}
+			require.NoError(t, json.Unmarshal(tg.RequestsFor("editMessageReplyMarkup")[0].Body, &dismissed))
+			assert.Empty(t, dismissed.ReplyMarkup.Keyboard)
+			var loaded models.User
+			require.NoError(t, db.DB.First(&loaded, user.ID).Error)
+			assert.True(t, loaded.Settings.Telegram.DailyIdiomEnabled)
+			callback("idiom:translate:" + daily.Idiom.ID.String())
+			assert.Equal(t, 1, calls)
+			var count int64
+			require.NoError(t, db.DB.Model(&models.Vocabulary{}).Count(&count).Error)
+			assert.Zero(t, count)
+			var preview struct {
+				Text        string `json:"text"`
+				ReplyMarkup struct {
+					Keyboard [][]struct {
+						Text string `json:"text"`
+						Data string `json:"callback_data"`
+					} `json:"inline_keyboard"`
+				} `json:"reply_markup"`
+			}
+			require.NoError(t, json.Unmarshal(tg.RequestsFor("editMessageText")[0].Body, &preview))
+			assert.Contains(t, preview.Text, "break the ice")
+			assert.Contains(t, preview.Text, "растопить лёд")
+			require.Len(t, preview.ReplyMarkup.Keyboard, 2)
+			assert.Equal(t, "idiom:add:"+daily.Idiom.ID.String()+":ru", preview.ReplyMarkup.Keyboard[0][0].Data)
+			assert.Equal(t, "idiom:dismiss:"+daily.Idiom.ID.String(), preview.ReplyMarkup.Keyboard[1][0].Data)
+			assert.Equal(t, telegram.GetBotTexts(language).ButtonIdiomDismiss, preview.ReplyMarkup.Keyboard[1][0].Text)
+			user.Settings.TranslationTargetLanguage = enums.LanguageIt
+			require.NoError(t, db.DB.Model(&user).Update("settings", user.Settings).Error)
+			callback(preview.ReplyMarkup.Keyboard[0][0].Data)
+			callback(preview.ReplyMarkup.Keyboard[0][0].Data)
+			assert.Equal(t, 1, calls, "saving the displayed translation must reuse it, even after settings change")
+			require.NoError(t, db.DB.Model(&models.Vocabulary{}).Count(&count).Error)
+			assert.EqualValues(t, 1, count)
+		})
+	}
+}
+
+func TestTelegramIdiomPreviewFailureLeavesActionsAvailable(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+	denyIdiomGoogle(t)
+	user := testkit.CreateUser(t)
+	seedDailyIdiomWord(t, "break the ice", enums.LanguageEn)
+	daily, err := services.GetDailyIdiom(context.Background(), user.ID, time.Now())
+	require.NoError(t, err)
+	testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{TranslateIdiomFunc: func(context.Context, string, string, string) (string, error) {
+		return "", errors.New("provider failed")
+	}})
+	update := telegramMenuCallback(user.TelegramID, "preview-failed", "unused")
+	update["callback_query"].(map[string]any)["data"] = "idiom:translate:" + daily.Idiom.ID.String()
+	testkit.RequireStatus(t, telegramUpdate(t, update), http.StatusOK)
+	assert.Zero(t, tg.Count("editMessageText"))
+	assert.Zero(t, tg.Count("editMessageReplyMarkup"))
+	assert.Equal(t, 1, tg.Count("sendMessage"))
+	var count int64
+	require.NoError(t, db.DB.Model(&models.Vocabulary{}).Count(&count).Error)
+	assert.Zero(t, count)
 }

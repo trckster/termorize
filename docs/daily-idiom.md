@@ -49,6 +49,13 @@ Ctrl+E without edits, and mobile Save use the existing Vocabulary endpoint and
 that exact ID. They neither translate again nor replace the displayed result.
 User edits in the existing edit dialog remain explicit custom translations.
 
+Telegram messages offer Translate, Add to vocabulary, and Dismiss on separate
+rows. Translate reveals the LLM result without creating a Vocabulary entry, then
+keeps Add and Dismiss available. The Add callback pins the preview's target language
+so later preference changes cannot replace the translation the user saw. Dismiss
+removes the keyboard while preserving the text and daily subscription; it does
+not call the LLM. Both actions use localized labels.
+
 Telegram's `idiom:add:<selection UUID>` callback uses the same service. Its target
 comes from the existing saved translator source/target pair with the same rule
 as the web action. After translation succeeds it saves Vocabulary, then replaces
