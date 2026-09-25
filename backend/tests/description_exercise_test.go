@@ -88,12 +88,14 @@ func TestDescriptionExerciseDirectionsUseAndCacheWordDefinitions(t *testing.T) {
 					assert.Equal(t, test.expectedLanguage.DisplayName(), descriptionLanguage)
 					return &openrouter.GeneratedDescription{Description: test.description}, nil
 				},
-				DescriptionContainsAnswerFormFunc: func(word, wordLanguage, description string) (bool, error) {
+				ValidateDescriptionFunc: func(word, wordLanguage, translation, translationLanguage, description string) (*openrouter.DescriptionValidation, error) {
 					validationCalls++
 					assert.Equal(t, test.expectedWord, word)
 					assert.Equal(t, test.expectedLanguage.DisplayName(), wordLanguage)
+					assert.Equal(t, expectedTranslation.Word, translation)
+					assert.Equal(t, expectedTranslation.Language.DisplayName(), translationLanguage)
 					assert.Equal(t, test.description, description)
-					return false, nil
+					return &openrouter.DescriptionValidation{MatchesTranslation: true}, nil
 				},
 			})
 
@@ -478,11 +480,11 @@ func TestDescriptionExerciseRejectsModelReportedInflectedForms(t *testing.T) {
 				GenerateDescriptionFunc: func(string, string, string, string, string) (*openrouter.GeneratedDescription, error) {
 					return &openrouter.GeneratedDescription{Description: test.description}, nil
 				},
-				DescriptionContainsAnswerFormFunc: func(word, wordLanguage, description string) (bool, error) {
+				ValidateDescriptionFunc: func(word, wordLanguage, translation, translationLanguage, description string) (*openrouter.DescriptionValidation, error) {
 					assert.Equal(t, test.word, word)
 					assert.Equal(t, test.language.DisplayName(), wordLanguage)
 					assert.Equal(t, test.description, description)
-					return true, nil
+					return &openrouter.DescriptionValidation{ContainsAnswerForm: true, MatchesTranslation: true}, nil
 				},
 			})
 
@@ -490,6 +492,43 @@ func TestDescriptionExerciseRejectsModelReportedInflectedForms(t *testing.T) {
 			assert.ErrorIs(t, err, services.ErrDescriptionGenerationFailed)
 		})
 	}
+}
+
+func TestDescriptionExerciseRejectsClueForWrongTranslationSense(t *testing.T) {
+	testkit.Truncate(t)
+	user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{MainLearningLanguage: enums.LanguageEn}))
+	vocabulary := exerciseSeedVocabulary(t, user.ID, "Run down", "наезжать", enums.LanguageEn, enums.LanguageRu)
+	wrongClue := "To be in a poor or neglected state, often due to lack of maintenance."
+	correctClue := "To hit someone or something with a vehicle."
+	generated := wrongClue
+	testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{
+		GenerateDescriptionFunc: func(string, string, string, string, string) (*openrouter.GeneratedDescription, error) {
+			return &openrouter.GeneratedDescription{Description: generated}, nil
+		},
+		ValidateDescriptionFunc: func(word, wordLanguage, translation, translationLanguage, description string) (*openrouter.DescriptionValidation, error) {
+			assert.Equal(t, "Run down", word)
+			assert.Equal(t, "English", wordLanguage)
+			assert.Equal(t, "наезжать", translation)
+			assert.Equal(t, "Russian", translationLanguage)
+			return &openrouter.DescriptionValidation{MatchesTranslation: description == correctClue}, nil
+		},
+	})
+
+	_, err := services.CreateRandomExerciseOfTypes(user.ID, enums.ExerciseTypeDescriptionDirect)
+	assert.ErrorIs(t, err, services.ErrDescriptionGenerationFailed)
+	var count int64
+	require.NoError(t, db.DB.Model(&models.WordDescription{}).Count(&count).Error)
+	assert.Zero(t, count)
+	require.NoError(t, db.DB.Model(&models.Exercise{}).Count(&count).Error)
+	assert.Zero(t, count)
+
+	generated = correctClue
+	exercise, err := services.CreateRandomExerciseOfTypes(user.ID, enums.ExerciseTypeDescriptionDirect)
+	require.NoError(t, err)
+	assert.Equal(t, correctClue, exercise.Description)
+	var cached models.WordDescription
+	require.NoError(t, db.DB.Where("word_id = ? AND translation_word_id = ?", vocabulary.Translation.Original.ID, vocabulary.Translation.Translation.ID).Take(&cached).Error)
+	assert.Equal(t, correctClue, cached.Description)
 }
 
 func TestDescriptionExerciseRejectsOversizedClue(t *testing.T) {

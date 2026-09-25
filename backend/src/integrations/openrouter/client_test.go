@@ -33,7 +33,8 @@ func TestDescriptionValidationPromptChecksMorphology(t *testing.T) {
 	prompt := buildDescriptionValidationSystemPrompt()
 
 	require.Contains(t, prompt, "inflected, conjugated, declined, irregular, derived")
-	require.Contains(t, prompt, `{"contains_answer_form": boolean}`)
+	require.Contains(t, prompt, "same specific sense")
+	require.Contains(t, prompt, `{"contains_answer_form": boolean, "matches_translation": boolean}`)
 }
 
 type descriptionRoundTripper func(*http.Request) (*http.Response, error)
@@ -70,7 +71,15 @@ func TestDescriptionRequestsUseSelectedModelAndSupportedSampling(t *testing.T) {
 				}
 				content := `{"description":"A small pet that purrs."}`
 				if calls > 0 {
-					content = `{"contains_answer_form":false}`
+					messages := request["messages"].([]any)
+					var validationInput map[string]string
+					require.NoError(t, json.Unmarshal([]byte(messages[1].(map[string]any)["content"].(string)), &validationInput))
+					require.Equal(t, "cat", validationInput["answer"])
+					require.Equal(t, "English", validationInput["language"])
+					require.Equal(t, "il gatto", validationInput["translation"])
+					require.Equal(t, "Italian", validationInput["translation_language"])
+					require.Equal(t, "A small pet that purrs.", validationInput["description"])
+					content = `{"contains_answer_form":false,"matches_translation":true}`
 				}
 				calls++
 				payload, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"message": map[string]any{"content": content}}}})
@@ -78,10 +87,41 @@ func TestDescriptionRequestsUseSelectedModelAndSupportedSampling(t *testing.T) {
 			})}}
 			result, err := c.GenerateDescription("cat", "English", "il gatto", "Italian", "English")
 			require.NoError(t, err)
-			contains, err := c.DescriptionContainsAnswerForm("cat", "English", result.Description)
+			validation, err := c.ValidateDescription("cat", "English", "il gatto", "Italian", result.Description)
 			require.NoError(t, err)
-			require.False(t, contains)
+			require.False(t, validation.ContainsAnswerForm)
+			require.True(t, validation.MatchesTranslation)
 			require.Equal(t, 2, calls)
+		})
+	}
+}
+
+func TestDescriptionValidationRequiresBothDecisions(t *testing.T) {
+	setupClientTestConfig(t)
+	for _, test := range []struct {
+		name    string
+		content string
+		valid   bool
+	}{
+		{"different sense", `{"contains_answer_form":false,"matches_translation":false}`, true},
+		{"missing sense decision", `{"contains_answer_form":false}`, false},
+		{"missing answer decision", `{"matches_translation":true}`, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			c := &client{apiKey: "test", model: "test-model", http: &http.Client{Transport: descriptionRoundTripper(func(*http.Request) (*http.Response, error) {
+				payload, err := json.Marshal(map[string]any{"choices": []any{map[string]any{"message": map[string]any{"content": test.content}}}})
+				require.NoError(t, err)
+				return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader(payload)), Header: make(http.Header)}, nil
+			})}}
+			validation, err := c.ValidateDescription("Run down", "English", "наезжать", "Russian", "To be in poor condition.")
+			if !test.valid {
+				require.Error(t, err)
+				require.Nil(t, validation)
+				return
+			}
+			require.NoError(t, err)
+			require.False(t, validation.ContainsAnswerForm)
+			require.False(t, validation.MatchesTranslation)
 		})
 	}
 }
