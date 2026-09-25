@@ -213,6 +213,9 @@ func CreateVocabularyByTranslation(userID uint, translationID uuid.UUID) (*model
 	var vocabulary models.Vocabulary
 
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := lockWordWrites(tx); err != nil {
+			return err
+		}
 		var translation models.Translation
 		if err := tx.
 			Preload("Original").
@@ -223,6 +226,21 @@ func CreateVocabularyByTranslation(userID uint, translationID uuid.UUID) (*model
 				return ErrTranslationNotFound
 			}
 			return err
+		}
+
+		var count int64
+		if err := tx.
+			Model(&models.Vocabulary{}).
+			Joins("JOIN translations ON translations.id = vocabulary.translation_id").
+			Where("vocabulary.user_id = ?", userID).
+			Where("vocabulary.deleted_at IS NULL").
+			Where("(translations.original_id = ? AND translations.translation_id = ?) OR (translations.original_id = ? AND translations.translation_id = ?)", translation.OriginalID, translation.TranslationID, translation.TranslationID, translation.OriginalID).
+			Count(&count).Error; err != nil {
+			return err
+		}
+
+		if count > 0 {
+			return ErrVocabularyAlreadyExists
 		}
 
 		var existingVocab models.Vocabulary
@@ -246,21 +264,6 @@ func CreateVocabularyByTranslation(userID uint, translationID uuid.UUID) (*model
 			return nil
 		} else if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return result.Error
-		}
-
-		var count int64
-		if err := tx.
-			Model(&models.Vocabulary{}).
-			Joins("JOIN translations ON translations.id = vocabulary.translation_id").
-			Where("vocabulary.user_id = ?", userID).
-			Where("vocabulary.deleted_at IS NULL").
-			Where("(translations.original_id = ? AND translations.translation_id = ?) OR (translations.original_id = ? AND translations.translation_id = ?)", translation.OriginalID, translation.TranslationID, translation.TranslationID, translation.OriginalID).
-			Count(&count).Error; err != nil {
-			return err
-		}
-
-		if count > 0 {
-			return ErrVocabularyAlreadyExists
 		}
 
 		vocabulary = models.Vocabulary{

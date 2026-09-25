@@ -76,8 +76,12 @@ func GetDailyIdiom(ctx context.Context, userID uint, now time.Time) (*DailyIdiom
 			)
 			SELECT id, word FROM candidates
 			WHERE lowest = highest OR appearances < highest
-			ORDER BY RANDOM() LIMIT 1
-		`, language).Scan(&word)
+			ORDER BY EXISTS (
+				SELECT 1 FROM daily_idioms adjacent
+				WHERE adjacent.word_id = candidates.id
+				  AND adjacent.date IN (CAST(? AS date) - 1, CAST(? AS date) + 1)
+			), RANDOM() LIMIT 1
+		`, language, result.Date, result.Date).Scan(&word)
 		if query.Error != nil || query.RowsAffected == 0 {
 			return query.Error
 		}

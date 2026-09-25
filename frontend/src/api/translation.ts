@@ -11,7 +11,7 @@ export type TranslateResponse = {
     original_word_id: string
     translation_word_id: string
     translation: string
-    source: 'user' | 'dictionary' | 'google'
+    source: 'user' | 'dictionary' | 'google' | 'llm' | 'idiom_llm'
 }
 
 export const translationApi = {

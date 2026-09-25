@@ -54,7 +54,7 @@ func Extract(edition string, line []byte) (*Idiom, error) {
 	if record.Word == "" || record.Language == "" {
 		return nil, errors.New("missing word or lang_code")
 	}
-	if record.Language != "en" && record.Language != "ru" && record.Language != "it" {
+	if !enums.IsSupportedLanguage(enums.Language(record.Language)) {
 		return nil, nil
 	}
 	// Punctuation, bound morphemes and proverbs are not standalone idioms, even with idiomatic senses.
@@ -88,7 +88,7 @@ func isIdiom(edition, language string, c classification) bool {
 	var category string
 	switch edition {
 	case "enwiktionary":
-		category = map[string]string{"en": "English idioms", "ru": "Russian idioms", "it": "Italian idioms"}[language]
+		category = enums.Language(language).DisplayName() + " idioms"
 	case "ruwiktionary":
 		category = "Фразеологизмы/" + language
 	case "itwiktionary":

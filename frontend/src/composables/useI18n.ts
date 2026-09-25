@@ -7,7 +7,7 @@ import { formatNumber } from '@/lib/utils.ts'
 const admin = {
     navDictionaries: 'Dictionaries',
     dictionariesIntro:
-        'Import explicitly classified English, Russian, and Italian idioms from Wiktionary. Source editions can contain entries in several languages.',
+        'Import explicitly classified idioms in all supported learning languages from Wiktionary. Source editions can contain entries in several languages.',
     dictionariesBackground:
         'Imports continue after you leave this page. An update downloads the source again and preserves existing vocabulary.',
     dictionariesEmpty: 'No dictionary sources configured.',
@@ -247,6 +247,10 @@ const en = {
     save: 'Save',
     saving: 'Saving...',
     commonRetry: 'Retry',
+    settingsTelegramDailyIdiom: 'Daily idiom in Telegram',
+    settingsTelegramDailyIdiomNote: 'An idiom in your main learning language, every day at 11:00 in',
+    dailyIdiomTranslate: 'Translate',
+    translationSourceIdiomLLM: 'AI · idiom meaning',
     dailyIdiomTitle: 'Idiom of the day',
     dailyIdiomLoading: 'Loading today’s idiom…',
     dailyIdiomError: 'Could not load the idiom and its meaning. Please retry.',
@@ -776,6 +780,10 @@ const ru: typeof en = {
     save: 'Сохранить',
     saving: 'Сохранение...',
     commonRetry: 'Повторить',
+    settingsTelegramDailyIdiom: 'Идиома дня в Telegram',
+    settingsTelegramDailyIdiomNote: 'Идиома на основном изучаемом языке каждый день в 11:00. Часовой пояс:',
+    dailyIdiomTranslate: 'Перевести',
+    translationSourceIdiomLLM: 'ИИ · значение идиомы',
     dailyIdiomTitle: 'Идиома дня',
     dailyIdiomLoading: 'Загружаем идиому дня…',
     dailyIdiomError: 'Не удалось загрузить идиому и её значение. Попробуйте ещё раз.',

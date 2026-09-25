@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Loader2 } from 'lucide-vue-next'
+import { Loader2, Languages } from 'lucide-vue-next'
 import { dailyIdiomApi, type DailyIdiom } from '@/api/dailyIdiom'
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/composables/useI18n'
 import { localDateInTimezone } from '@/lib/localDate'
 import { useAuthStore } from '@/stores/auth'
 
+const emit = defineEmits<{ translate: [daily: DailyIdiom] }>()
 const auth = useAuthStore()
 const { t } = useI18n()
 const mainLearningLanguage = computed(() => auth.user?.settings.main_learning_language)
@@ -105,5 +106,9 @@ onBeforeUnmount(() => {
                 <Button variant="outline" class="min-h-11" @click="load">{{ t.commonRetry }}</Button>
             </div>
         </div>
+        <Button v-if="daily?.idiom" variant="outline" class="mt-5 min-h-11" @click="emit('translate', daily)">
+            <Languages class="size-4" aria-hidden="true" />
+            {{ t.dailyIdiomTranslate }}
+        </Button>
     </section>
 </template>

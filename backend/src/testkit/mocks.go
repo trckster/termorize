@@ -42,10 +42,18 @@ func MockGoogleTranslate(t *testing.T, fake *FakeGoogleTranslate) *FakeGoogleTra
 }
 
 type FakeOpenRouter struct {
+	TranslateIdiomFunc                func(context.Context, string, string, string) (string, error)
 	GenerateFunc                      func(prompt string, allowedLanguages []string) (*openrouter.GeneratedCollection, error)
 	GenerateDescriptionFunc           func(word, wordLanguage, translation, translationLanguage, descriptionLanguage string) (*openrouter.GeneratedDescription, error)
 	GenerateIdiomDescriptionFunc      func(ctx context.Context, idiom, language string) (*openrouter.GeneratedDescription, error)
 	DescriptionContainsAnswerFormFunc func(word, wordLanguage, description string) (bool, error)
+}
+
+func (f *FakeOpenRouter) TranslateIdiom(ctx context.Context, idiom, sourceLanguage, targetLanguage string) (string, error) {
+	if f.TranslateIdiomFunc != nil {
+		return f.TranslateIdiomFunc(ctx, idiom, sourceLanguage, targetLanguage)
+	}
+	return "figurative meaning", nil
 }
 
 func (f *FakeOpenRouter) GenerateIdiomDescription(ctx context.Context, idiom, language string) (*openrouter.GeneratedDescription, error) {

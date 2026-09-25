@@ -12,6 +12,7 @@ A vocabulary trainer for the web and Telegram. Translate, save, practice, and tr
 ## Features
 
 - **Personal vocabulary** — Save, search, and track mastery for every word pair.
+- **Idiom of the day** — Discover an idiom in any of the ten learning languages, translate its meaning with AI, and save it to vocabulary. Opt into Telegram delivery at 11:00 in your timezone.
 - **Instant translation** — Translate across ten languages and save results in one click.
 - **Smart exercises** — Practice with typed, multiple-choice, character, and matching quizzes.
 - **Progress tracking** — Review exercise history, mastery changes, and activity charts.
@@ -41,7 +42,7 @@ A vocabulary trainer for the web and Telegram. Translate, save, practice, and tr
 
 ### Translation
 
-![Translation from English to Italian in the Emerald dark theme](docs/pictures/translation.png)
+![Daily idiom translated from English to Russian in the Emerald dark theme](frontend/public/images/daily-idiom-translation.png)
 
 ### Statistics
 

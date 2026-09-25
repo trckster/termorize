@@ -2,6 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ArrowUpDown, Loader2 } from 'lucide-vue-next'
 import { settingsApi } from '@/api/settings.ts'
+import { dailyIdiomApi, type DailyIdiom as DailyIdiomData } from '@/api/dailyIdiom'
+import { idiomLanguages, type ActiveIdiom, matchesIdiom } from '@/lib/idiomTranslation'
 import { translationApi } from '@/api/translation.ts'
 import { vocabularyApi } from '@/api/vocabulary.ts'
 import LanguageSelector from '@/components/LanguageSelector.vue'
@@ -67,6 +69,8 @@ const getInitialLanguages = () => {
 
 const initialLanguages = getInitialLanguages()
 
+let applyingIdiom = false
+const activeIdiom = ref<ActiveIdiom | null>(null)
 const sourceText = ref('')
 const translatedText = ref('')
 const sourceTextareaRef = ref<HTMLTextAreaElement | null>(null)
@@ -110,6 +114,7 @@ let latestTranslationRequestId = 0
 const translationSourceLabel = computed(() => {
     if (translationSource.value === 'user') return t.value.translationSourceUser
     if (translationSource.value === 'dictionary') return t.value.translationSourceDictionary
+    if (translationSource.value === 'idiom_llm') return t.value.translationSourceIdiomLLM
     if (translationSource.value === 'google') return t.value.translationSourceGoogle
     return translationSource.value
 })
@@ -217,11 +222,14 @@ const performTranslation = async (
     translationErrorMessage.value = ''
 
     try {
-        const result = await translationApi.translate({
-            from_word: fromText,
-            from_language: fromLang,
-            to_language: toLang,
-        })
+        const result =
+            activeIdiom.value && matchesIdiom(activeIdiom.value, fromText, fromLang)
+                ? await dailyIdiomApi.translate(activeIdiom.value.id, toLang)
+                : await translationApi.translate({
+                      from_word: fromText,
+                      from_language: fromLang,
+                      to_language: toLang,
+                  })
 
         if (requestId !== latestTranslationRequestId) {
             return
@@ -309,7 +317,58 @@ const queueTargetToSourceTranslation = (fromText: string) => {
     )
 }
 
+const translateActiveIdiom = () => {
+    const idiom = activeIdiom.value
+    if (!idiom) return false
+    invalidateTranslationResult()
+    if (matchesIdiom(idiom, sourceText.value, sourceLang.value)) {
+        queueSourceToTargetTranslation(sourceText.value)
+        return true
+    }
+    if (matchesIdiom(idiom, translatedText.value, targetLang.value)) {
+        queueTargetToSourceTranslation(translatedText.value)
+        return true
+    }
+    activeIdiom.value = null
+    return false
+}
+
+const useDailyIdiom = async (daily: DailyIdiomData) => {
+    if (!daily.idiom) return
+    if (debounceTimer) clearTimeout(debounceTimer)
+    invalidateTranslationResult()
+    applyingIdiom = true
+    const languages = idiomLanguages(daily.language, sourceLang.value, targetLang.value)
+    activeIdiom.value = { id: daily.idiom.id, word: daily.idiom.word, language: daily.language }
+    sourceLang.value = languages.source
+    targetLang.value = languages.target
+    sourceText.value = daily.idiom.word
+    translatedText.value = ''
+    activeField.value = 'source'
+    // Flush all field/language watchers while ordinary translation is suppressed.
+    await nextTick()
+    applyingIdiom = false
+    queuePersistTranslationLanguages()
+    lastTranslationDirection = 'source-to-target'
+    void performTranslation(
+        sourceText.value,
+        sourceLang.value,
+        targetLang.value,
+        'source-to-target',
+        (text) => {
+            programmaticTextChanges.mark('target', text)
+            translatedText.value = text
+        },
+        (loading) => {
+            isLoadingTarget.value = loading
+        }
+    )
+    sourceTextareaRef.value?.focus({ preventScroll: true })
+    sourceTextareaRef.value?.scrollIntoView({ block: 'nearest' })
+}
+
 const retryLastTranslation = () => {
+    if (translateActiveIdiom()) return
     if (lastTranslationDirection === 'source-to-target' && sourceText.value.trim()) {
         invalidateTranslationResult()
         queueSourceToTargetTranslation(sourceText.value)
@@ -323,6 +382,7 @@ const retryLastTranslation = () => {
 }
 
 const translateForLanguageChange = (field: TranslationField) => {
+    if (translateActiveIdiom()) return
     const direction = getLanguageChangeDirection(field)
 
     if (direction === 'source-to-target' && sourceText.value.trim()) {
@@ -340,8 +400,10 @@ const translateForLanguageChange = (field: TranslationField) => {
 watch(
     sourceText,
     (newValue) => {
+        if (applyingIdiom) return
         if (programmaticTextChanges.consume('source', newValue)) return
         if (activeField.value !== 'source') return
+        activeIdiom.value = null
         invalidateTranslationResult()
         translationErrorMessage.value = ''
         queueSourceToTargetTranslation(newValue)
@@ -352,8 +414,10 @@ watch(
 watch(
     translatedText,
     (newValue) => {
+        if (applyingIdiom) return
         if (programmaticTextChanges.consume('target', newValue)) return
         if (activeField.value !== 'target') return
+        activeIdiom.value = null
         invalidateTranslationResult()
         translationErrorMessage.value = ''
         queueTargetToSourceTranslation(newValue)
@@ -364,6 +428,7 @@ watch(
 watch(
     sourceLang,
     () => {
+        if (applyingIdiom) return
         if (!isSwappingLanguages) {
             void focusTextarea('source')
         }
@@ -376,6 +441,7 @@ watch(
 watch(
     targetLang,
     () => {
+        if (applyingIdiom) return
         if (!isSwappingLanguages) {
             void focusTextarea('target')
         }
@@ -388,6 +454,10 @@ watch(
 const handleSwapLanguages = () => {
     const fieldToRefocus = activeField.value
 
+    if (activeIdiom.value) {
+        applyingIdiom = true
+        if (debounceTimer) clearTimeout(debounceTimer)
+    }
     isSwappingLanguages = true
     latestTranslationRequestId += 1
     translationErrorMessage.value = ''
@@ -399,6 +469,11 @@ const handleSwapLanguages = () => {
 
     void nextTick(() => {
         isSwappingLanguages = false
+        if (applyingIdiom) {
+            applyingIdiom = false
+            queuePersistTranslationLanguages()
+            if (!translationId.value) translateActiveIdiom()
+        }
 
         if (fieldToRefocus) {
             void focusTextarea(fieldToRefocus)
@@ -613,6 +688,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+    latestTranslationRequestId++
     window.removeEventListener('keydown', handleShortcut)
     if (debounceTimer) {
         clearTimeout(debounceTimer)
@@ -872,7 +948,7 @@ onBeforeUnmount(() => {
                     <Kbd class="min-h-5 px-1.5 py-0.5 text-[10px]">Ctrl + Shift + L</Kbd>
                 </div>
             </div>
-            <DailyIdiom />
+            <DailyIdiom @translate="useDailyIdiom" />
         </div>
     </main>
 </template>

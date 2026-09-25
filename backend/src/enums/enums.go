@@ -13,6 +13,7 @@ const (
 	TranslationSourceDictionary TranslationSource = "dictionary"
 	TranslationSourceGoogle     TranslationSource = "google"
 	TranslationSourceLLM        TranslationSource = "llm"
+	TranslationSourceIdiomLLM   TranslationSource = "idiom_llm"
 )
 
 type ExerciseType string

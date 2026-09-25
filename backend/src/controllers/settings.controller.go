@@ -25,6 +25,7 @@ type UpdateSettingsRequest struct {
 }
 
 type UpdateSettingsTelegramRequest struct {
+	DailyIdiomEnabled      bool                                        `json:"daily_idiom_enabled"`
 	DailyQuestionsEnabled  bool                                        `json:"daily_questions_enabled"`
 	DailyQuestionsCount    uint                                        `json:"daily_questions_count" binding:"max=100"`
 	DailyQuestionsSchedule []UpdateSettingsTelegramScheduleItemRequest `json:"daily_questions_schedule" binding:"required,dive"`
@@ -62,6 +63,7 @@ func UpdateSettings(c *gin.Context) {
 		IgnoredDescriptionLanguages: req.IgnoredDescriptionLanguages,
 		TimeZone:                    strings.TrimSpace(req.TimeZone),
 		Telegram: models.UserTelegramSettings{
+			DailyIdiomEnabled:     req.Telegram.DailyIdiomEnabled,
 			DailyQuestionsEnabled: req.Telegram.DailyQuestionsEnabled,
 			DailyQuestionsCount:   req.Telegram.DailyQuestionsCount,
 			DailyQuestionsSchedule: func() []models.UserTelegramQuestionsScheduleItem {

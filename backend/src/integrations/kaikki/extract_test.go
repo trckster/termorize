@@ -3,6 +3,7 @@ package kaikki
 import (
 	"bufio"
 	"os"
+	"termorize/src/enums"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -57,7 +58,7 @@ func TestExtractClassificationBoundaries(t *testing.T) {
 		{name: "redirect without classification", line: `{"title":"alias","redirect":"target"}`, invalid: true},
 		{name: "only a translation", line: `{"word":"обычный","lang_code":"ru","translations":[{"word":"piece of cake","lang_code":"en","tags":["idiomatic"]}]}`},
 		{name: "unrelated category language", line: `{"word":"ordinary","lang_code":"en","categories":["Russian idioms"]}`},
-		{name: "unsupported entry language", line: `{"word":"das ist","lang_code":"de","tags":["idiomatic"]}`},
+		{name: "unsupported entry language", line: `{"word":"unsupported","lang_code":"xx","tags":["idiomatic"]}`},
 		{name: "sense category", edition: "ruwiktionary", line: `{"word":"бить баклуши","lang_code":"ru","senses":[{"categories":["Фразеологизмы/ru"]}]}`, word: "бить баклуши"},
 		{name: "italian raw tag only in italian edition", line: `{"word":"itsy bitsy","lang_code":"en","raw_tags":["idiomatico"]}`},
 		{name: "proverb", line: `{"word":"time is money","lang_code":"en","pos":"proverb","tags":["idiomatic"]}`},
@@ -92,4 +93,18 @@ func TestExtractClassificationBoundaries(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestExtractSupportsEveryApplicationLanguage(t *testing.T) {
+	for _, language := range enums.AllLanguageValues() {
+		for _, classification := range []string{`"tags":["idiomatic"]`, `"categories":["` + language.DisplayName() + ` idioms"]`} {
+			t.Run(string(language)+classification, func(t *testing.T) {
+				idiom, err := Extract("enwiktionary", []byte(`{"word":"example phrase","lang_code":"`+string(language)+`",`+classification+`}`))
+				require.NoError(t, err)
+				require.NotNil(t, idiom)
+				require.Equal(t, language, idiom.Language)
+			})
+		}
+	}
+
 }

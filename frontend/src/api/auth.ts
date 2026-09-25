@@ -33,6 +33,7 @@ export interface UserSettings {
 
 export interface UserTelegramSettings {
     bot_enabled: boolean
+    daily_idiom_enabled: boolean
     daily_questions_enabled: boolean
     daily_questions_count: number
     daily_questions_schedule: UserTelegramScheduleItem[]

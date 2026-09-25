@@ -21,6 +21,7 @@ type UserSettings struct {
 }
 
 type UserTelegramSettings struct {
+	DailyIdiomEnabled      bool                                `json:"daily_idiom_enabled"`
 	BotEnabled             bool                                `json:"bot_enabled"`
 	DailyQuestionsEnabled  bool                                `json:"daily_questions_enabled"`
 	DailyQuestionsCount    uint                                `json:"daily_questions_count"`

@@ -107,6 +107,8 @@ type BotTexts struct {
 	ButtonBack                            string
 	ButtonCancel                          string
 	ButtonExerciseIDK                     string
+	ButtonIdiomTranslate                  string
+	ButtonIdiomDismiss                    string
 	ButtonVocabularyAdd                   string
 	ButtonVocabularyDelete                string
 	ButtonListen                          string
@@ -240,6 +242,8 @@ var botTextsEn = BotTexts{
 	ButtonBack:                            "Back",
 	ButtonCancel:                          "Cancel",
 	ButtonExerciseIDK:                     "Don't know",
+	ButtonIdiomTranslate:                  "Translate",
+	ButtonIdiomDismiss:                    "Dismiss",
 	ButtonVocabularyAdd:                   "Add to vocabulary",
 	ButtonVocabularyDelete:                "Delete from vocabulary",
 	ButtonListen:                          "Listen",
@@ -397,6 +401,8 @@ var botTextsRu = BotTexts{
 	ButtonBack:                            "Назад",
 	ButtonCancel:                          "Отмена",
 	ButtonExerciseIDK:                     "Не знаю",
+	ButtonIdiomTranslate:                  "Перевести",
+	ButtonIdiomDismiss:                    "Скрыть кнопки",
 	ButtonVocabularyAdd:                   "Добавить в словарь",
 	ButtonVocabularyDelete:                "Удалить из словаря",
 	ButtonListen:                          "Слушать",

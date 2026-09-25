@@ -34,6 +34,7 @@ type GeneratedDescription struct {
 }
 
 type Client interface {
+	TranslateIdiom(ctx context.Context, idiom, sourceLanguage, targetLanguage string) (string, error)
 	GenerateCollection(prompt string, allowedLanguages []string) (*GeneratedCollection, error)
 	GenerateDescription(word, wordLanguage, translation, translationLanguage, descriptionLanguage string) (*GeneratedDescription, error)
 	GenerateIdiomDescription(ctx context.Context, idiom, language string) (*GeneratedDescription, error)
