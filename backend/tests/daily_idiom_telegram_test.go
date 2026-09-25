@@ -12,6 +12,7 @@ import (
 	"sync"
 	"termorize/src/data/db"
 	"termorize/src/enums"
+	"termorize/src/integrations/openrouter"
 	"termorize/src/integrations/telegram"
 	"termorize/src/models"
 	"termorize/src/services"
@@ -34,6 +35,7 @@ func TestDailyIdiomDelivery(t *testing.T) {
 				user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{TimeZone: zone, MainLearningLanguage: enums.LanguageIt,
 					Telegram: models.UserTelegramSettings{BotEnabled: true, DailyIdiomEnabled: true}}))
 				word := seedDailyIdiomWord(t, "rompere il ghiaccio", enums.LanguageIt)
+				require.NoError(t, db.DB.Create(&models.WordDescription{WordID: word.ID, Model: "test", Description: "avviare una conversazione"}).Error)
 				testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{TimeZone: zone, Telegram: models.UserTelegramSettings{BotEnabled: true}}))
 				testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{TimeZone: zone, Telegram: models.UserTelegramSettings{DailyIdiomEnabled: true}}))
 				require.NoError(t, services.DeliverDailyIdioms(context.Background(), now.Add(-time.Minute), telegram.SendDailyIdiom))
@@ -70,7 +72,7 @@ func TestDailyIdiomDelivery(t *testing.T) {
 				}
 				require.NoError(t, json.Unmarshal(tg.RequestsFor("sendMessage")[1].Body, &sent))
 				assert.Equal(t, user.TelegramID, sent.ChatID)
-				assert.Equal(t, "Идиома дня\n\n🇮🇹 "+word.Word, sent.Text)
+				assert.Equal(t, "Идиома дня\n\n🇮🇹 "+word.Word+"\n\navviare una conversazione", sent.Text)
 				daily, err := services.GetDailyIdiom(context.Background(), user.ID, now)
 				require.NoError(t, err)
 				require.Len(t, sent.ReplyMarkup.InlineKeyboard, 3)
@@ -301,4 +303,50 @@ func TestTelegramIdiomPreviewFailureLeavesActionsAvailable(t *testing.T) {
 	var count int64
 	require.NoError(t, db.DB.Model(&models.Vocabulary{}).Count(&count).Error)
 	assert.Zero(t, count)
+}
+
+func TestTelegramInitialIdiomSharesFrontendDescriptionAndRetriesFailure(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+	user := testkit.CreateUser(t, testkit.WithSettings(models.UserSettings{MainLearningLanguage: enums.LanguageEn, TimeZone: "UTC", Telegram: models.UserTelegramSettings{BotEnabled: true, DailyIdiomEnabled: true}}))
+	seedDailyIdiomWord(t, "break the ice", enums.LanguageEn)
+	calls := 0
+	fail := true
+	testkit.MockOpenRouter(t, &testkit.FakeOpenRouter{GenerateIdiomDescriptionFunc: func(_ context.Context, word, language string) (*openrouter.GeneratedDescription, error) {
+		calls++
+		assert.Equal(t, "break the ice", word)
+		assert.Equal(t, "English", language)
+		if fail {
+			return nil, errors.New("provider unavailable")
+		}
+		return &openrouter.GeneratedDescription{Description: "start a conversation, ease social tension"}, nil
+	}})
+	testkit.MockGoogleTranslate(t, &testkit.FakeGoogleTranslate{DetectFunc: func(string) (string, error) { return "en", nil }, TranslateFunc: func(string, string, string) (string, error) {
+		t.Fatal("description must not use Google translation")
+		return "", nil
+	}})
+	now := time.Date(2026, 9, 26, 11, 0, 0, 0, time.UTC)
+	require.Error(t, services.DeliverDailyIdioms(context.Background(), now, telegram.SendDailyIdiom))
+	assert.Zero(t, tg.Count("sendMessage"))
+	var receipts int64
+	require.NoError(t, db.DB.Table("daily_idiom_deliveries").Count(&receipts).Error)
+	assert.Zero(t, receipts)
+	fail = false
+	require.NoError(t, services.DeliverDailyIdioms(context.Background(), now, telegram.SendDailyIdiom))
+	require.Equal(t, 1, tg.Count("sendMessage"))
+	daily, err := services.GetDailyIdiom(context.Background(), user.ID, now)
+	require.NoError(t, err)
+	description := readIdiomDescription(t, user, daily.Idiom.ID)
+	assert.Equal(t, "start a conversation, ease social tension", description)
+	var message struct {
+		Text        string `json:"text"`
+		ReplyMarkup struct {
+			Buttons [][]any `json:"inline_keyboard"`
+		} `json:"reply_markup"`
+	}
+	require.NoError(t, json.Unmarshal(tg.RequestsFor("sendMessage")[0].Body, &message))
+	assert.Contains(t, message.Text, "break the ice\n\n"+description)
+	assert.Len(t, message.ReplyMarkup.Buttons, 3)
+	require.NoError(t, telegram.SendDailyIdiom(user, *daily))
+	assert.Equal(t, 2, calls, "frontend and subsequent delivery must reuse the generated description")
 }

@@ -49,6 +49,11 @@ Ctrl+E without edits, and mobile Save use the existing Vocabulary endpoint and
 that exact ID. They neither translate again nor replace the displayed result.
 User edits in the existing edit dialog remain explicit custom translations.
 
+The initial Telegram message includes the same short description shown on the
+frontend, in the idiom’s language. Both use `GetDailyIdiomDescription` and its
+shared cache. If description generation fails, no incomplete message or delivery
+receipt is created; delivery remains eligible for the existing retry window.
+
 Telegram messages offer Translate, Add to vocabulary, and Dismiss on separate
 rows. Translate reveals the LLM result without creating a Vocabulary entry, then
 keeps Add and Dismiss available. The Add callback pins the preview's target language

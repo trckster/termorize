@@ -11,11 +11,17 @@ import (
 )
 
 func SendDailyIdiom(user models.User, daily services.DailyIdiomResponse) error {
+	// Share the frontend's cached description and generation rules. A failure
+	// leaves delivery retryable instead of sending an incomplete message.
+	description, err := services.GetDailyIdiomDescription(context.Background(), daily.Idiom.ID)
+	if err != nil {
+		return err
+	}
 	title := "Idiom of the day"
 	if user.Settings.SystemLanguage == enums.LanguageRu {
 		title = "Идиома дня"
 	}
-	return SendMessageWithInlineKeyboard(user.TelegramID, title+"\n\n"+daily.Language.Flag()+" "+daily.Idiom.Word,
+	return SendMessageWithInlineKeyboard(user.TelegramID, title+"\n\n"+daily.Language.Flag()+" "+daily.Idiom.Word+"\n\n"+description.Description,
 		buildIdiomKeyboard(daily.Idiom.ID, GetBotTexts(user.Settings.SystemLanguage), ""))
 }
 
