@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { adminApi, type Dictionary } from '@/api/admin'
 import DictionarySource from '@/components/DictionarySource.vue'
+import IdiomLanguageCoverage from '@/components/IdiomLanguageCoverage.vue'
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/composables/useI18n'
 
@@ -29,17 +30,28 @@ onMounted(load)
             <header class="mb-8">
                 <h2 class="text-2xl font-semibold">{{ t.navDictionaries }}</h2>
                 <p class="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{{ t.dictionariesIntro }}</p>
-                <p class="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{{ t.dictionariesBackground }}</p>
             </header>
-            <p v-if="loading" role="status" class="text-sm text-muted-foreground">{{ t.dictionaryLoading }}</p>
-            <div v-else-if="error" role="alert" class="flex flex-wrap items-center gap-3 text-sm">
-                <span class="text-foreground">{{ t.dictionaryLoadError }}</span>
-                <Button variant="outline" @click="load">{{ t.dictionaryRefresh }}</Button>
-            </div>
-            <p v-else-if="!dictionaries.length" class="text-sm text-muted-foreground">{{ t.dictionariesEmpty }}</p>
-            <div v-else class="divide-y divide-border">
-                <DictionarySource v-for="dictionary in dictionaries" :key="dictionary.id" :dictionary="dictionary" />
-            </div>
+            <IdiomLanguageCoverage />
+            <section aria-labelledby="dictionary-sources-title">
+                <h3 id="dictionary-sources-title" class="text-lg font-semibold">{{ t.dictionarySourcesTitle }}</h3>
+                <p class="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{{ t.dictionarySourcesIntro }}</p>
+                <p class="mb-4 mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                    {{ t.dictionariesBackground }}
+                </p>
+                <p v-if="loading" role="status" class="text-sm text-muted-foreground">{{ t.dictionaryLoading }}</p>
+                <div v-else-if="error" role="alert" class="flex flex-wrap items-center gap-3 text-sm">
+                    <span class="text-foreground">{{ t.dictionaryLoadError }}</span>
+                    <Button variant="outline" @click="load">{{ t.dictionaryRefresh }}</Button>
+                </div>
+                <p v-else-if="!dictionaries.length" class="text-sm text-muted-foreground">{{ t.dictionariesEmpty }}</p>
+                <div v-else class="divide-y divide-border">
+                    <DictionarySource
+                        v-for="dictionary in dictionaries"
+                        :key="dictionary.id"
+                        :dictionary="dictionary"
+                    />
+                </div>
+            </section>
         </div>
     </main>
 </template>

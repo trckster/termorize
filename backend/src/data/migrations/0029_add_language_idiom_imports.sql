@@ -1,0 +1,32 @@
+ALTER TABLE dictionaries ADD COLUMN target_language TEXT NOT NULL DEFAULT '';
+ALTER TABLE dictionary_import_jobs ADD COLUMN target_language TEXT NOT NULL DEFAULT '';
+
+INSERT INTO dictionaries (name, edition, url, license, attribution, download_url, target_language) VALUES
+('German idioms', 'dewiktionary', 'https://de.wiktionary.org/',
+ 'Wiktionary reuse terms: https://de.wiktionary.org/wiki/Wiktionary:Urheberrechte',
+ 'German Wiktionary contributors; extracted with Wiktextract via Kaikki.org',
+ 'https://kaikki.org/dictionary/downloads/de/de-extract.jsonl.gz', 'de'),
+('Spanish idioms', 'enwiktionary-es', 'https://en.wiktionary.org/wiki/Category:Spanish_idioms',
+ 'Wiktionary reuse terms: https://en.wiktionary.org/wiki/Wiktionary:Copyrights',
+ 'English Wiktionary contributors; Spanish idiom category via MediaWiki API',
+ 'https://en.wiktionary.org/w/api.php', 'es'),
+('French idioms', 'frwiktionary', 'https://fr.wiktionary.org/',
+ 'Wiktionary reuse terms: https://fr.wiktionary.org/wiki/Wiktionnaire:Licence',
+ 'French Wiktionary contributors; extracted with Wiktextract via Kaikki.org',
+ 'https://kaikki.org/dictionary/downloads/fr/fr-extract.jsonl.gz', 'fr'),
+('Polish idioms', 'plwiktionary', 'https://pl.wiktionary.org/',
+ 'Wiktionary reuse terms: https://pl.wiktionary.org/wiki/Wikisłownik:Prawa_autorskie',
+ 'Polish Wiktionary contributors; extracted with Wiktextract via Kaikki.org',
+ 'https://kaikki.org/dictionary/downloads/pl/pl-extract.jsonl.gz', 'pl'),
+('Turkish idioms', 'trwiktionary', 'https://tr.wiktionary.org/',
+ 'Wiktionary reuse terms: https://tr.wiktionary.org/wiki/Vikisözlük:Telif_hakkı',
+ 'Turkish Wiktionary contributors; extracted with Wiktextract via Kaikki.org',
+ 'https://kaikki.org/dictionary/downloads/tr/tr-extract.jsonl.gz', 'tr'),
+('Portuguese idioms', 'enwiktionary-pt', 'https://en.wiktionary.org/wiki/Category:Portuguese_idioms',
+ 'Wiktionary reuse terms: https://en.wiktionary.org/wiki/Wiktionary:Copyrights',
+ 'English Wiktionary contributors; Portuguese idiom category via MediaWiki API',
+ 'https://en.wiktionary.org/w/api.php', 'pt'),
+('Ukrainian idioms', 'ukwiktionary', 'https://uk.wiktionary.org/wiki/Категорія:Фразеологізми/uk',
+ 'Wiktionary reuse terms: https://uk.wiktionary.org/wiki/Вікісловник:Авторські_права',
+ 'Ukrainian Wiktionary contributors; titles explicitly listed in Категорія:Фразеологізми/uk, retrieved through the MediaWiki API',
+ 'https://uk.wiktionary.org/w/api.php', 'uk');

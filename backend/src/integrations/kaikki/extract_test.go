@@ -108,3 +108,28 @@ func TestExtractSupportsEveryApplicationLanguage(t *testing.T) {
 	}
 
 }
+
+func TestExtractNewSourceClassifications(t *testing.T) {
+	for _, tc := range []struct {
+		edition, line string
+		accepted      bool
+	}{
+		{"dewiktionary", `{"word":"Tacheles reden","lang_code":"de","pos":"phrase","categories":["Redewendung (Deutsch)"]}`, true},
+		{"dewiktionary", `{"word":"a proverb","lang_code":"de","tags":["proverb"],"categories":["Redewendung (Deutsch)"]}`, false},
+		{"dewiktionary", `{"word":"test","lang_code":"fr","categories":["Redewendung (Deutsch)"]}`, false},
+		{"frwiktionary", `{"word":"donner sa langue au chat","lang_code":"fr","pos":"verb","senses":[{"categories":["Idiotismes animaliers en français"]}]}`, true},
+		{"frwiktionary", `{"word":"pomme de terre","lang_code":"fr","pos":"noun","categories":["Locutions nominales en français"]}`, false},
+		{"plwiktionary", `{"word":"złote usta","lang_code":"pl","senses":[{"tags":["idiomatic"]}]}`, true},
+		{"trwiktionary", `{"word":"göze girmek","lang_code":"tr","categories":["Türkçe deyimler"]}`, true},
+		{"enwiktionary-es", `{"word":"tirar la toalla","lang_code":"es","tags":["idiomatic"]}`, true},
+		{"enwiktionary-pt", `{"word":"quebrar o gelo","lang_code":"pt","tags":["idiomatic"]}`, true},
+		{"ukwiktionary", `{"word":"бити байдики","lang_code":"uk","tags":["idiomatic"]}`, true},
+		{"trwiktionary", `{"word":"test proverb","lang_code":"tr","pos":"proverb","tags":["idiomatic"]}`, false},
+	} {
+		t.Run(tc.edition+tc.line, func(t *testing.T) {
+			value, err := Extract(tc.edition, []byte(tc.line))
+			require.NoError(t, err)
+			assert.Equal(t, tc.accepted, value != nil)
+		})
+	}
+}

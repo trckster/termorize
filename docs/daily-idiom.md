@@ -4,7 +4,9 @@ The language registry is `backend/src/enums/language.go` (`AllLanguageValues`):
 English, Russian, Italian, German, Spanish, French, Polish, Turkish, Portuguese,
 and Ukrainian. All ten are covered. Migration 0028 supplies three starter idioms
 per language; the multilingual Wiktionary importer extends the same pool and
-now accepts every registered language. Selections rotate by usage, preferring a
+now accepts every registered language. Migration 0029 adds independent bulk
+imports for the remaining seven languages; see [sources and measured counts](idiom-import-sources.md).
+Selections rotate by usage, preferring a
 word different from adjacent days when another eligible word is available.
 
 ## Delivery

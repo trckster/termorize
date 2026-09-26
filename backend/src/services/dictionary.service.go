@@ -29,7 +29,7 @@ func StartDictionaryImport(id uuid.UUID) (*models.DictionaryImportJob, error) {
 	}
 	job := models.DictionaryImportJob{
 		DictionaryID: id, SourceName: dictionary.Name, Edition: dictionary.Edition,
-		DownloadURL: dictionary.DownloadURL, Status: "queued", RecordErrors: []string{},
+		DownloadURL: dictionary.DownloadURL, TargetLanguage: dictionary.TargetLanguage, Status: "queued", RecordErrors: []string{},
 	}
 	if err := db.DB.Create(&job).Error; err != nil {
 		var pgErr *pgconn.PgError

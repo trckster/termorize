@@ -19,6 +19,7 @@ func defineProtectedRoutes(group *gin.RouterGroup) {
 	group.DELETE("/settings/ignored-audio-languages/:language", controllers.RemoveIgnoredAudioLanguage)
 	group.DELETE("/settings/ignored-description-languages/:language", controllers.RemoveIgnoredDescriptionLanguage)
 	group.GET("/admin/dictionaries", controllers.GetAdminDictionaries)
+	group.GET("/admin/dictionaries/coverage", controllers.GetAdminIdiomCoverage)
 	group.GET("/admin/dictionaries/:id/imports", controllers.GetAdminDictionaryImports)
 	group.POST("/admin/dictionaries/:id/imports", controllers.StartAdminDictionaryImport)
 	group.GET("/admin/users", controllers.GetAdminUsers)
