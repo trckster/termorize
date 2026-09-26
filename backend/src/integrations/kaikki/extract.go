@@ -33,7 +33,11 @@ type Idiom struct {
 }
 
 func SupportedEdition(edition string) bool {
-	return edition == "enwiktionary" || edition == "ruwiktionary" || edition == "itwiktionary"
+	switch edition {
+	case "enwiktionary", "ruwiktionary", "itwiktionary", "dewiktionary", "enwiktionary-es", "frwiktionary", "plwiktionary", "trwiktionary", "enwiktionary-pt", "ukwiktionary":
+		return true
+	}
+	return false
 }
 
 func Extract(edition string, line []byte) (*Idiom, error) {
@@ -82,7 +86,10 @@ func Extract(edition string, line []byte) (*Idiom, error) {
 }
 
 func isIdiom(edition, language string, c classification) bool {
-	if slices.Contains(c.Tags, "idiomatic") && !slices.Contains(c.Tags, "morpheme") && !slices.Contains(c.Tags, "proverb") {
+	if slices.Contains(c.Tags, "morpheme") || slices.Contains(c.Tags, "proverb") {
+		return false
+	}
+	if slices.Contains(c.Tags, "idiomatic") {
 		return true
 	}
 	var category string
@@ -91,6 +98,20 @@ func isIdiom(edition, language string, c classification) bool {
 		category = enums.Language(language).DisplayName() + " idioms"
 	case "ruwiktionary":
 		category = "Фразеологизмы/" + language
+	case "dewiktionary":
+		return language == "de" && slices.Contains(c.Categories, "Redewendung (Deutsch)")
+	case "frwiktionary":
+		if language != "fr" {
+			return false
+		}
+		for _, category := range c.Categories {
+			if strings.HasPrefix(category, "Idiotismes ") && strings.HasSuffix(category, " en français") {
+				return true
+			}
+		}
+		return false
+	case "trwiktionary":
+		return language == "tr" && slices.Contains(c.Categories, "Türkçe deyimler")
 	case "itwiktionary":
 		// Italian keeps this explicit label untranslated; locuzioni and proverbs are broader.
 		return slices.Contains(c.RawTags, "idiomatico")
