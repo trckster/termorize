@@ -6,8 +6,21 @@ import { formatNumber } from '@/lib/utils.ts'
 // Admin copy stays English; client copy supports English and Russian.
 const admin = {
     navDictionaries: 'Dictionaries',
+    idiomCoverageTitle: 'Idioms by language',
+    idiomCoverageIntro:
+        'All supported learning languages, including those with no idioms yet. Counts include starter idioms and imports.',
+    idiomCoverageLanguage: 'Language',
+    idiomCoverageCount: 'Available idioms',
+    idiomCoverageEmpty: 'No idioms yet',
+    idiomCoverageLoading: 'Loading language coverage…',
+    idiomCoverageError: 'Could not load language coverage. Please retry.',
+    idiomCoverageRefresh: 'Refresh counts',
+    dictionarySourcesTitle: 'Import sources',
+    dictionarySourcesIntro:
+        'These are Wiktionary editions, not the list of supported learning languages. Each source can supply idioms in multiple languages.',
+
     dictionariesIntro:
-        'Import explicitly classified idioms in all supported learning languages from Wiktionary. Source editions can contain entries in several languages.',
+        'Check daily idiom availability for every learning language and import more idioms from Wiktionary.',
     dictionariesBackground:
         'Imports continue after you leave this page. An update downloads the source again and preserves existing vocabulary.',
     dictionariesEmpty: 'No dictionary sources configured.',
