@@ -132,7 +132,11 @@ func (w *DictionaryWorker) importJob(ctx context.Context, conn *gorm.DB, job *mo
 		removeErr := os.Remove(path)
 		resultErr = errors.Join(resultErr, closeErr, removeErr)
 	}()
-	if err := w.download(ctx, conn, job, file); err != nil {
+	download := w.download
+	if categorySource(job.Edition) != nil {
+		download = w.downloadCategoryIdioms
+	}
+	if err := download(ctx, conn, job, file); err != nil {
 		return err
 	}
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
