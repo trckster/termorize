@@ -88,15 +88,9 @@ func (w *Worker) Run(ctx context.Context) {
 	if !w.running.CompareAndSwap(false, true) {
 		return
 	}
-	defer func() {
-		w.mu.Lock()
-		w.stopped = true
-		w.pending = make(map[uuid.UUID]*task)
-		w.queue = nil
-		w.mu.Unlock()
-	}()
+	defer w.stop()
 	for ctx.Err() == nil {
-		if err := w.runSafely(ctx); err != nil {
+		if err := w.runSafely(ctx, false); err != nil && ctx.Err() == nil {
 			logger.L().Errorw("classification worker restarting", "error", err)
 			w.mu.Lock()
 			w.pending = make(map[uuid.UUID]*task)
@@ -112,7 +106,24 @@ func (w *Worker) Run(ctx context.Context) {
 	}
 }
 
-func (w *Worker) runSafely(ctx context.Context) (err error) {
+func (w *Worker) RunSweep(ctx context.Context) error {
+	if !w.running.CompareAndSwap(false, true) {
+		return errors.New("classification worker already started")
+	}
+	defer w.stop()
+	w.RequestSweep()
+	return w.runSafely(ctx, true)
+}
+
+func (w *Worker) stop() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.stopped = true
+	w.pending = make(map[uuid.UUID]*task)
+	w.queue = nil
+}
+
+func (w *Worker) runSafely(ctx context.Context, stopAfterSweep bool) (err error) {
 	defer func() {
 		if value := recover(); value != nil {
 			err = fmt.Errorf("panic: %v", value)
@@ -122,6 +133,8 @@ func (w *Worker) runSafely(ctx context.Context) (err error) {
 	var batch []uuid.UUID
 	sweep := false
 	scanAttempts := 0
+	var scanFailure error
+	failedWords := 0
 	var nextScan time.Time
 	preferSweep := false
 	for ctx.Err() == nil {
@@ -144,6 +157,7 @@ func (w *Worker) runSafely(ctx context.Context) (err error) {
 				nextScan = time.Now().Add(w.backoff * time.Duration(scanAttempts))
 				if scanAttempts >= w.maxAttempts {
 					sweep = false
+					scanFailure = fmt.Errorf("classification sweep query failed: %w", scanErr)
 				}
 			} else {
 				scanAttempts = 0
@@ -191,6 +205,9 @@ func (w *Worker) runSafely(ctx context.Context) (err error) {
 				w.queue = append(w.queue, item)
 			} else {
 				delete(w.pending, item.id)
+				if err != nil {
+					failedWords++
+				}
 			}
 			w.mu.Unlock()
 			if err != nil {
@@ -206,14 +223,25 @@ func (w *Worker) runSafely(ctx context.Context) (err error) {
 				continue
 			}
 		}
+		if stopAfterSweep && !sweep {
+			w.mu.Lock()
+			idle := len(w.pending) == 0
+			w.mu.Unlock()
+			if idle {
+				if failedWords > 0 {
+					return errors.Join(scanFailure, fmt.Errorf("classification failed for %d words", failedWords))
+				}
+				return scanFailure
+			}
+		}
 		select {
 		case <-ctx.Done():
-			return nil
+			return ctx.Err()
 		case <-w.wake:
 		case <-time.After(50 * time.Millisecond):
 		}
 	}
-	return nil
+	return ctx.Err()
 }
 
 func (w *Worker) process(ctx context.Context, id uuid.UUID) error {
@@ -232,16 +260,4 @@ func (w *Worker) process(ctx context.Context, id uuid.UUID) error {
 		return errors.New("classifier returned an invalid category")
 	}
 	return w.store.Save(ctx, *word, category)
-}
-
-var active atomic.Pointer[Worker]
-
-func Activate(worker *Worker) func() {
-	previous := active.Swap(worker)
-	return func() { active.Store(previous) }
-}
-
-func RequestSweep() bool {
-	worker := active.Load()
-	return worker != nil && worker.RequestSweep()
 }

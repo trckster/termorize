@@ -4,11 +4,9 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"sync"
 	"termorize/src/classification"
-	"termorize/src/config"
 	"termorize/src/data/db"
 	"termorize/src/enums"
 	"termorize/src/models"
@@ -333,21 +331,91 @@ func TestConcurrentManualChoicesOnlyOneCanWin(t *testing.T) {
 	assert.Equal(t, 1, conflicts)
 }
 
-func TestInternalSweepAuthorizationAndSchedulerTrigger(t *testing.T) {
+func TestStandaloneClassificationSweepPersistsAllPendingWords(t *testing.T) {
 	testkit.Truncate(t)
-	worker := classification.NewWorker(classification.WordStore{DB: db.DB}, nil)
-	t.Cleanup(classification.Activate(worker))
-	for _, token := range []string{"", "Bearer invalid", "Bearer " + config.GetSecret()} {
-		testkit.RequireStatus(t, testkit.RequestWithHeaders(t, http.MethodPost, classification.TriggerPath, nil, http.Header{"Authorization": []string{token}}), http.StatusUnauthorized)
+	pending := make([]models.Word, 70)
+	for i := range pending {
+		pending[i] = models.Word{Word: uuid.NewString(), Language: enums.LanguageEn}
 	}
-	server := httptest.NewServer(testkit.Router())
-	defer server.Close()
-	require.NoError(t, classification.Trigger(context.Background(), server.Client(), server.URL, config.GetSecret()))
-	require.NoError(t, classification.Trigger(context.Background(), server.Client(), server.URL, config.GetSecret()))
-	assert.Error(t, classification.Trigger(context.Background(), server.Client(), server.URL, "wrong"))
-	restore := classification.Activate(nil)
-	defer restore()
-	assert.ErrorContains(t, classification.Trigger(context.Background(), server.Client(), server.URL, config.GetSecret()), "503")
-	server.Close()
-	assert.Error(t, classification.Trigger(context.Background(), server.Client(), server.URL, config.GetSecret()))
+	require.NoError(t, db.DB.Create(&pending).Error)
+	for _, category := range []enums.PartOfSpeech{enums.PartOfSpeechNoun, enums.PartOfSpeechUnknown} {
+		categoryWord(t, string(category), &category)
+	}
+	calls := 0
+	worker := classification.NewWorker(classification.WordStore{DB: db.DB}, func(_ context.Context, text string, language enums.Language) (enums.PartOfSpeech, error) {
+		calls++
+		assert.Equal(t, enums.LanguageEn, language)
+		assert.NotContains(t, []string{"noun", "unknown"}, text)
+		return enums.PartOfSpeechVerb, nil
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, worker.RunSweep(ctx))
+	assert.Equal(t, len(pending), calls)
+	var categorized int64
+	require.NoError(t, db.DB.Model(&models.Word{}).Where("part_of_speech = ?", enums.PartOfSpeechVerb).Count(&categorized).Error)
+	assert.Equal(t, int64(len(pending)), categorized)
+	require.NoError(t, classification.NewWorker(classification.WordStore{DB: db.DB}, nil).RunSweep(ctx), "a second process must skip all completed words")
+}
+
+func TestStandaloneSweepAndBackendWorkerCannotOverwriteEachOther(t *testing.T) {
+	for _, winner := range []string{"backend", "hourly job"} {
+		t.Run(winner, func(t *testing.T) {
+			testkit.Truncate(t)
+			word := categoryWord(t, "overlap", nil)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			started := make(chan struct{}, 2)
+			releaseBackend, releaseSweep := make(chan struct{}), make(chan struct{})
+			decide := func(release <-chan struct{}, category enums.PartOfSpeech) classification.Decide {
+				return func(ctx context.Context, _ string, _ enums.Language) (enums.PartOfSpeech, error) {
+					started <- struct{}{}
+					select {
+					case <-release:
+						return category, nil
+					case <-ctx.Done():
+						return "", ctx.Err()
+					}
+				}
+			}
+			saved := make(chan struct{}, 2)
+			store := observedClassificationStore{WordStore: classification.WordStore{DB: db.DB}, saved: saved}
+			backend := classification.NewWorker(store, decide(releaseBackend, enums.PartOfSpeechNoun))
+			sweep := classification.NewWorker(store, decide(releaseSweep, enums.PartOfSpeechUnknown))
+			backend.Enqueue(word.ID)
+			backendDone, sweepDone := make(chan struct{}), make(chan error, 1)
+			go func() { defer close(backendDone); backend.Run(ctx) }()
+			go func() { defer close(sweepDone); sweepDone <- sweep.RunSweep(ctx) }()
+			t.Cleanup(func() { cancel(); <-backendDone; <-sweepDone })
+			for i := 0; i < 2; i++ {
+				select {
+				case <-started:
+				case <-ctx.Done():
+					t.Fatal("both classifiers must start before either saves")
+				}
+			}
+			first, second := releaseBackend, releaseSweep
+			expected := enums.PartOfSpeechNoun
+			if winner == "hourly job" {
+				first, second = releaseSweep, releaseBackend
+				expected = enums.PartOfSpeechUnknown
+			}
+			close(first)
+			select {
+			case <-saved:
+			case <-ctx.Done():
+				t.Fatal("first classification did not save")
+			}
+			close(second)
+			select {
+			case <-saved:
+			case <-ctx.Done():
+				t.Fatal("second classification did not finish")
+			}
+			require.NoError(t, <-sweepDone)
+			require.NoError(t, db.DB.First(&word, "id = ?", word.ID).Error)
+			require.NotNil(t, word.PartOfSpeech)
+			assert.Equal(t, expected, *word.PartOfSpeech)
+		})
+	}
 }

@@ -67,7 +67,6 @@ func defineProtectedRoutes(group *gin.RouterGroup) {
 }
 
 func definePublicRoutes(group *gin.RouterGroup) {
-	group.POST("/internal/classification/sweep", controllers.RequestClassificationSweep)
 	group.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "nice"})
 	})

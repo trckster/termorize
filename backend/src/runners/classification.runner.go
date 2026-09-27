@@ -11,7 +11,6 @@ import (
 func StartClassificationRunner(ctx context.Context) func() {
 	client := jev.NewClient(config.GetOpenRouterApiKey())
 	worker := classification.NewWorker(classification.WordStore{DB: db.DB}, client.Classify)
-	restoreActive := classification.Activate(worker)
 	restoreEvents := db.SetWordCreatedHandler(worker.Enqueue)
 	done := make(chan struct{})
 	go func() {
@@ -21,6 +20,5 @@ func StartClassificationRunner(ctx context.Context) func() {
 	return func() {
 		<-done
 		restoreEvents()
-		restoreActive()
 	}
 }

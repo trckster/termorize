@@ -265,3 +265,82 @@ func TestWorkerReloadsAndSkipsDeletedOrCompletedWords(t *testing.T) {
 	launch(t, w)
 	require.Eventually(t, func() bool { w.mu.Lock(); defer w.mu.Unlock(); return len(w.pending) == 0 }, time.Second, time.Millisecond)
 }
+
+func TestRunSweepDrainsRetriesAndStopsAfterAllBatches(t *testing.T) {
+	s := newStore(5)
+	calls := map[string]int{}
+	w := NewWorker(s, func(_ context.Context, term string, _ enums.Language) (enums.PartOfSpeech, error) {
+		calls[term]++
+		if term == "1" || term == "5" && calls[term] == 1 {
+			return "", errors.New("provider unavailable")
+		}
+		return enums.PartOfSpeechUnknown, nil
+	})
+	w.backoff, w.batchSize = time.Millisecond, 2
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	require.ErrorContains(t, w.RunSweep(ctx), "classification failed for 1 words")
+	assert.Equal(t, map[string]int{"1": 3, "2": 1, "3": 1, "4": 1, "5": 2}, calls)
+	ids, err := s.Pending(ctx, uuid.Nil, 10)
+	require.NoError(t, err)
+	require.Len(t, ids, 1)
+	assert.Equal(t, "1", s.words[ids[0]].Word)
+	assert.False(t, w.Enqueue(uuid.New()), "finite worker must stop accepting work")
+
+	next := NewWorker(s, func(_ context.Context, term string, _ enums.Language) (enums.PartOfSpeech, error) {
+		assert.Equal(t, "1", term, "later jobs must only retry unfinished words")
+		return enums.PartOfSpeechNoun, nil
+	})
+	require.NoError(t, next.RunSweep(ctx))
+	ids, err = s.Pending(ctx, uuid.Nil, 10)
+	require.NoError(t, err)
+	assert.Empty(t, ids)
+}
+
+func TestRunSweepEmptyDatabaseExits(t *testing.T) {
+	w := NewWorker(newStore(0), nil)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	require.NoError(t, w.RunSweep(ctx))
+}
+
+func TestRunSweepReportsScanFailuresAndPanics(t *testing.T) {
+	for _, scenario := range []string{"scan failure", "panic"} {
+		t.Run(scenario, func(t *testing.T) {
+			s := newStore(1)
+			if scenario == "scan failure" {
+				s.scanFailures = 10
+			}
+			w := NewWorker(s, func(context.Context, string, enums.Language) (enums.PartOfSpeech, error) {
+				panic("unexpected failure")
+			})
+			w.backoff = time.Millisecond
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			err := w.RunSweep(ctx)
+			if scenario == "scan failure" {
+				require.ErrorContains(t, err, "classification sweep query failed")
+				assert.Len(t, s.pages, 3, "query retries must be bounded")
+			} else {
+				require.ErrorContains(t, err, "panic: unexpected failure")
+			}
+			for _, word := range s.words {
+				assert.Nil(t, word.PartOfSpeech)
+			}
+		})
+	}
+}
+
+func TestRunSweepCancellationLeavesUnfinishedWordsPending(t *testing.T) {
+	s := newStore(1)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	w := NewWorker(s, func(ctx context.Context, _ string, _ enums.Language) (enums.PartOfSpeech, error) {
+		cancel()
+		return "", ctx.Err()
+	})
+	require.ErrorIs(t, w.RunSweep(ctx), context.Canceled)
+	for _, word := range s.words {
+		assert.Nil(t, word.PartOfSpeech)
+	}
+}
