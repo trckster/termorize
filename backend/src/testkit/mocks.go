@@ -42,11 +42,11 @@ func MockGoogleTranslate(t *testing.T, fake *FakeGoogleTranslate) *FakeGoogleTra
 }
 
 type FakeOpenRouter struct {
-	TranslateIdiomFunc           func(context.Context, string, string, string) (string, error)
-	GenerateFunc                 func(prompt string, allowedLanguages []string) (*openrouter.GeneratedCollection, error)
-	GenerateDescriptionFunc      func(word, wordLanguage, translation, translationLanguage, descriptionLanguage string) (*openrouter.GeneratedDescription, error)
-	GenerateIdiomDescriptionFunc func(ctx context.Context, idiom, language string) (*openrouter.GeneratedDescription, error)
-	ValidateDescriptionFunc      func(word, wordLanguage, translation, translationLanguage, description string) (*openrouter.DescriptionValidation, error)
+	TranslateIdiomFunc                func(context.Context, string, string, string) (string, error)
+	GenerateFunc                      func(prompt string, allowedLanguages []string) (*openrouter.GeneratedCollection, error)
+	GenerateDescriptionFunc           func(word, wordLanguage, translation, translationLanguage, descriptionLanguage string) (*openrouter.GeneratedDescription, error)
+	GenerateIdiomDescriptionFunc      func(ctx context.Context, idiom, language string) (*openrouter.GeneratedDescription, error)
+	DescriptionContainsAnswerFormFunc func(word, wordLanguage, description string) (bool, error)
 }
 
 func (f *FakeOpenRouter) TranslateIdiom(ctx context.Context, idiom, sourceLanguage, targetLanguage string) (string, error) {
@@ -70,11 +70,11 @@ func (f *FakeOpenRouter) GenerateDescription(word, wordLanguage, translation, tr
 	return &openrouter.GeneratedDescription{Description: "A short clue in " + descriptionLanguage + "."}, nil
 }
 
-func (f *FakeOpenRouter) ValidateDescription(word, wordLanguage, translation, translationLanguage, description string) (*openrouter.DescriptionValidation, error) {
-	if f.ValidateDescriptionFunc != nil {
-		return f.ValidateDescriptionFunc(word, wordLanguage, translation, translationLanguage, description)
+func (f *FakeOpenRouter) DescriptionContainsAnswerForm(word, wordLanguage, description string) (bool, error) {
+	if f.DescriptionContainsAnswerFormFunc != nil {
+		return f.DescriptionContainsAnswerFormFunc(word, wordLanguage, description)
 	}
-	return &openrouter.DescriptionValidation{MatchesTranslation: true}, nil
+	return false, nil
 }
 
 type FakeOpenRouterSpeech struct {

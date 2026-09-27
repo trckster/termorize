@@ -169,9 +169,7 @@ func TestAdminDescriptionRejectsInvalidPreviewAndPreservesCache(t *testing.T) {
 					description = strings.Repeat("x", 301)
 				}
 				return &openrouter.GeneratedDescription{Description: description}, nil
-			}, ValidateDescriptionFunc: func(string, string, string, string, string) (*openrouter.DescriptionValidation, error) {
-				return &openrouter.DescriptionValidation{ContainsAnswerForm: scenario == "morphology", MatchesTranslation: true}, nil
-			}}
+			}, DescriptionContainsAnswerFormFunc: func(string, string, string) (bool, error) { return scenario == "morphology", nil }}
 			if scenario == "language" {
 				testkit.MockGoogleTranslate(t, &testkit.FakeGoogleTranslate{DetectFunc: func(string) (string, error) { return "it", nil }})
 			}

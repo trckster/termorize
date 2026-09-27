@@ -346,17 +346,15 @@ func generateValidatedDescription(word, translation models.Word, client openrout
 		descriptionMentionsAnswer(generatedText, word.Word) {
 		return "", ErrDescriptionGenerationFailed
 	}
-	validation, err := client.ValidateDescription(
+	containsAnswerForm, err := client.DescriptionContainsAnswerForm(
 		word.Word,
 		word.Language.DisplayName(),
-		translation.Word,
-		translation.Language.DisplayName(),
 		generatedText,
 	)
 	if err != nil {
 		return "", errors.Join(ErrDescriptionGenerationFailed, err)
 	}
-	if validation == nil || validation.ContainsAnswerForm || !validation.MatchesTranslation {
+	if containsAnswerForm {
 		return "", ErrDescriptionGenerationFailed
 	}
 

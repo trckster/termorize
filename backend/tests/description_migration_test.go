@@ -263,3 +263,50 @@ func TestRemoveDescriptionApprovalPreservesAllRows(t *testing.T) {
 	assert.Zero(t, approvalColumns)
 	require.NoError(t, conn.Model(&models.WordDescription{}).Where("id = ?", rows[0].ID).Update("model", rows[1].Model).Error)
 }
+
+func TestRefreshWordDescriptionsRetiresPreContextClues(t *testing.T) {
+	testkit.Truncate(t)
+	conn := descriptionMigrationDB(t)
+	var contextAddedAt time.Time
+	require.NoError(t, conn.Raw("SELECT applied_at FROM migrations WHERE name = ?", "0019_add_description_translation_context").Scan(&contextAddedAt).Error)
+	require.False(t, contextAddedAt.IsZero())
+
+	words := []models.Word{
+		{Word: "bank", Language: enums.LanguageEn},
+		{Word: "la banca", Language: enums.LanguageIt},
+		{Word: "Run down", Language: enums.LanguageEn},
+		{Word: "наезжать", Language: enums.LanguageRu},
+	}
+	require.NoError(t, conn.Create(&words).Error)
+	before := contextAddedAt.Add(-time.Hour)
+	after := contextAddedAt.Add(time.Hour)
+	rows := []legacyWordDescription{
+		{WordID: words[0].ID, TranslationWordID: &words[1].ID, Model: "legacy", Description: "Old clue with inferred context.", CreatedAt: before},
+		{WordID: words[0].ID, TranslationWordID: &words[1].ID, Model: "contextual", Description: "A place to keep money.", CreatedAt: after},
+		{WordID: words[2].ID, TranslationWordID: &words[3].ID, Model: "wrong-sense", Description: "To be in a poor or neglected state, often due to lack of maintenance.", CreatedAt: after},
+		{WordID: words[2].ID, TranslationWordID: &words[3].ID, Model: "correct", Description: "To hit someone with a vehicle.", CreatedAt: after},
+		{WordID: words[0].ID, Model: "idiom", Description: "A shared idiom clue.", CreatedAt: before},
+	}
+	require.NoError(t, conn.Create(&rows).Error)
+	migration, err := os.ReadFile("src/data/migrations/0031_refresh_word_descriptions.sql")
+	require.NoError(t, err)
+	for range 2 {
+		require.NoError(t, conn.Exec(string(migration)).Error)
+	}
+
+	for _, row := range []legacyWordDescription{rows[0], rows[2]} {
+		var active legacyWordDescription
+		assert.ErrorIs(t, conn.First(&active, "id = ?", row.ID).Error, gorm.ErrRecordNotFound)
+	}
+	for _, row := range []legacyWordDescription{rows[1], rows[3], rows[4]} {
+		var active legacyWordDescription
+		require.NoError(t, conn.First(&active, "id = ?", row.ID).Error)
+		assert.Equal(t, row.Description, active.Description)
+	}
+	var archived legacyWordDescription
+	require.NoError(t, conn.Table("word_description_backfill_archive").First(&archived, "id = ?", rows[0].ID).Error)
+	assert.Equal(t, rows[0].Description, archived.Description)
+	var reason string
+	require.NoError(t, conn.Table("word_description_backfill_archive").Select("reason").Where("id = ?", rows[0].ID).Scan(&reason).Error)
+	assert.Equal(t, "created_before_translation_context", reason)
+}
