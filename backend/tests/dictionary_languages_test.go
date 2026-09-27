@@ -23,11 +23,9 @@ func seedAllDictionarySources(t *testing.T) {
 	require.NoError(t, err)
 	statement := string(old[strings.Index(string(old), "INSERT INTO"):])
 	require.NoError(t, db.DB.Exec(statement[:strings.Index(statement, ";\n")+1]).Error)
-	for _, file := range []string{"0029_add_language_idiom_imports.sql", "0030_remove_dictionary_target_language.sql"} {
-		migration, err := os.ReadFile("src/data/migrations/" + file)
-		require.NoError(t, err)
-		require.NoError(t, db.DB.Exec(string(migration)).Error)
-	}
+	migration, err := os.ReadFile("src/data/migrations/0029_add_language_idiom_imports.sql")
+	require.NoError(t, err)
+	require.NoError(t, db.DB.Exec(string(migration)).Error)
 }
 
 func TestAllLanguageSourcesAreSeededAndStartable(t *testing.T) {

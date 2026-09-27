@@ -7,10 +7,10 @@ fallback are needed. Existing English, Russian, and Italian sources remain.
 
 Each job snapshots its edition and download URL. The edition determines the
 source format and, for the seven new sources, its language filter. The original
-English, Russian, and Italian sources retain multilingual imports. Migration 0030
-removes the redundant language columns without rewriting migration 0029. Imports use the
-existing word normalization, case-insensitive lookup, and classification path.
-Updates skip existing idioms and preserve Vocabulary entries.
+English, Russian, and Italian sources retain multilingual imports. No extra
+language columns are needed: import records contain their own language codes.
+Imports use the existing word normalization, case-insensitive lookup, and
+classification path. Updates skip existing idioms and preserve Vocabulary entries.
 
 ## Measured availability — 2026-09-26
 
@@ -115,7 +115,7 @@ protects its own language. Import history must be retained for this safeguard.
 Consequently some old starter matches may remain on previously imported databases;
 removing them indiscriminately would also remove genuine imported classifications.
 
-A fresh isolated run on 2026-09-27 after migrations 0030/0031 also completed the
+A fresh isolated run on 2026-09-27 after the starter cleanup also completed the
 three live API imports with zero failed records: Spanish inserted 3,326 and
 reclassified 2 retired starters; Portuguese inserted 989 and reclassified 2;
 Ukrainian inserted 416. The ten-source integration fixture exercises the same

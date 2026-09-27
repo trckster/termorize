@@ -91,7 +91,7 @@ func TestRetireStartersPreservesAmbiguousImportedMatches(t *testing.T) {
 	}
 }
 
-func TestRemoveDictionaryLanguageColumnsPreservesExistingJobs(t *testing.T) {
+func TestLanguageSourceMigrationUsesExistingDictionarySchema(t *testing.T) {
 	testkit.Truncate(t)
 	tx := db.DB.Begin()
 	require.NoError(t, tx.Error)
@@ -101,18 +101,9 @@ func TestRemoveDictionaryLanguageColumnsPreservesExistingJobs(t *testing.T) {
 	migration, err := os.ReadFile("src/data/migrations/0029_add_language_idiom_imports.sql")
 	require.NoError(t, err)
 	require.NoError(t, tx.Exec(string(migration)).Error)
-	require.NoError(t, tx.Exec(`INSERT INTO dictionary_import_jobs (dictionary_id,source_name,edition,download_url,target_language,status,processed,skipped)
- SELECT id,name,edition,download_url,target_language,'queued',7,7 FROM dictionaries`).Error)
-	var before string
-	require.NoError(t, tx.Raw(`SELECT jsonb_agg(to_jsonb(j) - 'target_language' ORDER BY id)::text FROM dictionary_import_jobs j`).Scan(&before).Error)
-	migration, err = os.ReadFile("src/data/migrations/0030_remove_dictionary_target_language.sql")
-	require.NoError(t, err)
-	for range 2 {
-		require.NoError(t, tx.Exec(string(migration)).Error)
-	}
-	var after string
-	require.NoError(t, tx.Raw(`SELECT jsonb_agg(to_jsonb(j) ORDER BY id)::text FROM dictionary_import_jobs j`).Scan(&after).Error)
-	assert.Equal(t, before, after)
+	var sourceCount int64
+	require.NoError(t, tx.Table("dictionaries").Count(&sourceCount).Error)
+	assert.EqualValues(t, 7, sourceCount)
 	var columns int64
 	require.NoError(t, tx.Raw(`SELECT count(*) FROM pg_attribute WHERE attrelid IN ('pg_temp.dictionaries'::regclass,'pg_temp.dictionary_import_jobs'::regclass) AND attname='target_language' AND NOT attisdropped`).Scan(&columns).Error)
 	assert.Zero(t, columns)
