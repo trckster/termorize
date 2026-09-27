@@ -5,8 +5,10 @@ Admin → Dictionaries. Each has the existing Import / Update action, background
 progress, history, and retry behavior. No manual database edits or starter-only
 fallback are needed. Existing English, Russian, and Italian sources remain.
 
-Each new job snapshots `target_language`, so only entries in the selected language
-are stored even when its upstream dump contains other languages. Imports use the
+Each job snapshots its edition and download URL. The edition determines the
+source format and, for the seven new sources, its language filter. The original
+English, Russian, and Italian sources retain multilingual imports. Migration 0030
+removes the redundant language columns without rewriting migration 0029. Imports use the
 existing word normalization, case-insensitive lookup, and classification path.
 Updates skip existing idioms and preserve Vocabulary entries.
 
@@ -74,15 +76,13 @@ shown by the existing Source and attribution disclosure in admin.
 
 ## Reproduce on a disposable database
 
-Run the backend with a new database and let migrations finish. For a count that
-excludes the starter words, remove the starter words only in that disposable
-database before any imports. Start each of the seven named imports from admin,
+Run the backend with a new database and let migrations finish. Migration 0031
+clears the starter classifications before any imports. Start the imports from admin,
 wait for completion, then inspect:
 
 ```sql
-SELECT target_language, status, inserted, classified, skipped, failed
+SELECT edition, status, inserted, classified, skipped, failed
 FROM dictionary_import_jobs
-WHERE target_language <> ''
 ORDER BY created_at;
 
 SELECT language, COUNT(*)
@@ -98,3 +98,25 @@ fr a180388de7e7497c3ad1b749e82b631263405ce2348586a915fcef19266217ca
 pl 057734b402324a4166325b5d2f8381722af1566ff8433eff03e3f9c644ef0cad
 tr 908a1652e39a45a20df165756670017a7358d3d450252bd9b6c59d45ae1c11d3
 ```
+
+## Retiring manual starters
+
+Migration 0031 resets only the 30 exact language/phrase matches from migration
+0028 to `unknown`; it keeps word IDs and all user vocabulary, translations,
+daily selections, deliveries, descriptions, and pronunciation data. Fresh databases
+therefore have no seeded idioms in the selectable pool until an import runs.
+
+0028 did not record whether it inserted a word or changed an existing word's type.
+Imports also did not record per-word provenance. If a processed import could have
+confirmed a starter, 0031 preserves that ambiguous match. This includes failed or
+interrupted imports with committed progress and skipped existing idioms. The three
+original multilingual editions protect matches in every language; each new source
+protects its own language. Import history must be retained for this safeguard.
+Consequently some old starter matches may remain on previously imported databases;
+removing them indiscriminately would also remove genuine imported classifications.
+
+A fresh isolated run on 2026-09-27 after migrations 0030/0031 also completed the
+three live API imports with zero failed records: Spanish inserted 3,326 and
+reclassified 2 retired starters; Portuguese inserted 989 and reclassified 2;
+Ukrainian inserted 416. The ten-source integration fixture exercises the same
+worker through downloads, parsing, persistence, updates, and daily selection.

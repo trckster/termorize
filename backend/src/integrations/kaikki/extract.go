@@ -40,6 +40,28 @@ func SupportedEdition(edition string) bool {
 	return false
 }
 
+// EditionLanguage limits the seven language-specific sources. The original three
+// editions intentionally retain their multilingual import behavior.
+func EditionLanguage(edition string) string {
+	switch edition {
+	case "dewiktionary":
+		return "de"
+	case "enwiktionary-es":
+		return "es"
+	case "frwiktionary":
+		return "fr"
+	case "plwiktionary":
+		return "pl"
+	case "trwiktionary":
+		return "tr"
+	case "enwiktionary-pt":
+		return "pt"
+	case "ukwiktionary":
+		return "uk"
+	}
+	return ""
+}
+
 func Extract(edition string, line []byte) (*Idiom, error) {
 	if !SupportedEdition(edition) {
 		return nil, errors.New("unsupported dictionary edition")
@@ -59,6 +81,9 @@ func Extract(edition string, line []byte) (*Idiom, error) {
 		return nil, errors.New("missing word or lang_code")
 	}
 	if !enums.IsSupportedLanguage(enums.Language(record.Language)) {
+		return nil, nil
+	}
+	if language := EditionLanguage(edition); language != "" && record.Language != language {
 		return nil, nil
 	}
 	// Punctuation, bound morphemes and proverbs are not standalone idioms, even with idiomatic senses.

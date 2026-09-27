@@ -6,14 +6,13 @@ import (
 )
 
 type Dictionary struct {
-	ID             uuid.UUID `json:"id" gorm:"default:gen_random_uuid()"`
-	Name           string    `json:"name"`
-	Edition        string    `json:"edition"`
-	URL            string    `json:"url"`
-	License        string    `json:"license"`
-	Attribution    string    `json:"attribution"`
-	DownloadURL    string    `json:"download_url"`
-	TargetLanguage string    `json:"target_language"`
+	ID          uuid.UUID `json:"id" gorm:"default:gen_random_uuid()"`
+	Name        string    `json:"name"`
+	Edition     string    `json:"edition"`
+	URL         string    `json:"url"`
+	License     string    `json:"license"`
+	Attribution string    `json:"attribution"`
+	DownloadURL string    `json:"download_url"`
 }
 
 type DictionaryImportJob struct {
@@ -22,7 +21,6 @@ type DictionaryImportJob struct {
 	SourceName      string     `json:"source_name"`
 	Edition         string     `json:"edition"`
 	DownloadURL     string     `json:"download_url"`
-	TargetLanguage  string     `json:"target_language"`
 	Status          string     `json:"status"`
 	Processed       int64      `json:"processed"`
 	Inserted        int64      `json:"inserted"`

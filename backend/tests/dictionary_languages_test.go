@@ -17,46 +17,47 @@ import (
 	"testing"
 )
 
-func TestRemainingLanguageSourcesAreSeededAndStartable(t *testing.T) {
-	testkit.Truncate(t)
-	sql, err := os.ReadFile("src/data/migrations/0029_add_language_idiom_imports.sql")
+func seedAllDictionarySources(t *testing.T) {
+	t.Helper()
+	old, err := os.ReadFile("src/data/migrations/0023_add_dictionary_imports.sql")
 	require.NoError(t, err)
-	require.NoError(t, db.DB.Exec(string(sql[strings.Index(string(sql), "INSERT INTO"):])).Error)
+	statement := string(old[strings.Index(string(old), "INSERT INTO"):])
+	require.NoError(t, db.DB.Exec(statement[:strings.Index(statement, ";\n")+1]).Error)
+	for _, file := range []string{"0029_add_language_idiom_imports.sql", "0030_remove_dictionary_target_language.sql"} {
+		migration, err := os.ReadFile("src/data/migrations/" + file)
+		require.NoError(t, err)
+		require.NoError(t, db.DB.Exec(string(migration)).Error)
+	}
+}
+
+func TestAllLanguageSourcesAreSeededAndStartable(t *testing.T) {
+	testkit.Truncate(t)
+	seedAllDictionarySources(t)
 	var sources []models.Dictionary
 	require.NoError(t, db.DB.Find(&sources).Error)
-	supported := map[string]bool{}
-	for _, lang := range enums.AllLanguages() {
-		supported[lang] = true
-	}
-	delete(supported, "en")
-	delete(supported, "ru")
-	delete(supported, "it")
-	require.Len(t, sources, len(supported))
+	require.Len(t, sources, len(enums.AllLanguages()))
 	admin := testkit.CreateUser(t, testkit.WithAdmin())
 	for _, source := range sources {
-		require.True(t, supported[source.TargetLanguage], source.Name)
-		delete(supported, source.TargetLanguage)
 		rec := testkit.AuthedRequest(t, admin, http.MethodPost, "/api/admin/dictionaries/"+source.ID.String()+"/imports", nil)
 		testkit.RequireStatus(t, rec, http.StatusAccepted)
 		var job models.DictionaryImportJob
 		testkit.DecodeJSON(t, rec, &job)
-		assert.Equal(t, source.TargetLanguage, job.TargetLanguage)
+		assert.Equal(t, source.Edition, job.Edition)
+		assert.Equal(t, source.DownloadURL, job.DownloadURL)
+		assert.NotContains(t, rec.Body.String(), "target_language")
 	}
-	assert.Empty(t, supported)
 }
 
-func TestLanguageImportFiltersAndSnapshotsTarget(t *testing.T) {
+func TestLanguageImportFiltersBySnapshottedEdition(t *testing.T) {
 	testkit.Truncate(t)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write(gzipDictionary(t, `{"word":"złote usta","lang_code":"pl","tags":["idiomatic"]}`+"\n"+`{"word":"break the ice","lang_code":"en","tags":["idiomatic"]}`))
 	}))
 	defer server.Close()
 	source := seedDictionary(t, "plwiktionary", server.URL)
-	source.TargetLanguage = "pl"
-	require.NoError(t, db.DB.Save(&source).Error)
 	job, err := services.StartDictionaryImport(source.ID)
 	require.NoError(t, err)
-	require.NoError(t, db.DB.Model(&source).Update("target_language", "en").Error)
+	require.NoError(t, db.DB.Model(&source).Update("edition", "enwiktionary").Error)
 	require.NoError(t, newDictionaryWorker(t, server.Client()).Run(context.Background()))
 	loaded := loadDictionaryJob(t, job.ID)
 	assert.Equal(t, "succeeded", loaded.Status)
@@ -87,8 +88,6 @@ func TestCategoryImportsPaginateFilterAndDeduplicate(t *testing.T) {
 			}))
 			defer server.Close()
 			source := seedDictionary(t, tc.edition, server.URL)
-			source.TargetLanguage = tc.lang
-			require.NoError(t, db.DB.Save(&source).Error)
 			worker := newDictionaryWorker(t, server.Client())
 			for attempt := 0; attempt < 2; attempt++ {
 				job, err := services.StartDictionaryImport(source.ID)

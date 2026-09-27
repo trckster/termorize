@@ -5,7 +5,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http"
-	"os"
 	"termorize/src/controllers"
 	"termorize/src/data/db"
 	"termorize/src/enums"
@@ -22,11 +21,8 @@ import (
 // hand-maintained language list. Exercise the same selection in web and Telegram.
 func TestDailyIdiomEverySupportedLanguage(t *testing.T) {
 	testkit.Truncate(t)
-	migration, err := os.ReadFile("src/data/migrations/0028_seed_daily_idioms_all_languages.sql")
-	require.NoError(t, err)
-	for range 2 {
-		require.NoError(t, db.DB.Exec(string(migration)).Error)
-	}
+	// Populate the pool through the production importer, independently of retired starters.
+	importAllLanguageFixtures(t)
 	var languages []string
 	require.NoError(t, db.DB.Model(&models.Word{}).Distinct("language").Where("type = ?", enums.TypeIdiom).Pluck("language", &languages).Error)
 	assert.ElementsMatch(t, enums.AllLanguages(), languages)

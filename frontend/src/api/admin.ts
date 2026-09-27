@@ -51,12 +51,6 @@ export type DescriptionPreview = {
     original_description: string
 }
 
-export type IdiomLanguageCoverage = {
-    language: string
-    name: string
-    idiom_count: number
-}
-
 export type Dictionary = {
     id: string
     name: string
@@ -90,9 +84,6 @@ export type DictionaryImportJob = {
 }
 
 export const adminApi = {
-    async getIdiomCoverage(): Promise<IdiomLanguageCoverage[]> {
-        return apiCall<IdiomLanguageCoverage[]>('/admin/dictionaries/coverage').then(unwrapBody)
-    },
     async getDictionaries(): Promise<Dictionary[]> {
         return apiCall<Dictionary[]>('/admin/dictionaries').then(unwrapBody)
     },

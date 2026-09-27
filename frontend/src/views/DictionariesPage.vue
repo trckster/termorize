@@ -2,7 +2,6 @@
 import { onMounted, ref } from 'vue'
 import { adminApi, type Dictionary } from '@/api/admin'
 import DictionarySource from '@/components/DictionarySource.vue'
-import IdiomLanguageCoverage from '@/components/IdiomLanguageCoverage.vue'
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/composables/useI18n'
 
@@ -31,7 +30,6 @@ onMounted(load)
                 <h2 class="text-2xl font-semibold">{{ t.navDictionaries }}</h2>
                 <p class="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{{ t.dictionariesIntro }}</p>
             </header>
-            <IdiomLanguageCoverage />
             <section aria-labelledby="dictionary-sources-title">
                 <h3 id="dictionary-sources-title" class="text-lg font-semibold">{{ t.dictionarySourcesTitle }}</h3>
                 <p class="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{{ t.dictionarySourcesIntro }}</p>

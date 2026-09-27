@@ -232,9 +232,6 @@ func (w *DictionaryWorker) extract(ctx context.Context, conn *gorm.DB, job *mode
 			recordErr = errors.New("record exceeds 8 MiB limit")
 		} else {
 			idiom, recordErr = kaikki.Extract(job.Edition, line)
-			if idiom != nil && job.TargetLanguage != "" && string(idiom.Language) != job.TargetLanguage {
-				idiom = nil
-			}
 		}
 		if recordErr != nil {
 			job.Failed++

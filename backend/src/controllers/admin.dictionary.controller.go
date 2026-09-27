@@ -80,16 +80,3 @@ func dictionaryError(c *gin.Context, err error) {
 		ServerError(c, err)
 	}
 }
-
-func GetAdminIdiomCoverage(c *gin.Context) {
-	if !authorizeAdmin(c) {
-		return
-	}
-	result, err := services.ListIdiomLanguageCoverage()
-	if err != nil {
-		ServerError(c, err)
-		return
-	}
-	c.Header("Cache-Control", "no-store")
-	c.JSON(http.StatusOK, result)
-}

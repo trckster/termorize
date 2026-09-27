@@ -133,3 +133,13 @@ func TestExtractNewSourceClassifications(t *testing.T) {
 		})
 	}
 }
+
+func TestLanguageSpecificEditionsRejectOtherLanguages(t *testing.T) {
+	for _, edition := range []string{"dewiktionary", "enwiktionary-es", "frwiktionary", "plwiktionary", "trwiktionary", "enwiktionary-pt", "ukwiktionary"} {
+		for _, lang := range enums.AllLanguages() {
+			value, err := Extract(edition, []byte(`{"word":"example idiom","lang_code":"`+lang+`","tags":["idiomatic"]}`))
+			require.NoError(t, err)
+			assert.Equal(t, lang == EditionLanguage(edition), value != nil, edition+" "+lang)
+		}
+	}
+}
