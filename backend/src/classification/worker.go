@@ -83,7 +83,6 @@ func (w *Worker) RequestSweep() bool {
 	return true
 }
 
-// Run owns inference, retries, and keyset scans in one goroutine. A panic loses only in-memory work.
 func (w *Worker) Run(ctx context.Context) {
 	if !w.running.CompareAndSwap(false, true) {
 		return

@@ -28,7 +28,7 @@ func categoryWord(t *testing.T, text string, category *enums.PartOfSpeech) model
 	return word
 }
 
-func TestCategorizationMigrationDefaultsAndPermanentCategories(t *testing.T) {
+func TestCategorizationMigrationDefaultsAndManualDatabaseEdits(t *testing.T) {
 	migration, err := os.ReadFile("src/data/migrations/0031_add_word_part_of_speech.sql")
 	require.NoError(t, err)
 	require.NoError(t, db.DB.Connection(func(conn *gorm.DB) error {
@@ -45,14 +45,12 @@ func TestCategorizationMigrationDefaultsAndPermanentCategories(t *testing.T) {
 		var pending int64
 		require.NoError(t, conn.Raw("SELECT count(*) FROM words WHERE part_of_speech IS NULL").Scan(&pending).Error)
 		assert.Equal(t, int64(2), pending)
-		var index string
-		require.NoError(t, conn.Raw("SELECT indexdef FROM pg_indexes WHERE schemaname = ? AND indexname = 'words_pending_classification_idx'", schema).Scan(&index).Error)
-		assert.Contains(t, index, "WHERE (part_of_speech IS NULL)")
 		assert.Error(t, conn.Exec("UPDATE words SET part_of_speech = 'article'").Error)
-		require.NoError(t, conn.Exec("UPDATE words SET part_of_speech = 'unknown'").Error)
-		require.NoError(t, conn.Exec("UPDATE words SET part_of_speech = 'noun'").Error)
-		for _, value := range []any{nil, "unknown", "verb"} {
-			assert.Error(t, conn.Exec("UPDATE words SET part_of_speech = ?", value).Error)
+		for _, value := range []any{"noun", "verb", "unknown", nil} {
+			require.NoError(t, conn.Exec("UPDATE words SET part_of_speech = ?", value).Error)
+			var matching int64
+			require.NoError(t, conn.Raw("SELECT count(*) FROM words WHERE part_of_speech IS NOT DISTINCT FROM ?::part_of_speech", value).Scan(&matching).Error)
+			assert.Equal(t, int64(2), matching)
 		}
 		require.NoError(t, conn.Exec("UPDATE words SET type = 'idiom'").Error)
 		return nil

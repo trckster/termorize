@@ -29,8 +29,6 @@ func SetWordCreatedHandler(handler func(uuid.UUID) bool) func() {
 	}
 }
 
-// WordTransaction defers events to the outer commit and discards events from rolled-back savepoints.
-// Every transaction enclosing word creation must use this wrapper.
 func WordTransaction(conn *gorm.DB, fn func(*gorm.DB) error) error {
 	events, nested := conn.Statement.Context.Value(wordEventsKey{}).(*wordEvents)
 	if !nested {
@@ -69,7 +67,6 @@ func RecordWordCreated(conn *gorm.DB, id uuid.UUID) error {
 	if !ok {
 		return errors.New("word creation requires WordTransaction")
 	}
-	// Larger transactions can fall back to the hourly NULL sweep without unbounded memory.
 	if len(events.ids) < 2048 {
 		events.ids = append(events.ids, id)
 	}
