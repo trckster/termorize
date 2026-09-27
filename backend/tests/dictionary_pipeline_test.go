@@ -17,8 +17,6 @@ import (
 	"termorize/src/services"
 )
 
-// All ten seeded sources go through download, parsing, normalization, persistence
-// and an idempotent update. Their local responses use the upstream source formats.
 func importAllLanguageFixtures(t *testing.T) {
 	t.Helper()
 	seedAllDictionarySources(t)

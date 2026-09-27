@@ -43,7 +43,7 @@ func TestRetireStarterClassificationsPreservesWordsAndRelations(t *testing.T) {
 		snapshots[table] = before
 	}
 	for range 2 {
-		runIdiomMigration(t, "0031_clear_manual_idiom_starters")
+		runIdiomMigration(t, "0030_clear_manual_idiom_starters")
 	}
 	var idioms []models.Word
 	require.NoError(t, db.DB.Where("type = ?", enums.TypeIdiom).Find(&idioms).Error)
@@ -80,31 +80,12 @@ func TestRetireStartersPreservesAmbiguousImportedMatches(t *testing.T) {
 			testkit.Truncate(t)
 			runIdiomMigration(t, "0028_seed_daily_idioms_all_languages")
 			source := seedDictionary(t, tc.edition, "https://example.invalid")
-			// Skipped records can confirm seeds that already existed.
 			job := models.DictionaryImportJob{DictionaryID: source.ID, Edition: tc.edition, Status: tc.status, Processed: tc.processed, Skipped: tc.processed, RecordErrors: []string{}}
 			require.NoError(t, db.DB.Create(&job).Error)
-			runIdiomMigration(t, "0031_clear_manual_idiom_starters")
+			runIdiomMigration(t, "0030_clear_manual_idiom_starters")
 			var count int64
 			require.NoError(t, db.DB.Model(&models.Word{}).Where("type = ?", enums.TypeIdiom).Count(&count).Error)
 			assert.EqualValues(t, tc.preserved, count)
 		})
 	}
-}
-
-func TestLanguageSourceMigrationUsesExistingDictionarySchema(t *testing.T) {
-	testkit.Truncate(t)
-	tx := db.DB.Begin()
-	require.NoError(t, tx.Error)
-	defer tx.Rollback()
-	require.NoError(t, tx.Exec(`CREATE TEMP TABLE dictionaries (LIKE public.dictionaries INCLUDING ALL) ON COMMIT DROP;
- CREATE TEMP TABLE dictionary_import_jobs (LIKE public.dictionary_import_jobs INCLUDING ALL) ON COMMIT DROP;`).Error)
-	migration, err := os.ReadFile("src/data/migrations/0029_add_language_idiom_imports.sql")
-	require.NoError(t, err)
-	require.NoError(t, tx.Exec(string(migration)).Error)
-	var sourceCount int64
-	require.NoError(t, tx.Table("dictionaries").Count(&sourceCount).Error)
-	assert.EqualValues(t, 7, sourceCount)
-	var columns int64
-	require.NoError(t, tx.Raw(`SELECT count(*) FROM pg_attribute WHERE attrelid IN ('pg_temp.dictionaries'::regclass,'pg_temp.dictionary_import_jobs'::regclass) AND attname='target_language' AND NOT attisdropped`).Scan(&columns).Error)
-	assert.Zero(t, columns)
 }

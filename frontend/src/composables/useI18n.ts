@@ -6,11 +6,8 @@ import { formatNumber } from '@/lib/utils.ts'
 // Admin copy stays English; client copy supports English and Russian.
 const admin = {
     navDictionaries: 'Dictionaries',
-    dictionarySourcesTitle: 'Import sources',
-    dictionarySourcesIntro:
-        'Each language-specific source imports idioms for that language. The English, Russian, and Italian editions also include entries in other languages.',
-
-    dictionariesIntro: 'Import idioms from Wiktionary for every learning language.',
+    dictionariesIntro:
+        'Import explicitly classified idioms in all supported learning languages from Wiktionary. Source editions can contain entries in several languages.',
     dictionariesBackground:
         'Imports continue after you leave this page. An update downloads the source again and preserves existing vocabulary.',
     dictionariesEmpty: 'No dictionary sources configured.',

@@ -12,19 +12,20 @@ import (
 	"os"
 
 	"gorm.io/gorm"
+	"termorize/src/integrations/kaikki"
 	"termorize/src/models"
 )
 
-type idiomCategorySource struct{ Language, Category, ProverbCategory string }
+type idiomCategorySource struct{ Category, ProverbCategory string }
 
 func categorySource(edition string) *idiomCategorySource {
 	switch edition {
 	case "ukwiktionary":
-		return &idiomCategorySource{"uk", "Категорія:Фразеологізми/uk", "Категорія:Прислів’я/uk"}
+		return &idiomCategorySource{"Категорія:Фразеологізми/uk", "Категорія:Прислів’я/uk"}
 	case "enwiktionary-es":
-		return &idiomCategorySource{"es", "Category:Spanish idioms", "Category:Spanish proverbs"}
+		return &idiomCategorySource{"Category:Spanish idioms", "Category:Spanish proverbs"}
 	case "enwiktionary-pt":
-		return &idiomCategorySource{"pt", "Category:Portuguese idioms", "Category:Portuguese proverbs"}
+		return &idiomCategorySource{"Category:Portuguese idioms", "Category:Portuguese proverbs"}
 	}
 	return nil
 }
@@ -43,6 +44,7 @@ func (w *DictionaryWorker) downloadCategoryIdioms(ctx context.Context, conn *gor
 	if source == nil {
 		return ErrDictionaryEdition
 	}
+	language := kaikki.EditionLanguage(job.Edition)
 	continuation := map[string]string{}
 	seen := map[string]bool{}
 	for page := 0; page < 100; page++ {
@@ -115,7 +117,7 @@ func (w *DictionaryWorker) downloadCategoryIdioms(ctx context.Context, conn *gor
 			if member.Namespace != 0 || member.Redirect || len(member.Categories) > 0 {
 				continue
 			}
-			if err := encoder.Encode(map[string]any{"word": member.Title, "lang_code": source.Language, "pos": "phrase", "tags": []string{"idiomatic"}}); err != nil {
+			if err := encoder.Encode(map[string]any{"word": member.Title, "lang_code": language, "pos": "phrase", "tags": []string{"idiomatic"}}); err != nil {
 				return err
 			}
 		}

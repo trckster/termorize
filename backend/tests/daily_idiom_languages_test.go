@@ -21,7 +21,6 @@ import (
 // hand-maintained language list. Exercise the same selection in web and Telegram.
 func TestDailyIdiomEverySupportedLanguage(t *testing.T) {
 	testkit.Truncate(t)
-	// Populate the pool through the production importer, independently of retired starters.
 	importAllLanguageFixtures(t)
 	var languages []string
 	require.NoError(t, db.DB.Model(&models.Word{}).Distinct("language").Where("type = ?", enums.TypeIdiom).Pluck("language", &languages).Error)

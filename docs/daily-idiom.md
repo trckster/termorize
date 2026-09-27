@@ -2,12 +2,11 @@
 
 The language registry is `backend/src/enums/language.go` (`AllLanguageValues`):
 English, Russian, Italian, German, Spanish, French, Polish, Turkish, Portuguese,
-and Ukrainian. All ten support dictionary imports. Migration 0031 retires the
-manual starter classifications from 0028 while preserving word IDs and relations.
-The multilingual Wiktionary importer accepts every registered language, and
-migration 0029 adds independent imports for the remaining seven languages; see [sources and measured counts](idiom-import-sources.md).
-Selections rotate by usage, preferring a
-word different from adjacent days when another eligible word is available.
+and Ukrainian. All ten support dictionary imports. Migration 0029 adds sources
+for the remaining seven languages; migration 0030 retires the manual starter
+classifications from 0028 without deleting words or their relations. Selections
+rotate by usage, preferring a word different from adjacent days when another
+eligible word is available.
 
 ## Delivery
 
