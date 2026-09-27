@@ -145,8 +145,15 @@
                                     <span
                                         :lang="item.translation.original.language"
                                         class="min-w-0 flex-1 break-words hyphens-auto text-sm leading-snug min-[400px]:text-base sm:text-lg"
-                                        >{{ item.translation.original.word }}</span
-                                    >
+                                        >{{ item.translation.original.word }}
+                                        <PartOfSpeechLabel
+                                            v-if="
+                                                item.translation.original.part_of_speech !==
+                                                item.translation.translation.part_of_speech
+                                            "
+                                            :value="item.translation.original.part_of_speech"
+                                        />
+                                    </span>
                                     <PronunciationButton
                                         :word-id="item.translation.original.id"
                                         :word="item.translation.original.word"
@@ -171,8 +178,15 @@
                                     <span
                                         :lang="item.translation.translation.language"
                                         class="min-w-0 flex-1 break-words hyphens-auto text-sm leading-snug min-[400px]:text-base sm:text-lg"
-                                        >{{ item.translation.translation.word }}</span
-                                    >
+                                        >{{ item.translation.translation.word }}
+                                        <PartOfSpeechLabel
+                                            v-if="
+                                                item.translation.original.part_of_speech !==
+                                                item.translation.translation.part_of_speech
+                                            "
+                                            :value="item.translation.translation.part_of_speech"
+                                        />
+                                    </span>
                                     <PronunciationButton
                                         :word-id="item.translation.translation.id"
                                         :word="item.translation.translation.word"
@@ -183,6 +197,14 @@
                                     />
                                 </span>
                             </h3>
+                            <PartOfSpeechLabel
+                                v-if="
+                                    item.translation.original.part_of_speech ===
+                                    item.translation.translation.part_of_speech
+                                "
+                                :value="item.translation.original.part_of_speech"
+                                class="mt-2"
+                            />
                         </div>
 
                         <!-- Part 2: Progress -->
@@ -321,6 +343,7 @@
 </template>
 
 <script setup lang="ts">
+import PartOfSpeechLabel from '@/components/PartOfSpeechLabel.vue'
 import { vocabularyApi, type VocabularyItem } from '@/api/vocabulary.ts'
 import { translationApi } from '@/api/translation.ts'
 import { onBeforeUnmount, onMounted, ref, computed, watch } from 'vue'

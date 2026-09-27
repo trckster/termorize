@@ -65,7 +65,7 @@ func Translate(fromWord string, fromLanguage enums.Language, toLanguage enums.La
 	_, translatedText = utils.NormalizeTranslationPairCasing(fromWord, string(fromLanguage), translatedText, string(toLanguage))
 
 	var result TranslationResult
-	err = db.DB.Transaction(func(tx *gorm.DB) error {
+	err = db.WordTransaction(db.DB, func(tx *gorm.DB) error {
 		sourceWord, err := GetOrCreateWord(tx, fromWord, fromLanguage)
 		if err != nil {
 			return err

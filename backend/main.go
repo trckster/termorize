@@ -5,6 +5,9 @@ import _ "termorize/src/utils"
 
 import (
 	"context"
+	"os"
+	"os/signal"
+	"syscall"
 	"termorize/src/config"
 	"termorize/src/data/db"
 	"termorize/src/http"
@@ -34,11 +37,21 @@ func main() {
 		fatal("telegram webhook setup failed", err)
 	}
 
-	runners.StartExerciseRunner()
-	runners.StartDailyIdiomRunner(context.Background())
-	runners.StartDictionaryRunner(context.Background())
+	if err := runBackend(); err != nil {
+		fatal("http server stopped", err)
+	}
+}
 
-	http.LaunchServer()
+func runBackend() error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	waitClassifier := runners.StartClassificationRunner(ctx)
+	defer func() { stop(); waitClassifier() }()
+	runners.StartExerciseRunner()
+	runners.StartDailyIdiomRunner(ctx)
+	runners.StartDictionaryRunner(ctx)
+
+	return http.LaunchServer(ctx)
 }
 
 func fatal(message string, err error) {

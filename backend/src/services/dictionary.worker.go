@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"termorize/src/data/db"
 	"termorize/src/enums"
 	"termorize/src/integrations/kaikki"
 	"termorize/src/models"
@@ -274,7 +275,7 @@ func readDictionaryLine(reader *bufio.Reader) ([]byte, bool, error) {
 }
 
 func commitDictionaryBatch(conn *gorm.DB, job *models.DictionaryImportJob, batch []kaikki.Idiom) error {
-	return conn.Transaction(func(tx *gorm.DB) error {
+	return db.WordTransaction(conn, func(tx *gorm.DB) error {
 		// Share the ordinary vocabulary writer's lock, including its case-insensitive lookup.
 		if len(batch) > 0 {
 			if err := lockWordWrites(tx); err != nil {

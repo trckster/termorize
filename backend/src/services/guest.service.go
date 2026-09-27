@@ -124,7 +124,7 @@ func CreateGuestUser(timezone string, systemLanguage enums.Language) (*models.Us
 		GuestExpiresAt: &expiresAt,
 	}
 
-	err = db.DB.Transaction(func(tx *gorm.DB) error {
+	err = db.WordTransaction(db.DB, func(tx *gorm.DB) error {
 		if err := tx.Omit("TelegramID").Create(&user).Error; err != nil {
 			return err
 		}

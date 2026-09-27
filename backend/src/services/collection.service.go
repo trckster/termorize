@@ -762,7 +762,7 @@ func addInlineTranslation(
 }
 
 func AddTranslationToCollection(userID uint, collectionID uuid.UUID, req AddCollectionTranslationRequest) (*CollectionDetail, error) {
-	err := db.DB.Transaction(func(tx *gorm.DB) error {
+	err := db.WordTransaction(db.DB, func(tx *gorm.DB) error {
 		collection, err := getEditableCollection(tx, userID, collectionID)
 		if err != nil {
 			return err
@@ -870,7 +870,7 @@ func GenerateCollection(userID uint, prompt string) (*CollectionDetail, error) {
 		InviteToken: token,
 	}
 
-	err = db.DB.Transaction(func(tx *gorm.DB) error {
+	err = db.WordTransaction(db.DB, func(tx *gorm.DB) error {
 		if err := tx.Create(&collection).Error; err != nil {
 			return err
 		}

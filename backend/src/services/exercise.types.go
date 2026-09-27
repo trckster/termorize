@@ -183,20 +183,22 @@ type exerciseMatchPairCandidate struct {
 }
 
 type exerciseVocabularyDetails struct {
-	ExerciseID          uuid.UUID      `gorm:"column:exercise_id"`
-	VocabularyID        uuid.UUID      `gorm:"column:vocabulary_id"`
-	IsCorrect           bool           `gorm:"column:is_correct"`
-	Position            int            `gorm:"column:position"`
-	Result              *string        `gorm:"column:result"`
-	ResultReason        *string        `gorm:"column:result_reason"`
-	ProgressDelta       *int           `gorm:"column:progress_delta"`
-	KnowledgeAfter      *int           `gorm:"column:knowledge_after"`
-	AnsweredAt          *time.Time     `gorm:"column:answered_at"`
-	VocabularyDeletedAt *time.Time     `gorm:"column:vocabulary_deleted_at"`
-	OriginalWord        string         `gorm:"column:original_word"`
-	OriginalLanguage    enums.Language `gorm:"column:original_language"`
-	TranslationWord     string         `gorm:"column:translation_word"`
-	TranslationLanguage enums.Language `gorm:"column:translation_language"`
+	ExerciseID              uuid.UUID           `gorm:"column:exercise_id"`
+	VocabularyID            uuid.UUID           `gorm:"column:vocabulary_id"`
+	IsCorrect               bool                `gorm:"column:is_correct"`
+	Position                int                 `gorm:"column:position"`
+	Result                  *string             `gorm:"column:result"`
+	ResultReason            *string             `gorm:"column:result_reason"`
+	ProgressDelta           *int                `gorm:"column:progress_delta"`
+	KnowledgeAfter          *int                `gorm:"column:knowledge_after"`
+	AnsweredAt              *time.Time          `gorm:"column:answered_at"`
+	VocabularyDeletedAt     *time.Time          `gorm:"column:vocabulary_deleted_at"`
+	OriginalWord            string              `gorm:"column:original_word"`
+	OriginalLanguage        enums.Language      `gorm:"column:original_language"`
+	TranslationWord         string              `gorm:"column:translation_word"`
+	TranslationLanguage     enums.Language      `gorm:"column:translation_language"`
+	OriginalPartOfSpeech    *enums.PartOfSpeech `gorm:"column:original_part_of_speech"`
+	TranslationPartOfSpeech *enums.PartOfSpeech `gorm:"column:translation_part_of_speech"`
 }
 
 type VocabularyLearningDistribution struct {

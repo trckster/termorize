@@ -93,6 +93,11 @@ const router = createRouter({
                     children: [
                         { path: '', redirect: '/admin/users' },
                         {
+                            path: 'categorization',
+                            name: 'categorization',
+                            component: () => import('@/views/CategorizationPage.vue'),
+                        },
+                        {
                             path: 'dictionaries',
                             name: 'dictionaries',
                             component: () => import('@/views/DictionariesPage.vue'),
