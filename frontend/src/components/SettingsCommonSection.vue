@@ -1,12 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { User } from '@/api/auth.ts'
-import { settingsApi } from '@/api/settings.ts'
-import { useAuthStore } from '@/stores/auth.ts'
-import { useToast } from '@/composables/useToast.ts'
+import type { User, UserSettings } from '@/api/auth.ts'
 import { useI18n } from '@/composables/useI18n'
 import { formatDate } from '@/lib/utils.ts'
-import { Button } from '@/components/ui/button'
 import { Combobox } from '@/components/ui/combobox'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -14,8 +10,6 @@ const props = defineProps<{
     user: User | null
 }>()
 
-const authStore = useAuthStore()
-const { addToast } = useToast()
 const { t } = useI18n()
 
 const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
@@ -46,42 +40,11 @@ watch(
 )
 
 const timezoneOptions = computed(() => allTimezones.map((item) => ({ value: item, label: item })))
-const isSaving = ref(false)
 
 const hasTimezoneChanged = computed(() => {
     const currentTimezone = props.user?.settings.time_zone || browserTimezone
     return timezone.value !== currentTimezone
 })
-
-const saveTimezone = async () => {
-    if (!props.user || !hasTimezoneChanged.value || isSaving.value) return
-
-    isSaving.value = true
-
-    try {
-        authStore.user = await settingsApi.updateSettings({
-            ...props.user.settings,
-            time_zone: timezone.value,
-        })
-
-        addToast({
-            title: t.value.toastSavedTitle,
-            description: t.value.toastSavedDescription,
-            variant: 'success',
-            duration: 3000,
-        })
-    } catch (error) {
-        console.error('Failed to save settings:', error)
-        addToast({
-            title: t.value.toastErrorTitle,
-            description: t.value.toastSaveErrorDescription,
-            variant: 'destructive',
-            duration: 5000,
-        })
-    } finally {
-        isSaving.value = false
-    }
-}
 
 const fields = computed(() => [
     {
@@ -113,6 +76,10 @@ const fields = computed(() => [
             : t.value.settingsCommonFieldUsernameExplanation,
     },
 ])
+const changes = computed<Partial<UserSettings> | null>(() =>
+    hasTimezoneChanged.value ? { time_zone: timezone.value } : null
+)
+defineExpose({ changes })
 </script>
 
 <template>
@@ -155,11 +122,6 @@ const fields = computed(() => [
                         {{ t.settingsCommonFieldTimezoneExplanation }}
                     </p>
                 </div>
-            </div>
-            <div v-if="hasTimezoneChanged" class="sm:px-4">
-                <Button class="w-full sm:w-auto" :disabled="isSaving" @click="saveTimezone">
-                    {{ isSaving ? t.saving : t.save }}
-                </Button>
             </div>
         </CardContent>
     </Card>

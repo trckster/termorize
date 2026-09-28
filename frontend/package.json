@@ -3,6 +3,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:design": "TERMORIZE_DESIGN_PREVIEW=1 VITE_DESIGN_PREVIEW=1 VITE_API_URL=/api VITE_BOT_USERNAME=termorize_test_bot vite --host 127.0.0.1 --port 3000 --strictPort",
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
     "test": "node --test src/lib/*.test.mjs",

@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Loader2, Languages } from 'lucide-vue-next'
 import { dailyIdiomApi, type DailyIdiom } from '@/api/dailyIdiom'
 import { Button } from '@/components/ui/button'
+import DailyIdiomHint from '@/components/DailyIdiomHint.vue'
 import { useI18n } from '@/composables/useI18n'
 import { localDateInTimezone } from '@/lib/localDate'
 import { useAuthStore } from '@/stores/auth'
@@ -16,6 +17,7 @@ const loading = ref(true)
 const failed = ref(false)
 const daily = ref<DailyIdiom | null>(null)
 const description = ref('')
+const section = ref<HTMLElement | null>(null)
 let requestVersion = 0
 let requestedDate = ''
 let refreshTimer: ReturnType<typeof setInterval> | undefined
@@ -74,10 +76,15 @@ onBeforeUnmount(() => {
 <template>
     <section
         v-if="daily?.idiom || failed"
+        ref="section"
         aria-labelledby="daily-idiom-title"
-        class="mx-auto mt-8 max-w-lg rounded-xl border border-border bg-card px-6 py-6 text-center text-card-foreground sm:mt-10 sm:px-8 sm:py-7"
+        class="relative mx-auto mt-8 max-w-lg rounded-xl border border-border bg-card px-6 py-6 text-center text-card-foreground sm:mt-10 sm:px-8 sm:py-7"
     >
         <h2 id="daily-idiom-title" class="text-base font-medium text-muted-foreground">{{ t.dailyIdiomTitle }}</h2>
+        <DailyIdiomHint
+            v-if="daily?.idiom && !loading && !failed"
+            :target="section"
+        />
         <div class="mt-4 space-y-3" aria-live="polite" :aria-busy="loading">
             <p
                 v-if="daily?.idiom"
