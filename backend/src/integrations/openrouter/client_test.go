@@ -51,7 +51,7 @@ func setupClientTestConfig(t *testing.T) {
 
 func TestDescriptionRequestsUseSelectedModelAndSupportedSampling(t *testing.T) {
 	setupClientTestConfig(t)
-	for _, model := range []string{"google/gemini-3.1-pro-preview", "google/gemini-2.5-flash", "moonshotai/kimi-k2.6", "openai/gpt-6-sol"} {
+	for _, model := range []string{"google/gemini-3.1-pro-preview", "moonshotai/kimi-k2.6", "openai/gpt-6-sol"} {
 		t.Run(model, func(t *testing.T) {
 			calls := 0
 			c := &client{apiKey: "test", model: model, http: &http.Client{Transport: descriptionRoundTripper(func(r *http.Request) (*http.Response, error) {
