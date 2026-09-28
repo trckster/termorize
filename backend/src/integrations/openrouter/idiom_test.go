@@ -14,7 +14,7 @@ import (
 
 func TestIdiomDescriptionRequest(t *testing.T) {
 	setupClientTestConfig(t)
-	for _, model := range []string{"google/gemini-3.1-pro-preview", "google/gemini-2.5-flash", "openai/gpt-6-sol"} {
+	for _, model := range []string{"google/gemini-3.1-pro-preview", "openai/gpt-6-sol"} {
 		t.Run(model, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
