@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
+import { designPreview } from './dev/design-preview'
 
 export default ({ mode }: { mode: string }) => {
     const env = loadEnv(mode, process.cwd(), '')
@@ -9,13 +10,11 @@ export default ({ mode }: { mode: string }) => {
     return defineConfig({
         plugins: [
             vue(),
+            ...(env.TERMORIZE_DESIGN_PREVIEW === '1' ? [designPreview()] : []),
             {
                 name: 'app-version',
                 transformIndexHtml(html) {
-                    return html.replace(
-                        '<head>',
-                        `<head>\n    <meta name="app-version" content="${appVersion}">`
-                    )
+                    return html.replace('<head>', `<head>\n    <meta name="app-version" content="${appVersion}">`)
                 },
             },
         ],

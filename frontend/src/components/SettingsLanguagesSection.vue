@@ -1,12 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { UserSettings } from '@/api/auth.ts'
-import { settingsApi } from '@/api/settings.ts'
-import { useToast } from '@/composables/useToast.ts'
-import { useAuthStore } from '@/stores/auth.ts'
 import { useSettingsStore } from '@/stores/settings.ts'
 import { useI18n } from '@/composables/useI18n'
-import { Button } from '@/components/ui/button'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -14,9 +10,7 @@ const props = defineProps<{
     settings?: UserSettings
 }>()
 
-const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
-const { addToast } = useToast()
 const { t } = useI18n()
 
 const supportedSystemLanguages = ['en', 'ru']
@@ -27,7 +21,6 @@ const systemLanguage = ref(getSystemLanguageValue(props.settings?.system_languag
 const mainLearningLanguage = ref(props.settings?.main_learning_language || '')
 const ignoredAudioLanguages = ref<string[]>([...(props.settings?.ignored_audio_languages ?? [])])
 const ignoredDescriptionLanguages = ref<string[]>([...(props.settings?.ignored_description_languages ?? [])])
-const isSaving = ref(false)
 
 const hasLanguageSettingsChanged = computed(() => {
     if (!props.settings) return false
@@ -39,39 +32,6 @@ const hasLanguageSettingsChanged = computed(() => {
         ignoredDescriptionLanguages.value.join(',') !== (props.settings.ignored_description_languages ?? []).join(',')
     )
 })
-
-const saveLanguageSettings = async () => {
-    if (!props.settings || !hasLanguageSettingsChanged.value || isSaving.value) return
-
-    isSaving.value = true
-
-    try {
-        authStore.user = await settingsApi.updateSettings({
-            ...props.settings,
-            system_language: getSystemLanguageValue(systemLanguage.value),
-            main_learning_language: mainLearningLanguage.value,
-            ignored_audio_languages: ignoredAudioLanguages.value,
-            ignored_description_languages: ignoredDescriptionLanguages.value,
-        })
-
-        addToast({
-            title: t.value.toastSavedTitle,
-            description: t.value.toastSavedDescription,
-            variant: 'success',
-            duration: 3000,
-        })
-    } catch (error) {
-        console.error('Failed to save settings:', error)
-        addToast({
-            title: t.value.toastErrorTitle,
-            description: t.value.toastSaveErrorDescription,
-            variant: 'destructive',
-            duration: 5000,
-        })
-    } finally {
-        isSaving.value = false
-    }
-}
 
 watch(
     () => props.settings,
@@ -101,6 +61,17 @@ const setDescriptionLanguageIgnored = (language: string, ignored: boolean) => {
         .map((option) => option.code)
         .filter((code) => selected.has(code))
 }
+const changes = computed<Partial<UserSettings> | null>(() =>
+    hasLanguageSettingsChanged.value
+        ? {
+              system_language: getSystemLanguageValue(systemLanguage.value),
+              main_learning_language: mainLearningLanguage.value,
+              ignored_audio_languages: [...ignoredAudioLanguages.value],
+              ignored_description_languages: [...ignoredDescriptionLanguages.value],
+          }
+        : null
+)
+defineExpose({ changes })
 </script>
 
 <template>
@@ -201,12 +172,6 @@ const setDescriptionLanguageIgnored = (language: string, ignored: boolean) => {
                             </span>
                         </label>
                     </div>
-                </div>
-
-                <div v-if="hasLanguageSettingsChanged" class="sm:px-4">
-                    <Button class="w-full sm:w-auto" :disabled="isSaving" @click="saveLanguageSettings">
-                        {{ isSaving ? t.saving : t.save }}
-                    </Button>
                 </div>
             </div>
         </CardContent>

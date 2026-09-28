@@ -167,6 +167,193 @@ test('Telegram daily idiom setting is off by default and saves both states', asy
     }
 })
 
+const hintName = 'Change in Settings'
+const showIdiomCard = (page: Page) =>
+    page.locator('#daily-idiom-title').evaluate((title) => title.closest('section')!.scrollIntoView({ block: 'center' }))
+
+async function expectBesideIdiom(page: Page) {
+    const note = (await page.getByRole('dialog', { name: hintName }).boundingBox())!
+    const word = (await page.getByText('break the ice', { exact: true }).boundingBox())!
+    const viewport = page.viewportSize()!
+    const overlaps =
+        note.x < word.x + word.width &&
+        word.x < note.x + note.width &&
+        note.y < word.y + word.height &&
+        word.y < note.y + note.height
+    expect(overlaps).toBe(false)
+    expect(note.x).toBeGreaterThanOrEqual(0)
+    expect(note.x + note.width).toBeLessThanOrEqual(viewport.width)
+}
+
+test('daily idiom hint stays dismissed after navigation and reload', async ({ page }) => {
+    await setup(page)
+    const hint = page.getByRole('dialog', { name: hintName })
+    await showIdiomCard(page)
+    await expect(hint).toBeVisible()
+    await expectBesideIdiom(page)
+    await expect(hint).toContainText('Idioms are shown in your main learning language. You can change it in Settings.')
+    await expect(hint).toContainText('You can also enable daily idioms in the Telegram bot there.')
+    await hint.getByRole('link', { name: 'Settings', exact: true }).click()
+    await expect(page).toHaveURL(/\/settings$/)
+    await page.goBack()
+    await showIdiomCard(page)
+    await hint.getByRole('button', { name: 'Got it' }).click()
+    await expect(hint).toHaveCount(0)
+    expect(await page.evaluate(() => localStorage.getItem('termorize:daily-idiom-hint-dismissed'))).toBe('true')
+    await page.getByRole('link', { name: 'Vocabulary', exact: true }).click()
+    await expect(page).toHaveURL(/\/vocabulary$/)
+    await page.getByRole('link', { name: 'Home', exact: true }).click()
+    await showIdiomCard(page)
+    await page.waitForTimeout(800)
+    await expect(hint).toHaveCount(0)
+    await page.reload()
+    await showIdiomCard(page)
+    await expect(page.getByText('break the ice', { exact: true })).toBeVisible()
+    await page.waitForTimeout(800)
+    await expect(hint).toHaveCount(0)
+    await expect(page.getByText(hintName)).toHaveCount(0)
+})
+
+test('daily idiom hint is absent without an idiom or when it fails to load', async ({ page }) => {
+    await setup(page)
+    let fail = false
+    await page.route('**/api/daily-idiom', (route) =>
+        fail
+            ? route.fulfill({ status: 503, json: { message: 'Temporary failure' } })
+            : route.fulfill({
+                  json: { date: new Date().toISOString().slice(0, 10), language: 'en', idiom: null },
+              })
+    )
+    const empty = page.waitForResponse('**/api/daily-idiom')
+    await page.reload()
+    await empty
+    await page.waitForTimeout(800)
+    await expect(page.getByRole('dialog', { name: hintName })).toHaveCount(0)
+    fail = true
+    await page.reload()
+    await expect(page.getByText('Could not load the idiom and its meaning. Please retry.')).toBeVisible()
+    await showIdiomCard(page)
+    await page.waitForTimeout(800)
+    await expect(page.getByRole('dialog', { name: hintName })).toHaveCount(0)
+})
+
+test('centered Save pill combines timezone, language, and Telegram edits in one request', async ({ page }) => {
+    const { calls } = await setup(page)
+    await page.goto('/settings')
+    const pill = page.getByRole('region', { name: 'Unsaved changes' })
+    await expect(pill).toHaveCount(0)
+    const timezone = page.locator('input[name="time-zone"]')
+    await timezone.fill('Europe/Paris')
+    await page.getByRole('option', { name: 'Europe/Paris', exact: true }).click()
+    await expect(page.locator('#settings-telegram')).toContainText('Europe/Paris')
+    await expect(page.locator('#settings-telegram')).not.toContainText('Europe/Rome')
+    await page.locator('input[name="main-learning-language"]').click()
+    await page.getByRole('option', { name: '🇮🇹 Italian', exact: true }).click()
+    await page.getByRole('checkbox').first().check()
+    await page.getByRole('switch', { name: 'Daily idiom in Telegram' }).click()
+    await page.evaluate(() => window.scrollTo(0, 0))
+    await expect(pill).toBeInViewport()
+    await pill.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(pill).toHaveCount(0)
+    const saves = calls.filter((call) => call.path === '/api/settings' && call.body)
+    expect(saves).toHaveLength(1)
+    expect(saves[0]?.body).toMatchObject({
+        time_zone: 'Europe/Paris',
+        main_learning_language: 'it',
+        ignored_audio_languages: ['en'],
+        translation_source_language: 'en',
+        translation_target_language: 'ru',
+        telegram: { daily_idiom_enabled: true, bot_enabled: true },
+    })
+    await page.reload()
+    await expect(timezone).toHaveValue('Europe/Paris')
+    await expect(page.locator('input[name="main-learning-language"]')).toHaveValue('🇮🇹 Italian')
+    await expect(page.getByRole('switch', { name: 'Daily idiom in Telegram' })).toHaveAttribute('aria-checked', 'true')
+    await expect(pill).toHaveCount(0)
+})
+
+test('Save pill preserves changes after a failed request and clears when edits are reverted', async ({ page }) => {
+    await setup(page)
+    await page.goto('/settings')
+    const pill = page.getByRole('region', { name: 'Unsaved changes' })
+    const toggle = page.getByRole('switch', { name: 'Daily idiom in Telegram' })
+    await toggle.click()
+    await toggle.click()
+    await expect(pill).toHaveCount(0)
+    await toggle.click()
+    let fail = true
+    await page.route('**/api/settings', async (route) => {
+        if (route.request().method() === 'PUT' && fail) {
+            fail = false
+            return route.fulfill({ status: 503, json: { message: 'Temporary failure' } })
+        }
+        return route.fallback()
+    })
+    await pill.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(page.getByText('Failed to save settings. Please try again.', { exact: true })).toBeVisible()
+    await expect(toggle).toHaveAttribute('aria-checked', 'true')
+    await expect(pill.getByRole('button', { name: 'Save', exact: true })).toBeEnabled()
+    await pill.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(pill).toHaveCount(0)
+})
+
+test('Save pill reviews invalid Telegram schedules and stays above mobile navigation', async ({ page }) => {
+    const { calls } = await setup(page)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/settings')
+    await page.getByRole('switch', { name: 'Send daily exercises' }).click()
+    await page.getByRole('button', { name: '+ Interval', exact: true }).click()
+    await page.locator('#schedule-from-0').fill('11:00')
+    await page.getByRole('switch', { name: 'Send daily exercises' }).click()
+    await expect(page.locator('#schedule-from-0')).toBeEnabled()
+    await page.evaluate(() => window.scrollTo(0, 0))
+    const pill = page.getByRole('region', { name: 'Unsaved changes' })
+    await expect(pill).toBeInViewport()
+    const pillBox = await pill.boundingBox()
+    const navBox = await page.getByRole('navigation', { name: 'Main navigation' }).boundingBox()
+    expect(pillBox!.y + pillBox!.height).toBeLessThan(navBox!.y)
+    await pill.getByRole('button', { name: 'Review', exact: true }).click()
+    await expect(page.locator('#schedule-from-0')).toBeFocused()
+    expect(calls.filter((call) => call.path === '/api/settings' && call.body)).toHaveLength(0)
+    await page.locator('#schedule-from-0').fill('09:00')
+    await pill.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(pill).toHaveCount(0)
+})
+
+test('phone hint waits for the idiom card, keeps focus in place, and stays gone after Escape', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await setup(page)
+    const hint = page.getByRole('dialog', { name: hintName })
+    await expect(hint).toHaveCount(0)
+    await showIdiomCard(page)
+    await expect(hint).toBeVisible()
+    await expectBesideIdiom(page)
+    const note = (await hint.boundingBox())!
+    const card = (await page.locator('section[aria-labelledby="daily-idiom-title"]').boundingBox())!
+    expect(note.y + note.height).toBeLessThan(card.y)
+    await expect(page.locator('#source-text')).not.toBeFocused()
+    expect(await hint.evaluate((element) => element.contains(document.activeElement))).toBe(false)
+    await page.keyboard.press('Escape')
+    await expect(hint).toHaveCount(0)
+    await page.reload()
+    await showIdiomCard(page)
+    await page.waitForTimeout(800)
+    await expect(hint).toHaveCount(0)
+})
+
+test('keyboard users can dismiss the hint and land on the idiom action', async ({ page }) => {
+    await setup(page)
+    const hint = page.getByRole('dialog', { name: hintName })
+    await showIdiomCard(page)
+    await hint.getByRole('link', { name: 'Settings', exact: true }).focus()
+    await page.keyboard.press('Tab')
+    await expect(hint.getByRole('button', { name: 'Got it' })).toBeFocused()
+    await page.keyboard.press('Enter')
+    await expect(hint).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Translate', exact: true })).toBeFocused()
+    expect(await page.evaluate(() => localStorage.getItem('termorize:daily-idiom-hint-dismissed'))).toBe('true')
+})
+
 test('capture current idiom interface for the landing', async ({ page }) => {
     test.skip(!process.env.CAPTURE_IDIOM_PREVIEW, 'Asset capture is opt-in')
     await page.setViewportSize({ width: 1280, height: 1000 })

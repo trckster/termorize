@@ -38,7 +38,7 @@ type Config struct {
 var config *Config
 
 const (
-	openRouterModel            = "google/gemini-2.5-flash"
+	openRouterModel            = "google/gemini-3.1-pro-preview"
 	openRouterTTSModel         = "google/gemini-3.1-flash-tts-preview"
 	openRouterTTSVoice         = "Kore"
 	openRouterFallbackTTSModel = "microsoft/mai-voice-2"
