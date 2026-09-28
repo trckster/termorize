@@ -129,7 +129,7 @@ var NewClient = func() Client {
 	return &client{
 		apiKey: config.GetOpenRouterApiKey(),
 		model:  config.GetOpenRouterModel(),
-		http:   &http.Client{Timeout: 30 * time.Second},
+		http:   &http.Client{Timeout: 60 * time.Second},
 	}
 }
 
@@ -138,10 +138,13 @@ var NewClientWithModel = func(model string) Client {
 	return &client{apiKey: config.GetOpenRouterApiKey(), model: model, http: &http.Client{Timeout: 60 * time.Second}}
 }
 
-// Sol does not accept sampling parameters; keep the existing Gemini settings.
+// Omit sampling parameters for Sol reasoning; Gemini 3 recommends temperature 1.
 func (c *client) temperature(value float64) *float64 {
-	if c.model == "openai/gpt-5.6-sol" {
+	if c.model == "openai/gpt-6-sol" {
 		return nil
+	}
+	if c.model == "google/gemini-3.1-pro-preview" {
+		value = 1
 	}
 	return &value
 }
