@@ -875,7 +875,7 @@ func TestTelegramWebhookSettingsChangeLearningLanguageAndDailyIdiom(t *testing.T
 	assert.Contains(t, edit.Text, "Daily Idiom: Disabled")
 	_, found := findCallbackButton(edit.ReplyMarkup.InlineKeyboard, "menu:change_learning_lang")
 	assert.True(t, found)
-	button, found := findCallbackButton(edit.ReplyMarkup.InlineKeyboard, "menu:toggle_daily_idiom")
+	button, found := findCallbackButton(edit.ReplyMarkup.InlineKeyboard, "menu:set_daily_idiom:true")
 	require.True(t, found)
 	assert.Equal(t, "Enable Daily Idiom", button.Text)
 
@@ -897,22 +897,34 @@ func TestTelegramWebhookSettingsChangeLearningLanguageAndDailyIdiom(t *testing.T
 	assert.True(t, refreshed.Settings.Telegram.DailyQuestionsEnabled)
 	assert.Contains(t, lastEdit().Text, "Main Learning Language: 🇩🇪 German")
 
-	request("idiom-enable", "toggle_daily_idiom")
+	request("idiom-enable", "set_daily_idiom:true")
 	require.NoError(t, db.DB.Where("id = ?", user.ID).First(&refreshed).Error)
 	assert.True(t, refreshed.Settings.Telegram.DailyIdiomEnabled)
 	assert.Equal(t, enums.LanguageDe, refreshed.Settings.MainLearningLanguage)
 	edit = lastEdit()
 	assert.Contains(t, edit.Text, "Daily Idiom: Enabled")
-	button, found = findCallbackButton(edit.ReplyMarkup.InlineKeyboard, "menu:toggle_daily_idiom")
+	button, found = findCallbackButton(edit.ReplyMarkup.InlineKeyboard, "menu:set_daily_idiom:false")
 	require.True(t, found)
 	assert.Equal(t, "Disable Daily Idiom", button.Text)
 
-	request("idiom-disable", "toggle_daily_idiom")
+	request("idiom-stale-enable", "set_daily_idiom:true")
+	require.NoError(t, db.DB.Where("id = ?", user.ID).First(&refreshed).Error)
+	assert.True(t, refreshed.Settings.Telegram.DailyIdiomEnabled)
+
+	request("idiom-invalid", "set_daily_idiom:invalid")
+	require.NoError(t, db.DB.Where("id = ?", user.ID).First(&refreshed).Error)
+	assert.True(t, refreshed.Settings.Telegram.DailyIdiomEnabled)
+
+	request("idiom-disable", "set_daily_idiom:false")
 	require.NoError(t, db.DB.Where("id = ?", user.ID).First(&refreshed).Error)
 	assert.False(t, refreshed.Settings.Telegram.DailyIdiomEnabled)
 	assert.True(t, refreshed.Settings.Telegram.DailyQuestionsEnabled)
 	assert.Equal(t, enums.LanguageDe, refreshed.Settings.MainLearningLanguage)
-	assert.Len(t, tg.RequestsFor("answerCallbackQuery"), 6)
+
+	request("idiom-stale-disable", "set_daily_idiom:false")
+	require.NoError(t, db.DB.Where("id = ?", user.ID).First(&refreshed).Error)
+	assert.False(t, refreshed.Settings.Telegram.DailyIdiomEnabled)
+	assert.Len(t, tg.RequestsFor("answerCallbackQuery"), 9)
 }
 
 func TestTelegramWebhookCallbackDeleteTranslationSetsState(t *testing.T) {

@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"strconv"
 	"termorize/src/enums"
 	"termorize/src/models"
 	"termorize/src/services"
@@ -294,8 +295,15 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 		return editSettings(callback, user.Settings)
 	}
 
-	if action == menuActionToggleDailyIdiom {
-		user, err := services.UpdateUserTelegramDailyIdiomEnabled(callback.From.ID)
+	if action == menuActionSetDailyIdiom {
+		if len(payload) != 2 {
+			return nil
+		}
+		enabled, err := strconv.ParseBool(payload[1])
+		if err != nil {
+			return nil
+		}
+		user, err := services.UpdateUserTelegramDailyIdiomEnabled(callback.From.ID, enabled)
 		if err != nil {
 			return err
 		}

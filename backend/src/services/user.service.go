@@ -217,7 +217,7 @@ func UpdateUserTelegramDailyQuestionsEnabled(telegramID int64, toggle bool) (*mo
 	return &user, nil
 }
 
-func UpdateUserTelegramDailyIdiomEnabled(telegramID int64) (*models.User, error) {
+func UpdateUserTelegramDailyIdiomEnabled(telegramID int64, enabled bool) (*models.User, error) {
 	var user models.User
 
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
@@ -229,7 +229,10 @@ func UpdateUserTelegramDailyIdiomEnabled(telegramID int64) (*models.User, error)
 		}
 
 		settings := user.Settings
-		settings.Telegram.DailyIdiomEnabled = !settings.Telegram.DailyIdiomEnabled
+		if settings.Telegram.DailyIdiomEnabled == enabled {
+			return nil
+		}
+		settings.Telegram.DailyIdiomEnabled = enabled
 		user.Settings = settings
 		return tx.Model(&user).Update("settings", settings).Error
 	})

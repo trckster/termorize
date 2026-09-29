@@ -36,7 +36,7 @@ const (
 	menuActionChangeSystemLang     = "change_system_lang"
 	menuActionChangeLearningLang   = "change_learning_lang"
 	menuActionToggleDailyExercises = "toggle_daily_exercises"
-	menuActionToggleDailyIdiom     = "toggle_daily_idiom"
+	menuActionSetDailyIdiom        = "set_daily_idiom"
 	menuActionSetSourceLang        = "set_source_lang"
 	menuActionSetTargetLang        = "set_target_lang"
 	menuActionSetPairSourceLang    = "set_pair_source_lang"
@@ -149,15 +149,17 @@ func buildSettingsKeyboard(settings models.UserSettings, t BotTexts) [][]inlineK
 		dailyExercisesText = t.ButtonDisableDailyExercises
 	}
 	dailyIdiomText := t.ButtonEnableDailyIdiom
+	dailyIdiomValue := "true"
 	if settings.Telegram.DailyIdiomEnabled {
 		dailyIdiomText = t.ButtonDisableDailyIdiom
+		dailyIdiomValue = "false"
 	}
 
 	return [][]inlineKeyboardButton{
 		{{Text: t.ButtonChangeSystemLanguage, CallbackData: callbackTypeMenu + ":" + menuActionChangeSystemLang}},
 		{{Text: t.ButtonChangeLearningLanguage, CallbackData: callbackTypeMenu + ":" + menuActionChangeLearningLang}},
 		{{Text: dailyExercisesText, CallbackData: callbackTypeMenu + ":" + menuActionToggleDailyExercises}},
-		{{Text: dailyIdiomText, CallbackData: callbackTypeMenu + ":" + menuActionToggleDailyIdiom}},
+		{{Text: dailyIdiomText, CallbackData: callbackTypeMenu + ":" + menuActionSetDailyIdiom + ":" + dailyIdiomValue}},
 		{{Text: t.ButtonBack, CallbackData: callbackTypeMenu + ":" + menuActionBack}},
 	}
 }
