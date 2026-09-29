@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"termorize/src/enums"
+	"termorize/src/models"
 	"termorize/src/services"
 )
 
@@ -33,13 +34,16 @@ const (
 	menuActionChangePairSourceLang = "change_pair_source_lang"
 	menuActionChangePairTargetLang = "change_pair_target_lang"
 	menuActionChangeSystemLang     = "change_system_lang"
+	menuActionChangeLearningLang   = "change_learning_lang"
 	menuActionToggleDailyExercises = "toggle_daily_exercises"
+	menuActionSetDailyIdiom        = "set_daily_idiom"
 	menuActionSetSourceLang        = "set_source_lang"
 	menuActionSetTargetLang        = "set_target_lang"
 	menuActionSetPairSourceLang    = "set_pair_source_lang"
 	menuActionSetPairTargetLang    = "set_pair_target_lang"
 	menuActionSwapTranslationPair  = "swap_translation_pair"
 	menuActionSetSystemLang        = "set_system_lang"
+	menuActionSetLearningLang      = "set_learning_lang"
 
 	exerciseActionAnswer                    = "answer"
 	exerciseActionIDK                       = "idk"
@@ -139,15 +143,23 @@ func buildVocabularyOverviewKeyboard(t BotTexts) [][]inlineKeyboardButton {
 	}
 }
 
-func buildSettingsKeyboard(systemLang enums.Language, dailyExercisesEnabled bool, t BotTexts) [][]inlineKeyboardButton {
+func buildSettingsKeyboard(settings models.UserSettings, t BotTexts) [][]inlineKeyboardButton {
 	dailyExercisesText := t.ButtonEnableDailyExercises
-	if dailyExercisesEnabled {
+	if settings.Telegram.DailyQuestionsEnabled {
 		dailyExercisesText = t.ButtonDisableDailyExercises
+	}
+	dailyIdiomText := t.ButtonEnableDailyIdiom
+	dailyIdiomValue := "true"
+	if settings.Telegram.DailyIdiomEnabled {
+		dailyIdiomText = t.ButtonDisableDailyIdiom
+		dailyIdiomValue = "false"
 	}
 
 	return [][]inlineKeyboardButton{
 		{{Text: t.ButtonChangeSystemLanguage, CallbackData: callbackTypeMenu + ":" + menuActionChangeSystemLang}},
+		{{Text: t.ButtonChangeLearningLanguage, CallbackData: callbackTypeMenu + ":" + menuActionChangeLearningLang}},
 		{{Text: dailyExercisesText, CallbackData: callbackTypeMenu + ":" + menuActionToggleDailyExercises}},
+		{{Text: dailyIdiomText, CallbackData: callbackTypeMenu + ":" + menuActionSetDailyIdiom + ":" + dailyIdiomValue}},
 		{{Text: t.ButtonBack, CallbackData: callbackTypeMenu + ":" + menuActionBack}},
 	}
 }
@@ -249,6 +261,10 @@ func buildSystemLanguageSelectionKeyboard(t BotTexts) [][]inlineKeyboardButton {
 	}})
 
 	return rows
+}
+
+func buildLearningLanguageSelectionKeyboard(current enums.Language, t BotTexts) [][]inlineKeyboardButton {
+	return buildLanguageSelectionKeyboardForAction(current, "", menuActionSetLearningLang, menuActionSettings, t)
 }
 
 func buildExerciseKeyboard(exerciseID uuid.UUID, options []services.ExerciseOption) [][]inlineKeyboardButton {

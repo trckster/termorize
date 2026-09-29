@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"termorize/src/enums"
+	"termorize/src/models"
 )
 
 const telegramMiniAppURL = "https://t.me/termorize_bot/app"
@@ -71,7 +72,9 @@ type BotTexts struct {
 	MenuStatisticsUnsuccessfulFormat string
 	MenuSettingsTitle                string
 	MenuSettingsSystemLanguage       string
+	MenuSettingsLearningLanguage     string
 	MenuSettingsDailyExercises       string
+	MenuSettingsDailyIdiom           string
 	MenuSettingsEnabled              string
 	MenuSettingsDisabled             string
 	MenuSettingsFullVersionNote      string
@@ -101,8 +104,11 @@ type BotTexts struct {
 	ButtonStatistics                      string
 	ButtonSettings                        string
 	ButtonChangeSystemLanguage            string
+	ButtonChangeLearningLanguage          string
 	ButtonEnableDailyExercises            string
 	ButtonDisableDailyExercises           string
+	ButtonEnableDailyIdiom                string
+	ButtonDisableDailyIdiom               string
 	ButtonWhatsGoingOn                    string
 	ButtonBack                            string
 	ButtonCancel                          string
@@ -195,7 +201,9 @@ var botTextsEn = BotTexts{
 	MenuStatisticsUnsuccessfulFormat: "❌ Unsuccessful: *%d*",
 	MenuSettingsTitle:                "⚙️ *Settings*",
 	MenuSettingsSystemLanguage:       "System Language",
+	MenuSettingsLearningLanguage:     "Main Learning Language",
 	MenuSettingsDailyExercises:       "Daily Exercises",
+	MenuSettingsDailyIdiom:           "Daily Idiom",
 	MenuSettingsEnabled:              "Enabled",
 	MenuSettingsDisabled:             "Disabled",
 	MenuSettingsFullVersionNote:      "All settings are available on the website!",
@@ -236,8 +244,11 @@ var botTextsEn = BotTexts{
 	ButtonStatistics:                      "Statistics",
 	ButtonSettings:                        "Settings",
 	ButtonChangeSystemLanguage:            "Change System Language",
+	ButtonChangeLearningLanguage:          "Change Learning Language",
 	ButtonEnableDailyExercises:            "Enable Daily Exercises",
 	ButtonDisableDailyExercises:           "Disable Daily Exercises",
+	ButtonEnableDailyIdiom:                "Enable Daily Idiom",
+	ButtonDisableDailyIdiom:               "Disable Daily Idiom",
 	ButtonWhatsGoingOn:                    "About",
 	ButtonBack:                            "Back",
 	ButtonCancel:                          "Cancel",
@@ -354,7 +365,9 @@ var botTextsRu = BotTexts{
 	MenuStatisticsUnsuccessfulFormat: "❌ Неуспешно: *%d*",
 	MenuSettingsTitle:                "⚙️ *Настройки*",
 	MenuSettingsSystemLanguage:       "Язык Системы",
+	MenuSettingsLearningLanguage:     "Основной язык обучения",
 	MenuSettingsDailyExercises:       "Ежедневные Упражнения",
+	MenuSettingsDailyIdiom:           "Ежедневная идиома",
 	MenuSettingsEnabled:              "Включены",
 	MenuSettingsDisabled:             "Выключены",
 	MenuSettingsFullVersionNote:      "Полная версия настроек доступна на сайте.",
@@ -395,8 +408,11 @@ var botTextsRu = BotTexts{
 	ButtonStatistics:                      "Статистика",
 	ButtonSettings:                        "Настройки",
 	ButtonChangeSystemLanguage:            "Изменить Язык Системы",
+	ButtonChangeLearningLanguage:          "Изменить язык обучения",
 	ButtonEnableDailyExercises:            "Включить Ежедневные Упражнения",
 	ButtonDisableDailyExercises:           "Выключить Ежедневные Упражнения",
+	ButtonEnableDailyIdiom:                "Включить ежедневную идиому",
+	ButtonDisableDailyIdiom:               "Выключить ежедневную идиому",
 	ButtonWhatsGoingOn:                    "О проекте",
 	ButtonBack:                            "Назад",
 	ButtonCancel:                          "Отмена",
@@ -521,19 +537,27 @@ func buildAddVocabularyFirstText(systemLanguage string, mainLearningLanguage str
 	return fmt.Sprintf(texts.AddVocabularyFirstFormat, systemLanguage, mainLearningLanguage)
 }
 
-func BuildSettingsText(systemLanguage enums.Language, dailyExercisesEnabled bool, texts BotTexts) string {
+func BuildSettingsText(settings models.UserSettings, texts BotTexts) string {
 	dailyExercisesStatus := texts.MenuSettingsDisabled
-	if dailyExercisesEnabled {
+	if settings.Telegram.DailyQuestionsEnabled {
 		dailyExercisesStatus = texts.MenuSettingsEnabled
+	}
+	dailyIdiomStatus := texts.MenuSettingsDisabled
+	if settings.Telegram.DailyIdiomEnabled {
+		dailyIdiomStatus = texts.MenuSettingsEnabled
 	}
 
 	return fmt.Sprintf(
-		"%s\n\n%s: %s\n\n%s: %s\n\n%s",
+		"%s\n\n%s: %s\n\n%s: %s\n\n%s: %s\n\n%s: %s\n\n%s",
 		texts.MenuSettingsTitle,
 		texts.MenuSettingsSystemLanguage,
-		localizedLanguageWithFlag(systemLanguage, texts),
+		localizedLanguageWithFlag(settings.SystemLanguage, texts),
+		texts.MenuSettingsLearningLanguage,
+		localizedLanguageWithFlag(settings.MainLearningLanguage, texts),
 		texts.MenuSettingsDailyExercises,
 		dailyExercisesStatus,
+		texts.MenuSettingsDailyIdiom,
+		dailyIdiomStatus,
 		texts.MenuSettingsFullVersionNote,
 	)
 }
