@@ -176,6 +176,9 @@ const en = {
 
     // Settings page
     settingsTitle: 'Settings',
+    settingsUnsavedChanges: 'Unsaved changes',
+    settingsNeedsReview: 'Check Telegram settings',
+    settingsReview: 'Review',
     settingsDescription: 'Review your account, language, and Telegram preferences.',
 
     // Settings - Common section
@@ -274,6 +277,11 @@ const en = {
     dailyIdiomTitle: 'Idiom of the day',
     dailyIdiomLoading: 'Loading today’s idiom…',
     dailyIdiomError: 'Could not load the idiom and its meaning. Please retry.',
+    dailyIdiomHintTitle: 'Change in Settings',
+    dailyIdiomHintBody: 'Idioms are shown in your main learning language. You can change it in {settings}.',
+    dailyIdiomHintSettings: 'Settings',
+    dailyIdiomHintTelegram: 'You can also enable daily idioms in the Telegram bot there.',
+    dailyIdiomHintDismiss: 'Got it',
     cancel: 'Cancel',
     close: 'Close',
     delete: 'Delete',
@@ -706,6 +714,9 @@ const ru: typeof en = {
 
     // Settings page
     settingsTitle: 'Настройки',
+    settingsUnsavedChanges: 'Не сохранено',
+    settingsNeedsReview: 'Проверьте Telegram',
+    settingsReview: 'Проверить',
     settingsDescription: 'Просмотрите настройки аккаунта, языка и Telegram.',
 
     // Settings - Common section
@@ -807,6 +818,11 @@ const ru: typeof en = {
     dailyIdiomTitle: 'Идиома дня',
     dailyIdiomLoading: 'Загружаем идиому дня…',
     dailyIdiomError: 'Не удалось загрузить идиому и её значение. Попробуйте ещё раз.',
+    dailyIdiomHintTitle: 'Изменить в настройках',
+    dailyIdiomHintBody: 'Идиомы показываются на основном языке изучения. Его можно изменить в {settings}.',
+    dailyIdiomHintSettings: 'настройках',
+    dailyIdiomHintTelegram: 'Там же можно включить ежедневную отправку идиом в Telegram-боте.',
+    dailyIdiomHintDismiss: 'Понятно',
     cancel: 'Отмена',
     close: 'Закрыть',
     delete: 'Удалить',

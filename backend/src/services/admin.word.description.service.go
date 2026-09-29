@@ -24,9 +24,9 @@ var AdminDescriptionModels = []struct {
 	Name string `json:"name"`
 	Tier string `json:"tier"`
 }{
-	{"google/gemini-2.5-flash", "Gemini 2.5 Flash", "basic"},
+	{"google/gemini-3.1-pro-preview", "Gemini 3.1 Pro Preview", "smart"},
 	{"moonshotai/kimi-k2.6", "Kimi K2.6", "medium"},
-	{"openai/gpt-5.6-sol", "GPT-5.6 Sol", "smart"},
+	{"openai/gpt-6-sol", "GPT-6 Sol", "smart"},
 }
 
 type AdminWordDescription struct {

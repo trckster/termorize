@@ -14,7 +14,7 @@ import (
 
 func TestIdiomDescriptionRequest(t *testing.T) {
 	setupClientTestConfig(t)
-	for _, model := range []string{"google/gemini-2.5-flash", "openai/gpt-5.6-sol"} {
+	for _, model := range []string{"google/gemini-3.1-pro-preview", "openai/gpt-6-sol"} {
 		t.Run(model, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -30,8 +30,11 @@ func TestIdiomDescriptionRequest(t *testing.T) {
 				require.Contains(t, request.Messages[0].Content, "figurative meanings")
 				require.Contains(t, request.Messages[0].Content, `Separate distinct meanings with "; "`)
 				require.Contains(t, request.Messages[0].Content, `Use ", " for enumerations`)
-				if model == "openai/gpt-5.6-sol" {
+				if model == "openai/gpt-6-sol" {
 					require.Nil(t, request.Temperature)
+				} else if model == "google/gemini-3.1-pro-preview" {
+					require.NotNil(t, request.Temperature)
+					require.Equal(t, float64(1), *request.Temperature)
 				}
 				body := `{"choices":[{"message":{"content":"{\"description\":\"felice, entusiasta, euforico\"}"}}]}`
 				return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil

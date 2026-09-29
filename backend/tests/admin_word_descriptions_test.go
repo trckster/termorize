@@ -76,7 +76,7 @@ func TestAdminDescriptionsSearchPaginationAndModels(t *testing.T) {
 	require.Len(t, options, 3)
 	assert.Equal(t, config.GetOpenRouterModel(), options[0].ID)
 	assert.Equal(t, "moonshotai/kimi-k2.6", options[1].ID)
-	assert.Equal(t, "openai/gpt-5.6-sol", options[2].ID)
+	assert.Equal(t, "openai/gpt-6-sol", options[2].ID)
 }
 
 func mockAdminDescription(t *testing.T, fake *testkit.FakeOpenRouter, expectedModel string) {
@@ -96,7 +96,7 @@ func previewAdminDescription(t *testing.T, admin models.User, d models.WordDescr
 }
 
 func TestAdminDescriptionPreviewRequiresApprovalAndUsesSelectedModel(t *testing.T) {
-	for _, model := range []string{config.GetOpenRouterModel(), "moonshotai/kimi-k2.6", "openai/gpt-5.6-sol"} {
+	for _, model := range []string{config.GetOpenRouterModel(), "moonshotai/kimi-k2.6", "openai/gpt-6-sol"} {
 		t.Run(model, func(t *testing.T) {
 			testkit.Truncate(t)
 			admin := testkit.CreateUser(t, testkit.WithAdmin())
@@ -189,15 +189,15 @@ func TestAdminDescriptionApprovalSavesSubmittedValuesWithoutPreview(t *testing.T
 	mockAdminDescription(t, &testkit.FakeOpenRouter{GenerateDescriptionFunc: func(string, string, string, string, string) (*openrouter.GeneratedDescription, error) {
 		t.Fatal("approval must not generate a description")
 		return nil, nil
-	}}, "openai/gpt-5.6-sol")
+	}}, "openai/gpt-6-sol")
 	submitted := "A description accepted by the admin."
 	rec := testkit.AuthedRequest(t, admin, http.MethodPost, "/api/admin/word-descriptions/"+existing.ID.String()+"/approve",
-		map[string]any{"model": "openai/gpt-5.6-sol", "description": submitted, "translation_word_id": existing.TranslationWordID})
+		map[string]any{"model": "openai/gpt-6-sol", "description": submitted, "translation_word_id": existing.TranslationWordID})
 	testkit.RequireStatus(t, rec, http.StatusOK)
 	cached, err := services.GetOrCreateWordDescription(existing.WordID, *existing.TranslationWordID)
 	require.NoError(t, err)
 	assert.Equal(t, submitted, cached.Description)
-	assert.Equal(t, "openai/gpt-5.6-sol", cached.Model)
+	assert.Equal(t, "openai/gpt-6-sol", cached.Model)
 	assert.Equal(t, existing.ID, cached.ID)
 }
 

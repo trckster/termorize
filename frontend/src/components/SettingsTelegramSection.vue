@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { UserSettings, UserTelegramScheduleItem } from '@/api/auth.ts'
-import { settingsApi } from '@/api/settings.ts'
-import { useToast } from '@/composables/useToast.ts'
-import { useAuthStore } from '@/stores/auth.ts'
 import { useI18n } from '@/composables/useI18n'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,10 +10,10 @@ import { ToggleSwitch } from '@/components/ui/toggle-switch'
 const props = defineProps<{
     settings?: UserSettings
     isGuest?: boolean
+    isSaving?: boolean
+    timezone?: string
 }>()
 
-const authStore = useAuthStore()
-const { addToast } = useToast()
 const { t } = useI18n()
 
 const botEnabled = ref(false)
@@ -24,9 +21,8 @@ const dailyIdiomEnabled = ref(false)
 const dailyQuestionsEnabled = ref(false)
 const dailyQuestionsCount = ref(10)
 const dailyQuestionsSchedule = ref<UserTelegramScheduleItem[]>([])
-const isSaving = ref(false)
 
-const timezoneLabel = computed(() => props.settings?.time_zone || 'UTC')
+const timezoneLabel = computed(() => props.timezone || props.settings?.time_zone || 'UTC')
 
 const parseTime = (time: string) => {
     if (!/^\d{2}:\d{2}$/.test(time)) return null
@@ -104,8 +100,6 @@ const scheduleValidationError = computed(() => {
     return ''
 })
 
-const isValid = computed(() => !countValidationError.value && !scheduleValidationError.value)
-
 const hasChanged = computed(() => {
     if (!props.settings) return false
 
@@ -139,42 +133,6 @@ const removeScheduleItem = (index: number) => {
     dailyQuestionsSchedule.value.splice(index, 1)
 }
 
-const saveTelegramSettings = async () => {
-    if (!props.settings || !hasChanged.value || !isValid.value || isSaving.value) return
-
-    isSaving.value = true
-
-    try {
-        authStore.user = await settingsApi.updateSettings({
-            ...props.settings,
-            telegram: {
-                bot_enabled: botEnabled.value,
-                daily_idiom_enabled: dailyIdiomEnabled.value,
-                daily_questions_enabled: dailyQuestionsEnabled.value,
-                daily_questions_count: dailyQuestionsCount.value,
-                daily_questions_schedule: dailyQuestionsSchedule.value,
-            },
-        })
-
-        addToast({
-            title: t.value.toastSavedTitle,
-            description: t.value.toastSavedDescription,
-            variant: 'success',
-            duration: 3000,
-        })
-    } catch (error) {
-        console.error('Failed to save settings:', error)
-        addToast({
-            title: t.value.toastErrorTitle,
-            description: t.value.toastSaveErrorDescription,
-            variant: 'destructive',
-            duration: 5000,
-        })
-    } finally {
-        isSaving.value = false
-    }
-}
-
 watch(
     () => props.settings,
     (nextSettings) => {
@@ -189,6 +147,23 @@ watch(
     },
     { immediate: true }
 )
+const changes = computed<Partial<UserSettings> | null>(() =>
+    hasChanged.value && !props.isGuest && props.settings?.telegram.bot_enabled
+        ? {
+              telegram: {
+                  bot_enabled: botEnabled.value,
+                  daily_idiom_enabled: dailyIdiomEnabled.value,
+                  daily_questions_enabled: dailyQuestionsEnabled.value,
+                  daily_questions_count: dailyQuestionsCount.value,
+                  daily_questions_schedule: dailyQuestionsSchedule.value.map((item) => ({ ...item })),
+              },
+          }
+        : null
+)
+const validationError = computed(() =>
+    changes.value ? countValidationError.value || scheduleValidationError.value : ''
+)
+defineExpose({ changes, validationError })
 </script>
 
 <template>
@@ -247,7 +222,7 @@ watch(
                         {{ t.settingsTelegramSendDailyNote }}
                     </p>
                 </div>
-                <div class="space-y-2" :class="dailyQuestionsEnabled ? '' : 'opacity-60'">
+                <div class="space-y-2" :class="dailyQuestionsEnabled || countValidationError ? '' : 'opacity-60'">
                     <p class="text-sm font-semibold text-foreground">{{ t.settingsTelegramDailyCountTitle }}</p>
                     <div class="min-h-11 flex items-center">
                         <InputNumber
@@ -263,7 +238,7 @@ watch(
                                     ? 'telegram-count-note telegram-count-error'
                                     : 'telegram-count-note'
                             "
-                            :disabled="isSaving || !dailyQuestionsEnabled"
+                            :disabled="isSaving || (!dailyQuestionsEnabled && !countValidationError)"
                         />
                     </div>
                     <p id="telegram-count-note" class="text-xs text-muted-foreground">
@@ -276,7 +251,7 @@ watch(
                 </div>
             </div>
 
-            <div class="pt-6 sm:p-4" :class="dailyQuestionsEnabled ? '' : 'opacity-60'">
+            <div class="pt-6 sm:p-4" :class="dailyQuestionsEnabled || scheduleValidationError ? '' : 'opacity-60'">
                 <div class="space-y-2">
                     <div
                         class="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
@@ -309,7 +284,7 @@ watch(
                                         : 'telegram-schedule-note'
                                 "
                                 :aria-invalid="scheduleValidationError ? 'true' : 'false'"
-                                :disabled="isSaving || !dailyQuestionsEnabled"
+                                :disabled="isSaving || (!dailyQuestionsEnabled && !scheduleValidationError)"
                                 class="min-h-11 w-full rounded-md border border-border bg-background px-3 py-2 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
                                 @input="setScheduleTime(index, 'from', ($event.target as HTMLInputElement).value)"
                             />
@@ -329,7 +304,7 @@ watch(
                                         : 'telegram-schedule-note'
                                 "
                                 :aria-invalid="scheduleValidationError ? 'true' : 'false'"
-                                :disabled="isSaving || !dailyQuestionsEnabled"
+                                :disabled="isSaving || (!dailyQuestionsEnabled && !scheduleValidationError)"
                                 class="min-h-11 w-full rounded-md border border-border bg-background px-3 py-2 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
                                 @input="setScheduleTime(index, 'to', ($event.target as HTMLInputElement).value)"
                             />
@@ -337,7 +312,7 @@ watch(
                                 variant="outline"
                                 size="sm"
                                 class="w-full sm:w-auto"
-                                :disabled="isSaving || !dailyQuestionsEnabled"
+                                :disabled="isSaving || (!dailyQuestionsEnabled && !scheduleValidationError)"
                                 @click="removeScheduleItem(index)"
                             >
                                 {{ t.settingsTelegramScheduleDelete }}
@@ -349,7 +324,7 @@ watch(
                         variant="outline"
                         size="sm"
                         class="w-full sm:w-auto"
-                        :disabled="isSaving || !dailyQuestionsEnabled"
+                        :disabled="isSaving || (!dailyQuestionsEnabled && !scheduleValidationError)"
                         @click="addScheduleItem"
                     >
                         {{ t.settingsTelegramScheduleAddInterval }}
@@ -362,12 +337,6 @@ watch(
                         {{ scheduleValidationError }}
                     </p>
                 </div>
-            </div>
-
-            <div v-if="hasChanged" class="pt-4 sm:px-4">
-                <Button class="w-full sm:w-auto" :disabled="isSaving || !isValid" @click="saveTelegramSettings">
-                    {{ isSaving ? t.saving : t.save }}
-                </Button>
             </div>
         </CardContent>
     </Card>
