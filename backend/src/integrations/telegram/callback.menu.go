@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"termorize/src/enums"
+	"termorize/src/models"
 	"termorize/src/services"
 )
 
@@ -153,6 +154,17 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, t.ChooseLanguage, keyboard)
 	}
 
+	if action == menuActionChangeLearningLang {
+		user, err := services.GetUserByTelegramID(callback.From.ID)
+		if err != nil {
+			return err
+		}
+		if user == nil {
+			return nil
+		}
+		return EditMessageTextWithInlineKeyboard(callback.Message.Chat.ID, callback.Message.MessageID, t.ChooseLanguage, buildLearningLanguageSelectionKeyboard(user.Settings.MainLearningLanguage, t))
+	}
+
 	if action == menuActionSetSourceLang || action == menuActionSetTargetLang {
 		if len(payload) != 2 {
 			return nil
@@ -252,10 +264,21 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 			return nil
 		}
 
-		updatedTexts := GetBotTexts(user.Settings.SystemLanguage)
-		keyboard := buildSettingsKeyboard(user.Settings.SystemLanguage, user.Settings.Telegram.DailyQuestionsEnabled, updatedTexts)
-		messageText := BuildSettingsText(user.Settings.SystemLanguage, user.Settings.Telegram.DailyQuestionsEnabled, updatedTexts)
-		return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, messageText, keyboard)
+		return editSettings(callback, user.Settings)
+	}
+
+	if action == menuActionSetLearningLang {
+		if len(payload) != 2 || !enums.IsSupportedLanguage(enums.Language(payload[1])) {
+			return nil
+		}
+		user, err := services.UpdateUserMainLearningLanguage(callback.From.ID, enums.Language(payload[1]))
+		if err != nil {
+			return err
+		}
+		if user == nil {
+			return nil
+		}
+		return editSettings(callback, user.Settings)
 	}
 
 	if action == menuActionToggleDailyExercises {
@@ -268,10 +291,18 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 			return nil
 		}
 
-		updatedTexts := GetBotTexts(user.Settings.SystemLanguage)
-		keyboard := buildSettingsKeyboard(user.Settings.SystemLanguage, user.Settings.Telegram.DailyQuestionsEnabled, updatedTexts)
-		messageText := BuildSettingsText(user.Settings.SystemLanguage, user.Settings.Telegram.DailyQuestionsEnabled, updatedTexts)
-		return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, messageText, keyboard)
+		return editSettings(callback, user.Settings)
+	}
+
+	if action == menuActionToggleDailyIdiom {
+		user, err := services.UpdateUserTelegramDailyIdiomEnabled(callback.From.ID)
+		if err != nil {
+			return err
+		}
+		if user == nil {
+			return nil
+		}
+		return editSettings(callback, user.Settings)
 	}
 
 	if action == menuActionSettings {
@@ -284,9 +315,7 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 			return nil
 		}
 
-		keyboard := buildSettingsKeyboard(user.Settings.SystemLanguage, user.Settings.Telegram.DailyQuestionsEnabled, t)
-		messageText := BuildSettingsText(user.Settings.SystemLanguage, user.Settings.Telegram.DailyQuestionsEnabled, t)
-		return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, messageText, keyboard)
+		return editSettings(callback, user.Settings)
 	}
 
 	selectionText, ok := menuActionToText(action, t)
@@ -295,6 +324,16 @@ func handleMenuCallback(callback *callbackQuery, payload []string) error {
 	}
 
 	return EditMessageTextWithInlineKeyboardMarkdown(callback.Message.Chat.ID, callback.Message.MessageID, selectionText, getMenuBackKeyboard(t))
+}
+
+func editSettings(callback *callbackQuery, settings models.UserSettings) error {
+	t := GetBotTexts(settings.SystemLanguage)
+	return EditMessageTextWithInlineKeyboardMarkdown(
+		callback.Message.Chat.ID,
+		callback.Message.MessageID,
+		BuildSettingsText(settings, t),
+		buildSettingsKeyboard(settings, t),
+	)
 }
 
 func editMainMenu(callback *callbackQuery, t BotTexts) error {

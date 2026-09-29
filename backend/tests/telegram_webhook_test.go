@@ -829,6 +829,92 @@ func TestTelegramWebhookTranslationPairEditorChangesAndSwapsPair(t *testing.T) {
 	assert.Len(t, tg.RequestsFor("answerCallbackQuery"), 5)
 }
 
+func TestTelegramWebhookSettingsChangeLearningLanguageAndDailyIdiom(t *testing.T) {
+	testkit.Truncate(t)
+	tg := testkit.MockTelegramAPI(t)
+
+	const telegramID int64 = 555101
+	settings := models.UserSettings{
+		SystemLanguage:            enums.LanguageEn,
+		MainLearningLanguage:      enums.LanguageEn,
+		TranslationSourceLanguage: enums.LanguageEn,
+		TranslationTargetLanguage: enums.LanguageRu,
+		Telegram: models.UserTelegramSettings{
+			BotEnabled:            true,
+			DailyQuestionsEnabled: true,
+		},
+	}
+	user := testkit.CreateUser(t, testkit.WithTelegramID(telegramID), testkit.WithSettings(settings))
+
+	request := func(callbackID, action string) {
+		t.Helper()
+		testkit.RequireStatus(t, telegramUpdate(t, telegramMenuCallback(telegramID, callbackID, action)), http.StatusOK)
+	}
+	lastEdit := func() struct {
+		Text        string `json:"text"`
+		ReplyMarkup struct {
+			InlineKeyboard [][]telegramKeyboardButton `json:"inline_keyboard"`
+		} `json:"reply_markup"`
+	} {
+		t.Helper()
+		var edit struct {
+			Text        string `json:"text"`
+			ReplyMarkup struct {
+				InlineKeyboard [][]telegramKeyboardButton `json:"inline_keyboard"`
+			} `json:"reply_markup"`
+		}
+		requests := tg.RequestsFor("editMessageText")
+		require.NotEmpty(t, requests)
+		require.NoError(t, json.Unmarshal(requests[len(requests)-1].Body, &edit))
+		return edit
+	}
+
+	request("settings-open", "settings")
+	edit := lastEdit()
+	assert.Contains(t, edit.Text, "Main Learning Language: 🇬🇧 English")
+	assert.Contains(t, edit.Text, "Daily Idiom: Disabled")
+	_, found := findCallbackButton(edit.ReplyMarkup.InlineKeyboard, "menu:change_learning_lang")
+	assert.True(t, found)
+	button, found := findCallbackButton(edit.ReplyMarkup.InlineKeyboard, "menu:toggle_daily_idiom")
+	require.True(t, found)
+	assert.Equal(t, "Enable Daily Idiom", button.Text)
+
+	request("learning-picker", "change_learning_lang")
+	edit = lastEdit()
+	_, found = findCallbackButton(edit.ReplyMarkup.InlineKeyboard, "menu:set_learning_lang:de")
+	assert.True(t, found)
+	_, found = findCallbackButton(edit.ReplyMarkup.InlineKeyboard, "menu:settings")
+	assert.True(t, found)
+
+	request("learning-invalid", "set_learning_lang:invalid")
+	assert.Len(t, tg.RequestsFor("editMessageText"), 2)
+	request("learning-select", "set_learning_lang:de")
+	var refreshed models.User
+	require.NoError(t, db.DB.Where("id = ?", user.ID).First(&refreshed).Error)
+	assert.Equal(t, enums.LanguageDe, refreshed.Settings.MainLearningLanguage)
+	assert.Equal(t, enums.LanguageEn, refreshed.Settings.TranslationSourceLanguage)
+	assert.Equal(t, enums.LanguageRu, refreshed.Settings.TranslationTargetLanguage)
+	assert.True(t, refreshed.Settings.Telegram.DailyQuestionsEnabled)
+	assert.Contains(t, lastEdit().Text, "Main Learning Language: 🇩🇪 German")
+
+	request("idiom-enable", "toggle_daily_idiom")
+	require.NoError(t, db.DB.Where("id = ?", user.ID).First(&refreshed).Error)
+	assert.True(t, refreshed.Settings.Telegram.DailyIdiomEnabled)
+	assert.Equal(t, enums.LanguageDe, refreshed.Settings.MainLearningLanguage)
+	edit = lastEdit()
+	assert.Contains(t, edit.Text, "Daily Idiom: Enabled")
+	button, found = findCallbackButton(edit.ReplyMarkup.InlineKeyboard, "menu:toggle_daily_idiom")
+	require.True(t, found)
+	assert.Equal(t, "Disable Daily Idiom", button.Text)
+
+	request("idiom-disable", "toggle_daily_idiom")
+	require.NoError(t, db.DB.Where("id = ?", user.ID).First(&refreshed).Error)
+	assert.False(t, refreshed.Settings.Telegram.DailyIdiomEnabled)
+	assert.True(t, refreshed.Settings.Telegram.DailyQuestionsEnabled)
+	assert.Equal(t, enums.LanguageDe, refreshed.Settings.MainLearningLanguage)
+	assert.Len(t, tg.RequestsFor("answerCallbackQuery"), 6)
+}
+
 func TestTelegramWebhookCallbackDeleteTranslationSetsState(t *testing.T) {
 	testkit.Truncate(t)
 	tg := testkit.MockTelegramAPI(t)
