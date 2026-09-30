@@ -76,7 +76,7 @@ func InvalidPaginationError(err error) bool {
 
 func GetOrCreateWord(conn *gorm.DB, word string, language enums.Language) (*models.Word, error) {
 	var result *models.Word
-	err := conn.Transaction(func(tx *gorm.DB) error {
+	err := db.WordTransaction(conn, func(tx *gorm.DB) error {
 		if err := lockWordWrites(tx); err != nil {
 			return err
 		}
@@ -115,13 +115,16 @@ func getOrCreateWordLocked(conn *gorm.DB, word string, language enums.Language) 
 		return nil, false, err
 	}
 
+	if err := db.RecordWordCreated(conn, newWord.ID); err != nil {
+		return nil, false, err
+	}
 	return &newWord, true, nil
 }
 
 func CreateVocabulary(userID uint, req CreateVocabularyRequest) (*models.Vocabulary, error) {
 	var vocabulary models.Vocabulary
 
-	err := db.DB.Transaction(func(tx *gorm.DB) error {
+	err := db.WordTransaction(db.DB, func(tx *gorm.DB) error {
 		original, translationText := utils.NormalizeTranslationPairCasing(
 			req.Original,
 			string(req.OriginalLanguage),
@@ -212,7 +215,7 @@ func CreateVocabulary(userID uint, req CreateVocabularyRequest) (*models.Vocabul
 func CreateVocabularyByTranslation(userID uint, translationID uuid.UUID) (*models.Vocabulary, error) {
 	var vocabulary models.Vocabulary
 
-	err := db.DB.Transaction(func(tx *gorm.DB) error {
+	err := db.WordTransaction(db.DB, func(tx *gorm.DB) error {
 		if err := lockWordWrites(tx); err != nil {
 			return err
 		}
@@ -384,7 +387,7 @@ func GetVocabularyStatistics(userID uint) (*VocabularyStatistics, error) {
 func DeleteVocabulary(userID uint, vocabID uuid.UUID) error {
 	var cancelledReplacementTimes []time.Time
 	var cancelledTelegramExercises []CancelledTelegramExercise
-	err := db.DB.Transaction(func(tx *gorm.DB) error {
+	err := db.WordTransaction(db.DB, func(tx *gorm.DB) error {
 		var vocabulary models.Vocabulary
 		if err := tx.Where("id = ? AND user_id = ? AND deleted_at IS NULL", vocabID, userID).First(&vocabulary).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {

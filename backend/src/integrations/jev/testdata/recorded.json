@@ -1,0 +1,274 @@
+[
+  {
+    "term": "io",
+    "language": "Italian",
+    "response": {
+      "model": "typesafe/jev-1.13-20260917",
+      "answers": {
+        "category": {
+          "type": "choice",
+          "choice": "pronoun",
+          "probabilities": {
+            "interjection": 0,
+            "verb": 0,
+            "adverb": 0,
+            "numeral": 0,
+            "preposition": 0,
+            "phrase": 0,
+            "noun": 0,
+            "adjective": 0,
+            "unknown": 0,
+            "conjunction": 0,
+            "pronoun": 1
+          },
+          "confidence": 0.99
+        }
+      },
+      "usage": {
+        "input_tokens": 725,
+        "output_tokens": 109,
+        "cost": 3.045e-05
+      },
+      "id": "gen-dec-1790190008-pnXREqYZyBqW6BoYvtz0",
+      "provider": "TypeSafe"
+    }
+  },
+  {
+    "term": "spill the beans",
+    "language": "English",
+    "response": {
+      "model": "typesafe/jev-1.13-20260917",
+      "answers": {
+        "category": {
+          "type": "choice",
+          "choice": "phrase",
+          "probabilities": {
+            "phrase": 1,
+            "noun": 0,
+            "numeral": 0,
+            "pronoun": 0,
+            "preposition": 0,
+            "verb": 0,
+            "interjection": 0,
+            "adjective": 0,
+            "conjunction": 0,
+            "unknown": 0,
+            "adverb": 0
+          },
+          "confidence": 1
+        }
+      },
+      "usage": {
+        "input_tokens": 729,
+        "output_tokens": 108,
+        "cost": 3.0618e-05
+      },
+      "id": "gen-dec-1790190006-DwTasEnDZepym5oAuLuL",
+      "provider": "TypeSafe"
+    }
+  },
+  {
+    "term": "a piece of cake",
+    "language": "English",
+    "response": {
+      "model": "typesafe/jev-1.13-20260917",
+      "answers": {
+        "category": {
+          "type": "choice",
+          "choice": "phrase",
+          "probabilities": {
+            "verb": 0,
+            "noun": 0,
+            "conjunction": 0,
+            "adjective": 0,
+            "phrase": 1,
+            "interjection": 0,
+            "numeral": 0,
+            "adverb": 0,
+            "preposition": 0,
+            "pronoun": 0,
+            "unknown": 0
+          },
+          "confidence": 1
+        }
+      },
+      "usage": {
+        "input_tokens": 731,
+        "output_tokens": 108,
+        "cost": 3.0702e-05
+      },
+      "id": "gen-dec-1790190006-13xLa7Lxpi4CLT72ODgc",
+      "provider": "TypeSafe"
+    }
+  },
+  {
+    "term": "under the weather",
+    "language": "English",
+    "response": {
+      "model": "typesafe/jev-1.13-20260917",
+      "answers": {
+        "category": {
+          "type": "choice",
+          "choice": "phrase",
+          "probabilities": {
+            "interjection": 0,
+            "preposition": 0,
+            "numeral": 0,
+            "verb": 0,
+            "conjunction": 0,
+            "phrase": 1,
+            "unknown": 0,
+            "adverb": 0,
+            "noun": 0,
+            "pronoun": 0,
+            "adjective": 0
+          },
+          "confidence": 1
+        }
+      },
+      "usage": {
+        "input_tokens": 729,
+        "output_tokens": 108,
+        "cost": 3.0618e-05
+      },
+      "id": "gen-dec-1790190006-S4fGqkYZBr4W3G7Vebq0",
+      "provider": "TypeSafe"
+    }
+  },
+  {
+    "term": "don't",
+    "language": "English",
+    "response": {
+      "model": "typesafe/jev-1.13-20260917",
+      "answers": {
+        "category": {
+          "type": "choice",
+          "choice": "verb",
+          "probabilities": {
+            "interjection": 0,
+            "conjunction": 0,
+            "verb": 0.92,
+            "noun": 0,
+            "unknown": 0.02,
+            "adjective": 0,
+            "pronoun": 0,
+            "adverb": 0.06,
+            "phrase": 0,
+            "numeral": 0,
+            "preposition": 0
+          },
+          "confidence": 0.91
+        }
+      },
+      "usage": {
+        "input_tokens": 727,
+        "output_tokens": 108,
+        "cost": 3.0534e-05
+      },
+      "id": "gen-dec-1790190039-Gk0pPsiW4uJpGKZZ5aWP",
+      "provider": "TypeSafe"
+    }
+  },
+  {
+    "term": "well-known",
+    "language": "English",
+    "response": {
+      "model": "typesafe/jev-1.13-20260917",
+      "answers": {
+        "category": {
+          "type": "choice",
+          "choice": "adjective",
+          "probabilities": {
+            "noun": 0,
+            "adjective": 0.92,
+            "conjunction": 0,
+            "preposition": 0,
+            "verb": 0,
+            "pronoun": 0,
+            "unknown": 0,
+            "adverb": 0,
+            "interjection": 0,
+            "numeral": 0,
+            "phrase": 0.08
+          },
+          "confidence": 0.91
+        }
+      },
+      "usage": {
+        "input_tokens": 727,
+        "output_tokens": 110,
+        "cost": 3.0534e-05
+      },
+      "id": "gen-dec-1790190039-Z3tCfKotaf6N3nMZfnHH",
+      "provider": "TypeSafe"
+    }
+  },
+  {
+    "term": "бы",
+    "language": "Russian",
+    "response": {
+      "model": "typesafe/jev-1.13-20260917",
+      "answers": {
+        "category": {
+          "type": "choice",
+          "choice": "verb",
+          "probabilities": {
+            "verb": 0.77,
+            "conjunction": 0,
+            "numeral": 0,
+            "adjective": 0,
+            "preposition": 0,
+            "adverb": 0,
+            "phrase": 0,
+            "noun": 0,
+            "pronoun": 0,
+            "unknown": 0.23,
+            "interjection": 0
+          },
+          "confidence": 0.73
+        }
+      },
+      "usage": {
+        "input_tokens": 725,
+        "output_tokens": 108,
+        "cost": 3.045e-05
+      },
+      "id": "gen-dec-1790190041-serMTGj7iss65uWkaxhD",
+      "provider": "TypeSafe"
+    }
+  },
+  {
+    "term": "the",
+    "language": "English",
+    "response": {
+      "model": "typesafe/jev-1.13-20260917",
+      "answers": {
+        "category": {
+          "type": "choice",
+          "choice": "unknown",
+          "probabilities": {
+            "numeral": 0,
+            "conjunction": 0,
+            "verb": 0,
+            "adjective": 0,
+            "interjection": 0,
+            "preposition": 0,
+            "phrase": 0,
+            "pronoun": 0,
+            "noun": 0,
+            "unknown": 1,
+            "adverb": 0
+          },
+          "confidence": 1
+        }
+      },
+      "usage": {
+        "input_tokens": 725,
+        "output_tokens": 108,
+        "cost": 3.045e-05
+      },
+      "id": "gen-dec-1790190040-CvK7bA0Dr8eTn9NpBtTS",
+      "provider": "TypeSafe"
+    }
+  }
+]

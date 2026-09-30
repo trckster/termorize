@@ -65,7 +65,7 @@ func TranslateDailyIdiom(ctx context.Context, id uuid.UUID, target enums.Languag
 		return nil, errors.New("invalid idiom translation text")
 	}
 	var result *TranslationResult
-	err = db.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err = db.WordTransaction(db.DB.WithContext(ctx), func(tx *gorm.DB) error {
 		if err := lockWordWrites(tx); err != nil {
 			return err
 		}

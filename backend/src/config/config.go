@@ -70,37 +70,37 @@ func getRequiredEnv(key string) string {
 }
 
 func LoadEnv() {
+	config = loadJobEnv()
+	config.PublicURL = getEnv("PUBLIC_URL", "http://localhost:3000")
+	config.Port = getEnv("PORT", "8080")
+	config.Secret = getRequiredEnv("SECRET")
+	config.TelegramBotToken = getRequiredEnv("TELEGRAM_BOT_TOKEN")
+	config.TelegramWebhookURL = getEnv("TELEGRAM_WEBHOOK_URL", "")
+	config.TelegramLoginClientID = getRequiredEnv("TELEGRAM_LOGIN_CLIENT_ID")
+	config.TelegramLoginClientSecret = getRequiredEnv("TELEGRAM_LOGIN_CLIENT_SECRET")
+	config.GoogleApiKey = getRequiredEnv("GOOGLE_API_KEY")
+	config.JWTExpirationTime = 7 * 24 * time.Hour
+}
+
+func LoadClassificationEnv() {
+	config = loadJobEnv()
+}
+
+func loadJobEnv() *Config {
 	err := godotenv.Load()
 	if err != nil {
 		logger.L().Infow("no .env file found, using environment variables")
 	}
 
-	publicURL := getEnv("PUBLIC_URL", "http://localhost:3000")
-
-	config = &Config{
-		Env:       getEnv("ENV", "prod"),
-		PublicURL: publicURL,
-		Port:      getEnv("PORT", "8080"),
-		Secret:    getRequiredEnv("SECRET"),
-
-		DBHost:     getEnv("DB_HOST", "localhost"),
-		DBPort:     getEnv("DB_PORT", "5432"),
-		DBName:     getEnv("DB_NAME", "termorize"),
-		DBUser:     getRequiredEnv("DB_USER"),
-		DBPassword: getRequiredEnv("DB_PASSWORD"),
-
-		TelegramBotToken:          getRequiredEnv("TELEGRAM_BOT_TOKEN"),
-		TelegramWebhookURL:        getEnv("TELEGRAM_WEBHOOK_URL", ""),
-		TelegramLoginClientID:     getRequiredEnv("TELEGRAM_LOGIN_CLIENT_ID"),
-		TelegramLoginClientSecret: getRequiredEnv("TELEGRAM_LOGIN_CLIENT_SECRET"),
-
-		GoogleApiKey: getRequiredEnv("GOOGLE_API_KEY"),
-
+	return &Config{
+		Env:              getEnv("ENV", "prod"),
+		DBHost:           getEnv("DB_HOST", "localhost"),
+		DBPort:           getEnv("DB_PORT", "5432"),
+		DBName:           getEnv("DB_NAME", "termorize"),
+		DBUser:           getRequiredEnv("DB_USER"),
+		DBPassword:       getRequiredEnv("DB_PASSWORD"),
 		OpenRouterApiKey: getEnv("OPENROUTER_API_KEY", ""),
-
-		SentryDSN: getEnv("SENTRY_DSN", ""),
-
-		JWTExpirationTime: 7 * 24 * time.Hour,
+		SentryDSN:        getEnv("SENTRY_DSN", ""),
 	}
 }
 

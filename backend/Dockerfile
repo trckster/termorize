@@ -10,6 +10,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/termorize ./main.go
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/generate-exercises ./cmd/cron/generate.exercises.go
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/delete-expired-guests ./cmd/cron/delete-expired-guests/main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/classify-words ./cmd/cron/classify-words
 
 FROM alpine:3.23
 
@@ -24,6 +25,7 @@ RUN apk add --no-cache ca-certificates tzdata curl ffmpeg && \
 COPY --from=build /out/termorize ./termorize
 COPY --from=build /out/generate-exercises ./generate-exercises
 COPY --from=build /out/delete-expired-guests ./delete-expired-guests
+COPY --from=build /out/classify-words ./classify-words
 COPY src/data/migrations ./src/data/migrations
 COPY cmd/cron/crontab ./crontab
 

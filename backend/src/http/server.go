@@ -1,13 +1,16 @@
 package http
 
 import (
+	"context"
+	"errors"
+	"net/http"
 	"sync"
 	"termorize/src/config"
 	"termorize/src/controllers"
 	"termorize/src/http/middlewares"
 	"termorize/src/http/validators"
-	"termorize/src/logger"
 	"termorize/src/monitoring"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -39,12 +42,27 @@ func BuildRouter() *gin.Engine {
 	return router
 }
 
-func LaunchServer() {
-	router := BuildRouter()
-
-	if err := router.Run(":" + config.GetPort()); err != nil {
-		logger.L().Fatalw("failed to start http server", "error", err)
+func LaunchServer(ctx context.Context) error {
+	server := &http.Server{Addr: ":" + config.GetPort(), Handler: BuildRouter(), ReadHeaderTimeout: 10 * time.Second}
+	shutdownDone := make(chan struct{})
+	serverCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() {
+		defer close(shutdownDone)
+		<-serverCtx.Done()
+		shutdownCtx, stop := context.WithTimeout(context.Background(), 10*time.Second)
+		defer stop()
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			_ = server.Close()
+		}
+	}()
+	err := server.ListenAndServe()
+	cancel()
+	<-shutdownDone
+	if errors.Is(err, http.ErrServerClosed) {
+		return nil
 	}
+	return err
 }
 
 var registerValidatorsOnce sync.Once

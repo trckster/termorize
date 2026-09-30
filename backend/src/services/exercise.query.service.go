@@ -448,8 +448,10 @@ func getExerciseVocabularyDetails(exerciseIDs []uuid.UUID, onlyCorrect bool, onl
 			ve.answered_at AS answered_at,
 			v.deleted_at AS vocabulary_deleted_at,
 			original.word AS original_word,
+			original.part_of_speech AS original_part_of_speech,
 			original.language AS original_language,
 			translated.word AS translation_word,
+			translated.part_of_speech AS translation_part_of_speech,
 			translated.language AS translation_language
 		FROM vocabulary_exercises AS ve
 		JOIN vocabulary AS v ON v.id = ve.vocabulary_id
@@ -504,12 +506,14 @@ func buildVocabularyFromExerciseDetails(details exerciseVocabularyDetails) model
 		ID: details.VocabularyID,
 		Translation: &models.Translation{
 			Original: &models.Word{
-				Word:     details.OriginalWord,
-				Language: details.OriginalLanguage,
+				Word:         details.OriginalWord,
+				PartOfSpeech: details.OriginalPartOfSpeech,
+				Language:     details.OriginalLanguage,
 			},
 			Translation: &models.Word{
-				Word:     details.TranslationWord,
-				Language: details.TranslationLanguage,
+				Word:         details.TranslationWord,
+				PartOfSpeech: details.TranslationPartOfSpeech,
+				Language:     details.TranslationLanguage,
 			},
 		},
 	}

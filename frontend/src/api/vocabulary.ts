@@ -1,16 +1,17 @@
 import apiCall, { unwrapBody } from '@/api/index.ts'
 import type { Paginated } from '@/api/pagination.ts'
+import type { PartOfSpeech } from '@/lib/partOfSpeech'
 
 type VocabularyItemProgress = {
     knowledge: number
     type: 'translation'
 }
 
-type Word = {
+export type Word = {
     id: string
     language: string
     word: string
-    created_at: string
+    part_of_speech: PartOfSpeech | null
 }
 
 type TranslationSource = 'user' | 'google'

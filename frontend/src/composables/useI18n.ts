@@ -5,6 +5,26 @@ import { formatNumber } from '@/lib/utils.ts'
 
 // Admin copy stays English; client copy supports English and Russian.
 const admin = {
+    navCategorization: 'Categorization',
+    categorizationScope:
+        'Categories belong to shared words. Saving a category changes every vocabulary entry that uses this word, for everyone. Concrete categories are permanent.',
+    categorizationMismatchNote:
+        'Different roles can be valid translations. Only Unknown words can be edited here; pairs do not need to match.',
+    categorizationUnknown: 'Unknown words',
+    categorizationMismatches: 'Mismatched vocabulary pairs',
+    categorizationCategory: 'Category',
+    categorizationChoose: 'Choose a category',
+    categorizationSave: 'Save category',
+    categorizationRefresh: 'Refresh',
+    categorizationSaved: 'Category saved for every shared use of this word.',
+    categorizationConflict: 'This word already has a permanent category. The lists have been refreshed.',
+    categorizationSaveError: 'Could not save the category. Refresh and try again.',
+    categorizationLoadError: 'Could not load categories. Please retry.',
+    categorizationLoading: 'Loading categories…',
+    categorizationRecord: 'Vocabulary record',
+    categorizationNoUnknown: 'No unknown words to review.',
+    categorizationNoMismatches: 'No completed vocabulary pairs have different categories.',
+    categorizationPages: 'Categorization pages',
     navDictionaries: 'Dictionaries',
     dictionariesIntro:
         'Import explicitly classified idioms in all supported learning languages from Wiktionary. Source editions can contain entries in several languages.',

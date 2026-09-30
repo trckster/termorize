@@ -1,5 +1,7 @@
 import apiCall, { unwrapBody } from '@/api/index.ts'
 import type { Paginated } from '@/api/pagination.ts'
+import type { Word, VocabularyItem } from '@/api/vocabulary'
+import type { PartOfSpeech } from '@/lib/partOfSpeech'
 
 const API_URL = import.meta.env.VITE_API_URL.replace(/\/$/, '')
 
@@ -84,6 +86,22 @@ export type DictionaryImportJob = {
 }
 
 export const adminApi = {
+    async getUnknownWords(page = 1): Promise<Paginated<Word>> {
+        return apiCall<Paginated<Word>>('/admin/categorization/unknown', 'GET', { page, page_size: 20 }).then(
+            unwrapBody
+        )
+    },
+    async getMismatchedVocabulary(page = 1): Promise<Paginated<VocabularyItem>> {
+        return apiCall<Paginated<VocabularyItem>>('/admin/categorization/mismatches', 'GET', {
+            page,
+            page_size: 20,
+        }).then(unwrapBody)
+    },
+    async setWordPartOfSpeech(id: string, partOfSpeech: PartOfSpeech): Promise<Word> {
+        return apiCall<Word>(`/admin/words/${encodeURIComponent(id)}/part-of-speech`, 'PUT', {
+            part_of_speech: partOfSpeech,
+        }).then(unwrapBody)
+    },
     async getDictionaries(): Promise<Dictionary[]> {
         return apiCall<Dictionary[]>('/admin/dictionaries').then(unwrapBody)
     },
