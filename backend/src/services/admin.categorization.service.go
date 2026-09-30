@@ -54,6 +54,7 @@ func GetMismatchedVocabulary(ctx context.Context, page, pageSize int) (*Vocabula
 		Joins("JOIN translations AS t ON t.id = vocabulary.translation_id").
 		Joins("JOIN words AS original ON original.id = t.original_id").
 		Joins("JOIN words AS translated ON translated.id = t.translation_id").
+		Where("vocabulary.deleted_at IS NULL").
 		Where("original.part_of_speech IS NOT NULL AND translated.part_of_speech IS NOT NULL AND original.part_of_speech <> translated.part_of_speech")
 	var total int64
 	if err := query.Count(&total).Error; err != nil {

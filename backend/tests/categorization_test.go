@@ -225,6 +225,32 @@ func TestCategorizationListsUnknownsAndEveryCompletedMismatch(t *testing.T) {
 	assert.ElementsMatch(t, expected, ids)
 }
 
+func TestCategorizationMismatchesExcludeDeletedVocabulary(t *testing.T) {
+	testkit.Truncate(t)
+	admin := testkit.CreateUser(t, testkit.WithAdmin())
+	other := testkit.CreateUser(t)
+	noun, verb := enums.PartOfSpeechNoun, enums.PartOfSpeechVerb
+	original := categoryWord(t, "decision", &noun)
+	translated := categoryWord(t, "decide", &verb)
+	translation := models.Translation{OriginalID: original.ID, TranslationID: translated.ID, Source: enums.TranslationSourceGoogle}
+	require.NoError(t, db.DB.Create(&translation).Error)
+	active := models.Vocabulary{UserID: admin.ID, TranslationID: translation.ID}
+	deleted := models.Vocabulary{UserID: other.ID, TranslationID: translation.ID}
+	require.NoError(t, db.DB.Create(&active).Error)
+	require.NoError(t, db.DB.Create(&deleted).Error)
+	testkit.RequireStatus(t, testkit.AuthedRequest(t, other, http.MethodDelete, "/api/vocabulary/"+deleted.ID.String(), nil), http.StatusOK)
+
+	response := testkit.AuthedRequest(t, admin, http.MethodGet, "/api/admin/categorization/mismatches?page_size=1", nil)
+	testkit.RequireStatus(t, response, http.StatusOK)
+	var list services.VocabularyListResponse
+	testkit.DecodeJSON(t, response, &list)
+	assert.Equal(t, int64(1), list.Pagination.Total)
+	assert.Equal(t, 1, list.Pagination.TotalPages)
+	require.Len(t, list.Data, 1)
+	assert.Equal(t, active.ID, list.Data[0].ID)
+	assert.Nil(t, list.Data[0].DeletedAt)
+}
+
 type observedClassificationStore struct {
 	classification.WordStore
 	saved chan struct{}
