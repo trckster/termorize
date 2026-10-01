@@ -3,6 +3,9 @@ package services
 import (
 	"context"
 	"errors"
+	"strings"
+	"sync"
+	"termorize/src/classification"
 	"termorize/src/data/db"
 	"termorize/src/enums"
 	"termorize/src/models"
@@ -13,7 +16,60 @@ import (
 )
 
 var ErrInvalidPartOfSpeech = errors.New("invalid part of speech")
-var ErrPartOfSpeechPermanent = errors.New("this word already has a permanent category; refresh the list")
+
+var categorizationRunner struct {
+	sync.RWMutex
+	worker *classification.Worker
+}
+
+func SetCategorizationWorker(worker *classification.Worker) func() {
+	categorizationRunner.Lock()
+	previous := categorizationRunner.worker
+	categorizationRunner.worker = worker
+	categorizationRunner.Unlock()
+	return func() {
+		categorizationRunner.Lock()
+		categorizationRunner.worker = previous
+		categorizationRunner.Unlock()
+	}
+}
+
+func categorizationWorker() *classification.Worker {
+	categorizationRunner.RLock()
+	defer categorizationRunner.RUnlock()
+	return categorizationRunner.worker
+}
+
+type CategorizationStats struct {
+	Total       int64                 `json:"total"`
+	Categorized int64                 `json:"categorized"`
+	Unknown     int64                 `json:"unknown"`
+	Pending     int64                 `json:"pending"`
+	Worker      *classification.Stats `json:"worker" gorm:"-"`
+}
+
+func GetCategorizationStats(ctx context.Context) (*CategorizationStats, error) {
+	var stats CategorizationStats
+	if err := db.DB.WithContext(ctx).Model(&models.Word{}).Select(`count(*) AS total,
+		count(*) FILTER (WHERE part_of_speech IS NULL) AS pending,
+		count(*) FILTER (WHERE part_of_speech = 'unknown') AS unknown,
+		count(*) FILTER (WHERE part_of_speech IS NOT NULL AND part_of_speech <> 'unknown') AS categorized`).Scan(&stats).Error; err != nil {
+		return nil, err
+	}
+	if worker := categorizationWorker(); worker != nil {
+		status := worker.Stats()
+		stats.Worker = &status
+	}
+	return &stats, nil
+}
+
+func RestartCategorization(ctx context.Context) error {
+	worker := categorizationWorker()
+	if worker == nil {
+		return classification.ErrUnavailable
+	}
+	return worker.Restart(ctx)
+}
 
 type UnknownWordsResponse struct {
 	Data       []models.Word `json:"data"`
@@ -31,10 +87,25 @@ func categorizationPagination(page, pageSize int) error {
 }
 
 func GetUnknownWords(ctx context.Context, page, pageSize int) (*UnknownWordsResponse, error) {
+	return getCategoryWords(ctx, page, pageSize, "", true)
+}
+
+func GetCategoryWords(ctx context.Context, page, pageSize int, search string) (*UnknownWordsResponse, error) {
+	return getCategoryWords(ctx, page, pageSize, search, false)
+}
+
+func getCategoryWords(ctx context.Context, page, pageSize int, search string, unresolved bool) (*UnknownWordsResponse, error) {
 	if err := categorizationPagination(page, pageSize); err != nil {
 		return nil, err
 	}
-	query := db.DB.WithContext(ctx).Model(&models.Word{}).Where("part_of_speech = ?", enums.PartOfSpeechUnknown)
+	query := db.DB.WithContext(ctx).Model(&models.Word{})
+	if unresolved {
+		query = query.Where("part_of_speech IS NULL OR part_of_speech = ?", enums.PartOfSpeechUnknown)
+	}
+	if search = strings.TrimSpace(search); search != "" {
+		search = strings.NewReplacer("\\", "\\\\", "%", "\\%", "_", "\\_").Replace(search)
+		query = query.Where("word ILIKE ?", "%"+search+"%")
+	}
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
 		return nil, err
@@ -74,19 +145,13 @@ func SetWordPartOfSpeech(ctx context.Context, id uuid.UUID, category enums.PartO
 	}
 	var word models.Word
 	result := db.DB.WithContext(ctx).Model(&word).Clauses(clause.Returning{}).
-		Where("id = ? AND (part_of_speech IS NULL OR part_of_speech = ?)", id, enums.PartOfSpeechUnknown).
-		Update("part_of_speech", category)
+		Where("id = ?", id).
+		Updates(map[string]any{"part_of_speech": category, "category_revision": gorm.Expr("category_revision + 1")})
 	if result.Error != nil {
 		return nil, result.Error
 	}
 	if result.RowsAffected == 0 {
-		if err := db.DB.WithContext(ctx).First(&word, "id = ?", id).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, gorm.ErrRecordNotFound
-			}
-			return nil, err
-		}
-		return nil, ErrPartOfSpeechPermanent
+		return nil, gorm.ErrRecordNotFound
 	}
 	return &word, nil
 }

@@ -21,7 +21,9 @@ async function setup(page: Page, locale = 'en', admin = true) {
     const noun = word('noun', 'smile', 'noun')
     const unknowns = [
         shared,
-        ...Array.from({ length: 20 }, (_, i) => word(`review-${i}`, `Review word ${i + 1}`, 'unknown')),
+        ...Array.from({ length: 20 }, (_, i) =>
+            word(`review-${i}`, `Review word ${i + 1}`, i === 19 ? null : 'unknown')
+        ),
     ]
     const mismatches = [
         pair('record-one', shared, noun),
@@ -36,7 +38,20 @@ async function setup(page: Page, locale = 'en', admin = true) {
         pair('pending-unknown', word('i', 'unprocessed', null), word('j', 'uncertain', 'unknown')),
     ]
     const calls: { path: string; method: string; body: any }[] = []
-    const state = { conflict: false, failList: false }
+    const allWords = Array.from(
+        new Map(
+            [...unknowns, ...mismatches.flatMap((p) => [p.translation.original, p.translation.translation])].map(
+                (w) => [w.id, w]
+            )
+        ).values()
+    )
+    const state = {
+        failList: false,
+        failStats: false,
+        failSave: false,
+        restartStatus: 202,
+        worker: { active: false, queued: 0, processed: 0, failed: 0, scan_failed: false },
+    }
     await page.route('http://127.0.0.1:4173/api/**', async (route) => {
         const url = new URL(route.request().url())
         const path = url.pathname
@@ -82,9 +97,31 @@ async function setup(page: Page, locale = 'en', admin = true) {
             }
         else if (path === '/api/settings') json = { languages: ['en', 'it', 'fr', 'ru'] }
         else if (path === '/api/vocabulary') json = paginated(vocabulary)
-        else if (path === '/api/admin/categorization/unknown') {
+        else if (path === '/api/admin/categorization/stats') {
+            if (state.failStats) return route.fulfill({ status: 503, json: { error: 'unavailable' } })
+            json = {
+                total: allWords.length,
+                pending: allWords.filter((w) => w.part_of_speech === null).length,
+                unknown: allWords.filter((w) => w.part_of_speech === 'unknown').length,
+                categorized: allWords.filter((w) => w.part_of_speech !== null && w.part_of_speech !== 'unknown').length,
+                worker: state.worker,
+            }
+        } else if (path === '/api/admin/categorization/restart') {
+            if (state.restartStatus !== 202)
+                return route.fulfill({ status: state.restartStatus, json: { error: 'cannot start' } })
+            allWords
+                .filter((w) => w.part_of_speech === 'unknown')
+                .forEach((w) => {
+                    w.part_of_speech = null
+                })
+            state.worker.active = true
+            return route.fulfill({ status: 202, json: { status: 'started' } })
+        } else if (path === '/api/admin/categorization/words') {
+            const search = (url.searchParams.get('search') || '').toLowerCase()
+            json = paginated(allWords.filter((w) => w.word.toLowerCase().includes(search)))
+        } else if (path === '/api/admin/categorization/unknown') {
             if (state.failList) return route.fulfill({ status: 503, json: { error: 'unavailable' } })
-            json = paginated(unknowns.filter((w) => w.part_of_speech === 'unknown'))
+            json = paginated(allWords.filter((w) => w.part_of_speech === 'unknown' || w.part_of_speech === null))
         } else if (path === '/api/admin/categorization/mismatches')
             json = paginated(
                 mismatches.filter(
@@ -92,14 +129,14 @@ async function setup(page: Page, locale = 'en', admin = true) {
                 )
             )
         else if (path.endsWith('/part-of-speech')) {
-            const item = unknowns.find((w) => path.includes(`/${w.id}/`))!
-            item.part_of_speech = state.conflict ? 'noun' : body.part_of_speech
-            if (state.conflict) return route.fulfill({ status: 409, json: { error: 'permanent category' } })
+            if (state.failSave) return route.fulfill({ status: 503, json: { error: 'unavailable' } })
+            const item = allWords.find((w) => path.includes(`/${w.id}/`))!
+            item.part_of_speech = body.part_of_speech
             json = item
         }
         return route.fulfill({ json })
     })
-    return { calls, vocabulary, shared, state }
+    return { calls, vocabulary, shared, state, allWords }
 }
 
 for (const locale of ['en', 'ru']) {
@@ -139,28 +176,28 @@ test('admin keeps per-record mismatches and refreshes all shared usages after a 
     const { calls } = await setup(page)
     await page.goto('/admin/categorization')
     await expect(page.getByRole('heading', { name: 'Categorization' })).toBeVisible()
-    await expect(page.getByText('Concrete categories are permanent.', { exact: false })).toBeVisible()
+    await expect(page.getByText('Any category can be edited.', { exact: false })).toBeVisible()
     await expect(page.getByRole('combobox')).toHaveCount(20)
     await page.getByRole('button', { name: 'Next', exact: true }).click()
     await expect(page.getByRole('combobox')).toHaveCount(1)
     await expect(page.getByText('Page 2 of 2')).toBeVisible()
     await page.getByRole('button', { name: 'Mismatched vocabulary pairs', exact: false }).click()
     await expect(page.locator('main li')).toHaveCount(3)
-    await expect(page.getByRole('combobox')).toHaveCount(2)
-    await expect(page.locator('main li').last().getByRole('combobox')).toHaveCount(0)
+    await expect(page.getByRole('combobox')).toHaveCount(6)
+    await expect(page.locator('main li').last().getByRole('combobox')).toHaveCount(2)
     await page.getByRole('combobox').first().selectOption('noun')
     await page.getByRole('button', { name: 'Save category' }).first().click()
     await expect(page.getByRole('status')).toHaveText('Category saved for every shared use of this word.')
     await expect(page.locator('main li')).toHaveCount(1)
-    await expect(page.getByRole('combobox')).toHaveCount(0)
+    await expect(page.getByRole('combobox')).toHaveCount(2)
     expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ part_of_speech: 'noun' })
-    await page.getByRole('button', { name: 'Unknown words', exact: false }).click()
+    await page.getByRole('button', { name: /^Unknown and pending/ }).click()
     await expect(page.getByRole('combobox')).toHaveCount(20)
     await expect(page.getByText('sourire', { exact: true })).toHaveCount(0)
     await expect(page.getByText('Page 2 of 2')).toHaveCount(0)
 })
 
-test('admin stale saves refresh permanent labels and a failed list can be retried', async ({ page }) => {
+test('admin can retry list and save failures without losing the selected category', async ({ page }) => {
     const { state } = await setup(page)
     state.failList = true
     await page.goto('/admin/categorization')
@@ -168,11 +205,14 @@ test('admin stale saves refresh permanent labels and a failed list can be retrie
     state.failList = false
     await page.getByRole('button', { name: 'Retry', exact: true }).click()
     await expect(page.getByRole('combobox')).toHaveCount(20)
-    state.conflict = true
+    state.failSave = true
     await page.getByRole('combobox').first().selectOption('verb')
     await page.getByRole('button', { name: 'Save category' }).first().click()
-    await expect(page.getByRole('status')).toContainText('already has a permanent category')
-    await expect(page.getByText('sourire', { exact: true })).toHaveCount(0)
+    await expect(page.getByRole('status')).toContainText('Could not save the category')
+    await expect(page.getByRole('combobox').first()).toHaveValue('verb')
+    state.failSave = false
+    await page.getByRole('button', { name: 'Save category' }).first().click()
+    await expect(page.getByRole('status')).toHaveText('Category saved for every shared use of this word.')
 })
 
 test('non-admins cannot enter categorization', async ({ page }) => {
@@ -180,4 +220,74 @@ test('non-admins cannot enter categorization', async ({ page }) => {
     await page.goto('/admin/categorization')
     await expect(page).not.toHaveURL(/admin/)
     expect(calls.filter((c) => c.path.includes('/admin/'))).toHaveLength(0)
+})
+
+test('admin can find and change an already categorized word', async ({ page }) => {
+    const { calls } = await setup(page)
+    await page.goto('/admin/categorization')
+    await page.getByRole('button', { name: 'All words', exact: false }).click()
+    await page.getByRole('searchbox', { name: 'Search words or phrases' }).fill('decision')
+    await expect(page.getByRole('combobox')).toHaveCount(1)
+    await expect(page.getByRole('combobox')).toHaveValue('noun')
+    await expect(page.getByRole('button', { name: 'Save category' })).toBeDisabled()
+    await page.getByRole('combobox').selectOption('verb')
+    await page.getByRole('button', { name: 'Save category' }).click()
+    await expect(page.getByRole('status')).toContainText('Category saved')
+    await expect(page.getByRole('combobox')).toHaveValue('verb')
+    expect(calls.find((c) => c.method === 'PUT')?.path).toContain('/noun-two/part-of-speech')
+})
+
+test('retry shows live progress, survives reload, and polling preserves edits', async ({ page }) => {
+    const { calls, allWords, state } = await setup(page)
+    await page.goto('/admin/categorization')
+    const retry = page.getByRole('button', { name: 'Retry unknown and pending', exact: true })
+    await expect(retry).toBeEnabled()
+    await retry.click()
+    await expect(page.getByText('Categorization in progress', { exact: true })).toBeVisible()
+    await expect(retry).toBeDisabled()
+    await page.reload()
+    await expect(page.getByText('Categorization in progress', { exact: true })).toBeVisible()
+    await page.getByRole('combobox').first().selectOption('adverb')
+    const initialLists = calls.filter((c) => c.path === '/api/admin/categorization/unknown').length
+    allWords[0].part_of_speech = 'phrase'
+    state.worker.processed = 1
+    await expect(page.getByText('1 processed since last retry', { exact: true })).toBeVisible()
+    await expect(page.getByRole('combobox').first()).toHaveValue('adverb')
+    expect(calls.filter((c) => c.path === '/api/admin/categorization/unknown')).toHaveLength(initialLists)
+    state.worker.active = false
+    state.worker.failed = 1
+    await expect(page.getByText('Categorization idle', { exact: true })).toBeVisible()
+    await expect(page.getByText('1 failed', { exact: true })).toBeVisible()
+    await expect(retry).toBeEnabled()
+    await page.goto('/vocabulary')
+    const stoppedCalls = calls.filter((c) => c.path === '/api/admin/categorization/stats').length
+    await page.clock.install()
+    await page.clock.fastForward(30_000)
+    expect(calls.filter((c) => c.path === '/api/admin/categorization/stats')).toHaveLength(stoppedCalls)
+})
+
+for (const status of [409, 503]) {
+    test(`failed retry (${status}) can recover by refreshing status`, async ({ page }) => {
+        const { state } = await setup(page)
+        state.restartStatus = status
+        await page.goto('/admin/categorization')
+        await page.getByRole('button', { name: 'Retry unknown and pending', exact: true }).click()
+        await expect(page.getByRole('status')).toContainText(
+            status === 409 ? 'already in progress' : 'Could not confirm the retry'
+        )
+        state.restartStatus = 202
+        await page.getByRole('button', { name: 'Retry unknown and pending', exact: true }).click()
+        await expect(page.getByText('Categorization in progress', { exact: true })).toBeVisible()
+    })
+}
+
+test('unavailable progress disables retry and can recover', async ({ page }) => {
+    const { state } = await setup(page)
+    state.failStats = true
+    await page.goto('/admin/categorization')
+    await expect(page.getByRole('alert')).toContainText('Could not refresh progress')
+    await expect(page.getByRole('button', { name: 'Retry unknown and pending', exact: true })).toBeDisabled()
+    state.failStats = false
+    await page.getByRole('button', { name: 'Refresh', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Retry unknown and pending', exact: true })).toBeEnabled()
 })

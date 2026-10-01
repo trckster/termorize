@@ -29,8 +29,14 @@ func (s WordStore) Load(ctx context.Context, id uuid.UUID) (*models.Word, error)
 
 func (s WordStore) Save(ctx context.Context, word models.Word, category enums.PartOfSpeech) error {
 	return s.DB.WithContext(ctx).Model(&models.Word{}).
-		Where("id = ? AND part_of_speech IS NULL AND word = ? AND language = ?", word.ID, word.Word, word.Language).
+		Where("id = ? AND part_of_speech IS NULL AND word = ? AND language = ? AND category_revision = ?", word.ID, word.Word, word.Language, word.CategoryRevision).
 		Update("part_of_speech", category).Error
+}
+
+func (s WordStore) ResetUnknown(ctx context.Context) error {
+	return s.DB.WithContext(ctx).Model(&models.Word{}).
+		Where("part_of_speech = ?", enums.PartOfSpeechUnknown).
+		Updates(map[string]any{"part_of_speech": nil, "category_revision": gorm.Expr("category_revision + 1")}).Error
 }
 
 func (s WordStore) Pending(ctx context.Context, after uuid.UUID, limit int) ([]uuid.UUID, error) {

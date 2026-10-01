@@ -46,9 +46,22 @@ func (s *memoryStore) Save(ctx context.Context, input models.Word, category enum
 		return errors.New("save failed")
 	}
 	word, ok := s.words[input.ID]
-	if ok && word.PartOfSpeech == nil && word.Word == input.Word && word.Language == input.Language {
+	if ok && word.PartOfSpeech == nil && word.Word == input.Word && word.Language == input.Language && word.CategoryRevision == input.CategoryRevision {
 		word.PartOfSpeech = &category
 		s.words[input.ID] = word
+	}
+	return nil
+}
+
+func (s *memoryStore) ResetUnknown(ctx context.Context) error {
+	s.Lock()
+	defer s.Unlock()
+	for id, word := range s.words {
+		if word.PartOfSpeech != nil && *word.PartOfSpeech == enums.PartOfSpeechUnknown {
+			word.PartOfSpeech = nil
+			word.CategoryRevision++
+			s.words[id] = word
+		}
 	}
 	return nil
 }
@@ -343,4 +356,49 @@ func TestRunSweepCancellationLeavesUnfinishedWordsPending(t *testing.T) {
 	for _, word := range s.words {
 		assert.Nil(t, word.PartOfSpeech)
 	}
+}
+
+func TestRestartRetriesUnknownsPreservesCategoriesAndReportsProgress(t *testing.T) {
+	s := newStore(3)
+	ids, err := s.Pending(context.Background(), uuid.Nil, 3)
+	require.NoError(t, err)
+	unknown, noun := enums.PartOfSpeechUnknown, enums.PartOfSpeechNoun
+	word := s.words[ids[0]]
+	word.PartOfSpeech = &unknown
+	s.words[ids[0]] = word
+	word = s.words[ids[1]]
+	word.PartOfSpeech = &noun
+	s.words[ids[1]] = word
+	started, release := make(chan struct{}), make(chan struct{})
+	w := NewWorker(s, func(ctx context.Context, term string, _ enums.Language) (enums.PartOfSpeech, error) {
+		if term == "1" {
+			close(started)
+			select {
+			case <-release:
+			case <-ctx.Done():
+				return "", ctx.Err()
+			}
+			return enums.PartOfSpeechPhrase, nil
+		}
+		return "", errors.New("provider failure")
+	})
+	require.NoError(t, w.Restart(context.Background()))
+	assert.True(t, w.Stats().Active)
+	require.ErrorIs(t, w.Restart(context.Background()), ErrBusy)
+	cancel, done := launch(t, w)
+	<-started
+	assert.True(t, w.Stats().Active)
+	close(release)
+	require.Eventually(t, func() bool { return !w.Stats().Active }, time.Second, time.Millisecond)
+	assert.Equal(t, int64(2), w.Stats().Processed)
+	assert.Equal(t, int64(1), w.Stats().Failed)
+	s.Lock()
+	assert.Equal(t, &noun, s.words[ids[1]].PartOfSpeech)
+	assert.Equal(t, int64(1), s.words[ids[0]].CategoryRevision)
+	assert.Equal(t, enums.PartOfSpeechPhrase, *s.words[ids[0]].PartOfSpeech)
+	assert.Nil(t, s.words[ids[2]].PartOfSpeech)
+	s.Unlock()
+	cancel()
+	<-done
+	require.ErrorIs(t, w.Restart(context.Background()), ErrUnavailable)
 }
