@@ -11,11 +11,11 @@ const props = defineProps<{ word: Word; busy: boolean; inputId: string }>()
 const emit = defineEmits<{ save: [word: Word, category: PartOfSpeech] }>()
 const { t } = useI18n()
 const settings = useSettingsStore()
-const selected = ref<PartOfSpeech | ''>('')
+const selected = ref<PartOfSpeech | ''>(props.word.part_of_speech ?? '')
 watch(
     () => [props.word.id, props.word.part_of_speech],
     () => {
-        selected.value = ''
+        selected.value = props.word.part_of_speech ?? ''
     }
 )
 
@@ -33,7 +33,7 @@ function save() {
             </p>
             <PartOfSpeechLabel :value="word.part_of_speech" />
         </div>
-        <form v-if="word.part_of_speech === 'unknown'" class="flex flex-wrap items-end gap-2" @submit.prevent="save">
+        <form class="flex flex-wrap items-end gap-2" @submit.prevent="save">
             <div class="min-w-0 flex-1">
                 <label :for="inputId" class="mb-1 block text-xs font-medium">{{ t.categorizationCategory }}</label>
                 <select
