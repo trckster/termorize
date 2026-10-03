@@ -122,10 +122,9 @@ func TestAdminCanSearchAndRecategorizeAnyWord(t *testing.T) {
 	testkit.RequireStatus(t, testkit.AuthedRequest(t, admin, http.MethodPut, path, map[string]any{"part_of_speech": "adjective"}), http.StatusOK)
 	require.NoError(t, db.DB.First(&word, "id = ?", word.ID).Error)
 	assert.Equal(t, enums.PartOfSpeechAdjective, *word.PartOfSpeech)
-	assert.Equal(t, int64(1), word.CategoryRevision)
 }
 
-func TestOldClassificationCannotOverwriteManualUnknownAfterRetry(t *testing.T) {
+func TestClassificationCanSaveAfterUnknownIsReset(t *testing.T) {
 	testkit.Truncate(t)
 	word := categoryWord(t, "word", nil)
 	store := classification.WordStore{DB: db.DB}
@@ -133,12 +132,14 @@ func TestOldClassificationCannotOverwriteManualUnknownAfterRetry(t *testing.T) {
 	require.NoError(t, err)
 	_, err = services.SetWordPartOfSpeech(context.Background(), word.ID, enums.PartOfSpeechUnknown)
 	require.NoError(t, err)
-	require.NoError(t, store.ResetUnknown(context.Background()))
 	require.NoError(t, store.Save(context.Background(), *stale, enums.PartOfSpeechNoun))
 	require.NoError(t, db.DB.First(&word, "id = ?", word.ID).Error)
+	require.NotNil(t, word.PartOfSpeech)
+	assert.Equal(t, enums.PartOfSpeechUnknown, *word.PartOfSpeech)
+	require.NoError(t, store.ResetUnknown(context.Background()))
+	require.NoError(t, db.DB.First(&word, "id = ?", word.ID).Error)
 	assert.Nil(t, word.PartOfSpeech)
-	assert.Equal(t, int64(2), word.CategoryRevision)
-	require.NoError(t, store.Save(context.Background(), word, enums.PartOfSpeechVerb))
+	require.NoError(t, store.Save(context.Background(), *stale, enums.PartOfSpeechVerb))
 	require.NoError(t, db.DB.First(&word, "id = ?", word.ID).Error)
 	assert.Equal(t, enums.PartOfSpeechVerb, *word.PartOfSpeech)
 }

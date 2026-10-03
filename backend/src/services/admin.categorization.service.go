@@ -146,7 +146,7 @@ func SetWordPartOfSpeech(ctx context.Context, id uuid.UUID, category enums.PartO
 	var word models.Word
 	result := db.DB.WithContext(ctx).Model(&word).Clauses(clause.Returning{}).
 		Where("id = ?", id).
-		Updates(map[string]any{"part_of_speech": category, "category_revision": gorm.Expr("category_revision + 1")})
+		Update("part_of_speech", category)
 	if result.Error != nil {
 		return nil, result.Error
 	}

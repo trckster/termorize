@@ -8,11 +8,10 @@ import (
 )
 
 type Word struct {
-	ID               uuid.UUID           `json:"id" gorm:"default:gen_random_uuid()"`
-	Word             string              `json:"word"`
-	Language         enums.Language      `json:"language"`
-	Type             enums.Type          `json:"type" gorm:"default:unknown"`
-	PartOfSpeech     *enums.PartOfSpeech `json:"part_of_speech"`
-	CategoryRevision int64               `json:"-"`
-	CreatedAt        time.Time           `json:"-"`
+	ID           uuid.UUID           `json:"id" gorm:"default:gen_random_uuid()"`
+	Word         string              `json:"word"`
+	Language     enums.Language      `json:"language"`
+	Type         enums.Type          `json:"type" gorm:"default:unknown"`
+	PartOfSpeech *enums.PartOfSpeech `json:"part_of_speech"`
+	CreatedAt    time.Time           `json:"-"`
 }

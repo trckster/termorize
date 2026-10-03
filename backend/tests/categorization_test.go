@@ -359,7 +359,6 @@ func TestConcurrentManualChoicesCanReplaceExistingCategories(t *testing.T) {
 	assert.Equal(t, 2, wins)
 	require.NoError(t, db.DB.First(&word, "id = ?", word.ID).Error)
 	assert.Contains(t, []enums.PartOfSpeech{enums.PartOfSpeechNoun, enums.PartOfSpeechVerb}, *word.PartOfSpeech)
-	assert.Equal(t, int64(2), word.CategoryRevision)
 }
 
 func TestStandaloneClassificationSweepPersistsAllPendingWords(t *testing.T) {

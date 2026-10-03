@@ -46,7 +46,7 @@ func (s *memoryStore) Save(ctx context.Context, input models.Word, category enum
 		return errors.New("save failed")
 	}
 	word, ok := s.words[input.ID]
-	if ok && word.PartOfSpeech == nil && word.Word == input.Word && word.Language == input.Language && word.CategoryRevision == input.CategoryRevision {
+	if ok && word.PartOfSpeech == nil && word.Word == input.Word && word.Language == input.Language {
 		word.PartOfSpeech = &category
 		s.words[input.ID] = word
 	}
@@ -59,7 +59,6 @@ func (s *memoryStore) ResetUnknown(ctx context.Context) error {
 	for id, word := range s.words {
 		if word.PartOfSpeech != nil && *word.PartOfSpeech == enums.PartOfSpeechUnknown {
 			word.PartOfSpeech = nil
-			word.CategoryRevision++
 			s.words[id] = word
 		}
 	}
@@ -394,7 +393,6 @@ func TestRestartRetriesUnknownsPreservesCategoriesAndReportsProgress(t *testing.
 	assert.Equal(t, int64(1), w.Stats().Failed)
 	s.Lock()
 	assert.Equal(t, &noun, s.words[ids[1]].PartOfSpeech)
-	assert.Equal(t, int64(1), s.words[ids[0]].CategoryRevision)
 	assert.Equal(t, enums.PartOfSpeechPhrase, *s.words[ids[0]].PartOfSpeech)
 	assert.Nil(t, s.words[ids[2]].PartOfSpeech)
 	s.Unlock()
