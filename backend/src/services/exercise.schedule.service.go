@@ -312,6 +312,56 @@ func createReplacementPendingExerciseWithConfig(tx *gorm.DB, userID uint, when t
 	return false, nil
 }
 
+// Keep the planned exercise and its delivery time, replacing only its content.
+func replacePendingExerciseVocabulary(tx *gorm.DB, exercise models.Exercise) (bool, error) {
+	vocabularyIDs, err := getEligibleVocabularyIDsWithDB(tx, exercise.UserID, 64)
+	if err != nil {
+		return false, err
+	}
+
+	for _, vocabularyID := range vocabularyIDs {
+		vocabulary, err := loadExerciseVocabularyWithDB(tx, vocabularyID)
+		if err != nil {
+			return false, err
+		}
+		availableTypes, err := buildExerciseOptionsByTypeWithDB(tx, exercise.UserID, vocabulary, true)
+		if err != nil {
+			return false, err
+		}
+		exerciseType := exercise.Type
+		options := availableTypes[exerciseType]
+		if !isExerciseTypeAvailable(exerciseType, options) {
+			// A matching or choice exercise may no longer have enough options.
+			exerciseType, options, err = selectExerciseTypeAndOptionsWithDB(tx, exercise.UserID, vocabulary, true)
+			if errors.Is(err, errNoExerciseTypeAvailable) {
+				continue
+			}
+			if err != nil {
+				return false, err
+			}
+		}
+
+		if err := tx.Where("exercise_id = ?", exercise.ID).Delete(&models.ExerciseVocabulary{}).Error; err != nil {
+			return false, err
+		}
+		if err := tx.Model(&exercise).Updates(map[string]any{
+			"type": exerciseType, "description": "", "description_translation": "",
+			"match_state": nil, "character_state": nil,
+		}).Error; err != nil {
+			return false, err
+		}
+		correctVocabularyID := vocabularyID
+		if isMatchPairsExerciseType(exerciseType) {
+			correctVocabularyID = uuid.Nil
+		}
+		if err := createExerciseVocabularyLinks(tx, exercise.ID, correctVocabularyID, options); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
 func CreatePendingMatchExercise(userID uint, when time.Time) (uuid.UUID, error) {
 	return generateMatchPairsExercise(userID, when)
 }

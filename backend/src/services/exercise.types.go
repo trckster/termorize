@@ -62,14 +62,15 @@ const (
 	ExerciseVocabularyResultWrong   = "wrong"
 	ExerciseVocabularyResultIgnored = "ignored"
 
-	ExerciseVocabularyResultReasonTypedAnswer       = "typed_answer"
-	ExerciseVocabularyResultReasonCharacterAnswer   = "character_answer"
-	ExerciseVocabularyResultReasonChoiceAnswer      = "choice_answer"
-	ExerciseVocabularyResultReasonMatchPairs        = "match_pairs"
-	ExerciseVocabularyResultReasonSkipped           = "skipped"
-	ExerciseVocabularyResultReasonExpired           = "expired"
-	ExerciseVocabularyResultReasonDeletedVocabulary = "deleted_vocabulary"
-	ExerciseVocabularyResultReasonInvalidOptions    = "invalid_options"
+	ExerciseVocabularyResultReasonTypedAnswer        = "typed_answer"
+	ExerciseVocabularyResultReasonCharacterAnswer    = "character_answer"
+	ExerciseVocabularyResultReasonChoiceAnswer       = "choice_answer"
+	ExerciseVocabularyResultReasonMatchPairs         = "match_pairs"
+	ExerciseVocabularyResultReasonSkipped            = "skipped"
+	ExerciseVocabularyResultReasonExpired            = "expired"
+	ExerciseVocabularyResultReasonDeletedVocabulary  = "deleted_vocabulary"
+	ExerciseVocabularyResultReasonMasteredVocabulary = "mastered_vocabulary"
+	ExerciseVocabularyResultReasonInvalidOptions     = "invalid_options"
 )
 
 const (

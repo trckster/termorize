@@ -45,8 +45,14 @@ func GetDuePendingExercises(now time.Time) ([]PendingExercise, error) {
 			AND e.type IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			AND e.scheduled_for <= ?
 			AND u.settings->'telegram'->'bot_enabled' = ?
+			AND (e.is_known_vocabulary_repetition OR (
+				v.mastered_at IS NULL AND NOT EXISTS (
+					SELECT 1 FROM jsonb_array_elements(v.progress) AS p
+					WHERE p->>'type' = ? AND (p->>'knowledge')::int >= 100
+				)
+			))
 		ORDER BY e.scheduled_for ASC, e.created_at ASC
-	`, enums.ExerciseStatusPending, enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed, enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed, enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed, enums.ExerciseTypeDescriptionDirect, enums.ExerciseTypeDescriptionReversed, now, true).Scan(&exercises).Error
+	`, enums.ExerciseStatusPending, enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed, enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed, enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed, enums.ExerciseTypeDescriptionDirect, enums.ExerciseTypeDescriptionReversed, now, true, enums.KnowledgeTypeTranslation).Scan(&exercises).Error
 
 	if err != nil {
 		return nil, err
@@ -78,9 +84,15 @@ func GetDuePendingMatchExercises(now time.Time) ([]PendingMatchExercise, error) 
 				FROM vocabulary_exercises AS ve
 				JOIN vocabulary AS v ON v.id = ve.vocabulary_id AND v.deleted_at IS NULL
 				WHERE ve.exercise_id = e.id AND ve.is_correct = true
+					AND (e.is_known_vocabulary_repetition OR (
+						v.mastered_at IS NULL AND NOT EXISTS (
+							SELECT 1 FROM jsonb_array_elements(v.progress) AS p
+							WHERE p->>'type' = ? AND (p->>'knowledge')::int >= 100
+						)
+					))
 			) = ?
 		ORDER BY e.scheduled_for ASC, e.created_at ASC
-	`, enums.ExerciseStatusPending, enums.ExerciseTypeMatchPairs, now, true, matchPairsVocabularyCount).Scan(&exercises).Error
+	`, enums.ExerciseStatusPending, enums.ExerciseTypeMatchPairs, now, true, enums.KnowledgeTypeTranslation, matchPairsVocabularyCount).Scan(&exercises).Error
 
 	if err != nil {
 		return nil, err
