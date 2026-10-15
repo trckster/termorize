@@ -45,6 +45,7 @@ func TestPendingExercisesRecheckMasteryBeforeDelivery(t *testing.T) {
 				}
 			}
 			require.NoError(t, db.DB.Model(&pending).Update("scheduled_for", now).Error)
+			require.NoError(t, db.DB.Model(&pending).Update("description", "description of the mastered word").Error)
 			active := exerciseSeedExercise(t, user.ID, enums.ExerciseTypeBasicDirect, enums.ExerciseStatusInProgress, vocabulary.ID)
 
 			// Another answer masters the word after tomorrow's exercise was queued.
@@ -80,18 +81,40 @@ func TestPendingExercisesRecheckMasteryBeforeDelivery(t *testing.T) {
 			require.NoError(t, services.IgnoreDuePendingExercisesWithoutActiveVocabulary(now))
 			require.NoError(t, services.IgnoreDuePendingExercisesWithoutActiveVocabulary(now))
 			stored := exerciseReload(t, pending.ID)
-			assert.Equal(t, enums.ExerciseStatusIgnored, stored.Status)
-			assert.NotNil(t, stored.FinishedAt)
+			assert.Equal(t, enums.ExerciseStatusPending, stored.Status)
+			assert.Equal(t, exerciseType, stored.Type)
+			assert.Empty(t, stored.Description)
+			assert.Nil(t, stored.FinishedAt)
+			require.NotNil(t, stored.ScheduledFor)
+			assert.WithinDuration(t, now, *stored.ScheduledFor, time.Microsecond)
 			var links []models.ExerciseVocabulary
 			require.NoError(t, db.DB.Where("exercise_id = ?", pending.ID).Find(&links).Error)
+			require.NotEmpty(t, links)
 			for _, link := range links {
-				require.NotNil(t, link.Result)
-				assert.Equal(t, services.ExerciseVocabularyResultIgnored, *link.Result)
-				require.NotNil(t, link.ResultReason)
-				assert.Equal(t, services.ExerciseVocabularyResultReasonMasteredVocabulary, *link.ResultReason)
-				assert.NotNil(t, link.AnsweredAt)
+				if link.IsCorrect {
+					assert.NotEqual(t, vocabulary.ID, link.VocabularyID)
+					assert.Less(t, exerciseTranslationKnowledge(t, exerciseReloadVocabulary(t, link.VocabularyID).Progress), 100)
+				}
+				assert.Nil(t, link.Result)
+				assert.Nil(t, link.ResultReason)
+				assert.Nil(t, link.AnsweredAt)
 				assert.Nil(t, link.ProgressDelta)
 			}
+			var exerciseCount int64
+			require.NoError(t, db.DB.Model(&models.Exercise{}).Where("user_id = ?", user.ID).Count(&exerciseCount).Error)
+			assert.EqualValues(t, 5, exerciseCount, "replacement must reuse the planned exercise")
+			due, err = services.GetDuePendingExercises(now)
+			require.NoError(t, err)
+			matches, err = services.GetDuePendingMatchExercises(now)
+			require.NoError(t, err)
+			var deliverableIDs []uuid.UUID
+			for _, exercise := range due {
+				deliverableIDs = append(deliverableIDs, exercise.ExerciseID)
+			}
+			for _, exercise := range matches {
+				deliverableIDs = append(deliverableIDs, exercise.ExerciseID)
+			}
+			assert.Contains(t, deliverableIDs, pending.ID)
 			for _, id := range []uuid.UUID{repetitionID, learningExercise.ID, future.ID} {
 				assert.Equal(t, enums.ExerciseStatusPending, exerciseReload(t, id).Status)
 			}
@@ -121,7 +144,64 @@ func TestPendingExerciseMasteryWithoutMasteredAt(t *testing.T) {
 	assert.Empty(t, due)
 	require.NoError(t, services.IgnoreDuePendingExercisesWithoutActiveVocabulary(now))
 	assert.Equal(t, enums.ExerciseStatusIgnored, exerciseReload(t, pending.ID).Status)
+	link := exerciseLink(t, pending.ID, vocabulary.ID)
+	require.NotNil(t, link.ResultReason)
+	assert.Equal(t, services.ExerciseVocabularyResultReasonMasteredVocabulary, *link.ResultReason)
+	assert.Nil(t, link.ProgressDelta)
 	assert.Equal(t, enums.ExerciseStatusInProgress, exerciseReload(t, inProgress.ID).Status)
 	assert.Nil(t, exerciseLink(t, inProgress.ID, vocabulary.ID).Result)
 	assert.Equal(t, 100, exerciseTranslationKnowledge(t, exerciseReloadVocabulary(t, vocabulary.ID).Progress))
+}
+
+func TestPendingMasteredExerciseFallsBackWhenOriginalTypeIsUnavailable(t *testing.T) {
+	for _, exerciseType := range []enums.ExerciseType{enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeMatchPairs} {
+		t.Run(string(exerciseType), func(t *testing.T) {
+			testkit.Truncate(t)
+			user := testkit.CreateUser(t)
+			mastered := exerciseSeedVocabulary(t, user.ID, "deduce", "делать вывод", enums.LanguageEn, enums.LanguageRu)
+			exerciseSetTranslationKnowledge(t, mastered.ID, 100)
+			learning := exerciseSeedVocabulary(t, user.ID, "infer", "заключать", enums.LanguageEn, enums.LanguageRu)
+			now := time.Now().UTC()
+			pending := exerciseSeedExercise(t, user.ID, exerciseType, enums.ExerciseStatusPending, mastered.ID)
+			require.NoError(t, db.DB.Model(&pending).Update("scheduled_for", now).Error)
+
+			require.NoError(t, services.IgnoreDuePendingExercisesWithoutActiveVocabulary(now))
+			stored := exerciseReload(t, pending.ID)
+			assert.Equal(t, enums.ExerciseStatusPending, stored.Status)
+			assert.NotEqual(t, exerciseType, stored.Type)
+			require.NotNil(t, stored.ScheduledFor)
+			assert.WithinDuration(t, now, *stored.ScheduledFor, time.Microsecond)
+			link := exerciseLink(t, pending.ID, learning.ID)
+			assert.True(t, link.IsCorrect)
+			assert.Nil(t, link.Result)
+			assert.Nil(t, link.ProgressDelta)
+		})
+	}
+}
+
+func TestPendingMasteredMatchCancelledOnlyWhenNoVocabularyRemains(t *testing.T) {
+	testkit.Truncate(t)
+	user := testkit.CreateUser(t)
+	var vocabularyIDs []uuid.UUID
+	for i := 0; i < services.MatchPairsVocabularyCount; i++ {
+		word := uuid.NewString()
+		vocabulary := exerciseSeedVocabulary(t, user.ID, word, word+"-ru", enums.LanguageEn, enums.LanguageRu)
+		exerciseSetTranslationKnowledge(t, vocabulary.ID, 100)
+		vocabularyIDs = append(vocabularyIDs, vocabulary.ID)
+	}
+	now := time.Now().UTC()
+	pending := exerciseSeedMatchPairsExercise(t, user.ID, enums.ExerciseStatusPending, vocabularyIDs)
+	require.NoError(t, db.DB.Model(&pending).Update("scheduled_for", now).Error)
+
+	require.NoError(t, services.IgnoreDuePendingExercisesWithoutActiveVocabulary(now))
+	stored := exerciseReload(t, pending.ID)
+	assert.Equal(t, enums.ExerciseStatusIgnored, stored.Status)
+	assert.NotNil(t, stored.FinishedAt)
+	for _, vocabularyID := range vocabularyIDs {
+		link := exerciseLink(t, pending.ID, vocabularyID)
+		require.NotNil(t, link.ResultReason)
+		assert.Equal(t, services.ExerciseVocabularyResultReasonMasteredVocabulary, *link.ResultReason)
+		assert.Nil(t, link.ProgressDelta)
+		assert.Equal(t, 100, exerciseTranslationKnowledge(t, exerciseReloadVocabulary(t, vocabularyID).Progress))
+	}
 }

@@ -197,7 +197,7 @@ func IgnoreDuePendingExercisesWithoutActiveVocabulary(now time.Time) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		// Exercises are scheduled ahead of time. A word may reach mastery before
 		// delivery, including through another exercise on the website or in a match.
-		if err := ignoreDuePendingExercisesWithMasteredVocabulary(tx, now); err != nil {
+		if err := replaceDuePendingExercisesWithMasteredVocabulary(tx, now); err != nil {
 			return err
 		}
 
@@ -283,35 +283,45 @@ func IgnoreDuePendingExercisesWithoutActiveVocabulary(now time.Time) error {
 	})
 }
 
-func ignoreDuePendingExercisesWithMasteredVocabulary(tx *gorm.DB, now time.Time) error {
-	return tx.Exec(`
-		WITH affected AS (
-			UPDATE exercises AS e
-			SET status = ?, finished_at = ?
-			WHERE e.deleted_at IS NULL
-				AND e.status = ?
-				AND e.scheduled_for <= ?
-				AND e.is_known_vocabulary_repetition = false
-				AND EXISTS (
-					SELECT 1 FROM vocabulary_exercises AS ve
-					JOIN vocabulary AS v ON v.id = ve.vocabulary_id AND v.deleted_at IS NULL
-					WHERE ve.exercise_id = e.id AND ve.is_correct = true
-						AND (v.mastered_at IS NOT NULL OR EXISTS (
-							SELECT 1 FROM jsonb_array_elements(v.progress) AS p
-							WHERE p->>'type' = ? AND (p->>'knowledge')::int >= 100
-						))
-				)
-			RETURNING e.id
-		)
-		UPDATE vocabulary_exercises AS ve
-		SET result = ?, result_reason = ?, answered_at = ?
-		FROM affected
-		WHERE ve.exercise_id = affected.id
-			AND ve.is_correct = true
-			AND ve.result IS NULL
-	`, enums.ExerciseStatusIgnored, now, enums.ExerciseStatusPending, now,
-		enums.KnowledgeTypeTranslation, ExerciseVocabularyResultIgnored,
-		ExerciseVocabularyResultReasonMasteredVocabulary, now).Error
+func replaceDuePendingExercisesWithMasteredVocabulary(tx *gorm.DB, now time.Time) error {
+	var exercises []models.Exercise
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
+		Where("status = ? AND scheduled_for <= ?", enums.ExerciseStatusPending, now).
+		Where("is_known_vocabulary_repetition = false").
+		Where(`EXISTS (
+			SELECT 1 FROM vocabulary_exercises AS ve
+			JOIN vocabulary AS v ON v.id = ve.vocabulary_id AND v.deleted_at IS NULL
+			WHERE ve.exercise_id = exercises.id AND ve.is_correct = true
+				AND (v.mastered_at IS NOT NULL OR EXISTS (
+					SELECT 1 FROM jsonb_array_elements(v.progress) AS p
+					WHERE p->>'type' = ? AND (p->>'knowledge')::int >= 100
+				))
+		)`, enums.KnowledgeTypeTranslation).
+		Order("scheduled_for ASC, created_at ASC").
+		Find(&exercises).Error; err != nil {
+		return err
+	}
+
+	for _, exercise := range exercises {
+		replaced, err := replacePendingExerciseVocabulary(tx, exercise)
+		if err != nil {
+			return err
+		}
+		if replaced {
+			continue
+		}
+
+		if err := markExerciseVocabularyResultWithoutProgress(tx, exercise.ID,
+			ExerciseVocabularyResultIgnored, ExerciseVocabularyResultReasonMasteredVocabulary); err != nil {
+			return err
+		}
+		if err := tx.Model(&exercise).Updates(map[string]any{
+			"status": enums.ExerciseStatusIgnored, "finished_at": now,
+		}).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func GetDueExerciseReminders(now time.Time) ([]PendingExerciseReminder, error) {
