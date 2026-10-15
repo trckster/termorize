@@ -195,6 +195,12 @@ func IgnoreUserExercise(exerciseID uuid.UUID, userID uint) error {
 
 func IgnoreDuePendingExercisesWithoutActiveVocabulary(now time.Time) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
+		// Exercises are scheduled ahead of time. A word may reach mastery before
+		// delivery, including through another exercise on the website or in a match.
+		if err := ignoreDuePendingExercisesWithMasteredVocabulary(tx, now); err != nil {
+			return err
+		}
+
 		if err := tx.Exec(`
 			WITH affected AS (
 				SELECT e.id
@@ -275,6 +281,37 @@ func IgnoreDuePendingExercisesWithoutActiveVocabulary(now time.Time) error {
 				)
 		`, enums.ExerciseStatusIgnored, now, enums.ExerciseStatusPending, enums.ExerciseTypeBasicDirect, enums.ExerciseTypeBasicReversed, enums.ExerciseTypeChoiceDirect, enums.ExerciseTypeChoiceReversed, enums.ExerciseTypeCharactersDirect, enums.ExerciseTypeCharactersReversed, enums.ExerciseTypeAudioDirect, enums.ExerciseTypeAudioReversed, enums.ExerciseTypeDescriptionDirect, enums.ExerciseTypeDescriptionReversed, enums.ExerciseTypeMatchPairs, now, enums.ExerciseTypeMatchPairs, enums.ExerciseTypeMatchPairs, matchPairsVocabularyCount).Error
 	})
+}
+
+func ignoreDuePendingExercisesWithMasteredVocabulary(tx *gorm.DB, now time.Time) error {
+	return tx.Exec(`
+		WITH affected AS (
+			UPDATE exercises AS e
+			SET status = ?, finished_at = ?
+			WHERE e.deleted_at IS NULL
+				AND e.status = ?
+				AND e.scheduled_for <= ?
+				AND e.is_known_vocabulary_repetition = false
+				AND EXISTS (
+					SELECT 1 FROM vocabulary_exercises AS ve
+					JOIN vocabulary AS v ON v.id = ve.vocabulary_id AND v.deleted_at IS NULL
+					WHERE ve.exercise_id = e.id AND ve.is_correct = true
+						AND (v.mastered_at IS NOT NULL OR EXISTS (
+							SELECT 1 FROM jsonb_array_elements(v.progress) AS p
+							WHERE p->>'type' = ? AND (p->>'knowledge')::int >= 100
+						))
+				)
+			RETURNING e.id
+		)
+		UPDATE vocabulary_exercises AS ve
+		SET result = ?, result_reason = ?, answered_at = ?
+		FROM affected
+		WHERE ve.exercise_id = affected.id
+			AND ve.is_correct = true
+			AND ve.result IS NULL
+	`, enums.ExerciseStatusIgnored, now, enums.ExerciseStatusPending, now,
+		enums.KnowledgeTypeTranslation, ExerciseVocabularyResultIgnored,
+		ExerciseVocabularyResultReasonMasteredVocabulary, now).Error
 }
 
 func GetDueExerciseReminders(now time.Time) ([]PendingExerciseReminder, error) {
