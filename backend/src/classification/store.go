@@ -33,6 +33,12 @@ func (s WordStore) Save(ctx context.Context, word models.Word, category enums.Pa
 		Update("part_of_speech", category).Error
 }
 
+func (s WordStore) ResetUnknown(ctx context.Context) error {
+	return s.DB.WithContext(ctx).Model(&models.Word{}).
+		Where("part_of_speech = ?", enums.PartOfSpeechUnknown).
+		Update("part_of_speech", nil).Error
+}
+
 func (s WordStore) Pending(ctx context.Context, after uuid.UUID, limit int) ([]uuid.UUID, error) {
 	ids := make([]uuid.UUID, 0, limit)
 	err := s.DB.WithContext(ctx).Model(&models.Word{}).

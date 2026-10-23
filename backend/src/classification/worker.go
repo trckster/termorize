@@ -15,6 +15,17 @@ import (
 
 type Decide func(context.Context, string, enums.Language) (enums.PartOfSpeech, error)
 
+var ErrBusy = errors.New("categorization is already in progress")
+var ErrUnavailable = errors.New("categorization worker is unavailable")
+
+type Stats struct {
+	Active     bool  `json:"active"`
+	Queued     int   `json:"queued"`
+	Processed  int64 `json:"processed"`
+	Failed     int64 `json:"failed"`
+	ScanFailed bool  `json:"scan_failed"`
+}
+
 type task struct {
 	id       uuid.UUID
 	attempts int
@@ -34,6 +45,33 @@ type Worker struct {
 	stopped                          bool
 	wake                             chan struct{}
 	running                          atomic.Bool
+	processed, failed                int64
+	scanFailed                       bool
+}
+
+func (w *Worker) Stats() Stats {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return Stats{Active: !w.stopped && (w.sweeping || len(w.pending) > 0), Queued: len(w.pending), Processed: w.processed, Failed: w.failed, ScanFailed: w.scanFailed}
+}
+
+func (w *Worker) Restart(ctx context.Context) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	store, ok := w.store.(interface{ ResetUnknown(context.Context) error })
+	if w.stopped || !ok {
+		return ErrUnavailable
+	}
+	if w.sweeping || len(w.pending) > 0 {
+		return ErrBusy
+	}
+	if err := store.ResetUnknown(ctx); err != nil {
+		return err
+	}
+	w.processed, w.failed, w.scanFailed = 0, 0, false
+	w.sweeping, w.sweepRequested = true, true
+	w.signal()
+	return nil
 }
 
 func NewWorker(store Store, decide Decide) *Worker {
@@ -167,6 +205,7 @@ func (w *Worker) runSafely(ctx context.Context, stopAfterSweep bool) (err error)
 			if !sweep {
 				w.mu.Lock()
 				w.sweeping = false
+				w.scanFailed = scanErr != nil
 				w.mu.Unlock()
 				logger.L().Infow("classification sweep finished", "scan_failed", scanErr != nil)
 			}
@@ -204,8 +243,10 @@ func (w *Worker) runSafely(ctx context.Context, stopAfterSweep bool) (err error)
 				w.queue = append(w.queue, item)
 			} else {
 				delete(w.pending, item.id)
+				w.processed++
 				if err != nil {
 					failedWords++
+					w.failed++
 				}
 			}
 			w.mu.Unlock()

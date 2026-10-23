@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"termorize/src/classification"
 	"termorize/src/enums"
 	"termorize/src/services"
 
@@ -12,10 +13,11 @@ import (
 	"gorm.io/gorm"
 )
 
-func GetAdminUnknownWords(c *gin.Context)         { getCategorizationList(c, false) }
-func GetAdminMismatchedVocabulary(c *gin.Context) { getCategorizationList(c, true) }
+func GetAdminUnknownWords(c *gin.Context)         { getCategorizationList(c, "unknown") }
+func GetAdminMismatchedVocabulary(c *gin.Context) { getCategorizationList(c, "mismatches") }
+func GetAdminCategoryWords(c *gin.Context)        { getCategorizationList(c, "words") }
 
-func getCategorizationList(c *gin.Context, mismatches bool) {
+func getCategorizationList(c *gin.Context, list string) {
 	if !authorizeAdmin(c) {
 		return
 	}
@@ -30,8 +32,10 @@ func getCategorizationList(c *gin.Context, mismatches bool) {
 		return
 	}
 	var response any
-	if mismatches {
+	if list == "mismatches" {
 		response, err = services.GetMismatchedVocabulary(c.Request.Context(), page, pageSize)
+	} else if list == "words" {
+		response, err = services.GetCategoryWords(c.Request.Context(), page, pageSize, c.Query("search"))
 	} else {
 		response, err = services.GetUnknownWords(c.Request.Context(), page, pageSize)
 	}
@@ -67,8 +71,6 @@ func SetAdminWordPartOfSpeech(c *gin.Context) {
 		switch {
 		case errors.Is(err, services.ErrInvalidPartOfSpeech):
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		case errors.Is(err, services.ErrPartOfSpeechPermanent):
-			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		case errors.Is(err, gorm.ErrRecordNotFound):
 			c.JSON(http.StatusNotFound, gin.H{"error": "word not found"})
 		default:
@@ -77,4 +79,34 @@ func SetAdminWordPartOfSpeech(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, word)
+}
+
+func GetAdminCategorizationStats(c *gin.Context) {
+	if !authorizeAdmin(c) {
+		return
+	}
+	stats, err := services.GetCategorizationStats(c.Request.Context())
+	if err != nil {
+		ServerError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, stats)
+}
+
+func RestartAdminCategorization(c *gin.Context) {
+	if !authorizeAdmin(c) {
+		return
+	}
+	if err := services.RestartCategorization(c.Request.Context()); err != nil {
+		switch {
+		case errors.Is(err, classification.ErrBusy):
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		case errors.Is(err, classification.ErrUnavailable):
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+		default:
+			ServerError(c, err)
+		}
+		return
+	}
+	c.JSON(http.StatusAccepted, gin.H{"status": "started"})
 }
