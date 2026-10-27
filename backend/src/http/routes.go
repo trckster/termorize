@@ -35,6 +35,7 @@ func defineProtectedRoutes(group *gin.RouterGroup) {
 
 	group.GET("/vocabulary", controllers.GetVocabulary)
 	group.POST("/vocabulary", controllers.CreateVocabulary)
+	group.POST("/vocabulary/share", controllers.ShareVocabulary)
 	group.POST("/vocabulary/translation", controllers.CreateVocabularyByTranslation)
 	group.DELETE("/vocabulary/:id", controllers.DeleteVocabulary)
 	group.GET("/exercises", controllers.GetExercises)

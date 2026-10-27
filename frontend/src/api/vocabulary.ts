@@ -1,5 +1,6 @@
 import apiCall, { unwrapBody } from '@/api/index.ts'
 import type { Paginated } from '@/api/pagination.ts'
+import type { CollectionDetail } from '@/api/collections'
 import type { PartOfSpeech } from '@/lib/partOfSpeech'
 
 type VocabularyItemProgress = {
@@ -36,6 +37,13 @@ export type VocabularyItem = {
 }
 
 export const vocabularyApi = {
+    async shareVocabulary(title: string, vocabularyIds: string[]): Promise<CollectionDetail> {
+        return apiCall<CollectionDetail>('/vocabulary/share', 'POST', {
+            title,
+            vocabulary_ids: vocabularyIds,
+        }).then(unwrapBody)
+    },
+
     async getVocabulary(page: number = 1, pageSize: number = 100, search?: string): Promise<Paginated<VocabularyItem>> {
         return apiCall<Paginated<VocabularyItem>>('/vocabulary', 'GET', {
             page,

@@ -90,6 +90,14 @@
                 </Dialog>
             </div>
 
+            <VocabularyShare
+                :has-items="vocabulary.length > 0"
+                :selected-ids="selectedIds"
+                :selecting="isSelecting"
+                @toggle="toggleSelection"
+                @shared="toggleSelection"
+            />
+
             <div class="relative mb-6 max-w-md">
                 <input
                     id="vocabulary-search"
@@ -227,6 +235,22 @@
 
                         <!-- Part 3: Date and Delete -->
                         <div class="flex min-w-0 flex-wrap items-center justify-between gap-2 lg:justify-end">
+                            <label v-if="isSelecting" class="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
+                                <input
+                                    v-model="selectedIds"
+                                    type="checkbox"
+                                    :value="item.id"
+                                    :disabled="!selectedIds.includes(item.id) && selectedIds.length >= 1000"
+                                    class="h-5 w-5 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                />
+                                <span
+                                    >{{ t.vocabularyShareSelectItem }}
+                                    <span class="sr-only"
+                                        >{{ item.translation.original.word }} —
+                                        {{ item.translation.translation.word }}</span
+                                    ></span
+                                >
+                            </label>
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <span
@@ -343,6 +367,7 @@
 </template>
 
 <script setup lang="ts">
+import VocabularyShare from '@/components/VocabularyShare.vue'
 import PartOfSpeechLabel from '@/components/PartOfSpeechLabel.vue'
 import { vocabularyApi, type VocabularyItem } from '@/api/vocabulary.ts'
 import { translationApi } from '@/api/translation.ts'
@@ -377,6 +402,12 @@ import { isEditableVocabularyShortcut } from '@/lib/translationPageState.ts'
 const { t } = useI18n()
 
 const vocabulary = ref<VocabularyItem[]>([])
+const isSelecting = ref(false)
+const selectedIds = ref<string[]>([])
+const toggleSelection = () => {
+    isSelecting.value = !isSelecting.value
+    selectedIds.value = []
+}
 const currentPage = ref(1)
 const defaultPaginationData = (): PaginationData => ({
     page: 1,
@@ -577,6 +608,7 @@ const handleDelete = async (id: string) => {
     deletingId.value = id
     try {
         await vocabularyApi.deleteVocabulary(id)
+        selectedIds.value = selectedIds.value.filter((selected) => selected !== id)
         await fetchVocabulary(currentPage.value)
     } catch (error) {
         console.error('Failed to delete vocabulary item:', error)

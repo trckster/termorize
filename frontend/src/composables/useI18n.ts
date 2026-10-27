@@ -389,6 +389,21 @@ const en = {
 
     // Vocabulary page
     vocabularyTitle: 'Saved Words',
+    vocabularyShareSelect: 'Share words',
+    vocabularyShareSelected: 'selected',
+    vocabularyShareCreate: 'Create share link',
+    vocabularyShareSelectionHint: 'Select up to 1,000 words. Your selection stays as you search or change pages.',
+    vocabularyShareSelectItem: 'Select',
+    vocabularyShareTitle: 'Collection title',
+    vocabularyShareDescription:
+        'Create a published collection of the selected word pairs. Anyone with the link can read them without an account. Friends using Termorize can save them to their vocabulary.',
+    vocabularyShareReady: 'Your link is ready. Manage this collection to edit it, unpublish it, or delete it.',
+    vocabularyShareLink: 'Share link',
+    vocabularyShareCopy: 'Copy link',
+    vocabularyShareManage: 'Manage collection',
+    vocabularyShareError:
+        'Could not share these words. Some may no longer be available. Check your selection and try again.',
+
     vocabularyAddButton: 'Add Translation',
     vocabularyDialogTitle: 'Add Your Own Translation',
     vocabularyDialogDescription: 'Enter two words/texts and their languages to add a new translation.',
@@ -931,6 +946,21 @@ const ru: typeof en = {
 
     // Vocabulary page
     vocabularyTitle: 'Сохранённые слова',
+    vocabularyShareSelect: 'Поделиться словами',
+    vocabularyShareSelected: 'выбрано',
+    vocabularyShareCreate: 'Создать ссылку',
+    vocabularyShareSelectionHint: 'Выберите до 1 000 слов. Выбор сохраняется при поиске и смене страницы.',
+    vocabularyShareSelectItem: 'Выбрать',
+    vocabularyShareTitle: 'Название коллекции',
+    vocabularyShareDescription:
+        'Создайте опубликованную коллекцию выбранных пар слов. Любой человек со ссылкой сможет прочитать их без аккаунта. Друзья в Termorize смогут добавить их в свой словарь.',
+    vocabularyShareReady: 'Ссылка готова. В коллекции можно изменить слова, отменить публикацию или удалить её.',
+    vocabularyShareLink: 'Ссылка',
+    vocabularyShareCopy: 'Копировать ссылку',
+    vocabularyShareManage: 'Управлять коллекцией',
+    vocabularyShareError:
+        'Не удалось поделиться словами. Некоторые из них могут быть недоступны. Проверьте выбор и попробуйте снова.',
+
     vocabularyAddButton: 'Добавить перевод',
     vocabularyDialogTitle: 'Добавить свой перевод',
     vocabularyDialogDescription: 'Введите два слова/текста и их языки для добавления нового перевода.',

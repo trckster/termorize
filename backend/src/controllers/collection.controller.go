@@ -469,3 +469,21 @@ func JoinCollection(c *gin.Context) {
 
 	c.JSON(nethttp.StatusOK, collection)
 }
+
+func ShareVocabulary(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+	var req services.ShareVocabularyRequest
+	if !validators.BindJSONWithErrors(c, &req) {
+		return
+	}
+	collection, err := services.ShareVocabulary(userID, req)
+	if err != nil {
+		if errors.Is(err, services.ErrInvalidVocabularySelection) || services.CollectionTitleRequiredError(err) {
+			c.JSON(nethttp.StatusBadRequest, gin.H{"error": err.Error()})
+		} else {
+			ServerError(c, err)
+		}
+		return
+	}
+	c.JSON(nethttp.StatusCreated, collection)
+}
