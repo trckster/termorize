@@ -1,7 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
-import { designPreview } from './dev/design-preview'
+import { designPreview } from './dev/design-preview.ts'
 
 export default ({ mode }: { mode: string }) => {
     const env = loadEnv(mode, process.cwd(), '')
@@ -21,9 +21,12 @@ export default ({ mode }: { mode: string }) => {
         define: {
             __APP_VERSION__: JSON.stringify(appVersion),
         },
+        build: {
+            target: ['chrome107', 'edge107', 'firefox104', 'safari16'],
+        },
         resolve: {
             alias: {
-                '@': path.resolve(__dirname, './src'),
+                '@': path.resolve(import.meta.dirname, './src'),
             },
         },
         server: {

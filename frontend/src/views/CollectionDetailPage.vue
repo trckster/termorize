@@ -519,7 +519,7 @@ import {
     Plus,
     Share2,
     Trash2,
-} from 'lucide-vue-next'
+} from '@lucide/vue'
 
 const { t, saves } = useI18n()
 const route = useRoute()

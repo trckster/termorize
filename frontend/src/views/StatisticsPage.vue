@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { exercisesApi, type ExerciseStatistics } from '@/api/exercises.ts'
-import { Activity, AlertCircle, Ban, CheckCircle2 } from 'lucide-vue-next'
+import { Activity, AlertCircle, Ban, CheckCircle2 } from '@lucide/vue'
 import { useI18n } from '@/composables/useI18n'
 import { formatNumber } from '@/lib/utils.ts'
 import VocabularyLearningChart from '@/components/statistics/VocabularyLearningChart.vue'

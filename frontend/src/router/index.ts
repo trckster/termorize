@@ -150,11 +150,10 @@ const hasNewAppVersion = async () => {
     }
 }
 
-router.beforeEach(async (to, _from, next) => {
+router.beforeEach(async (to) => {
     if (await hasNewAppVersion()) {
         window.location.assign(to.fullPath)
-        next(false)
-        return
+        return false
     }
 
     const authStore = useAuthStore()
@@ -164,13 +163,11 @@ router.beforeEach(async (to, _from, next) => {
     }
 
     if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-        next('/')
+        return '/'
     } else if (to.meta.requiresAdmin && !authStore.user?.is_admin) {
-        next({ name: 'translation' })
+        return { name: 'translation' }
     } else if (to.meta.guest && authStore.isAuthenticated) {
-        next({ name: 'translation' })
-    } else {
-        next()
+        return { name: 'translation' }
     }
 })
 

@@ -2,7 +2,7 @@
 import { ToastProvider, ToastRoot, ToastTitle, ToastDescription, ToastViewport } from 'reka-ui'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast.ts'
-import { X } from 'lucide-vue-next'
+import { X } from '@lucide/vue'
 
 const { toasts, removeToast } = useToast()
 const { t } = useI18n()

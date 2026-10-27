@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { TriangleAlert, X } from 'lucide-vue-next'
+import { TriangleAlert, X } from '@lucide/vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
     exercisesApi,

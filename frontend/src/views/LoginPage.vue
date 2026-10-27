@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { BarChart3, BookOpen, Languages, Send } from 'lucide-vue-next'
+import { BarChart3, BookOpen, Languages, Send } from '@lucide/vue'
 import { useRouter } from 'vue-router'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import TelegramLogin from '@/components/TelegramLogin.vue'

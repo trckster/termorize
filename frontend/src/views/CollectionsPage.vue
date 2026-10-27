@@ -275,7 +275,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog'
-import { Loader2, Play, Plus, Sparkles } from 'lucide-vue-next'
+import { Loader2, Play, Plus, Sparkles } from '@lucide/vue'
 
 const { t, saves } = useI18n()
 const router = useRouter()

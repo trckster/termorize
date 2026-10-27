@@ -1,0 +1,6 @@
+allowBuilds: {}
+
+minimumReleaseAgeExclude:
+  - autoprefixer@10.6.2
+  - postcss@8.5.32
+  - '@lucide/vue@1.62.0'

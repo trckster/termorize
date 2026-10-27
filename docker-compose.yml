@@ -13,6 +13,8 @@ x-backend-env: &backend-env
   OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
   SENTRY_DSN: ${SENTRY_DSN:-}
   TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+  TELEGRAM_LOGIN_CLIENT_ID: ${TELEGRAM_LOGIN_CLIENT_ID}
+  TELEGRAM_LOGIN_CLIENT_SECRET: ${TELEGRAM_LOGIN_CLIENT_SECRET}
 
 services:
   frontend:
@@ -49,7 +51,7 @@ services:
     command: ["supercronic", "/app/crontab"]
 
   postgres:
-    image: postgres:17-alpine
+    image: postgres:17.11-alpine3.24@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b
     ports:
       - '127.0.0.1:5433:5432'
     environment:

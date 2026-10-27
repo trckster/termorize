@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Loader2 } from 'lucide-vue-next'
+import { Loader2 } from '@lucide/vue'
 import { collectionsApi } from '@/api/collections'
 import { Button } from '@/components/ui/button'
 import Header from '@/components/Header.vue'

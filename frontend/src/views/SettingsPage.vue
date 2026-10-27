@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Loader2, TriangleAlert } from 'lucide-vue-next'
+import { Loader2, TriangleAlert } from '@lucide/vue'
 import { settingsApi } from '@/api/settings'
 import { useToast } from '@/composables/useToast'
 import { Button } from '@/components/ui/button'

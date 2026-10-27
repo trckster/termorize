@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { ArrowUpDown, Loader2 } from 'lucide-vue-next'
+import { ArrowUpDown, Loader2 } from '@lucide/vue'
 import { settingsApi } from '@/api/settings.ts'
 import { dailyIdiomApi, type DailyIdiom as DailyIdiomData } from '@/api/dailyIdiom'
 import { idiomLanguages, type ActiveIdiom, matchesIdiom } from '@/lib/idiomTranslation'

@@ -17,5 +17,18 @@ export function initSentry(app: App, router: Router): void {
         environment: import.meta.env.MODE,
         integrations: [Sentry.browserTracingIntegration({ router })],
         tracesSampleRate: TRACES_SAMPLE_RATE,
+        dataCollection: {
+            userInfo: false,
+            cookies: false,
+            httpHeaders: {
+                request: { deny: ['forwarded', '-ip', 'remote-', 'via', '-user'] },
+                response: { deny: ['forwarded', '-ip', 'remote-', 'via', '-user'] },
+            },
+            httpBodies: [],
+            urlQueryParams: { deny: ['forwarded', '-ip', 'remote-', 'via', '-user'] },
+            genAI: { inputs: false, outputs: false },
+            databaseQueryData: false,
+            graphQL: { document: false, variables: false },
+        },
     })
 }
