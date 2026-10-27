@@ -150,7 +150,8 @@ test('admin keeps per-record mismatches and refreshes all shared usages after a 
     await expect(page.locator('main li').last().getByRole('combobox')).toHaveCount(0)
     await page.getByRole('combobox').first().selectOption('noun')
     await page.getByRole('button', { name: 'Save category' }).first().click()
-    await expect(page.getByRole('status')).toHaveText('Category saved for every shared use of this word.')
+    const savedMessage = 'Category saved for every shared use of this word.'
+    await expect(page.getByRole('status').filter({ hasText: savedMessage })).toHaveText(savedMessage)
     await expect(page.locator('main li')).toHaveCount(1)
     await expect(page.getByRole('combobox')).toHaveCount(0)
     expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ part_of_speech: 'noun' })

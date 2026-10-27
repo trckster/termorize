@@ -10,31 +10,35 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@sentry/vue": "^10.55.0",
-    "@vueuse/core": "^14.2.0",
+    "@lucide/vue": "^1.62.0",
+    "@sentry/vue": "^11.9.0",
+    "@vue/devtools-api": "^8.2.1",
+    "@vueuse/core": "^15.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-vue-next": "^0.563.0",
-    "pinia": "^3.0.4",
-    "radix-vue": "^1.9.17",
-    "reka-ui": "^2.8.0",
-    "tailwind-merge": "^3.4.0",
+    "pinia": "^4.1.0",
+    "reka-ui": "^2.11.0",
+    "tailwind-merge": "2.6.1",
     "tailwindcss-animate": "^1.0.7",
-    "vue": "^3.5.24",
+    "vue": "^3.5.44",
     "vue-draggable-plus": "^0.6.1",
-    "vue-router": "^5.0.1"
+    "vue-router": "^5.4.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.63.0",
-    "@types/node": "^24.10.1",
-    "@vitejs/plugin-vue": "^6.0.1",
-    "@vue/tsconfig": "^0.8.1",
-    "autoprefixer": "^10.4.24",
-    "postcss": "^8.5.6",
-    "prettier": "^3.8.1",
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^24.19.2",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "@vue/tsconfig": "^0.9.1",
+    "autoprefixer": "^10.6.2",
+    "postcss": "^8.5.32",
+    "prettier": "^3.9.10",
     "tailwindcss": "^3.4.19",
-    "typescript": "~5.9.3",
-    "vite": "^7.2.4",
-    "vue-tsc": "^3.1.4"
-  }
+    "typescript": "~6.0.3",
+    "vite": "^8.3.5",
+    "vue-tsc": "^3.3.13"
+  },
+  "engines": {
+    "node": ">=24.22.1"
+  },
+  "packageManager": "pnpm@12.15.0"
 }

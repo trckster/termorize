@@ -52,7 +52,7 @@ let deactivateCurrentPronunciation: (() => void) | null = null
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { CircleAlert, LoaderCircle, Pause, Volume2 } from 'lucide-vue-next'
+import { CircleAlert, LoaderCircle, Pause, Volume2 } from '@lucide/vue'
 import { pronunciationApi } from '@/api/pronunciation.ts'
 
 type PlaybackStatus = 'idle' | 'loading' | 'playing' | 'error'

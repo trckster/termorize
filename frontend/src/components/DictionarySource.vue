@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { LoaderCircle } from 'lucide-vue-next'
+import { LoaderCircle } from '@lucide/vue'
 import { adminApi, type Dictionary, type DictionaryImportJob } from '@/api/admin'
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/composables/useI18n'

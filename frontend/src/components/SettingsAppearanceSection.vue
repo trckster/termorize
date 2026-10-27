@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Check, Moon, Sun } from 'lucide-vue-next'
+import { Check, Moon, Sun } from '@lucide/vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useI18n } from '@/composables/useI18n'
 import { useTheme, type PaletteId } from '@/composables/useTheme'

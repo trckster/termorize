@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
-import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight } from '@lucide/vue'
 import type { VocabularyLearningDistribution } from '@/api/exercises.ts'
 import { useI18n } from '@/composables/useI18n'
 import { createPieSegments } from '@/lib/pieChart'

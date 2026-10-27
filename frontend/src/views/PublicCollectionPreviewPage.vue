@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { ArrowRight, BookOpen, Globe2, Loader2, UserRound } from 'lucide-vue-next'
+import { ArrowRight, BookOpen, Globe2, Loader2, UserRound } from '@lucide/vue'
 import { useRoute } from 'vue-router'
 import { collectionsApi, type PublicCollectionDetail } from '@/api/collections'
 import PronunciationButton from '@/components/PronunciationButton.vue'

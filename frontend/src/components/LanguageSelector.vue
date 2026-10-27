@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
-import { Check, ChevronsUpDown } from 'lucide-vue-next'
+import { Check, ChevronsUpDown } from '@lucide/vue'
 import {
     ComboboxAnchor,
     ComboboxContent,

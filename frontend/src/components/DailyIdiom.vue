@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Loader2, Languages } from 'lucide-vue-next'
+import { Loader2, Languages } from '@lucide/vue'
 import { dailyIdiomApi, type DailyIdiom } from '@/api/dailyIdiom'
 import { Button } from '@/components/ui/button'
 import DailyIdiomHint from '@/components/DailyIdiomHint.vue'

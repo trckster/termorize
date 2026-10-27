@@ -14,7 +14,7 @@ import {
     Search,
     Send,
     X,
-} from 'lucide-vue-next'
+} from '@lucide/vue'
 import { useAuthStore } from '@/stores/auth'
 import { getTelegramWebAppInitData, isTelegramWebApp } from '@/lib/telegram'
 import { clearPostAuthPath } from '@/lib/postAuthRedirect'

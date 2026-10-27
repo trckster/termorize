@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { LoaderCircle, RotateCcw, Search } from 'lucide-vue-next'
+import { LoaderCircle, RotateCcw, Search } from '@lucide/vue'
 import { adminApi, type AdminWordDescription, type DescriptionModel, type DescriptionPreview } from '@/api/admin'
 import { Button } from '@/components/ui/button'
 import {

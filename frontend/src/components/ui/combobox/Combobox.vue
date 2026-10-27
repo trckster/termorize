@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
 import { computed } from 'vue'
-import { Check, ChevronsUpDown } from 'lucide-vue-next'
+import { Check, ChevronsUpDown } from '@lucide/vue'
 import {
     ComboboxAnchor,
     ComboboxContent,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Send } from 'lucide-vue-next'
+import { Send } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/composables/useI18n'
 

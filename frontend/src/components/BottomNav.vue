@@ -35,7 +35,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Home, BookOpen, Library, Brain, BarChart3 } from 'lucide-vue-next'
+import { Home, BookOpen, Library, Brain, BarChart3 } from '@lucide/vue'
 import { useI18n } from '@/composables/useI18n'
 
 const route = useRoute()

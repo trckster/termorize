@@ -180,7 +180,7 @@
 import { computed, nextTick, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { Sun, Moon, ChevronDown, Settings, LogOut, UserRound, Shield } from 'lucide-vue-next'
+import { Sun, Moon, ChevronDown, Settings, LogOut, UserRound, Shield } from '@lucide/vue'
 import { ToggleSwitch } from '@/components/ui/toggle-switch'
 import { isTelegramWebApp } from '@/lib/telegram.ts'
 import { useI18n } from '@/composables/useI18n'

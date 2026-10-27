@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Database, LoaderCircle, RotateCcw, Search } from 'lucide-vue-next'
+import { Database, LoaderCircle, RotateCcw, Search } from '@lucide/vue'
 import { adminApi, type AdminWordPronunciation } from '@/api/admin.ts'
 import type { PaginationData } from '@/api/pagination.ts'
 import AdminAudioButton from '@/components/AdminAudioButton.vue'

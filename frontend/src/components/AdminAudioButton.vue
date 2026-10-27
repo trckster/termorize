@@ -5,7 +5,7 @@ let stopCurrentAudio: (() => void) | null = null
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { CircleAlert, LoaderCircle, Pause, Play } from 'lucide-vue-next'
+import { CircleAlert, LoaderCircle, Pause, Play } from '@lucide/vue'
 import { adminApi } from '@/api/admin.ts'
 
 type PlaybackStatus = 'idle' | 'loading' | 'playing' | 'error'
