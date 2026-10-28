@@ -5,6 +5,11 @@ const router = createRouter({
     history: createWebHistory(),
     routes: [
         {
+            path: '/words/:token',
+            name: 'shared-word',
+            component: () => import('@/views/SharedWordPage.vue'),
+        },
+        {
             path: '/',
             name: 'root',
             component: () => import('@/views/RootView.vue'),

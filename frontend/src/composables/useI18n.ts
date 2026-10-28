@@ -389,6 +389,25 @@ const en = {
 
     // Vocabulary page
     vocabularyTitle: 'Saved Words',
+    vocabularyShareLoading: 'Loading…',
+    vocabularyShareAction: 'Share word',
+    vocabularyShareDescription:
+        'Anyone with this link can read this word pair without an account and save it in Termorize.',
+    vocabularyShareLink: 'Share link',
+    vocabularyShareCopy: 'Copy link',
+    vocabularyShareCopyError: 'Could not copy the link. Select and copy it from the field above.',
+    vocabularyShareStop: 'Stop sharing',
+    vocabularyShareStopHint: 'Stop sharing to disable this link. Your word stays in your vocabulary.',
+    vocabularyShareStopError: 'Could not stop sharing. Please try again.',
+    vocabularyShareError: 'Could not create a link for this word. Please try again.',
+    vocabularyShareWordTitle: 'Shared word',
+    vocabularyShareUnavailableTitle: 'Word unavailable',
+    vocabularyShareUnavailable: 'This link is no longer available. Ask your friend for a new link.',
+    vocabularyShareSave: 'Save to my vocabulary',
+    vocabularyShareSaved: 'This word is in your vocabulary.',
+    vocabularyShareSaveError: 'Could not save this word. Please try again.',
+    vocabularyShareGuestHint: 'Save as a guest to try Termorize, or sign in with Telegram to keep it in your account.',
+
     vocabularyAddButton: 'Add Translation',
     vocabularyDialogTitle: 'Add Your Own Translation',
     vocabularyDialogDescription: 'Enter two words/texts and their languages to add a new translation.',
@@ -931,6 +950,26 @@ const ru: typeof en = {
 
     // Vocabulary page
     vocabularyTitle: 'Сохранённые слова',
+    vocabularyShareLoading: 'Загрузка…',
+    vocabularyShareAction: 'Поделиться словом',
+    vocabularyShareDescription:
+        'Любой человек со ссылкой сможет прочитать эту пару слов без аккаунта и сохранить её в Termorize.',
+    vocabularyShareLink: 'Ссылка',
+    vocabularyShareCopy: 'Копировать ссылку',
+    vocabularyShareCopyError: 'Не удалось скопировать ссылку. Выделите и скопируйте её из поля выше.',
+    vocabularyShareStop: 'Отменить общий доступ',
+    vocabularyShareStopHint: 'Отмените общий доступ, чтобы отключить ссылку. Слово останется в вашем словаре.',
+    vocabularyShareStopError: 'Не удалось отменить общий доступ. Попробуйте ещё раз.',
+    vocabularyShareError: 'Не удалось создать ссылку на слово. Попробуйте ещё раз.',
+    vocabularyShareWordTitle: 'Слово от друга',
+    vocabularyShareUnavailableTitle: 'Слово недоступно',
+    vocabularyShareUnavailable: 'Эта ссылка больше недоступна. Попросите друга прислать новую.',
+    vocabularyShareSave: 'Добавить в мой словарь',
+    vocabularyShareSaved: 'Это слово есть в вашем словаре.',
+    vocabularyShareSaveError: 'Не удалось сохранить слово. Попробуйте ещё раз.',
+    vocabularyShareGuestHint:
+        'Сохраните слово как гость, чтобы попробовать Termorize, или войдите через Telegram для сохранения в своём аккаунте.',
+
     vocabularyAddButton: 'Добавить перевод',
     vocabularyDialogTitle: 'Добавить свой перевод',
     vocabularyDialogDescription: 'Введите два слова/текста и их языки для добавления нового перевода.',

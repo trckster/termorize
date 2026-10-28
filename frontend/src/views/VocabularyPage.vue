@@ -242,6 +242,7 @@
                                     </p>
                                 </TooltipContent>
                             </Tooltip>
+                            <VocabularyShare :item="item" />
                             <Dialog>
                                 <DialogTrigger as-child>
                                     <Button
@@ -343,6 +344,7 @@
 </template>
 
 <script setup lang="ts">
+import VocabularyShare from '@/components/VocabularyShare.vue'
 import PartOfSpeechLabel from '@/components/PartOfSpeechLabel.vue'
 import { vocabularyApi, type VocabularyItem } from '@/api/vocabulary.ts'
 import { translationApi } from '@/api/translation.ts'

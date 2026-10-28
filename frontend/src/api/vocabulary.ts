@@ -35,7 +35,24 @@ export type VocabularyItem = {
     mastered_at: string | null
 }
 
+export type VocabularyShare = { translation: Translation; share_path: string }
+
 export const vocabularyApi = {
+    async shareVocabulary(id: string): Promise<VocabularyShare> {
+        return apiCall<VocabularyShare>(`/vocabulary/${id}/share`, 'POST').then(unwrapBody)
+    },
+    async stopSharing(id: string): Promise<void> {
+        await apiCall<void>(`/vocabulary/${id}/share`, 'DELETE')
+    },
+    async getSharedVocabulary(token: string): Promise<VocabularyShare> {
+        return apiCall<VocabularyShare>(`/public/vocabulary/${encodeURIComponent(token)}`).then(unwrapBody)
+    },
+    async saveSharedVocabulary(translationId: string): Promise<VocabularyItem> {
+        return apiCall<VocabularyItem>('/vocabulary/translation', 'POST', { translation_id: translationId }).then(
+            unwrapBody
+        )
+    },
+
     async getVocabulary(page: number = 1, pageSize: number = 100, search?: string): Promise<Paginated<VocabularyItem>> {
         return apiCall<Paginated<VocabularyItem>>('/vocabulary', 'GET', {
             page,
