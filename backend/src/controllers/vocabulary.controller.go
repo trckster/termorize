@@ -113,3 +113,46 @@ func DeleteVocabulary(c *gin.Context) {
 
 	c.Status(nethttp.StatusOK)
 }
+
+func ShareVocabulary(c *gin.Context) {
+	id, ok := parseUUIDParam(c, "id", "invalid vocabulary ID")
+	if !ok {
+		return
+	}
+	share, err := services.ShareVocabulary(c.MustGet("userID").(uint), id)
+	if err != nil {
+		respondVocabularyShareError(c, err)
+		return
+	}
+	c.JSON(nethttp.StatusOK, share)
+}
+
+func StopSharingVocabulary(c *gin.Context) {
+	id, ok := parseUUIDParam(c, "id", "invalid vocabulary ID")
+	if !ok {
+		return
+	}
+	if err := services.StopSharingVocabulary(c.MustGet("userID").(uint), id); err != nil {
+		respondVocabularyShareError(c, err)
+		return
+	}
+	c.Status(nethttp.StatusNoContent)
+}
+
+func GetPublicVocabularyShare(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
+	share, err := services.GetPublicVocabularyShare(c.Param("token"))
+	if err != nil {
+		respondVocabularyShareError(c, err)
+		return
+	}
+	c.JSON(nethttp.StatusOK, share)
+}
+
+func respondVocabularyShareError(c *gin.Context, err error) {
+	if services.VocabularyNotFoundError(err) {
+		c.JSON(nethttp.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	ServerError(c, err)
+}

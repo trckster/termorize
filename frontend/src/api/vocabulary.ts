@@ -1,6 +1,5 @@
 import apiCall, { unwrapBody } from '@/api/index.ts'
 import type { Paginated } from '@/api/pagination.ts'
-import type { CollectionDetail } from '@/api/collections'
 import type { PartOfSpeech } from '@/lib/partOfSpeech'
 
 type VocabularyItemProgress = {
@@ -36,12 +35,22 @@ export type VocabularyItem = {
     mastered_at: string | null
 }
 
+export type VocabularyShare = { translation: Translation; share_path: string }
+
 export const vocabularyApi = {
-    async shareVocabulary(title: string, vocabularyIds: string[]): Promise<CollectionDetail> {
-        return apiCall<CollectionDetail>('/vocabulary/share', 'POST', {
-            title,
-            vocabulary_ids: vocabularyIds,
-        }).then(unwrapBody)
+    async shareVocabulary(id: string): Promise<VocabularyShare> {
+        return apiCall<VocabularyShare>(`/vocabulary/${id}/share`, 'POST').then(unwrapBody)
+    },
+    async stopSharing(id: string): Promise<void> {
+        await apiCall<void>(`/vocabulary/${id}/share`, 'DELETE')
+    },
+    async getSharedVocabulary(token: string): Promise<VocabularyShare> {
+        return apiCall<VocabularyShare>(`/public/vocabulary/${encodeURIComponent(token)}`).then(unwrapBody)
+    },
+    async saveSharedVocabulary(translationId: string): Promise<VocabularyItem> {
+        return apiCall<VocabularyItem>('/vocabulary/translation', 'POST', { translation_id: translationId }).then(
+            unwrapBody
+        )
     },
 
     async getVocabulary(page: number = 1, pageSize: number = 100, search?: string): Promise<Paginated<VocabularyItem>> {

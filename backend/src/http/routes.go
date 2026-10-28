@@ -35,7 +35,8 @@ func defineProtectedRoutes(group *gin.RouterGroup) {
 
 	group.GET("/vocabulary", controllers.GetVocabulary)
 	group.POST("/vocabulary", controllers.CreateVocabulary)
-	group.POST("/vocabulary/share", controllers.ShareVocabulary)
+	group.POST("/vocabulary/:id/share", controllers.ShareVocabulary)
+	group.DELETE("/vocabulary/:id/share", controllers.StopSharingVocabulary)
 	group.POST("/vocabulary/translation", controllers.CreateVocabularyByTranslation)
 	group.DELETE("/vocabulary/:id", controllers.DeleteVocabulary)
 	group.GET("/exercises", controllers.GetExercises)
@@ -79,6 +80,7 @@ func definePublicRoutes(group *gin.RouterGroup) {
 
 	group.GET("/settings", controllers.GetSettings)
 	group.GET("/words/:id/pronunciation", controllers.GetWordPronunciation)
+	group.GET("/public/vocabulary/:token", controllers.GetPublicVocabularyShare)
 	group.GET("/public/collections/:id", controllers.GetPublicCollection)
 	group.GET("/public/collection-invites/:identifier", controllers.GetPublicCollectionByShareIdentifier)
 	group.GET("/public/collection-share-metadata", controllers.GetCollectionShareMetadata)

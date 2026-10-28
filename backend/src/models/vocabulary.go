@@ -29,6 +29,7 @@ func (p *ProgressEntries) Scan(value any) error {
 }
 
 type Vocabulary struct {
+	ShareToken    *string         `json:"-"`
 	ID            uuid.UUID       `json:"id" gorm:"default:gen_random_uuid()"`
 	UserID        uint            `json:"-"`
 	TranslationID uuid.UUID       `json:"-"`

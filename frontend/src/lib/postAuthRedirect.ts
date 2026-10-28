@@ -1,13 +1,16 @@
 const POST_AUTH_PATH_KEY = 'termorize:post-auth-path'
 
-const safeCollectionPath = (value: string): string | null => {
-    if (!value.startsWith('/collections/') || value.startsWith('//')) {
+const safeSharedPath = (value: string): string | null => {
+    if ((!value.startsWith('/collections/') && !value.startsWith('/words/')) || value.startsWith('//')) {
         return null
     }
 
     try {
         const parsed = new URL(value, window.location.origin)
-        if (parsed.origin !== window.location.origin || !parsed.pathname.startsWith('/collections/')) {
+        if (
+            parsed.origin !== window.location.origin ||
+            (!parsed.pathname.startsWith('/collections/') && !parsed.pathname.startsWith('/words/'))
+        ) {
             return null
         }
         return `${parsed.pathname}${parsed.search}${parsed.hash}`
@@ -17,7 +20,7 @@ const safeCollectionPath = (value: string): string | null => {
 }
 
 export const rememberPostAuthPath = (path: string) => {
-    const safePath = safeCollectionPath(path)
+    const safePath = safeSharedPath(path)
     if (safePath) {
         window.sessionStorage.setItem(POST_AUTH_PATH_KEY, safePath)
     }
@@ -30,5 +33,5 @@ export const clearPostAuthPath = () => {
 export const takePostAuthPath = (): string | null => {
     const storedPath = window.sessionStorage.getItem(POST_AUTH_PATH_KEY)
     clearPostAuthPath()
-    return storedPath ? safeCollectionPath(storedPath) : null
+    return storedPath ? safeSharedPath(storedPath) : null
 }
