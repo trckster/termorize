@@ -5,6 +5,11 @@ const router = createRouter({
     history: createWebHistory(),
     routes: [
         {
+            path: '/words/:token',
+            name: 'shared-word',
+            component: () => import('@/views/SharedWordPage.vue'),
+        },
+        {
             path: '/',
             name: 'root',
             component: () => import('@/views/RootView.vue'),
@@ -19,7 +24,6 @@ const router = createRouter({
             path: '/login/telegram/callback',
             name: 'telegram-login-callback',
             component: () => import('@/views/TelegramLoginCallbackPage.vue'),
-            meta: { guest: true },
         },
         {
             path: '/collections/join/:shareId',

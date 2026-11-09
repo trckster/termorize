@@ -389,6 +389,17 @@ const en = {
 
     // Vocabulary page
     vocabularyTitle: 'Saved Words',
+    vocabularyShareLoading: 'Loading…',
+    vocabularyShareAction: 'Share word',
+    vocabularyShareError: 'Could not create a link for this word. Please try again.',
+    vocabularyShareWordTitle: 'Shared word',
+    vocabularyShareUnavailableTitle: 'Word unavailable',
+    vocabularyShareUnavailable: 'This link is no longer available. Ask your friend for a new link.',
+    vocabularyShareSave: 'Save to my vocabulary',
+    vocabularyShareSaved: 'This word is in your vocabulary.',
+    vocabularyShareSaveError: 'Could not save this word. Please try again.',
+    vocabularyShareSignInHint: 'Sign in with Telegram to save this word to your vocabulary.',
+
     vocabularyAddButton: 'Add Translation',
     vocabularyDialogTitle: 'Add Your Own Translation',
     vocabularyDialogDescription: 'Enter two words/texts and their languages to add a new translation.',
@@ -931,6 +942,17 @@ const ru: typeof en = {
 
     // Vocabulary page
     vocabularyTitle: 'Сохранённые слова',
+    vocabularyShareLoading: 'Загрузка…',
+    vocabularyShareAction: 'Поделиться словом',
+    vocabularyShareError: 'Не удалось создать ссылку на слово. Попробуйте ещё раз.',
+    vocabularyShareWordTitle: 'Слово от друга',
+    vocabularyShareUnavailableTitle: 'Слово недоступно',
+    vocabularyShareUnavailable: 'Эта ссылка больше недоступна. Попросите друга прислать новую.',
+    vocabularyShareSave: 'Добавить в мой словарь',
+    vocabularyShareSaved: 'Это слово есть в вашем словаре.',
+    vocabularyShareSaveError: 'Не удалось сохранить слово. Попробуйте ещё раз.',
+    vocabularyShareSignInHint: 'Войдите через Telegram, чтобы сохранить это слово в своём словаре.',
+
     vocabularyAddButton: 'Добавить перевод',
     vocabularyDialogTitle: 'Добавить свой перевод',
     vocabularyDialogDescription: 'Введите два слова/текста и их языки для добавления нового перевода.',

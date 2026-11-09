@@ -150,6 +150,17 @@ func GetCollectionShareMetadata(c *gin.Context) {
 		decodedPath = ""
 	}
 
+	if strings.HasPrefix(decodedPath, "/words/") {
+		share, err := services.GetPublicVocabularyShare(strings.TrimPrefix(decodedPath, "/words/"))
+		c.Set("shareMetadataNoStore", true)
+		if err != nil {
+			writeCollectionMetadata(c, "Termorize", "This shared word is unavailable.", strings.TrimRight(config.GetPublicURL(), "/"))
+		} else {
+			pair := share.Translation.Original.Word + " — " + share.Translation.Translation.Word
+			writeCollectionMetadata(c, pair+" · Termorize", "Read this word pair and save it to your vocabulary in Termorize.", strings.TrimRight(config.GetPublicURL(), "/")+decodedPath)
+		}
+		return
+	}
 	var collection *services.PublicCollectionDetail
 	switch {
 	case strings.HasPrefix(decodedPath, "/collections/join/"):
@@ -215,7 +226,11 @@ func writeCollectionMetadata(c *gin.Context, title, description, canonicalURL st
 		escapedImageURL,
 	)
 
-	c.Header("Cache-Control", "public, max-age=300")
+	if c.GetBool("shareMetadataNoStore") {
+		c.Header("Cache-Control", "no-store")
+	} else {
+		c.Header("Cache-Control", "public, max-age=300")
+	}
 	c.Data(nethttp.StatusOK, "text/html; charset=utf-8", []byte(metadata))
 }
 

@@ -407,7 +407,7 @@ func DeleteVocabulary(userID uint, vocabID uuid.UUID) error {
 		if err != nil {
 			return err
 		}
-		if err := tx.Model(&vocabulary).Update("deleted_at", now).Error; err != nil {
+		if err := tx.Model(&vocabulary).Updates(map[string]any{"deleted_at": now, "share_token": nil}).Error; err != nil {
 			return err
 		}
 
