@@ -63,11 +63,11 @@ const finishDismissal = (id: string) => {
 }
 
 .toast-notification[data-state='open'] {
-    animation: toast-enter 420ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    animation: toast-enter 1000ms cubic-bezier(0.25, 0.1, 0.25, 1) backwards;
 }
 
 .toast-notification[data-state='closed'] {
-    animation: toast-exit 180ms ease-in forwards;
+    animation: toast-exit 400ms ease-in forwards;
 }
 
 .toast-notification[data-swipe='move'] {
@@ -83,7 +83,7 @@ const finishDismissal = (id: string) => {
 
 .toast-notification[data-swipe='end'] {
     --toast-exit-x: var(--reka-toast-swipe-end-x);
-    animation: toast-exit 180ms ease-in forwards;
+    animation: toast-exit 400ms ease-in forwards;
 }
 
 @media (min-width: 640px) {

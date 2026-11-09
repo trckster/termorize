@@ -71,9 +71,17 @@ for (const width of [390, 1440]) {
             await page
                 .locator('.toast-notification')
                 .filter({ hasText: 'Link copied' })
-                .evaluate((element) =>
-                    element.getAnimations().some((animation) => Number(animation.effect?.getTiming().duration) >= 300)
-                )
+                .evaluate((element) => {
+                    const animation = element.getAnimations()[0]
+                    if (!animation) return false
+                    animation.pause()
+                    animation.currentTime = 200
+                    const earlyPosition = element.getBoundingClientRect().y
+                    animation.currentTime = 700
+                    const laterPosition = element.getBoundingClientRect().y
+                    animation.play()
+                    return Math.abs(laterPosition - earlyPosition) > 20
+                })
         ).toBe(true)
         expect(await page.evaluate(() => (window as any).copiedShareLink)).toBe('http://127.0.0.1:4173/words/token')
         await expect(page.getByRole('dialog')).toHaveCount(0)
