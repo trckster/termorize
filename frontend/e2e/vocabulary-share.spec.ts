@@ -29,7 +29,6 @@ for (const width of [390, 1440]) {
     test(`share a word directly at ${width}px`, async ({ page }) => {
         await page.setViewportSize({ width, height: 900 })
         let fail = true
-        let revoked = false
         const calls: string[] = []
         await page.route('http://127.0.0.1:4173/api/**', async (route) => {
             const path = new URL(route.request().url()).pathname
@@ -37,10 +36,6 @@ for (const width of [390, 1440]) {
             if (path === '/api/me') return route.fulfill({ json: user })
             if (path === '/api/settings') return route.fulfill({ json: { languages: ['en', 'it'] } })
             if (path === '/api/vocabulary/item-one/share') {
-                if (route.request().method() === 'DELETE') {
-                    revoked = true
-                    return route.fulfill({ status: 204 })
-                }
                 if (fail) return route.fulfill({ status: 503, json: {} })
                 return route.fulfill({ json: { translation: item.translation, share_path: '/words/token' } })
             }
@@ -50,29 +45,56 @@ for (const width of [390, 1440]) {
                 })
             return route.fulfill({ json: {} })
         })
-        await page.goto('/vocabulary')
-        await expect(page.getByRole('checkbox')).toHaveCount(0)
-        await page.getByRole('button', { name: 'Share word forest' }).click()
-        await expect(page.getByRole('alert')).toContainText('Could not create a link')
-        fail = false
-        await page.getByRole('button', { name: 'Retry' }).click()
-        await expect(page.getByLabel('Share link')).toHaveValue('http://127.0.0.1:4173/words/token')
-        await page.evaluate(() =>
+        await page.addInitScript(() =>
             Object.defineProperty(navigator, 'clipboard', {
                 configurable: true,
                 value: {
-                    writeText: async () => {
-                        throw new Error('denied')
+                    writeText: async (text: string) => {
+                        ;(window as any).copiedShareLink = text
                     },
                 },
             })
         )
-        await page.getByRole('button', { name: 'Copy link' }).click()
-        await expect(page.getByRole('alert')).toContainText('Select and copy it')
-        await page.screenshot({ path: `/tmp/termorize-word-share-${width}.png`, fullPage: true })
-        await page.getByRole('button', { name: 'Stop sharing', exact: true }).click()
+        await page.goto('/vocabulary')
+        const shareButton = page.getByRole('button', { name: 'Share word forest' })
+        await shareButton.click()
+        await expect(
+            page.getByText('Could not create a link for this word. Please try again.', { exact: true })
+        ).toBeVisible()
         await expect(page.getByRole('dialog')).toHaveCount(0)
-        expect(revoked).toBe(true)
+        await page.getByRole('button', { name: 'Close', exact: true }).click()
+        fail = false
+        await shareButton.click()
+        await expect(page.getByText('Link copied', { exact: true })).toBeVisible()
+        expect(await page.evaluate(() => (window as any).copiedShareLink)).toBe('http://127.0.0.1:4173/words/token')
+        await expect(page.getByRole('dialog')).toHaveCount(0)
+        await page.getByText('Link copied', { exact: true }).evaluate(async (element) => {
+            const toast = element.closest('li')
+            if (toast) await Promise.all(toast.getAnimations().map((animation) => animation.finished))
+        })
+        await page.screenshot({ path: `/tmp/termorize-direct-copy-${width}.png`, fullPage: true })
+        await page.getByRole('button', { name: 'Close', exact: true }).click()
+        await page.evaluate(() => {
+            navigator.clipboard.writeText = async () => {
+                throw new Error('Denied')
+            }
+            document.execCommand = () => false
+        })
+        await shareButton.click()
+        await expect(page.getByText('Could not copy the link. Please try again.', { exact: true })).toBeVisible()
+        await expect(page.getByText('Link copied', { exact: true })).toHaveCount(0)
+        await page.getByRole('button', { name: 'Close', exact: true }).click()
+        await page.evaluate(() => {
+            document.execCommand = () => {
+                ;(window as any).copiedShareLink = (document.activeElement as HTMLTextAreaElement).value
+                return true
+            }
+        })
+        await shareButton.click()
+        await expect(page.getByText('Link copied', { exact: true })).toBeVisible()
+        expect(await page.evaluate(() => (window as any).copiedShareLink)).toBe('http://127.0.0.1:4173/words/token')
+        await expect(shareButton).toBeFocused()
+        await expect(page.locator('textarea')).toHaveCount(0)
         expect(calls.some((call) => call.includes('/collections'))).toBe(false)
     })
 
