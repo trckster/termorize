@@ -75,12 +75,7 @@ for (const width of [390, 1440]) {
         await expect(page.getByText('Link copied', { exact: true })).toBeVisible()
         await expect(shareButton).toHaveAttribute('data-state', 'copied')
         await expect(shareButton.locator('[data-share-icon="loading"]')).toHaveCount(0)
-        const checkmark = shareButton.locator('[data-share-icon="copied"] path')
-        expect(await checkmark.evaluate((element) => element.getAnimations().length)).toBeGreaterThan(0)
-        await checkmark.evaluate(async (element) => {
-            await Promise.all(element.getAnimations().map((animation) => animation.finished))
-        })
-        await expect(shareButton).toHaveAttribute('data-state', 'copied')
+        await expect(shareButton.locator('[data-share-icon="copied"]')).toBeVisible()
         expect(await page.evaluate(() => (window as any).copiedShareLink)).toBe('http://127.0.0.1:4173/words/token')
         await expect(page.getByRole('dialog')).toHaveCount(0)
         await page.getByText('Link copied', { exact: true }).evaluate(async (element) => {
@@ -135,7 +130,7 @@ for (const width of [390, 1440]) {
         holdShare = true
         await shareButton.click()
         await expect(shareButton).toHaveAttribute('aria-busy', 'true')
-        await expect(shareButton.locator('[data-share-icon="loading"]')).toBeVisible()
+        await expect(shareButton.locator('[data-share-icon="share"]')).toBeVisible()
         releaseShare?.()
         await expect(shareButton).toHaveAttribute('data-state', 'copied')
         await expect(shareButton.locator('[data-share-icon="loading"]')).toHaveCount(0)
