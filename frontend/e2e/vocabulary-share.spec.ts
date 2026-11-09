@@ -29,6 +29,8 @@ for (const width of [390, 1440]) {
     test(`share a word directly at ${width}px`, async ({ page }) => {
         await page.setViewportSize({ width, height: 900 })
         let fail = true
+        let holdShare = false
+        let releaseShare: (() => void) | undefined
         const calls: string[] = []
         await page.route('http://127.0.0.1:4173/api/**', async (route) => {
             const path = new URL(route.request().url()).pathname
@@ -36,6 +38,10 @@ for (const width of [390, 1440]) {
             if (path === '/api/me') return route.fulfill({ json: user })
             if (path === '/api/settings') return route.fulfill({ json: { languages: ['en', 'it'] } })
             if (path === '/api/vocabulary/item-one/share') {
+                if (holdShare)
+                    await new Promise<void>((resolve) => {
+                        releaseShare = resolve
+                    })
                 if (fail) return route.fulfill({ status: 503, json: {} })
                 return route.fulfill({ json: { translation: item.translation, share_path: '/words/token' } })
             }
@@ -67,22 +73,14 @@ for (const width of [390, 1440]) {
         fail = false
         await shareButton.click()
         await expect(page.getByText('Link copied', { exact: true })).toBeVisible()
-        expect(
-            await page
-                .locator('.toast-notification')
-                .filter({ hasText: 'Link copied' })
-                .evaluate((element) => {
-                    const animation = element.getAnimations()[0]
-                    if (!animation) return false
-                    animation.pause()
-                    animation.currentTime = 200
-                    const earlyPosition = element.getBoundingClientRect().y
-                    animation.currentTime = 700
-                    const laterPosition = element.getBoundingClientRect().y
-                    animation.play()
-                    return Math.abs(laterPosition - earlyPosition) > 20
-                })
-        ).toBe(true)
+        await expect(shareButton).toHaveAttribute('data-state', 'copied')
+        await expect(shareButton.locator('[data-share-icon="loading"]')).toHaveCount(0)
+        const checkmark = shareButton.locator('[data-share-icon="copied"] path')
+        expect(await checkmark.evaluate((element) => element.getAnimations().length)).toBeGreaterThan(0)
+        await checkmark.evaluate(async (element) => {
+            await Promise.all(element.getAnimations().map((animation) => animation.finished))
+        })
+        await expect(shareButton).toHaveAttribute('data-state', 'copied')
         expect(await page.evaluate(() => (window as any).copiedShareLink)).toBe('http://127.0.0.1:4173/words/token')
         await expect(page.getByRole('dialog')).toHaveCount(0)
         await page.getByText('Link copied', { exact: true }).evaluate(async (element) => {
@@ -100,6 +98,7 @@ for (const width of [390, 1440]) {
         })
         await shareButton.click()
         await expect(page.getByText('Could not copy the link. Please try again.', { exact: true })).toBeVisible()
+        await expect(shareButton).toHaveAttribute('data-state', 'idle')
         await expect(page.getByText('Link copied', { exact: true })).toHaveCount(0)
         await page.getByRole('button', { name: 'Close', exact: true }).click()
         await expect(page.locator('.toast-notification[data-state=closed]')).toHaveCount(0)
@@ -115,10 +114,12 @@ for (const width of [390, 1440]) {
         await expect(shareButton).toBeFocused()
         await expect(page.locator('textarea')).toHaveCount(0)
         await expect(page.getByText('Link copied', { exact: true })).toHaveCount(0, { timeout: 6000 })
+        await expect(shareButton).toHaveAttribute('data-state', 'idle')
         await page.emulateMedia({ reducedMotion: 'reduce' })
         await shareButton.click()
         const reducedToast = page.locator('.toast-notification').filter({ hasText: 'Link copied' })
         await expect(reducedToast).toBeVisible()
+        await expect(shareButton).toHaveAttribute('data-state', 'copied')
         await expect(reducedToast).toHaveCSS('transform', 'none')
         await reducedToast.evaluate((element) =>
             element.addEventListener('animationstart', () => {
@@ -131,6 +132,13 @@ for (const width of [390, 1440]) {
         await expect(reducedToast).toBeVisible()
         await reducedToast.evaluate((element) => element.getAnimations().forEach((animation) => animation.finish()))
         await expect(reducedToast).toHaveCount(0)
+        holdShare = true
+        await shareButton.click()
+        await expect(shareButton).toHaveAttribute('aria-busy', 'true')
+        await expect(shareButton.locator('[data-share-icon="loading"]')).toBeVisible()
+        releaseShare?.()
+        await expect(shareButton).toHaveAttribute('data-state', 'copied')
+        await expect(shareButton.locator('[data-share-icon="loading"]')).toHaveCount(0)
         expect(calls.some((call) => call.includes('/collections'))).toBe(false)
     })
 
