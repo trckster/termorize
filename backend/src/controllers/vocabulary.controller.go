@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"errors"
 	nethttp "net/http"
 	"strconv"
 	"termorize/src/http/validators"
@@ -155,4 +156,21 @@ func respondVocabularyShareError(c *gin.Context, err error) {
 		return
 	}
 	ServerError(c, err)
+}
+
+func SaveSharedVocabulary(c *gin.Context) {
+	vocabulary, err := services.SaveSharedVocabulary(c.MustGet("userID").(uint), c.Param("token"))
+	if err != nil {
+		if errors.Is(err, services.ErrSharedVocabularyRequiresAccount) {
+			c.JSON(nethttp.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		if services.VocabularyAlreadyExistsError(err) {
+			c.JSON(nethttp.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
+		respondVocabularyShareError(c, err)
+		return
+	}
+	c.JSON(nethttp.StatusCreated, vocabulary)
 }

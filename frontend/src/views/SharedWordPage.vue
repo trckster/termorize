@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Loader2 } from '@lucide/vue'
 import { vocabularyApi, type VocabularyShare } from '@/api/vocabulary'
@@ -23,6 +23,7 @@ const busy = ref(false)
 const loginBusy = ref(false)
 const error = ref('')
 const saved = ref(false)
+const hasPermanentAccount = computed(() => !!auth.user && !auth.user.guest_expires_at)
 const originalTitle = document.title
 let request = 0
 
@@ -45,12 +46,11 @@ async function load() {
 }
 
 async function save() {
-    if (!share.value || busy.value || loginBusy.value) return
+    if (!share.value || !hasPermanentAccount.value || busy.value || loginBusy.value) return
     busy.value = true
     error.value = ''
     try {
-        if (!auth.isAuthenticated) await auth.continueAsGuest()
-        await vocabularyApi.saveSharedVocabulary(share.value.translation.id)
+        await vocabularyApi.saveSharedVocabulary(String(route.params.token))
         saved.value = true
     } catch (err) {
         if ((err as { status?: number }).status === 409) saved.value = true
@@ -81,6 +81,12 @@ async function login() {
 }
 
 watch(() => route.params.token, load, { immediate: true })
+watch(
+    () => auth.user?.id,
+    () => {
+        saved.value = false
+    }
+)
 onBeforeUnmount(() => {
     request++
     document.title = originalTitle
@@ -136,13 +142,18 @@ onBeforeUnmount(() => {
                         >
                     </template>
                     <template v-else>
-                        <Button class="min-h-11 w-full" :disabled="busy || loginBusy" @click="save">
+                        <Button
+                            v-if="hasPermanentAccount"
+                            class="min-h-11 w-full"
+                            :disabled="busy || loginBusy"
+                            @click="save"
+                        >
                             <Loader2 v-if="busy" class="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />{{
                                 t.vocabularyShareSave
                             }}
                         </Button>
-                        <template v-if="!auth.isAuthenticated">
-                            <p class="text-sm text-muted-foreground">{{ t.vocabularyShareGuestHint }}</p>
+                        <template v-if="!hasPermanentAccount">
+                            <p class="text-sm text-muted-foreground">{{ t.vocabularyShareSignInHint }}</p>
                             <TelegramLogin :loading="loginBusy" :inside-telegram="isTelegramWebApp()" @start="login" />
                         </template>
                     </template>

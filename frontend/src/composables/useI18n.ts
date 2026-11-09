@@ -406,7 +406,7 @@ const en = {
     vocabularyShareSave: 'Save to my vocabulary',
     vocabularyShareSaved: 'This word is in your vocabulary.',
     vocabularyShareSaveError: 'Could not save this word. Please try again.',
-    vocabularyShareGuestHint: 'Save as a guest to try Termorize, or sign in with Telegram to keep it in your account.',
+    vocabularyShareSignInHint: 'Sign in with Telegram to save this word to your vocabulary.',
 
     vocabularyAddButton: 'Add Translation',
     vocabularyDialogTitle: 'Add Your Own Translation',
@@ -967,8 +967,7 @@ const ru: typeof en = {
     vocabularyShareSave: 'Добавить в мой словарь',
     vocabularyShareSaved: 'Это слово есть в вашем словаре.',
     vocabularyShareSaveError: 'Не удалось сохранить слово. Попробуйте ещё раз.',
-    vocabularyShareGuestHint:
-        'Сохраните слово как гость, чтобы попробовать Termorize, или войдите через Telegram для сохранения в своём аккаунте.',
+    vocabularyShareSignInHint: 'Войдите через Telegram, чтобы сохранить это слово в своём словаре.',
 
     vocabularyAddButton: 'Добавить перевод',
     vocabularyDialogTitle: 'Добавить свой перевод',

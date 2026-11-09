@@ -10,6 +10,7 @@ import (
 	"termorize/src/services"
 	"termorize/src/testkit"
 	"testing"
+	"time"
 )
 
 func TestShareVocabularyPublicPreviewAndImport(t *testing.T) {
@@ -39,9 +40,9 @@ func TestShareVocabularyPublicPreviewAndImport(t *testing.T) {
 	var collections int64
 	require.NoError(t, db.DB.Model(&models.Collection{}).Count(&collections).Error)
 	require.Zero(t, collections)
-	imported := testkit.AuthedRequest(t, friend, http.MethodPost, "/api/vocabulary/translation", map[string]any{"translation_id": share.Translation.ID})
+	imported := testkit.AuthedRequest(t, friend, http.MethodPost, "/api/vocabulary-shares/"+token+"/save", nil)
 	testkit.RequireStatus(t, imported, http.StatusCreated)
-	testkit.RequireStatus(t, testkit.AuthedRequest(t, friend, http.MethodPost, "/api/vocabulary/translation", map[string]any{"translation_id": share.Translation.ID}), http.StatusConflict)
+	testkit.RequireStatus(t, testkit.AuthedRequest(t, friend, http.MethodPost, "/api/vocabulary-shares/"+token+"/save", nil), http.StatusConflict)
 	meta := testkit.Request(t, http.MethodGet, "/api/public/collection-share-metadata?path="+share.SharePath, nil)
 	testkit.RequireStatus(t, meta, http.StatusOK)
 	require.Contains(t, meta.Body.String(), "forest — Wald")
@@ -78,4 +79,34 @@ func TestShareVocabularyRequiresOwnership(t *testing.T) {
 	for _, token := range []string{"invalid", strings.Repeat("a", 22)} {
 		testkit.RequireStatus(t, testkit.Request(t, http.MethodGet, "/api/public/vocabulary/"+token, nil), http.StatusNotFound)
 	}
+}
+
+func TestSaveSharedVocabularyRequiresPermanentAccountAndActiveShare(t *testing.T) {
+	testkit.Truncate(t)
+	owner := testkit.CreateUser(t)
+	friend := testkit.CreateUser(t)
+	guest := testkit.CreateUser(t)
+	require.NoError(t, db.DB.Model(&guest).Update("guest_expires_at", time.Now().Add(time.Hour)).Error)
+	item := seedVocabularyForWordDeletion(t, owner.ID, "forest", "Wald")
+	other := seedVocabularyForWordDeletion(t, owner.ID, "river", "Fluss")
+	share, err := services.ShareVocabulary(owner.ID, item.ID)
+	require.NoError(t, err)
+	token := strings.TrimPrefix(share.SharePath, "/words/")
+	savePath := "/api/vocabulary-shares/" + token + "/save"
+	testkit.RequireStatus(t, testkit.Request(t, http.MethodPost, savePath, nil), http.StatusUnauthorized)
+	testkit.RequireStatus(t, testkit.AuthedRequest(t, guest, http.MethodPost, savePath, nil), http.StatusForbidden)
+	var count int64
+	require.NoError(t, db.DB.Model(&models.Vocabulary{}).Where("user_id = ?", guest.ID).Count(&count).Error)
+	require.Zero(t, count)
+	// The link determines which word is saved, regardless of a supplied translation ID.
+	rec := testkit.AuthedRequest(t, friend, http.MethodPost, savePath, map[string]any{"translation_id": other.TranslationID})
+	testkit.RequireStatus(t, rec, http.StatusCreated)
+	var saved models.Vocabulary
+	testkit.DecodeJSON(t, rec, &saved)
+	require.Equal(t, item.TranslationID, saved.Translation.ID)
+	require.NoError(t, db.DB.Model(&models.Vocabulary{}).Where("user_id = ?", friend.ID).Count(&count).Error)
+	require.EqualValues(t, 1, count)
+	require.NoError(t, services.StopSharingVocabulary(owner.ID, item.ID))
+	testkit.RequireStatus(t, testkit.AuthedRequest(t, friend, http.MethodPost, savePath, nil), http.StatusNotFound)
+	testkit.RequireStatus(t, testkit.AuthedRequest(t, friend, http.MethodPost, "/api/vocabulary-shares/invalid/save", nil), http.StatusNotFound)
 }

@@ -33,6 +33,7 @@ func defineProtectedRoutes(group *gin.RouterGroup) {
 	group.GET("/admin/word-pronunciations/:id/audio", controllers.GetAdminWordPronunciationAudio)
 	group.DELETE("/admin/word-pronunciations/:id", controllers.RegenerateAdminWordPronunciation)
 
+	group.POST("/vocabulary-shares/:token/save", controllers.SaveSharedVocabulary)
 	group.GET("/vocabulary", controllers.GetVocabulary)
 	group.POST("/vocabulary", controllers.CreateVocabulary)
 	group.POST("/vocabulary/:id/share", controllers.ShareVocabulary)

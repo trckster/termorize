@@ -69,3 +69,20 @@ func GetPublicVocabularyShare(token string) (*VocabularyShare, error) {
 	}
 	return &VocabularyShare{Translation: item.Translation, SharePath: "/words/" + token}, nil
 }
+
+var ErrSharedVocabularyRequiresAccount = errors.New("sign in to a permanent account to save shared words")
+
+func SaveSharedVocabulary(userID uint, token string) (*models.Vocabulary, error) {
+	user, err := GetUserByID(userID)
+	if err != nil {
+		return nil, err
+	}
+	if user.GuestExpiresAt != nil {
+		return nil, ErrSharedVocabularyRequiresAccount
+	}
+	share, err := GetPublicVocabularyShare(token)
+	if err != nil {
+		return nil, err
+	}
+	return CreateVocabularyByTranslation(userID, share.Translation.ID)
+}

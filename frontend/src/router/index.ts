@@ -24,7 +24,6 @@ const router = createRouter({
             path: '/login/telegram/callback',
             name: 'telegram-login-callback',
             component: () => import('@/views/TelegramLoginCallbackPage.vue'),
-            meta: { guest: true },
         },
         {
             path: '/collections/join/:shareId',

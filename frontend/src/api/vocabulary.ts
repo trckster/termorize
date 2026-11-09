@@ -47,10 +47,8 @@ export const vocabularyApi = {
     async getSharedVocabulary(token: string): Promise<VocabularyShare> {
         return apiCall<VocabularyShare>(`/public/vocabulary/${encodeURIComponent(token)}`).then(unwrapBody)
     },
-    async saveSharedVocabulary(translationId: string): Promise<VocabularyItem> {
-        return apiCall<VocabularyItem>('/vocabulary/translation', 'POST', { translation_id: translationId }).then(
-            unwrapBody
-        )
+    async saveSharedVocabulary(token: string): Promise<VocabularyItem> {
+        return apiCall<VocabularyItem>(`/vocabulary-shares/${encodeURIComponent(token)}/save`, 'POST').then(unwrapBody)
     },
 
     async getVocabulary(page: number = 1, pageSize: number = 100, search?: string): Promise<Paginated<VocabularyItem>> {

@@ -14,6 +14,7 @@ const item = {
 const user = {
     id: 1,
     username: 'owner',
+    guest_expires_at: null,
     settings: {
         system_language: 'en',
         translation_source_language: 'en',
@@ -75,37 +76,61 @@ for (const width of [390, 1440]) {
         expect(calls.some((call) => call.includes('/collections'))).toBe(false)
     })
 
-    test(`public word preview and guest save at ${width}px`, async ({ page }) => {
-        await page.setViewportSize({ width, height: 900 })
-        let authenticated = false
-        let saved = false
-        await page.route('http://127.0.0.1:4173/api/**', async (route) => {
-            const path = new URL(route.request().url()).pathname
-            if (path === '/api/me')
-                return route.fulfill({ status: authenticated ? 200 : 401, json: authenticated ? user : {} })
-            if (path === '/api/settings') return route.fulfill({ json: { languages: ['en', 'it'] } })
-            if (path === '/api/public/vocabulary/token')
-                return route.fulfill({ json: { translation: item.translation, share_path: '/words/token' } })
-            if (path === '/api/guest/login') {
-                authenticated = true
-                return route.fulfill({ json: user })
+    for (const account of ['visitor', 'guest', 'permanent']) {
+        test(`shared word saves only to permanent accounts: ${account} at ${width}px`, async ({ page }) => {
+            await page.setViewportSize({ width, height: 900 })
+            let signedIn = account === 'permanent'
+            let saves = 0
+            let guestLogins = 0
+            await page.route('http://127.0.0.1:4173/api/**', async (route) => {
+                const path = new URL(route.request().url()).pathname
+                if (path === '/api/me') {
+                    if (signedIn) return route.fulfill({ json: user })
+                    if (account === 'guest')
+                        return route.fulfill({ json: { ...user, guest_expires_at: '2099-01-01T00:00:00Z' } })
+                    return route.fulfill({ status: 401, json: {} })
+                }
+                if (path === '/api/settings') return route.fulfill({ json: { languages: ['en', 'it'] } })
+                if (path === '/api/public/vocabulary/token')
+                    return route.fulfill({ json: { translation: item.translation, share_path: '/words/token' } })
+                if (path === '/api/guest/login') {
+                    guestLogins++
+                    return route.fulfill({ status: 500, json: {} })
+                }
+                if (path === '/api/telegram/login/start')
+                    return route.fulfill({
+                        json: { auth_url: 'http://127.0.0.1:4173/login/telegram/callback?code=demo&state=demo' },
+                    })
+                if (path === '/api/telegram/login/callback') {
+                    signedIn = true
+                    return route.fulfill({ json: user })
+                }
+                if (path === '/api/vocabulary-shares/token/save') {
+                    expect(signedIn).toBe(true)
+                    saves++
+                    return route.fulfill({ status: 201, json: item })
+                }
+                return route.fulfill({ status: 404, json: {} })
+            })
+            await page.goto('/words/token')
+            await expect(page.getByText('forest', { exact: true })).toBeVisible()
+            await expect(page.getByText('foresta', { exact: true })).toBeVisible()
+            if (account !== 'permanent') {
+                await expect(page.getByRole('button', { name: 'Save to my vocabulary' })).toHaveCount(0)
+                await expect(
+                    page.getByText('Sign in with Telegram to save this word to your vocabulary.')
+                ).toBeVisible()
+                expect(saves).toBe(0)
+                await page.screenshot({ path: `/tmp/termorize-public-word-${account}-${width}.png`, fullPage: true })
+                await page.getByRole('button', { name: 'Continue via Telegram' }).click()
+                await expect(page).toHaveURL('http://127.0.0.1:4173/words/token')
             }
-            if (path === '/api/vocabulary/translation') {
-                expect(route.request().postDataJSON()).toEqual({ translation_id: 'translation-one' })
-                saved = true
-                return route.fulfill({ status: 201, json: item })
-            }
-            return route.fulfill({ status: 404, json: {} })
+            await page.getByRole('button', { name: 'Save to my vocabulary' }).click()
+            await expect(page.getByRole('status')).toContainText('This word is in your vocabulary')
+            expect(saves).toBe(1)
+            expect(guestLogins).toBe(0)
         })
-        await page.goto('/words/token')
-        await expect(page.getByText('forest', { exact: true })).toBeVisible()
-        await expect(page.getByText('foresta', { exact: true })).toBeVisible()
-        await page.screenshot({ path: `/tmp/termorize-public-word-${width}.png`, fullPage: true })
-        expect(authenticated).toBe(false)
-        await page.getByRole('button', { name: 'Save to my vocabulary' }).click()
-        await expect(page.getByRole('status')).toContainText('This word is in your vocabulary')
-        expect(saved).toBe(true)
-    })
+    }
 }
 
 test('invalid share links show recovery', async ({ page }) => {
