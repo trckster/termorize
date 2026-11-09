@@ -92,7 +92,7 @@ for (const width of [390, 1440]) {
             document.execCommand = () => false
         })
         await shareButton.click()
-        await expect(page.getByText('Could not copy the link. Please try again.', { exact: true })).toBeVisible()
+        await expect(page.getByText('Unable to copy the link. Please try again.', { exact: true })).toBeVisible()
         await expect(shareButton).toHaveAttribute('data-state', 'idle')
         await expect(page.getByText('Link copied', { exact: true })).toHaveCount(0)
         await page.getByRole('button', { name: 'Close', exact: true }).click()

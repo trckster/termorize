@@ -64,14 +64,14 @@ async function shareWord() {
         }, 2000)
         addToast({
             title: t.value.collectionLinkCopiedTitle,
-            description: t.value.vocabularyShareCopiedDescription,
+            description: t.value.collectionLinkCopiedDescription,
             variant: 'success',
             duration: 2500,
         })
     } catch {
         addToast({
             title: t.value.toastErrorTitle,
-            description: t.value.vocabularyShareCopyError,
+            description: t.value.collectionLinkCopiedErrorDescription,
             variant: 'destructive',
         })
     } finally {
