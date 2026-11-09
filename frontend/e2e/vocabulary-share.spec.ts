@@ -63,9 +63,18 @@ for (const width of [390, 1440]) {
         ).toBeVisible()
         await expect(page.getByRole('dialog')).toHaveCount(0)
         await page.getByRole('button', { name: 'Close', exact: true }).click()
+        await expect(page.locator('.toast-notification[data-state=closed]')).toHaveCount(0)
         fail = false
         await shareButton.click()
         await expect(page.getByText('Link copied', { exact: true })).toBeVisible()
+        expect(
+            await page
+                .locator('.toast-notification')
+                .filter({ hasText: 'Link copied' })
+                .evaluate((element) =>
+                    element.getAnimations().some((animation) => Number(animation.effect?.getTiming().duration) >= 300)
+                )
+        ).toBe(true)
         expect(await page.evaluate(() => (window as any).copiedShareLink)).toBe('http://127.0.0.1:4173/words/token')
         await expect(page.getByRole('dialog')).toHaveCount(0)
         await page.getByText('Link copied', { exact: true }).evaluate(async (element) => {
@@ -74,6 +83,7 @@ for (const width of [390, 1440]) {
         })
         await page.screenshot({ path: `/tmp/termorize-direct-copy-${width}.png`, fullPage: true })
         await page.getByRole('button', { name: 'Close', exact: true }).click()
+        await expect(page.locator('.toast-notification[data-state=closed]')).toHaveCount(0)
         await page.evaluate(() => {
             navigator.clipboard.writeText = async () => {
                 throw new Error('Denied')
@@ -84,6 +94,7 @@ for (const width of [390, 1440]) {
         await expect(page.getByText('Could not copy the link. Please try again.', { exact: true })).toBeVisible()
         await expect(page.getByText('Link copied', { exact: true })).toHaveCount(0)
         await page.getByRole('button', { name: 'Close', exact: true }).click()
+        await expect(page.locator('.toast-notification[data-state=closed]')).toHaveCount(0)
         await page.evaluate(() => {
             document.execCommand = () => {
                 ;(window as any).copiedShareLink = (document.activeElement as HTMLTextAreaElement).value
@@ -95,6 +106,23 @@ for (const width of [390, 1440]) {
         expect(await page.evaluate(() => (window as any).copiedShareLink)).toBe('http://127.0.0.1:4173/words/token')
         await expect(shareButton).toBeFocused()
         await expect(page.locator('textarea')).toHaveCount(0)
+        await expect(page.getByText('Link copied', { exact: true })).toHaveCount(0, { timeout: 6000 })
+        await page.emulateMedia({ reducedMotion: 'reduce' })
+        await shareButton.click()
+        const reducedToast = page.locator('.toast-notification').filter({ hasText: 'Link copied' })
+        await expect(reducedToast).toBeVisible()
+        await expect(reducedToast).toHaveCSS('transform', 'none')
+        await reducedToast.evaluate((element) =>
+            element.addEventListener('animationstart', () => {
+                if (element.getAttribute('data-state') === 'closed')
+                    element.getAnimations().forEach((animation) => animation.pause())
+            })
+        )
+        await page.getByRole('button', { name: 'Close', exact: true }).click()
+        await expect(reducedToast).toHaveAttribute('data-state', 'closed')
+        await expect(reducedToast).toBeVisible()
+        await reducedToast.evaluate((element) => element.getAnimations().forEach((animation) => animation.finish()))
+        await expect(reducedToast).toHaveCount(0)
         expect(calls.some((call) => call.includes('/collections'))).toBe(false)
     })
 

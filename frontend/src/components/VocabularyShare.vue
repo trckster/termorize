@@ -54,7 +54,7 @@ async function shareWord() {
             title: t.value.collectionLinkCopiedTitle,
             description: t.value.vocabularyShareCopiedDescription,
             variant: 'success',
-            duration: 2500,
+            duration: 4000,
         })
     } catch {
         addToast({

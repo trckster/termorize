@@ -19,10 +19,6 @@ export function useToast() {
             ...toast,
         }
         toasts.value.push(newToast)
-
-        setTimeout(() => {
-            removeToast(id)
-        }, newToast.duration)
     }
 
     const removeToast = (id: string) => {
