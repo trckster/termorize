@@ -413,7 +413,6 @@ const en = {
     vocabularySearchPlaceholder: 'Search vocabulary...',
     vocabularyShowAll: 'Show all words',
     vocabularyLoading: 'Loading vocabulary…',
-    vocabularyLoadError: 'Could not load your vocabulary. Please try again.',
     vocabularyNoProgress: 'No progress recorded',
     vocabularyProgressTranslation: 'Learning progress',
     vocabularyCreatedAt: 'Created:',
@@ -432,6 +431,7 @@ const en = {
     vocabularyToastAlreadyExistsDescription: 'This vocabulary already exists.',
     vocabularyToastErrorTitle: 'Error',
     vocabularyToastErrorDescription: 'Failed to add translation. Please try again.',
+    vocabularyLoadErrorDescription: 'Failed to load saved words. Please try again.',
     vocabularyDeleteErrorDescription: 'Failed to delete translation. Please try again.',
 
     // Translation page
@@ -969,7 +969,6 @@ const ru: typeof en = {
     vocabularySearchPlaceholder: 'Поиск по словарю...',
     vocabularyShowAll: 'Показать все слова',
     vocabularyLoading: 'Загрузка словаря…',
-    vocabularyLoadError: 'Не удалось загрузить словарь. Попробуйте ещё раз.',
     vocabularyNoProgress: 'Прогресс не записан',
     vocabularyProgressTranslation: 'Прогресс изучения',
     vocabularyCreatedAt: 'Создано:',
@@ -988,6 +987,7 @@ const ru: typeof en = {
     vocabularyToastAlreadyExistsDescription: 'Такой перевод уже существует.',
     vocabularyToastErrorTitle: 'Ошибка',
     vocabularyToastErrorDescription: 'Не удалось добавить перевод. Попробуйте ещё раз.',
+    vocabularyLoadErrorDescription: 'Не удалось загрузить сохранённые слова. Попробуйте ещё раз.',
     vocabularyDeleteErrorDescription: 'Не удалось удалить перевод. Попробуйте ещё раз.',
 
     // Translation page

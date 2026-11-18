@@ -127,7 +127,7 @@ test('retry an incomplete load and keep search active in show-all mode', async (
     const requests = await mockVocabulary(page, (page, pageSize) => failSecondBatch && page === 2 && pageSize === 1000)
     const showAll = page.getByRole('checkbox', { name: 'Show all words' })
     await showAll.check()
-    await expect(page.getByRole('alert')).toHaveText('Could not load your vocabulary. Please try again.')
+    await expect(page.getByRole('alert')).toHaveText('Failed to load saved words. Please try again.')
     const rows = page.getByRole('region', { name: 'Saved Words' }).getByRole('listitem')
     await expect(rows).toHaveCount(0)
 

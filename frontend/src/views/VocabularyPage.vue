@@ -628,7 +628,7 @@ const fetchVocabulary = async (page: number) => {
         if (requestId !== latestVocabularyRequestId) return
         vocabulary.value = []
         paginationData.value = defaultPaginationData()
-        vocabularyErrorMessage.value = t.value.vocabularyLoadError
+        vocabularyErrorMessage.value = t.value.vocabularyLoadErrorDescription
     } finally {
         if (requestId === latestVocabularyRequestId) {
             isLoadingVocabulary.value = false
