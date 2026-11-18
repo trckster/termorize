@@ -1,9 +1,7 @@
-import apiCall, { unwrapBody } from '@/api/index.ts'
+import apiCall, { apiFetch, unwrapBody } from '@/api/index.ts'
 import type { Paginated } from '@/api/pagination.ts'
 import type { Word, VocabularyItem } from '@/api/vocabulary'
 import type { PartOfSpeech } from '@/lib/partOfSpeech'
-
-const API_URL = import.meta.env.VITE_API_URL.replace(/\/$/, '')
 
 export type AdminUser = {
     id: number
@@ -154,8 +152,7 @@ export const adminApi = {
     },
 
     async getWordPronunciationAudio(id: string): Promise<Blob> {
-        const response = await fetch(`${API_URL}/admin/word-pronunciations/${encodeURIComponent(id)}/audio`, {
-            credentials: 'include',
+        const response = await apiFetch(`/admin/word-pronunciations/${encodeURIComponent(id)}/audio`, {
             headers: { Accept: 'audio/mpeg' },
         })
 

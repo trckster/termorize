@@ -1,5 +1,25 @@
 const API_URL = import.meta.env.VITE_API_URL.replace(/\/$/, '')
 
+// Keep framed Mini App sessions in memory for the lifetime of the document.
+let accessToken: string | undefined
+
+export function setApiAccessToken(token?: string): void {
+    accessToken = token
+}
+
+export function hasApiAccessToken(): boolean {
+    return Boolean(accessToken)
+}
+
+export function apiFetch(path: string, options: RequestInit): Promise<Response> {
+    const headers = new Headers(options.headers)
+    if (accessToken) {
+        headers.set('Authorization', `Bearer ${accessToken}`)
+    }
+
+    return fetch(`${API_URL}${path}`, { credentials: 'include', ...options, headers })
+}
+
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
 
 interface ApiResponse<T> {
@@ -17,7 +37,6 @@ export default async function apiCall<T>(
 ): Promise<ApiResponse<T>> {
     const payload: RequestInit = {
         method: method,
-        credentials: 'include',
         headers: {
             Accept: 'application/json',
             'Content-Type': 'application/json',
@@ -25,14 +44,12 @@ export default async function apiCall<T>(
         },
     }
 
-    let fullUrl = `${API_URL}${url}`
-
     const dataToSend = sanitizeData(data)
 
     if (method !== 'GET') {
         payload.body = JSON.stringify(dataToSend)
     } else if (Object.keys(dataToSend).length > 0) {
-        fullUrl +=
+        url +=
             '?' +
             new URLSearchParams(
                 Object.entries(dataToSend).reduce<Record<string, string>>((acc, [key, value]) => {
@@ -45,7 +62,7 @@ export default async function apiCall<T>(
     let response: Response
 
     try {
-        response = await fetch(fullUrl, payload)
+        response = await apiFetch(url, payload)
     } catch (error) {
         return Promise.reject({
             status: 0,

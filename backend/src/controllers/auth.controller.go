@@ -10,6 +10,7 @@ import (
 	"termorize/src/config"
 	"termorize/src/enums"
 	"termorize/src/http/validators"
+	"termorize/src/models"
 	"termorize/src/services"
 	"time"
 
@@ -55,7 +56,8 @@ func CompleteTelegramLogin(c *gin.Context) {
 		err     error
 	)
 
-	if strings.TrimSpace(request.InitData) != "" {
+	isMiniApp := strings.TrimSpace(request.InitData) != ""
+	if isMiniApp {
 		profile, err = auth.ValidateTelegramInitData(request.InitData)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
@@ -103,7 +105,18 @@ func CompleteTelegramLogin(c *gin.Context) {
 		return
 	}
 
-	auth.SetAuthCookie(c, auth.IssueJWT(user.ID))
+	token := auth.IssueJWT(user.ID)
+	if isMiniApp && request.BearerSession {
+		// A cross-site Mini App frame cannot use the SameSite session cookie.
+		c.Header("Cache-Control", "no-store")
+		c.JSON(http.StatusOK, struct {
+			*models.User
+			AccessToken string `json:"access_token"`
+		}{User: user, AccessToken: token})
+		return
+	}
+
+	auth.SetAuthCookie(c, token)
 	c.JSON(http.StatusOK, user)
 }
 

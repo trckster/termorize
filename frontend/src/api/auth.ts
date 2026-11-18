@@ -1,4 +1,4 @@
-import apiCall, { unwrapBody } from '@/api/index.ts'
+import apiCall, { setApiAccessToken, unwrapBody } from '@/api/index.ts'
 
 export interface TelegramLoginStartResponse {
     auth_url: string
@@ -52,20 +52,31 @@ export const authApi = {
     },
 
     async completeTelegramLogin(payload: TelegramLoginCallbackPayload): Promise<User | null> {
-        return apiCall<User>('/telegram/login/callback', 'POST', payload, {
-            'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-        }).then(unwrapBody)
+        const bearerSession = Boolean(payload.init_data) && window.parent !== window
+        const { body } = await apiCall<(User & { access_token?: string }) | null>(
+            '/telegram/login/callback',
+            'POST',
+            { ...payload, bearer_session: bearerSession || undefined },
+            { 'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' }
+        )
+        if (!body) return null
+
+        const { access_token, ...user } = body
+        setApiAccessToken(bearerSession ? access_token : undefined)
+        return user
     },
 
     async continueAsGuest(): Promise<User> {
-        return apiCall<User>(
+        const { body } = await apiCall<User>(
             '/guest/login',
             'POST',
             {},
             {
                 'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
             }
-        ).then(unwrapBody)
+        )
+        setApiAccessToken()
+        return body
     },
 
     async getCurrentUser(): Promise<User | null> {
@@ -74,5 +85,6 @@ export const authApi = {
 
     async logout(): Promise<void> {
         await apiCall<void>('/logout', 'POST')
+        setApiAccessToken()
     },
 }

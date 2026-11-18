@@ -565,7 +565,7 @@ const fetchVocabulary = async (page: number) => {
     } catch {
         vocabulary.value = []
         paginationData.value = defaultPaginationData()
-        vocabularyErrorMessage.value = t.value.vocabularyToastErrorDescription
+        vocabularyErrorMessage.value = t.value.vocabularyLoadErrorDescription
     } finally {
         isLoadingVocabulary.value = false
     }
