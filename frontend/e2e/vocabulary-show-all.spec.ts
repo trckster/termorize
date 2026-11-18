@@ -76,38 +76,50 @@ const mockVocabulary = async (page: Page, shouldFail = (_page: number, _pageSize
     return requests
 }
 
-test('show all words across multiple batches in one-line rows on mobile', async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 900 })
-    const requests = await mockVocabulary(page)
-    const pagination = page.locator('[data-slot="pagination"]')
-    const showAll = page.getByRole('checkbox', { name: 'Show all words' })
-    await expect(showAll).not.toBeChecked()
-    await pagination.getByRole('button', { name: 'Page 2', exact: true }).click()
-    await expect(page.getByText('word 21', { exact: true })).toBeVisible()
+test.describe('on mobile', () => {
+    test.use({ isMobile: true, hasTouch: true })
 
-    await showAll.check()
-    await expect(pagination).toHaveCount(0)
-    const compactList = page.getByRole('region', { name: 'Saved Words' })
-    const rows = compactList.getByRole('listitem')
-    await expect(rows).toHaveCount(words.length)
-    await expect(rows.last()).toContainText('word 1002')
-    expect(requests.slice(-2)).toEqual([
-        { page: 1, pageSize: 1000, search: '' },
-        { page: 2, pageSize: 1000, search: '' },
-    ])
+    for (const width of [320, 390]) {
+        test(`show all words in one-line rows at ${width}px`, async ({ page }) => {
+            await page.setViewportSize({ width, height: 900 })
+            const requests = await mockVocabulary(page)
+            const pagination = page.locator('[data-slot="pagination"]')
+            const showAll = page.getByRole('checkbox', { name: 'Show all words' })
+            await expect(showAll).not.toBeChecked()
+            await pagination.getByRole('button', { name: 'Page 2', exact: true }).click()
+            await expect(page.getByText('word 21', { exact: true })).toBeVisible()
 
-    const longPair = rows.first()
-    await expect(longPair).toHaveCSS('white-space', 'nowrap')
-    await expect(longPair).toContainText(words[0].translation.translation.word)
-    expect((await longPair.boundingBox())!.height).toBeLessThanOrEqual(25)
-    expect(await compactList.evaluate((list) => list.scrollWidth > list.clientWidth)).toBe(true)
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+            await showAll.tap()
+            await expect(showAll).toBeChecked()
+            await expect(pagination).toHaveCount(0)
+            const compactList = page.getByRole('region', { name: 'Saved Words' })
+            const rows = compactList.getByRole('listitem')
+            await expect(rows).toHaveCount(words.length)
+            await expect(rows.last()).toContainText('word 1002')
+            expect(requests.slice(-2)).toEqual([
+                { page: 1, pageSize: 1000, search: '' },
+                { page: 2, pageSize: 1000, search: '' },
+            ])
 
-    await showAll.uncheck()
-    await expect(compactList).toHaveCount(0)
-    await expect(pagination).toBeVisible()
-    await expect(page.getByText('word 21', { exact: true })).toBeVisible()
-    expect(requests.at(-1)).toEqual({ page: 2, pageSize: 20, search: '' })
+            const longPair = rows.first()
+            await expect(longPair.getByRole('img', { name: 'English' })).toHaveText('🇬🇧')
+            await expect(longPair.getByRole('img', { name: 'Italian' })).toHaveText('🇮🇹')
+            await expect(longPair).toHaveCSS('white-space', 'nowrap')
+            await expect(longPair).toContainText(words[0].translation.translation.word)
+            expect((await longPair.boundingBox())!.height).toBeLessThanOrEqual(25)
+            expect(await compactList.evaluate((list) => list.scrollWidth > list.clientWidth)).toBe(true)
+            await compactList.evaluate((list) => list.scrollBy(200, 0))
+            expect(await compactList.evaluate((list) => list.scrollLeft)).toBeGreaterThan(0)
+            expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+
+            await showAll.tap()
+            await expect(showAll).not.toBeChecked()
+            await expect(compactList).toHaveCount(0)
+            await expect(pagination).toBeVisible()
+            await expect(page.getByText('word 21', { exact: true })).toBeVisible()
+            expect(requests.at(-1)).toEqual({ page: 2, pageSize: 20, search: '' })
+        })
+    }
 })
 
 test('retry an incomplete load and keep search active in show-all mode', async ({ page }) => {

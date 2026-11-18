@@ -141,10 +141,22 @@
             >
                 <ul role="list" class="w-max min-w-full divide-y divide-border text-sm leading-5">
                     <li v-for="item in vocabulary" :key="item.id" class="whitespace-nowrap px-2 py-0.5">
+                        <span
+                            class="me-1"
+                            role="img"
+                            :aria-label="getLanguageName(item.translation.original.language)"
+                            >{{ settingsStore.getFlag(item.translation.original.language) }}</span
+                        >
                         <bdi :lang="item.translation.original.language" class="font-medium">{{
                             item.translation.original.word
                         }}</bdi>
                         <span aria-hidden="true" class="mx-2 text-muted-foreground">→</span>
+                        <span
+                            class="me-1"
+                            role="img"
+                            :aria-label="getLanguageName(item.translation.translation.language)"
+                            >{{ settingsStore.getFlag(item.translation.translation.language) }}</span
+                        >
                         <bdi :lang="item.translation.translation.language">{{ item.translation.translation.word }}</bdi>
                     </li>
                 </ul>
