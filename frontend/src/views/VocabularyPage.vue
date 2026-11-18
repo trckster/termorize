@@ -90,22 +90,34 @@
                 </Dialog>
             </div>
 
-            <div class="relative mb-6 max-w-md">
-                <input
-                    id="vocabulary-search"
-                    v-model="searchInput"
-                    name="vocabulary-search"
-                    type="text"
-                    :placeholder="t.vocabularySearchPlaceholder"
-                    :aria-label="t.vocabularySearchPlaceholder"
-                    class="min-h-11 w-full rounded-md border border-border bg-background px-3 py-2 pr-9 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm"
-                />
-                <span
-                    v-if="isLoadingVocabulary"
-                    class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                >
-                    <Loader2 class="h-4 w-4 animate-spin" />
-                </span>
+            <div class="mb-6 flex flex-col items-start gap-x-4 sm:flex-row sm:items-center">
+                <div class="relative w-full max-w-md">
+                    <input
+                        id="vocabulary-search"
+                        v-model="searchInput"
+                        name="vocabulary-search"
+                        type="text"
+                        :placeholder="t.vocabularySearchPlaceholder"
+                        :aria-label="t.vocabularySearchPlaceholder"
+                        class="min-h-11 w-full rounded-md border border-border bg-background px-3 py-2 pr-9 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm"
+                    />
+                    <span
+                        v-if="isLoadingVocabulary"
+                        class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                        role="status"
+                    >
+                        <Loader2 aria-hidden="true" class="h-4 w-4 animate-spin" />
+                        <span class="sr-only">{{ t.vocabularyLoading }}</span>
+                    </span>
+                </div>
+                <label class="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium text-foreground">
+                    <input
+                        v-model="showAll"
+                        type="checkbox"
+                        class="h-5 w-5 rounded border-border accent-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    />
+                    {{ t.vocabularyShowAll }}
+                </label>
             </div>
 
             <div
@@ -113,7 +125,7 @@
                 class="mb-6 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
             >
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <span>{{ vocabularyErrorMessage }}</span>
+                    <span role="alert">{{ vocabularyErrorMessage }}</span>
                     <Button variant="outline" size="sm" @click="fetchVocabulary(currentPage)">{{
                         t.commonRetry
                     }}</Button>
@@ -121,7 +133,25 @@
             </div>
 
             <div
-                v-if="vocabulary.length > 0"
+                v-if="showAll && vocabulary.length > 0"
+                :aria-label="t.vocabularyTitle"
+                role="region"
+                tabindex="0"
+                class="mb-4 overflow-x-auto rounded-md border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+                <ul role="list" class="w-max min-w-full divide-y divide-border text-sm leading-5">
+                    <li v-for="item in vocabulary" :key="item.id" class="whitespace-nowrap px-2 py-0.5">
+                        <bdi :lang="item.translation.original.language" class="font-medium">{{
+                            item.translation.original.word
+                        }}</bdi>
+                        <span aria-hidden="true" class="mx-2 text-muted-foreground">→</span>
+                        <bdi :lang="item.translation.translation.language">{{ item.translation.translation.word }}</bdi>
+                    </li>
+                </ul>
+            </div>
+
+            <div
+                v-else-if="vocabulary.length > 0"
                 class="mb-8 grid grid-cols-1 gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(12rem,18rem)_auto]"
             >
                 <div
@@ -312,12 +342,13 @@
                 </Button>
             </div>
 
-            <div v-if="paginationData.total > 0" class="space-y-3">
+            <div v-if="vocabularyTotal > 0" class="space-y-3">
                 <p class="text-center text-sm text-muted-foreground">
-                    {{ t.vocabularyTotalCount }}: {{ formatNumber(paginationData.total) }}
+                    {{ t.vocabularyTotalCount }}: {{ formatNumber(vocabularyTotal) }}
                 </p>
 
                 <Pagination
+                    v-if="!showAll"
                     v-slot="{ page }"
                     :total="paginationData.total"
                     :items-per-page="paginationData.page_size"
@@ -348,7 +379,7 @@ import VocabularyShare from '@/components/VocabularyShare.vue'
 import PartOfSpeechLabel from '@/components/PartOfSpeechLabel.vue'
 import { vocabularyApi, type VocabularyItem } from '@/api/vocabulary.ts'
 import { translationApi } from '@/api/translation.ts'
-import { onBeforeUnmount, onMounted, ref, computed, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, shallowRef, computed, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth.ts'
 import { useSettingsStore } from '@/stores/settings.ts'
 import { useI18n } from '@/composables/useI18n'
@@ -378,15 +409,19 @@ import { isEditableVocabularyShortcut } from '@/lib/translationPageState.ts'
 
 const { t } = useI18n()
 
-const vocabulary = ref<VocabularyItem[]>([])
+const vocabularyPageSize = 20
+const allWordsPageSize = 1000
+const vocabulary = shallowRef<VocabularyItem[]>([])
 const currentPage = ref(1)
+const showAll = ref(false)
 const defaultPaginationData = (): PaginationData => ({
     page: 1,
-    page_size: 20,
+    page_size: vocabularyPageSize,
     total: 0,
     total_pages: 0,
 })
 const paginationData = ref<PaginationData>(defaultPaginationData())
+const vocabularyTotal = computed(() => (showAll.value ? vocabulary.value.length : paginationData.value.total))
 const deletingId = ref<string | null>(null)
 const isAddDialogOpen = ref(false)
 const isAdding = ref(false)
@@ -396,6 +431,7 @@ const vocabularyErrorMessage = ref('')
 const searchInput = ref('')
 const search = ref('')
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
+let latestVocabularyRequestId = 0
 
 const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
@@ -496,8 +532,10 @@ watch(searchInput, (value) => {
     }, 350)
 })
 
-watch(search, async () => {
-    await fetchVocabulary(1)
+watch([search, showAll], ([query], [previousQuery]) => {
+    vocabulary.value = []
+    paginationData.value = defaultPaginationData()
+    void fetchVocabulary(query === previousQuery ? currentPage.value : 1)
 })
 
 const { addToast } = useToast()
@@ -545,29 +583,44 @@ const handleAdd = async () => {
 }
 
 const fetchVocabulary = async (page: number) => {
+    const requestId = ++latestVocabularyRequestId
+    const shouldShowAll = showAll.value
+    const query = search.value || undefined
+    const pageSize = shouldShowAll ? allWordsPageSize : vocabularyPageSize
     isLoadingVocabulary.value = true
     currentPage.value = page
     vocabularyErrorMessage.value = ''
 
     try {
-        const response = await vocabularyApi.getVocabulary(
-            page,
-            paginationData.value.page_size,
-            search.value || undefined
-        )
+        const items = new Map<string, VocabularyItem>()
+        let nextPage = shouldShowAll ? 1 : page
+        let pagination: PaginationData
 
-        if (!response?.pagination || !Array.isArray(response.data)) {
-            throw new Error('Invalid vocabulary response')
-        }
+        do {
+            const response = await vocabularyApi.getVocabulary(nextPage, pageSize, query)
+            if (requestId !== latestVocabularyRequestId) return
+            if (!response?.pagination || !Array.isArray(response.data)) {
+                throw new Error('Invalid vocabulary response')
+            }
 
-        vocabulary.value = response.data
-        paginationData.value = response.pagination
+            for (const item of response.data) {
+                items.set(item.id, item)
+            }
+            pagination = response.pagination
+            nextPage++
+        } while (shouldShowAll && nextPage <= pagination.total_pages)
+
+        vocabulary.value = [...items.values()]
+        paginationData.value = pagination
     } catch {
+        if (requestId !== latestVocabularyRequestId) return
         vocabulary.value = []
         paginationData.value = defaultPaginationData()
-        vocabularyErrorMessage.value = t.value.vocabularyToastErrorDescription
+        vocabularyErrorMessage.value = t.value.vocabularyLoadError
     } finally {
-        isLoadingVocabulary.value = false
+        if (requestId === latestVocabularyRequestId) {
+            isLoadingVocabulary.value = false
+        }
     }
 }
 
@@ -613,6 +666,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+    latestVocabularyRequestId++
     window.removeEventListener('keydown', handleShortcut)
     translationAutofill.deactivate()
     if (searchDebounceTimer) {
