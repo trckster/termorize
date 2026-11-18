@@ -21,7 +21,7 @@ export function initSentry(app: App, router: Router): void {
             userInfo: false,
             cookies: false,
             httpHeaders: {
-                request: { deny: ['forwarded', '-ip', 'remote-', 'via', '-user'] },
+                request: { deny: ['authorization', 'forwarded', '-ip', 'remote-', 'via', '-user'] },
                 response: { deny: ['forwarded', '-ip', 'remote-', 'via', '-user'] },
             },
             httpBodies: [],

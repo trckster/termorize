@@ -429,6 +429,7 @@ const en = {
     vocabularyToastAlreadyExistsDescription: 'This vocabulary already exists.',
     vocabularyToastErrorTitle: 'Error',
     vocabularyToastErrorDescription: 'Failed to add translation. Please try again.',
+    vocabularyLoadErrorDescription: 'Failed to load saved words. Please try again.',
     vocabularyDeleteErrorDescription: 'Failed to delete translation. Please try again.',
 
     // Translation page
@@ -982,6 +983,7 @@ const ru: typeof en = {
     vocabularyToastAlreadyExistsDescription: 'Такой перевод уже существует.',
     vocabularyToastErrorTitle: 'Ошибка',
     vocabularyToastErrorDescription: 'Не удалось добавить перевод. Попробуйте ещё раз.',
+    vocabularyLoadErrorDescription: 'Не удалось загрузить сохранённые слова. Попробуйте ещё раз.',
     vocabularyDeleteErrorDescription: 'Не удалось удалить перевод. Попробуйте ещё раз.',
 
     // Translation page

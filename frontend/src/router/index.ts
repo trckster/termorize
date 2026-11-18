@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { getTelegramWebAppInitData } from '@/lib/telegram'
 import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
@@ -164,6 +165,12 @@ router.beforeEach(async (to) => {
 
     if (!authStore.hasCheckedAuth) {
         await authStore.getCurrentUser().catch(console.error)
+
+        // Restore a protected route after the Mini App reloads without a cookie.
+        if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+            const initData = getTelegramWebAppInitData()
+            if (initData) await authStore.completeTelegramLogin({ init_data: initData }).catch(() => null)
+        }
     }
 
     if (to.meta.requiresAuth && !authStore.isAuthenticated) {

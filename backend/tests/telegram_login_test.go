@@ -41,8 +41,9 @@ func TestTelegramLoginOAuthCodeSuccess(t *testing.T) {
 		http.MethodPost,
 		"/api/telegram/login/callback",
 		map[string]any{
-			"code":  "any-authorization-code",
-			"state": state,
+			"code":           "any-authorization-code",
+			"state":          state,
+			"bearer_session": true,
 		},
 		http.Header{"X-Timezone": []string{"Europe/Rome"}},
 	)
@@ -68,8 +69,12 @@ func TestTelegramLoginOAuthCodeSuccess(t *testing.T) {
 	assert.Equal(t, 1, telegramOAuth.JWKSRequestCount())
 
 	// Response carries the logged-in user.
-	var body models.User
+	var body struct {
+		models.User
+		AccessToken string `json:"access_token"`
+	}
 	testkit.DecodeJSON(t, rec, &body)
+	assert.Empty(t, body.AccessToken)
 	assert.Equal(t, "ada_lovelace", body.Username)
 	assert.Equal(t, "Ada Lovelace", body.Name)
 	assert.NotZero(t, body.ID)
@@ -159,6 +164,37 @@ func TestTelegramLoginInitDataSuccess(t *testing.T) {
 	assert.Equal(t, "grace_hopper", stored.Username)
 }
 
+func TestTelegramLoginInitDataBearerSession(t *testing.T) {
+	testkit.Truncate(t)
+	initData := testkit.BuildTelegramInitData(9090911, "desktop_user", "Desktop User")
+
+	rec := testkit.Request(t, http.MethodPost, "/api/telegram/login/callback", map[string]any{
+		"init_data":      initData,
+		"bearer_session": true,
+	})
+
+	testkit.RequireStatus(t, rec, http.StatusOK)
+	assert.Equal(t, "no-store", rec.Header().Get("Cache-Control"))
+	assert.Nil(t, telegramLoginAuthCookie(rec.Result()))
+	var body struct {
+		models.User
+		AccessToken string `json:"access_token"`
+	}
+	testkit.DecodeJSON(t, rec, &body)
+	require.NotEmpty(t, body.AccessToken)
+	assert.Equal(t, "desktop_user", body.Username)
+
+	headers := http.Header{"Authorization": []string{"Bearer " + body.AccessToken}}
+	meRec := testkit.RequestWithHeaders(t, http.MethodGet, "/api/me", nil, headers)
+	testkit.RequireStatus(t, meRec, http.StatusOK)
+	var me models.User
+	testkit.DecodeJSON(t, meRec, &me)
+	assert.Equal(t, body.ID, me.ID)
+
+	vocabularyRec := testkit.RequestWithHeaders(t, http.MethodGet, "/api/vocabulary", nil, headers)
+	testkit.RequireStatus(t, vocabularyRec, http.StatusOK)
+}
+
 func TestTelegramLoginRejectsDeletedUser(t *testing.T) {
 	testkit.Truncate(t)
 
@@ -192,8 +228,10 @@ func TestTelegramLoginInitDataTamperedRejected(t *testing.T) {
 	initData := testkit.BuildTelegramInitData(123, "user", "User") + "&extra=tampered"
 
 	rec := testkit.Request(t, http.MethodPost, "/api/telegram/login/callback", map[string]any{
-		"init_data": initData,
+		"init_data":      initData,
+		"bearer_session": true,
 	})
 
 	testkit.RequireStatus(t, rec, http.StatusUnauthorized)
+	assert.NotContains(t, rec.Body.String(), "access_token")
 }

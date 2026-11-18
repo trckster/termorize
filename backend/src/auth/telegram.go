@@ -46,9 +46,10 @@ type TelegramLoginSessionClaims struct {
 }
 
 type TelegramLoginCallbackRequest struct {
-	Code     string `json:"code"`
-	State    string `json:"state"`
-	InitData string `json:"init_data"`
+	Code          string `json:"code"`
+	State         string `json:"state"`
+	InitData      string `json:"init_data"`
+	BearerSession bool   `json:"bearer_session"`
 }
 
 type TelegramUserProfile struct {

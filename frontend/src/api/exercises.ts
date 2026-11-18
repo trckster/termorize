@@ -1,4 +1,4 @@
-import apiCall, { unwrapBody } from '@/api/index.ts'
+import apiCall, { apiFetch, hasApiAccessToken, unwrapBody } from '@/api/index.ts'
 import type { Paginated } from '@/api/pagination.ts'
 
 const API_URL = import.meta.env.VITE_API_URL.replace(/\/$/, '')
@@ -191,15 +191,15 @@ export const exercisesApi = {
     },
 
     ignoreExerciseOnPageExit(exerciseId: string): void {
-        const url = `${API_URL}/exercises/${exerciseId}/ignore`
+        const path = `/exercises/${exerciseId}/ignore`
 
-        if (navigator.sendBeacon?.(url)) {
+        // Beacon cannot send the Authorization header used by framed Mini Apps.
+        if (!hasApiAccessToken() && navigator.sendBeacon?.(`${API_URL}${path}`)) {
             return
         }
 
-        void fetch(url, {
+        void apiFetch(path, {
             method: 'POST',
-            credentials: 'include',
             keepalive: true,
         }).catch(() => {
             // Page-exit requests are best-effort and must never delay navigation.
