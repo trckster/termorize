@@ -118,6 +118,9 @@ func TestCategorizationAdminAuthorizationValidationAndSharedUpdates(t *testing.T
 	for _, route := range []struct{ method, path string }{
 		{http.MethodGet, "/api/admin/categorization/unknown"},
 		{http.MethodGet, "/api/admin/categorization/mismatches"},
+		{http.MethodGet, "/api/admin/categorization/words"},
+		{http.MethodGet, "/api/admin/categorization/stats"},
+		{http.MethodPost, "/api/admin/categorization/restart"},
 		{http.MethodPut, path},
 	} {
 		testkit.RequireStatus(t, testkit.Request(t, route.method, route.path, nil), http.StatusUnauthorized)
@@ -127,7 +130,7 @@ func TestCategorizationAdminAuthorizationValidationAndSharedUpdates(t *testing.T
 		testkit.RequireStatus(t, testkit.AuthedRequest(t, admin, http.MethodPut, path, map[string]any{"part_of_speech": value}), http.StatusBadRequest)
 	}
 	for _, query := range []string{"page=0", "page=-1", "page=abc", "page_size=0", "page_size=101"} {
-		for _, list := range []string{"unknown", "mismatches"} {
+		for _, list := range []string{"unknown", "mismatches", "words"} {
 			testkit.RequireStatus(t, testkit.AuthedRequest(t, admin, http.MethodGet, "/api/admin/categorization/"+list+"?"+query, nil), http.StatusBadRequest)
 		}
 	}
@@ -157,7 +160,11 @@ func TestCategorizationAdminAuthorizationValidationAndSharedUpdates(t *testing.T
 		assert.Equal(t, &noun, list.Data[0].Translation.Translation.PartOfSpeech)
 	}
 	for _, value := range []string{"noun", "verb", "unknown"} {
-		testkit.RequireStatus(t, testkit.AuthedRequest(t, admin, http.MethodPut, path, map[string]any{"part_of_speech": value}), http.StatusConflict)
+		response := testkit.AuthedRequest(t, admin, http.MethodPut, path, map[string]any{"part_of_speech": value})
+		testkit.RequireStatus(t, response, http.StatusOK)
+		testkit.DecodeJSON(t, response, &saved)
+		assert.Equal(t, enums.PartOfSpeech(value), *saved.PartOfSpeech)
+		assert.Equal(t, enums.TypeIdiom, saved.Type)
 	}
 	testkit.RequireStatus(t, testkit.AuthedRequest(t, admin, http.MethodPut, "/api/admin/words/"+pending.ID.String()+"/part-of-speech", map[string]any{"part_of_speech": "verb"}), http.StatusOK)
 	testkit.RequireStatus(t, testkit.AuthedRequest(t, admin, http.MethodPut, "/api/admin/words/"+uuid.NewString()+"/part-of-speech", map[string]any{"part_of_speech": "verb"}), http.StatusNotFound)
@@ -203,9 +210,9 @@ func TestCategorizationListsUnknownsAndEveryCompletedMismatch(t *testing.T) {
 	testkit.RequireStatus(t, response, http.StatusOK)
 	var words services.UnknownWordsResponse
 	testkit.DecodeJSON(t, response, &words)
-	assert.Equal(t, int64(2), words.Pagination.Total)
-	require.Len(t, words.Data, 2)
-	assert.ElementsMatch(t, []uuid.UUID{u.ID, uTwin.ID}, []uuid.UUID{words.Data[0].ID, words.Data[1].ID})
+	assert.Equal(t, int64(3), words.Pagination.Total)
+	require.Len(t, words.Data, 3)
+	assert.ElementsMatch(t, []uuid.UUID{u.ID, uTwin.ID, p.ID}, []uuid.UUID{words.Data[0].ID, words.Data[1].ID, words.Data[2].ID})
 	var ids []uuid.UUID
 	for _, page := range []string{"1", "2"} {
 		response = testkit.AuthedRequest(t, admin, http.MethodGet, "/api/admin/categorization/mismatches?page_size=2&page="+page, nil)
@@ -326,7 +333,7 @@ func TestConditionalClassificationSavesAndManualRaces(t *testing.T) {
 	}
 }
 
-func TestConcurrentManualChoicesOnlyOneCanWin(t *testing.T) {
+func TestConcurrentManualChoicesCanReplaceExistingCategories(t *testing.T) {
 	testkit.Truncate(t)
 	word := categoryWord(t, "race", nil)
 	results := make(chan error, 2)
@@ -341,18 +348,17 @@ func TestConcurrentManualChoicesOnlyOneCanWin(t *testing.T) {
 	}
 	wg.Wait()
 	close(results)
-	wins, conflicts := 0, 0
+	wins := 0
 	for err := range results {
 		if err == nil {
 			wins++
-		} else if errors.Is(err, services.ErrPartOfSpeechPermanent) {
-			conflicts++
 		} else {
 			t.Fatal(err)
 		}
 	}
-	assert.Equal(t, 1, wins)
-	assert.Equal(t, 1, conflicts)
+	assert.Equal(t, 2, wins)
+	require.NoError(t, db.DB.First(&word, "id = ?", word.ID).Error)
+	assert.Contains(t, []enums.PartOfSpeech{enums.PartOfSpeechNoun, enums.PartOfSpeechVerb}, *word.PartOfSpeech)
 }
 
 func TestStandaloneClassificationSweepPersistsAllPendingWords(t *testing.T) {

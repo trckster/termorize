@@ -12,6 +12,9 @@ import (
 func defineProtectedRoutes(group *gin.RouterGroup) {
 	group.GET("/admin/categorization/unknown", controllers.GetAdminUnknownWords)
 	group.GET("/admin/categorization/mismatches", controllers.GetAdminMismatchedVocabulary)
+	group.GET("/admin/categorization/words", controllers.GetAdminCategoryWords)
+	group.GET("/admin/categorization/stats", controllers.GetAdminCategorizationStats)
+	group.POST("/admin/categorization/restart", controllers.RestartAdminCategorization)
 	group.PUT("/admin/words/:id/part-of-speech", controllers.SetAdminWordPartOfSpeech)
 	group.GET("/me", controllers.Me)
 	group.GET("/daily-idiom", controllers.GetDailyIdiom)

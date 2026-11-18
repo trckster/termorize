@@ -19,6 +19,20 @@ export type AdminUsersResponse = {
     total: number
 }
 
+export type CategorizationStats = {
+    total: number
+    categorized: number
+    unknown: number
+    pending: number
+    worker: {
+        active: boolean
+        queued: number
+        processed: number
+        failed: number
+        scan_failed: boolean
+    } | null
+}
+
 export type AdminWordPronunciation = {
     id: string
     word_id: string
@@ -86,6 +100,17 @@ export type DictionaryImportJob = {
 }
 
 export const adminApi = {
+    async getCategorizationStats(): Promise<CategorizationStats> {
+        return apiCall<CategorizationStats>('/admin/categorization/stats').then(unwrapBody)
+    },
+    async restartCategorization(): Promise<void> {
+        await apiCall('/admin/categorization/restart', 'POST')
+    },
+    async getCategoryWords(page = 1, search = ''): Promise<Paginated<Word>> {
+        return apiCall<Paginated<Word>>('/admin/categorization/words', 'GET', { page, page_size: 20, search }).then(
+            unwrapBody
+        )
+    },
     async getUnknownWords(page = 1): Promise<Paginated<Word>> {
         return apiCall<Paginated<Word>>('/admin/categorization/unknown', 'GET', { page, page_size: 20 }).then(
             unwrapBody
