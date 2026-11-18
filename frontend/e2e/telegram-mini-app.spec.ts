@@ -36,6 +36,20 @@ const vocabulary = {
     pagination: { page: 1, page_size: 20, total: 1, total_pages: 1 },
 }
 
+const privateCollection = {
+    id: 'private',
+    title: 'Private vocabulary collection',
+    is_admin: false,
+    is_owner: true,
+    is_published: false,
+    languages: [],
+    translation_count: 0,
+    vocabulary_count: 0,
+    user_add_count: 0,
+    created_at: '2026-10-27T12:00:00Z',
+    translations: [],
+}
+
 function json(response: ServerResponse, body: object) {
     response.setHeader('Content-Type', 'application/json')
     response.end(JSON.stringify(body))
@@ -54,13 +68,25 @@ async function handleAPI(req: IncomingMessage, response: ServerResponse) {
         }
         case '/api/settings':
             return json(response, { languages: ['en', 'it'] })
+        case '/api/public/collections/shared':
+            return json(response, {
+                ...privateCollection,
+                id: 'shared',
+                title: 'Shared vocabulary collection',
+                is_owner: false,
+                is_published: true,
+                share_path: '/collections/shared',
+            })
         case '/api/me':
-        case '/api/vocabulary': {
+        case '/api/vocabulary':
+        case '/api/collections/private': {
             const hasBearer = req.headers.authorization === `Bearer ${session}`
             const hasCookie = req.headers.cookie === `auth=${session}`
             if (!hasCookie && !hasBearer) return response.writeHead(401).end()
             response.setHeader('X-Test-Session', hasBearer ? 'bearer' : 'cookie')
-            return json(response, req.url === '/api/me' ? user : vocabulary)
+            if (req.url === '/api/me') return json(response, user)
+            if (req.url === '/api/collections/private') return json(response, privateCollection)
+            return json(response, vocabulary)
         }
         default:
             return response.writeHead(404).end()
@@ -69,9 +95,12 @@ async function handleAPI(req: IncomingMessage, response: ServerResponse) {
 
 // Serve real HTTP responses for auth so both engines apply their cookie policy.
 const server = createServer((req, response) => {
-    if (req.url === '/telegram-shell') {
+    const url = new URL(req.url ?? '/', 'http://localhost')
+    if (url.pathname === '/telegram-shell') {
+        const collection = url.searchParams.get('collection')
+        const path = collection ? `/collections/${encodeURIComponent(collection)}` : '/'
         response.setHeader('Content-Type', 'text/html')
-        return response.end(`<iframe src="${appURL}/" width="1200" height="900"></iframe>`)
+        return response.end(`<iframe src="${appURL}${path}" width="1200" height="900"></iframe>`)
     }
     if (req.url?.startsWith('/api/')) {
         void handleAPI(req, response).catch(() => response.writeHead(500).end())
@@ -134,3 +163,33 @@ for (const embedded of [true, false]) {
         }
     })
 }
+
+test('Telegram Mini App restores the session before opening a private collection', async ({ page }) => {
+    await page.route('https://telegram.org/js/telegram-web-app.js', (route) =>
+        route.fulfill({
+            contentType: 'application/javascript',
+            body: `window.Telegram = { WebApp: { initData: '${initData}' } }`,
+        })
+    )
+    await page.goto(`${shellURL}?collection=private`)
+    const app = page.frameLocator('iframe')
+    await expect(app.getByRole('heading', { name: privateCollection.title })).toBeVisible()
+    await expect(app.getByRole('button', { name: 'Edit title' })).toBeVisible()
+})
+
+test('Telegram Mini App can preview a shared collection when session restoration fails', async ({ page }) => {
+    await page.route('https://telegram.org/js/telegram-web-app.js', (route) =>
+        route.fulfill({
+            contentType: 'application/javascript',
+            body: "window.Telegram = { WebApp: { initData: 'expired-launch-data' } }",
+        })
+    )
+    const [login] = await Promise.all([
+        page.waitForResponse((response) => new URL(response.url()).pathname === '/api/telegram/login/callback'),
+        page.goto(`${shellURL}?collection=shared`),
+    ])
+    expect(login.status()).toBe(401)
+    await expect(
+        page.frameLocator('iframe').getByRole('heading', { name: 'Shared vocabulary collection' })
+    ).toBeVisible()
+})

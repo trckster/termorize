@@ -35,6 +35,7 @@ const router = createRouter({
             path: '/collections/:id',
             name: 'collection-detail',
             component: () => import('@/views/CollectionRoutePage.vue'),
+            meta: { restoreTelegramSession: true },
         },
         {
             path: '/quiz/intro',
@@ -166,8 +167,8 @@ router.beforeEach(async (to) => {
     if (!authStore.hasCheckedAuth) {
         await authStore.getCurrentUser().catch(console.error)
 
-        // Restore a protected route after the Mini App reloads without a cookie.
-        if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+        // Framed Mini Apps lose their in-memory session on a full reload.
+        if ((to.meta.requiresAuth || to.meta.restoreTelegramSession) && !authStore.isAuthenticated) {
             const initData = getTelegramWebAppInitData()
             if (initData) await authStore.completeTelegramLogin({ init_data: initData }).catch(() => null)
         }
