@@ -22,7 +22,7 @@ ARG SUPERCRONIC_SHA256=cc232108374e8e2b537045f2d5eaa1229f619db314c3ba6a14d38b35d
 
 WORKDIR /app
 
-RUN apk add --no-cache ca-certificates=20261020-r0 tzdata=2026e-r0 curl=8.23.0-r0 ffmpeg=8.1.3-r0 && \
+RUN apk add --no-cache ca-certificates=20261020-r0 tzdata=2026f-r0 curl=8.23.0-r0 ffmpeg=8.1.3-r0 && \
     curl -fsSL -o /usr/local/bin/supercronic "https://github.com/aptible/supercronic/releases/download/${SUPERCRONIC_VERSION}/supercronic-linux-amd64" && \
     echo "${SUPERCRONIC_SHA256}  /usr/local/bin/supercronic" | sha256sum -c - && \
     chmod +x /usr/local/bin/supercronic
