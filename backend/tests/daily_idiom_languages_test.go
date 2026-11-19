@@ -25,9 +25,9 @@ func TestDailyIdiomEverySupportedLanguage(t *testing.T) {
 	var languages []string
 	require.NoError(t, db.DB.Model(&models.Word{}).Distinct("language").Where("type = ?", enums.TypeIdiom).Pluck("language", &languages).Error)
 	assert.ElementsMatch(t, enums.AllLanguages(), languages)
-	now := time.Date(2026, 9, 24, 11, 0, 0, 0, time.UTC)
 	for _, language := range enums.AllLanguageValues() {
 		t.Run(string(language), func(t *testing.T) {
+			now := time.Date(2026, 9, 24, 11, 0, 0, 0, time.UTC)
 			tg := testkit.MockTelegramAPI(t)
 			target := enums.LanguageEn
 			if language == target {
